@@ -46,3 +46,12 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
 - Three.js WebGLRenderer + `three/examples/jsm` postprocessing (WebGPU is not yet broadly safe on phones).
 - Fixed 60 Hz physics step + interpolated rendering so feel is frame-rate independent.
 - Playwright (headless Chromium + SwiftShader) for automated screenshots during development.
+- Neutral input = level flight (no slow sink). Gliding should never feel like a resource drain;
+  flaps and thermals are for climbing and fun, not for staying aloft.
+- Climb authority fades near min speed, so "hold up" levels off instead of stalling.
+- Terrain assist: the model samples the ground ~1.4 s ahead and lifts the nose to clear it.
+- Steering up = climb by default (pointer above centre, W/Up). Invert-Y flips it.
+- Chase camera springs its orbit angles and distance, not world position: a world-space spring
+  trails by 2v/omega at speed and an offset spring cuts inside turns; polar keeps the bird steady.
+- Portrait screens widen FOV and back the camera off.
+- Lighting uses MeshToonMaterial with a soft (linearly filtered) 4-step gradient: banded but not cel.

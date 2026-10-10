@@ -1,0 +1,106 @@
+:root {
+  --ink: #3b3350;
+  --paper: #fdf6ec;
+  --glow: #fff3c4;
+  --accent: #f0a37a;
+  --font: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #d8c4c8;
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+#app,
+#app canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#ui > * {
+  pointer-events: auto;
+}
+
+/* Touch controls */
+.flap-btn {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(28px, env(safe-area-inset-bottom));
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 250, 240, 0.25);
+  color: #fff;
+  backdrop-filter: blur(4px);
+  display: none;
+  touch-action: none;
+  transition:
+    transform 0.12s ease,
+    background 0.12s ease;
+}
+
+.flap-btn svg {
+  width: 48px;
+  height: 48px;
+}
+
+.flap-btn.down {
+  transform: scale(0.9);
+  background: rgba(255, 250, 240, 0.5);
+}
+
+body.touch .flap-btn {
+  display: block;
+}
+
+.touch-ring {
+  position: fixed;
+  left: -44px;
+  top: -44px;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  opacity: 0;
+  pointer-events: none !important;
+  transition: opacity 0.2s;
+}
+
+.touch-ring.show {
+  opacity: 1;
+}
+
+.touch-knob {
+  position: absolute;
+  left: 30px;
+  top: 30px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+}

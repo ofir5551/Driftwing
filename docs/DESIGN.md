@@ -70,7 +70,7 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   collect radius 3.6 m: near misses count. Missed wisps quietly expire. Wisps shrink as they
   are absorbed so pickups never flash the screen. Gold by day, moonlit cyan at night.
 - Flow: +0.03 per pickup plus a chain bonus; ~18 quick pickups fill it; drains 0.05/s after a
-  2 s grace. Score multiplier up to 5x. Every 15 wisps a lantern beacon ignites ~170 m ahead.
+  2 s grace. Score multiplier up to 5x. Every 24 wisps (about once a minute for a human) a lantern beacon ignites ~170 m ahead.
 - Thermals on a 420 m grid over low ground; ~13 m/s^2 lift at the core. Spiral wisp patterns
   are placed around them so players learn thermals by following wisps.
 - FX: one additive and one alpha particle pool (ring buffers), wingtip ribbons faded near the

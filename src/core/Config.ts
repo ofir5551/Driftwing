@@ -68,7 +68,7 @@ export const Config = {
     decay: 0.05, // flow lost per second while draining (full meter drains in ~20 s)
     basePoints: 10,
     flowMultiplier: 4, // full flow = 5x points
-    wispsPerLantern: 15,
+    wispsPerLantern: 24,
   },
   wisps: {
     max: 56,

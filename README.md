@@ -31,7 +31,7 @@ npm run dev        # http://localhost:5173
 | Pointer lock | L (optional, relative mouse steering)        |                                               |            |
 
 Fly through wisps to score. Quick chains fill the **flow** ring, which multiplies points (up to
-5x) and brings extra layers into the music. Every 15 wisps a lantern ignites ahead of you and
+5x) and brings extra layers into the music. Every 24 wisps a lantern ignites ahead of you and
 the music modulates. Rising **thermals** (sparkling columns) lift you for free. Brushing the
 ground or water is only ever a soft skim.
 

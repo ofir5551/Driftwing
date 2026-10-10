@@ -1,0 +1,58 @@
+import { describe, expect, it } from 'vitest';
+import { FlowTuning, Progress } from '../src/core/Progress';
+
+describe('Progress / flow', () => {
+  it('chains pickups made in quick succession and builds flow', () => {
+    const p = new Progress();
+    for (let i = 0; i < 5; i++) {
+      p.collect();
+      p.update(0.6);
+    }
+    expect(p.chain).toBe(5);
+    expect(p.flow).toBeGreaterThan(5 * FlowTuning.gain);
+  });
+
+  it('breaks the chain after the window and starts draining flow', () => {
+    const p = new Progress();
+    p.collect();
+    p.collect();
+    const flow = p.flow;
+    p.update(FlowTuning.chainWindow + 0.1);
+    expect(p.chain).toBe(0);
+    expect(p.flow).toBeLessThan(flow); // past grace too (grace < window)
+    p.collect();
+    expect(p.chain).toBe(1);
+  });
+
+  it('decays slowly and never below zero', () => {
+    const p = new Progress();
+    for (let i = 0; i < 30; i++) p.collect();
+    expect(p.flow).toBe(1);
+    p.update(FlowTuning.grace + 5);
+    expect(p.flow).toBeGreaterThan(0.5); // slow: after 5 s of draining most flow remains
+    for (let i = 0; i < 100; i++) p.update(1);
+    expect(p.flow).toBe(0);
+  });
+
+  it('flow multiplies points', () => {
+    const p = new Progress();
+    const first = p.collect().points;
+    for (let i = 0; i < 30; i++) p.collect();
+    const later = p.collect().points;
+    expect(first).toBeGreaterThanOrEqual(FlowTuning.basePoints);
+    expect(later).toBe(FlowTuning.basePoints * (1 + FlowTuning.flowMultiplier));
+  });
+
+  it('lights a lantern every N wisps and tracks best', () => {
+    const p = new Progress();
+    let lanterns = 0;
+    for (let i = 0; i < FlowTuning.wispsPerLantern * 2; i++) if (p.collect().lantern) lanterns++;
+    expect(lanterns).toBe(2);
+    expect(p.lanterns).toBe(2);
+    const best = p.best;
+    p.reset();
+    expect(p.score).toBe(0);
+    p.best = best;
+    expect(p.best).toBeGreaterThan(0);
+  });
+});

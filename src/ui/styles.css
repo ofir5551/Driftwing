@@ -104,3 +104,104 @@ body.touch .flap-btn {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.7);
 }
+
+/* HUD */
+.hud {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none !important;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(60, 40, 80, 0.45);
+}
+
+.hud-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.hud-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.ring-bg {
+  fill: rgba(255, 250, 240, 0.12);
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 3;
+}
+
+.ring-flow {
+  fill: none;
+  stroke: var(--glow);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s ease-out;
+  filter: drop-shadow(0 0 4px rgba(255, 220, 140, 0.9));
+}
+
+.hud.flowing .ring-flow {
+  stroke: #ffe9a8;
+  filter: drop-shadow(0 0 8px rgba(255, 220, 140, 1));
+}
+
+.hud-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.hud-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
+.hud-lanterns {
+  color: #ffe2a0;
+}
+
+.hud.pop .hud-ring {
+  animation: pop 0.35s ease-out;
+}
+
+@keyframes pop {
+  30% {
+    transform: scale(1.14);
+  }
+}
+
+.toast {
+  position: fixed;
+  top: 22%;
+  left: 50%;
+  transform: translate(-50%, 8px);
+  font-size: clamp(20px, 4vw, 34px);
+  letter-spacing: 0.08em;
+  color: #fff8e8;
+  text-shadow: 0 2px 18px rgba(255, 190, 110, 0.9);
+  opacity: 0;
+  transition:
+    opacity 0.8s ease,
+    transform 0.8s ease;
+  pointer-events: none !important;
+  white-space: nowrap;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}

@@ -65,3 +65,13 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   reflections (calm, cheap, painterly).
 - Post: half-res bloom (high threshold so only glints/wisps bloom) -> painterly pass (paper
   fibre texture, edge wobble, graded shadows, saturation, vignette) -> OutputPass.
+- Wisps: 56 pooled, laid out as continuous patterns (arc, wave, dive, climb, thermal spiral)
+  from a path cursor ahead of the player, ~15 m apart (~0.6 s at cruise). Magnet radius 11 m,
+  collect radius 3.6 m: near misses count. Missed wisps quietly expire. Wisps shrink as they
+  are absorbed so pickups never flash the screen. Gold by day, moonlit cyan at night.
+- Flow: +0.03 per pickup plus a chain bonus; ~18 quick pickups fill it; drains 0.05/s after a
+  2 s grace. Score multiplier up to 5x. Every 15 wisps a lantern beacon ignites ~170 m ahead.
+- Thermals on a 420 m grid over low ground; ~13 m/s^2 lift at the core. Spiral wisp patterns
+  are placed around them so players learn thermals by following wisps.
+- FX: one additive and one alpha particle pool (ring buffers), wingtip ribbons faded near the
+  lens, shader-wrapped air motes that stretch into streaks with speed, blob shadow for height.

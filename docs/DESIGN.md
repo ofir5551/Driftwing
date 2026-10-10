@@ -75,3 +75,10 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   are placed around them so players learn thermals by following wisps.
 - FX: one additive and one alpha particle pool (ring buffers), wingtip ribbons faded near the
   lens, shader-wrapped air motes that stretch into streaks with speed, blob shadow for height.
+- Audio: 70 BPM eighth-note grid, 25 ms timer + 150 ms lookahead. Chords change every two bars
+  through a pentatonic progression; key/mode per day keyframe (D sus, E maj, A maj, F# min,
+  D min pentatonic), applied on chord boundaries so changes are never abrupt. Lanterns modulate
+  up a fourth (wrapped to +-6 semitones) with a bell flourish. Wisp notes quantize to the
+  sixteenth grid and come from a phrase generator that resolves to the tonic every 8 notes.
+- Mix: sub drone kept low (most of its energy moved to the octave) so phones still hear it;
+  the context suspends when the tab is hidden; master fades in on unlock.

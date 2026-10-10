@@ -55,3 +55,13 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   trails by 2v/omega at speed and an offset spring cuts inside turns; polar keeps the bird steady.
 - Portrait screens widen FOV and back the camera off.
 - Lighting uses MeshToonMaterial with a soft (linearly filtered) 4-step gradient: banded but not cel.
+- World streaming: 160 m chunks, two LODs (40 and 14 quads/side, switch at 420 m), built
+  nearest-first within a per-frame time budget; LOD swaps keep the old mesh until the new one
+  exists. Trees are two global InstancedMeshes refilled from chunk scatter lists on change.
+- Forest canopy counts as soft "ground" for flight (bird skims treetops, never clips trunks).
+- Clouds: billboarded instanced puffs; wrapping/drift computed in the vertex shader (no CPU).
+- Floating islands on a 560 m grid with a soft ellipsoid push-out.
+- Water: one camera-following plane, palette tint + fresnel + ripple normals + sun glint. No
+  reflections (calm, cheap, painterly).
+- Post: half-res bloom (high threshold so only glints/wisps bloom) -> painterly pass (paper
+  fibre texture, edge wobble, graded shadows, saturation, vignette) -> OutputPass.

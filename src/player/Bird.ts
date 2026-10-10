@@ -45,8 +45,8 @@ export class Bird {
   constructor() {
     const toon = (color: string, extra: THREE.MeshToonMaterialParameters = {}) =>
       new THREE.MeshToonMaterial({ color, gradientMap: getToonGradient(), ...extra });
-    const bodyMat = toon('#fbf3e4');
-    const wingMat = toon('#f4e7d4', { side: THREE.DoubleSide });
+    const bodyMat = toon('#eee2d2');
+    const wingMat = toon('#e4d4c0', { side: THREE.DoubleSide });
     const tipMat = toon('#e7a37c', { side: THREE.DoubleSide });
     const beakMat = toon('#f2b45c');
     const eyeMat = new THREE.MeshBasicMaterial({ color: '#2f2a3a' });

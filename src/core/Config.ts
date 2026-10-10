@@ -50,9 +50,69 @@ export const Config = {
   world: {
     seed: 1337,
     chunkSize: 160,
-    chunkRes: 40, // quads per chunk side
+    chunkRes: 40, // quads per chunk side (near LOD)
+    farRes: 14, // quads per chunk side beyond lodDistance
+    lodDistance: 420,
     waterLevel: 0,
+    dayLength: 420, // seconds for a full dawn -> dusk -> twilight cycle
+    treeCell: 11, // m, scatter grid for trees
+    canopyHeight: 9, // m, dense forest counts as "ground" this high for soft skimming
+    buildBudgetMs: 4, // max chunk-building time per frame
+    cloudDrift: 3, // m/s
+  },
+  render: {
+    // Overwritten by the quality preset (see Quality.ts); exposed here for live tuning.
+    drawDistance: 1100,
+    treeDistance: 800,
+    fogStart: 0.25, // fraction of draw distance where fog begins
+    bloomStrength: 0.35,
+    bloomRadius: 0.6,
+    bloomThreshold: 0.92,
+    grain: 0.05,
+    vignette: 0.32,
+    saturation: 1.08,
+    clouds: 46,
   },
 };
 
 export type ConfigType = typeof Config;
+
+export type QualityLevel = 'low' | 'medium' | 'high';
+
+/** Presets: draw distance, density and post costs. Applied over Config.render. */
+export const QUALITY: Record<
+  QualityLevel,
+  {
+    drawDistance: number;
+    treeDistance: number;
+    clouds: number;
+    bloom: boolean;
+    maxPixelRatio: number;
+    particles: number;
+  }
+> = {
+  low: {
+    drawDistance: 650,
+    treeDistance: 420,
+    clouds: 22,
+    bloom: false,
+    maxPixelRatio: 1,
+    particles: 0.4,
+  },
+  medium: {
+    drawDistance: 900,
+    treeDistance: 620,
+    clouds: 34,
+    bloom: true,
+    maxPixelRatio: 1.5,
+    particles: 0.7,
+  },
+  high: {
+    drawDistance: 1150,
+    treeDistance: 820,
+    clouds: 46,
+    bloom: true,
+    maxPixelRatio: 2,
+    particles: 1,
+  },
+};

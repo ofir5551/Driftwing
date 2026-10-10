@@ -1,22 +1,26 @@
 import * as THREE from 'three';
-import { Config } from './Config';
+import { Config, QUALITY, type QualityLevel } from './Config';
 import { Events } from './Events';
 import { Input } from './Input';
 import { Loop, STEP } from './Loop';
-import { angleDelta, lerp } from './math';
+import { angleDelta, clamp, lerp, smoothstep } from './math';
 import { createDebugPanel } from './DebugPanel';
 import { Bird, type Pose } from '../player/Bird';
 import { ChaseCamera } from '../player/ChaseCamera';
-import { createFlightState, stepFlight, type FlightEnv } from '../player/FlightModel';
-import { DayCycle } from '../world/DayCycle';
-import { Sky } from '../world/Sky';
 import {
-  createChunkGeometry,
-  createHeightField,
-  fillChunkGeometry,
-  getToonGradient,
-  type HeightField,
-} from '../world/Terrain';
+  createFlightState,
+  stepFlight,
+  type FlightEnv,
+  type FlightInput,
+} from '../player/FlightModel';
+import { Composer } from '../fx/Composer';
+import { ChunkManager } from '../world/ChunkManager';
+import { Clouds } from '../world/Clouds';
+import { DayCycle } from '../world/DayCycle';
+import { Islands } from '../world/Islands';
+import { Sky } from '../world/Sky';
+import { createHeightField, type HeightField } from '../world/Terrain';
+import { Water } from '../world/Water';
 
 const params = new URLSearchParams(location.search);
 
@@ -30,41 +34,69 @@ export class Game {
   readonly day: DayCycle;
   readonly field: HeightField;
   readonly flight = createFlightState(0, 45, 0, 0);
-  private readonly prev = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, bank: 0, speed: 0 };
   readonly pose: Pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, bank: 0, speed: 0 };
-  private readonly chase: ChaseCamera;
+  readonly chase: ChaseCamera;
+  readonly bird = new Bird();
+  readonly chunks: ChunkManager;
+  readonly islands: Islands;
+  readonly composer: Composer;
+  private readonly prev = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, bank: 0, speed: 0 };
   private readonly sky = new Sky();
-  private readonly bird = new Bird();
+  private readonly water = new Water();
+  private readonly clouds: Clouds;
   private readonly sun = new THREE.DirectionalLight('#fff', 2);
   private readonly hemi = new THREE.HemisphereLight('#fff', '#888', 1.4);
   private readonly loop: Loop;
   private readonly env: FlightEnv;
+  /** Systems that want a fixed-step tick or a per-frame update hook in (M3+). */
+  private readonly stepHooks: ((dt: number) => void)[] = [];
+  private readonly frameHooks: ((dt: number, time: number) => void)[] = [];
   mode: Mode = 'menu';
   time = 0;
+  quality: QualityLevel = 'high';
+  pixelRatio = 1;
   readonly autopilot = params.has('autopilot');
+  /** Autopilot steering target, set by gameplay (wisps) when available. */
+  autopilotTarget: { x: number; y: number; z: number } | null = null;
 
   constructor(container: HTMLElement, ui: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: false,
       powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.info.autoReset = false; // the composer renders several passes; count the whole frame
     container.appendChild(this.renderer.domElement);
 
     Config.world.seed = Number(params.get('seed') ?? Config.world.seed);
     this.field = createHeightField(Config.world.seed);
-    this.day = new DayCycle(params.has('time') ? Number(params.get('time')) : 0.08);
+    this.day = new DayCycle(params.has('time') ? Number(params.get('time')) : 0.06);
     this.chase = new ChaseCamera(innerWidth / innerHeight);
     this.input = new Input(this.renderer.domElement, ui);
+    this.chunks = new ChunkManager(this.field);
+    this.islands = new Islands(this.field);
+    this.clouds = new Clouds(Config.world.seed, QUALITY.high.clouds);
+    this.composer = new Composer(this.renderer, this.scene, this.chase.camera);
     this.env = {
-      groundAt: (x, z) => this.field.height(x, z),
+      groundAt: (x, z) => this.flightGround(x, z),
       thermalAt: () => 0,
     };
 
-    this.scene.fog = new THREE.Fog('#fff', 120, 900);
-    this.scene.add(this.sky.mesh, this.sun, this.sun.target, this.hemi, this.bird.root);
-    this.buildStaticTerrain();
+    this.scene.fog = new THREE.Fog('#fff', 200, 1000);
+    this.scene.add(
+      this.sky.mesh,
+      this.sun,
+      this.sun.target,
+      this.hemi,
+      this.bird.root,
+      this.chunks.group,
+      this.islands.group,
+      this.water.mesh,
+      this.clouds.mesh,
+    );
+    const q = params.get('quality');
+    this.setQuality(q === 'low' || q === 'medium' || q === 'high' ? q : this.defaultQuality());
+    this.chunks.prime(this.flight.x, this.flight.z);
+    this.islands.update(this.flight.x, this.flight.z);
     this.copyPrev();
 
     addEventListener('resize', () => this.resize());
@@ -72,32 +104,58 @@ export class Game {
       (dt) => this.step(dt),
       (alpha, frameDt) => this.render(alpha, frameDt),
     );
-    if (params.has('debug')) void createDebugPanel(() => {});
+    if (params.has('debug'))
+      void createDebugPanel((gui) => {
+        const stats = { fps: 0, chunks: 0, pending: 0, quality: this.quality };
+        const f = gui.addFolder('stats');
+        f.add(stats, 'fps').listen().disable();
+        f.add(stats, 'chunks').listen().disable();
+        f.add(stats, 'pending').listen().disable();
+        f.add(stats, 'quality', ['low', 'medium', 'high']).onChange((v: QualityLevel) =>
+          this.setQuality(v),
+        );
+        f.add(this.day, 'phase', 0, 1, 0.001).listen();
+        setInterval(() => {
+          stats.fps = Math.round(1000 / this.loop.frameMs);
+          stats.chunks = this.chunks.count;
+          stats.pending = this.chunks.pending;
+        }, 500);
+      });
   }
 
-  // ponytail: fixed 9x9 grid until ChunkManager streams chunks in M2.
-  private buildStaticTerrain(): void {
-    const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() });
-    const size = Config.world.chunkSize;
-    for (let j = -4; j <= 4; j++)
-      for (let i = -4; i <= 4; i++) {
-        const g = createChunkGeometry(Config.world.chunkRes);
-        fillChunkGeometry(g, this.field, i * size, j * size, size, Config.world.chunkRes);
-        const m = new THREE.Mesh(g, mat);
-        m.position.set(i * size, 0, j * size);
-        this.scene.add(m);
-      }
-    const water = new THREE.Mesh(
-      new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2),
-      new THREE.MeshToonMaterial({
-        color: '#8fb6d0',
-        gradientMap: getToonGradient(),
-        transparent: true,
-        opacity: 0.85,
-      }),
-    );
-    water.position.y = Config.world.waterLevel;
-    this.scene.add(water);
+  private defaultQuality(): QualityLevel {
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    return coarse ? 'medium' : 'high';
+  }
+
+  setQuality(level: QualityLevel): void {
+    this.quality = level;
+    const q = QUALITY[level];
+    Config.render.drawDistance = q.drawDistance;
+    Config.render.treeDistance = q.treeDistance;
+    Config.render.clouds = q.clouds;
+    this.composer.setBloomEnabled(q.bloom);
+    this.pixelRatio = Math.min(devicePixelRatio, q.maxPixelRatio);
+    this.resize();
+  }
+
+  /** Terrain plus a soft "canopy" over dense forest, so the bird skims treetops instead of clipping trees. */
+  flightGround(x: number, z: number): number {
+    const h = this.field.height(x, z);
+    if (h < 1.2 || h > 115) return h;
+    return h + smoothstep(0.45, 0.8, this.field.forest(x, z)) * Config.world.canopyHeight;
+  }
+
+  onStep(fn: (dt: number) => void): void {
+    this.stepHooks.push(fn);
+  }
+
+  onFrame(fn: (dt: number, time: number) => void): void {
+    this.frameHooks.push(fn);
+  }
+
+  setThermalSource(fn: (x: number, y: number, z: number) => number): void {
+    this.env.thermalAt = fn;
   }
 
   start(): void {
@@ -109,6 +167,10 @@ export class Game {
     this.input.enabled = mode === 'playing';
     this.input.touch.setVisible(mode === 'playing');
     if (mode !== 'playing') this.input.releasePointerLock();
+  }
+
+  get frameMs(): number {
+    return this.loop.frameMs;
   }
 
   private copyPrev(): void {
@@ -128,27 +190,52 @@ export class Game {
     this.copyPrev();
     const inp = this.input.update();
     if (this.mode === 'menu' || this.autopilot) this.autopilotInput(inp);
-    stepFlight(this.flight, inp, this.env, dt);
     const s = this.flight;
+    stepFlight(s, inp, this.env, dt);
+    const pushed = this.islands.push(s, Config.flight.clearance);
+    if (pushed > 0) {
+      s.liftVy = Math.max(s.liftVy, 3);
+      s.speed *= 1 - 0.1 * dt;
+      if (s.contact === 'none') {
+        s.contact = 'ground';
+        s.contactStrength = Math.max(s.contactStrength, pushed * 10);
+      }
+    }
     if (s.flapped) this.events.emit('flap', { x: s.x, y: s.y, z: s.z });
+    if (s.contact !== 'none')
+      this.events.emit('contact', {
+        kind: s.contact,
+        x: s.x,
+        y: s.y,
+        z: s.z,
+        strength: s.contactStrength,
+      });
+    for (const fn of this.stepHooks) fn(dt);
   }
 
-  /** Gentle attract-mode steering: lazy S-curves that keep a comfortable height. */
-  private autopilotInput(inp: { steerX: number; steerY: number; flap: boolean }): void {
+  /**
+   * Bot steering for the menu backdrop and ?autopilot screenshots: heads for the gameplay
+   * target when there is one, otherwise drifts in lazy S-curves at a comfortable height.
+   */
+  private autopilotInput(inp: FlightInput): void {
     const s = this.flight;
-    inp.steerX = Math.sin(this.time * 0.23) * 0.55 + Math.sin(this.time * 0.61) * 0.2;
-    const ground = Math.max(this.field.height(s.x, s.z), Config.world.waterLevel);
-    inp.steerY = THREE.MathUtils.clamp((ground + 28 - s.y) * 0.05, -0.6, 0.6);
-    inp.flap = false;
+    const t = this.autopilotTarget;
+    if (t) {
+      const desired = Math.atan2(t.x - s.x, t.z - s.z);
+      inp.steerX = clamp(-angleDelta(s.yaw, desired) * 2.2, -1, 1);
+      inp.steerY = clamp((t.y - s.y) * 0.08, -0.8, 0.8);
+    } else {
+      inp.steerX = Math.sin(this.time * 0.23) * 0.55 + Math.sin(this.time * 0.61) * 0.2;
+      const ground = Math.max(this.flightGround(s.x, s.z), Config.world.waterLevel);
+      inp.steerY = clamp((ground + 30 - s.y) * 0.05, -0.6, 0.6);
+    }
+    inp.flap = this.mode === 'menu' ? false : inp.flap;
   }
 
   private render(alpha: number, frameDt: number): void {
-    const paused = this.mode === 'paused';
-    const dt = paused ? 0 : frameDt;
+    this.renderer.info.reset();
+    const dt = this.mode === 'paused' ? 0 : frameDt;
     this.time += dt;
-    if (this.input.pausePressed) {
-      this.input.pausePressed = false;
-    }
     const s = this.flight;
     const p = this.prev;
     const o = this.pose;
@@ -160,18 +247,26 @@ export class Game {
     o.bank = lerp(p.bank, s.bank, alpha);
     o.speed = lerp(p.speed, s.speed, alpha);
 
+    this.day.update(dt, Config.world.dayLength);
     this.bird.update(o, s.sinceFlap + alpha * STEP, this.time, dt);
     this.chase.update(o, Math.max(dt, 1e-4), (x, z) => this.field.height(x, z));
+    this.chunks.update(o.x, o.z);
+    this.islands.update(o.x, o.z);
     const cam = this.chase.camera;
     this.applyPalette();
     this.sky.update(this.day, cam, this.time);
-    this.renderer.render(this.scene, cam);
+    this.water.update(this.day, cam, this.time);
+    this.clouds.update(this.day, cam.position, this.time);
+    for (const fn of this.frameHooks) fn(dt, this.time);
+    this.composer.render(this.day, this.time, dt);
   }
 
   private applyPalette(): void {
     const pal = this.day.palette;
     const fog = this.scene.fog as THREE.Fog;
     fog.color.copy(pal.fog);
+    fog.far = Config.render.drawDistance * 0.95;
+    fog.near = fog.far * Config.render.fogStart;
     this.sun.color.copy(pal.sun);
     this.sun.intensity = pal.sunIntensity;
     this.sun.position.copy(this.day.sunDir).multiplyScalar(100).add(this.bird.root.position);
@@ -179,10 +274,19 @@ export class Game {
     this.hemi.color.copy(pal.hemiSky);
     this.hemi.groundColor.copy(pal.hemiGround);
     this.hemi.intensity = pal.hemiIntensity;
+    const cam = this.chase.camera;
+    const far = Config.render.drawDistance * 1.3;
+    if (cam.far !== far) {
+      cam.far = far;
+      cam.updateProjectionMatrix();
+    }
   }
 
-  private resize(): void {
+  resize(scale = 1): void {
+    const pr = this.pixelRatio * scale;
+    this.renderer.setPixelRatio(pr);
     this.renderer.setSize(innerWidth, innerHeight);
+    this.composer.setSize(innerWidth, innerHeight, pr);
     this.chase.camera.aspect = innerWidth / innerHeight;
     this.chase.camera.updateProjectionMatrix();
   }
@@ -197,6 +301,10 @@ export class Game {
       speed: +s.speed.toFixed(1),
       fps: +(1000 / this.loop.frameMs).toFixed(0),
       mode: this.mode,
+      phase: +this.day.phase.toFixed(3),
+      chunks: this.chunks.count,
+      calls: this.renderer.info.render.calls,
+      tris: this.renderer.info.render.triangles,
     };
   }
 }

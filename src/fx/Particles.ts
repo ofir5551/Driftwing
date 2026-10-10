@@ -11,8 +11,9 @@ void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
   // World-size points: aSize metres projected to pixels.
-  gl_PointSize = aSize * projectionMatrix[1][1] * uHalfHeight / max(-mv.z, 0.1);
-  vAlpha = aAlpha;
+  gl_PointSize = min(aSize * projectionMatrix[1][1] * uHalfHeight / max(-mv.z, 0.1), 96.0);
+  // Fade particles that drift right up to the lens instead of blooming into giant discs.
+  vAlpha = aAlpha * smoothstep(1.5, 6.0, -mv.z);
   vColor = aColor;
 }`;
 

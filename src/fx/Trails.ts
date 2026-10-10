@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const N = 24; // points per ribbon (0.4 s of history)
+const N = 14; // points per ribbon (~0.23 s of history: shorter than the camera distance)
 
 const vert = /* glsl */ `
 attribute float aT; // 0 at the wingtip, 1 at the tail end

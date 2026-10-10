@@ -60,6 +60,31 @@ export const Config = {
     buildBudgetMs: 4, // max chunk-building time per frame
     cloudDrift: 3, // m/s
   },
+  flow: {
+    gain: 0.03, // flow per pickup
+    chainBonus: 0.003, // extra flow per link in the current chain (capped)
+    chainWindow: 2.6, // s between pickups that still counts as a chain
+    grace: 2.0, // s after a pickup before flow starts draining
+    decay: 0.05, // flow lost per second while draining (full meter drains in ~20 s)
+    basePoints: 10,
+    flowMultiplier: 4, // full flow = 5x points
+    wispsPerLantern: 15,
+  },
+  wisps: {
+    max: 56,
+    keepAhead: 26, // spawn new patterns while fewer upcoming wisps than this
+    spacing: 15, // m between wisps (~0.6 s at cruise: a gentle rhythm)
+    gap: 55, // m between patterns
+    collectRadius: 3.6,
+    magnetRadius: 11,
+    magnetSpeed: 26,
+    cruiseClearance: 22, // preferred path height above ground
+    minClearance: 7,
+  },
+  thermals: {
+    strength: 13, // m/s^2 upward at the column centre (equilibrium climb ~8 m/s with liftDecay)
+    height: 170, // m above ground the column reaches
+  },
   render: {
     // Overwritten by the quality preset (see Quality.ts); exposed here for live tuning.
     drawDistance: 1100,

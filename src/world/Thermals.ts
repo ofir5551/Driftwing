@@ -14,11 +14,6 @@ export interface Thermal {
 const CELL = 420;
 const MOTES = 140;
 
-export const ThermalTuning = {
-  strength: 13, // m/s^2 upward at the column centre (equilibrium climb ~8 m/s with liftDecay)
-  height: 170, // m above ground the column reaches
-};
-
 // Motes spiral up the column entirely in the vertex shader: per-mote angle/radius/phase/speed
 // are static attributes, time does the rest.
 const vert = /* glsl */ `
@@ -109,7 +104,7 @@ export class Thermals {
       uniforms: {
         uTime: { value: 0 },
         uRadius: { value: 20 },
-        uHeight: { value: ThermalTuning.height },
+        uHeight: { value: Config.thermals.height },
         uHalfHeight: { value: 400 },
         uColor: { value: new THREE.Color('#fff4dc') },
       },
@@ -140,7 +135,7 @@ export class Thermals {
     const base = Math.max(this.groundAt(x, z), Config.world.waterLevel);
     if (base > 70) return null; // keep them over valleys and meadows
     const r = 18 + hash2(i, j, seed + 63) * 10;
-    return { x, z, base, r, top: base + ThermalTuning.height };
+    return { x, z, base, r, top: base + Config.thermals.height };
   }
 
   update(px: number, pz: number): void {
@@ -165,7 +160,7 @@ export class Thermals {
         const motes = g.children[0] as THREE.Points;
         const col = g.children[1] as THREE.Mesh;
         motes.scale.set(t.r / 20, 1, t.r / 20);
-        col.scale.set(t.r, ThermalTuning.height, t.r);
+        col.scale.set(t.r, Config.thermals.height, t.r);
         this.group.add(g);
         this.used.push(g);
         this.active.push(t);
@@ -197,7 +192,7 @@ export class Thermals {
       if (d2 > t.r * t.r) continue;
       const core = 1 - d2 / (t.r * t.r);
       const fade = 1 - smoothstep(t.top - 50, t.top, y);
-      return ThermalTuning.strength * core * fade;
+      return Config.thermals.strength * core * fade;
     }
     return 0;
   }

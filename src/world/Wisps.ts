@@ -16,18 +16,6 @@ export interface Wisp {
 
 type Pattern = 'arc' | 'wave' | 'dive' | 'climb' | 'spiral';
 
-export const WispTuning = {
-  max: 56,
-  keepAhead: 26, // spawn new patterns while fewer upcoming wisps than this
-  spacing: 15, // m between wisps (~0.6 s at cruise: a gentle rhythm)
-  gap: 55, // m between patterns
-  collectRadius: 3.6,
-  magnetRadius: 11,
-  magnetSpeed: 26,
-  cruiseClearance: 22, // preferred path height above ground
-  minClearance: 7,
-};
-
 const vert = /* glsl */ `
 attribute float aPhase;
 uniform float uTime;
@@ -89,10 +77,10 @@ export class Wisps {
     ) => { x: number; z: number; r: number } | null,
   ) {
     this.rand = mulberry32(seed + 501);
-    for (let i = 0; i < WispTuning.max; i++)
+    for (let i = 0; i < Config.wisps.max; i++)
       this.list.push({ x: 0, y: -999, z: 0, alive: false, phase: i * 0.618, grow: 0, sparkle: 0 });
     const geo = new THREE.PlaneGeometry(1, 1);
-    const phases = new Float32Array(WispTuning.max);
+    const phases = new Float32Array(Config.wisps.max);
     for (let i = 0; i < phases.length; i++) phases[i] = (i * 0.618) % 1;
     geo.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phases, 1));
     this.u = {
@@ -107,7 +95,7 @@ export class Wisps {
       transparent: true,
       depthWrite: false,
     });
-    this.mesh = new THREE.InstancedMesh(geo, mat, WispTuning.max);
+    this.mesh = new THREE.InstancedMesh(geo, mat, Config.wisps.max);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 4;
   }
@@ -116,7 +104,7 @@ export class Wisps {
     const g = Math.max(this.groundAt(x, z), Config.world.waterLevel);
     return clamp(
       y,
-      g + WispTuning.minClearance,
+      g + Config.wisps.minClearance,
       Config.world.waterLevel + Config.flight.maxAltitude - 25,
     );
   }
@@ -146,7 +134,7 @@ export class Wisps {
   }
 
   private spawnPattern(): void {
-    const T = WispTuning;
+    const T = Config.wisps;
     const c = this.cursor;
     // Prefer a thermal spiral when one is close to the path: it teaches thermals by example.
     const th = this.thermalNear(
@@ -221,7 +209,7 @@ export class Wisps {
     yaw: number,
     onCollect: (w: Wisp) => void,
   ): void {
-    const T = WispTuning;
+    const T = Config.wisps;
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
     const c = this.cursor;
@@ -295,7 +283,7 @@ export class Wisps {
       if (!w.alive) continue;
       // Shrink while being absorbed by the magnet so a pickup never flashes the whole screen.
       const d = Math.hypot(w.x - px, w.y - py, w.z - pz);
-      const absorb = 0.25 + 0.75 * Math.min(1, d / WispTuning.magnetRadius);
+      const absorb = 0.25 + 0.75 * Math.min(1, d / Config.wisps.magnetRadius);
       const s = 4.4 * absorb * (w.grow * w.grow * (3 - 2 * w.grow));
       // Lazy bob so the ribbon breathes.
       const bob = Math.sin(time * 1.3 + w.phase * 6.28) * 0.35;

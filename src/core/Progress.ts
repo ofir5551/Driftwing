@@ -1,3 +1,5 @@
+import { Config } from './Config';
+
 /**
  * Score, flow and lantern progression. Pure logic (no DOM/Three) so it is unit-tested.
  *
@@ -5,16 +7,6 @@
  * chain (pickups less than `chainWindow` apart). After a grace period it drains slowly. It never
  * punishes: losing flow only means fewer bonus points and a calmer soundtrack.
  */
-export const FlowTuning = {
-  gain: 0.03, // flow per pickup
-  chainBonus: 0.003, // extra flow per link in the current chain (capped)
-  chainWindow: 2.6, // s between pickups that still counts as a chain
-  grace: 2.0, // s after a pickup before flow starts draining
-  decay: 0.05, // flow lost per second while draining (full meter drains in ~20 s)
-  basePoints: 10,
-  flowMultiplier: 4, // full flow = 5x points
-  wispsPerLantern: 15,
-};
 
 export class Progress {
   count = 0;
@@ -27,7 +19,7 @@ export class Progress {
 
   /** Register a pickup. Returns points awarded and whether a lantern milestone was reached. */
   collect(): { points: number; lantern: boolean } {
-    const t = FlowTuning;
+    const t = Config.flow;
     this.chain = this.sincePickup < t.chainWindow ? this.chain + 1 : 1;
     this.sincePickup = 0;
     this.flow = Math.min(1, this.flow + t.gain + Math.min(this.chain, 12) * t.chainBonus);
@@ -42,9 +34,9 @@ export class Progress {
 
   update(dt: number): void {
     this.sincePickup += dt;
-    if (this.sincePickup > FlowTuning.chainWindow) this.chain = 0;
-    if (this.sincePickup > FlowTuning.grace)
-      this.flow = Math.max(0, this.flow - FlowTuning.decay * dt);
+    if (this.sincePickup > Config.flow.chainWindow) this.chain = 0;
+    if (this.sincePickup > Config.flow.grace)
+      this.flow = Math.max(0, this.flow - Config.flow.decay * dt);
   }
 
   /** Seconds since the last pickup (HUD fades out when idle). */

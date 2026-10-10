@@ -55,6 +55,12 @@ export class Game {
   time = 0;
   quality: QualityLevel = 'high';
   pixelRatio = 1;
+  /** Resolution multiplier from adaptive quality (0.55..1). */
+  renderScale = 1;
+  /** When true, sustained slow frames also step the preset down (high -> medium -> low). */
+  autoQuality = true;
+  private perfTimer = 0;
+  private fastTime = 0;
   readonly autopilot = params.has('autopilot');
   /** Autopilot steering target, set by gameplay (wisps) when available. */
   autopilotTarget: { x: number; y: number; z: number } | null = null;
@@ -100,6 +106,8 @@ export class Game {
     this.copyPrev();
 
     addEventListener('resize', () => this.resize());
+    // Mobile browsers report the new size a moment after rotation.
+    addEventListener('orientationchange', () => setTimeout(() => this.resize(), 250));
     this.loop = new Loop(
       (dt) => this.step(dt),
       (alpha, frameDt) => this.render(alpha, frameDt),
@@ -136,6 +144,7 @@ export class Game {
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
     this.pixelRatio = Math.min(devicePixelRatio, q.maxPixelRatio);
+    this.renderScale = 1;
     this.resize();
   }
 
@@ -259,6 +268,7 @@ export class Game {
     this.clouds.update(this.day, cam.position, this.time);
     for (const fn of this.frameHooks) fn(dt, this.time);
     this.composer.render(this.day, this.time, dt);
+    this.adaptQuality(frameDt);
   }
 
   private applyPalette(): void {
@@ -282,8 +292,37 @@ export class Game {
     }
   }
 
-  resize(scale = 1): void {
-    const pr = this.pixelRatio * scale;
+  /**
+   * Adaptive resolution: if the smoothed frame time stays above ~47 fps worth, render fewer
+   * pixels; when it has been comfortably fast for a while, creep back up. Asymmetric thresholds
+   * and timers stop it oscillating. At the floor, auto mode drops a quality preset instead.
+   */
+  private adaptQuality(frameDt: number): void {
+    if (this.mode === 'paused') return;
+    this.perfTimer += frameDt;
+    if (this.perfTimer < 1) return;
+    this.perfTimer = 0;
+    const ms = this.loop.frameMs;
+    if (ms > 21) {
+      this.fastTime = 0;
+      if (this.renderScale > 0.6) {
+        this.renderScale = Math.max(0.55, this.renderScale - 0.1);
+        this.resize();
+      } else if (this.autoQuality && this.quality !== 'low') {
+        this.setQuality(this.quality === 'high' ? 'medium' : 'low');
+      }
+    } else if (ms < 17.8) {
+      this.fastTime += 1;
+      if (this.fastTime >= 6 && this.renderScale < 1) {
+        this.fastTime = 0;
+        this.renderScale = Math.min(1, this.renderScale + 0.05);
+        this.resize();
+      }
+    }
+  }
+
+  resize(): void {
+    const pr = this.pixelRatio * this.renderScale;
     this.renderer.setPixelRatio(pr);
     this.renderer.setSize(innerWidth, innerHeight);
     this.composer.setSize(innerWidth, innerHeight, pr);

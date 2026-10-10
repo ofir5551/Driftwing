@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { FlowTuning, Progress } from '../src/core/Progress';
+import { Config } from '../src/core/Config';
+import { Progress } from '../src/core/Progress';
+
+const FlowTuning = Config.flow;
 
 describe('Progress / flow', () => {
   it('chains pickups made in quick succession and builds flow', () => {

@@ -39,7 +39,8 @@ export class Loop {
   /** Advance by a real frame duration. Public so tests can drive it without rAF. */
   advance(frameDt: number): number {
     const dt = Math.min(Math.max(frameDt, 0), MAX_FRAME);
-    this.frameMs += (dt * 1000 - this.frameMs) * 0.05;
+    // Ignore hitches (tab switches, GC pauses) so they do not trigger quality drops.
+    if (frameDt < 0.1) this.frameMs += (frameDt * 1000 - this.frameMs) * 0.05;
     this.acc += dt;
     let steps = 0;
     while (this.acc >= STEP && steps < MAX_STEPS) {

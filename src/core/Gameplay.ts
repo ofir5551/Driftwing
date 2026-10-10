@@ -202,10 +202,7 @@ export class Gameplay {
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);
     const cam = g.chase.camera.position;
-    const trailIntensity = Math.min(
-      0.85,
-      speedT * 0.9 + Math.abs(pose.bank) * 0.5 + this.progress.flow * 0.3,
-    );
+    const trailIntensity = Math.min(0.85, speedT * 0.7 + Math.abs(pose.bank) * 0.45);
     this.trails.update(
       dt,
       [g.bird.tipL, g.bird.tipR],

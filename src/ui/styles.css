@@ -50,8 +50,8 @@ body {
   position: fixed;
   right: max(24px, env(safe-area-inset-right));
   bottom: max(28px, env(safe-area-inset-bottom));
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.7);
   background: rgba(255, 250, 240, 0.25);
@@ -204,4 +204,231 @@ body.touch .flap-btn {
 .toast.show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* Menus */
+.menu {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0.6s;
+}
+
+.menu.show {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.6s ease;
+}
+
+.menu.pause {
+  background: rgba(60, 45, 80, 0.25);
+  backdrop-filter: blur(3px);
+}
+
+.card {
+  text-align: center;
+  color: #fffaf0;
+  text-shadow: 0 2px 14px rgba(70, 40, 90, 0.45);
+  max-width: min(440px, 100%);
+}
+
+.pause .card {
+  background: rgba(255, 248, 238, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 22px;
+  padding: 26px 30px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+}
+
+.card h1 {
+  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: clamp(52px, 12vw, 96px);
+  margin: 0;
+  letter-spacing: 0.02em;
+  text-shadow:
+    0 0 30px rgba(255, 220, 160, 0.8),
+    0 4px 24px rgba(80, 50, 100, 0.4);
+}
+
+.card h2 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 40px;
+  margin: 0 0 4px;
+}
+
+.tag {
+  margin: 4px 0 26px;
+  font-size: clamp(15px, 2.6vw, 19px);
+  letter-spacing: 0.12em;
+  opacity: 0.95;
+}
+
+.btn {
+  font: inherit;
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  background: rgba(255, 250, 240, 0.92);
+  border: none;
+  border-radius: 999px;
+  padding: 14px 52px;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.18),
+    0 8px 30px rgba(255, 200, 140, 0.55);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn:hover,
+.btn:focus-visible {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow:
+    0 0 0 8px rgba(255, 255, 255, 0.25),
+    0 10px 36px rgba(255, 200, 140, 0.75);
+  outline: none;
+}
+
+.btn.primary {
+  animation: breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    box-shadow:
+      0 0 0 10px rgba(255, 255, 255, 0.12),
+      0 8px 40px rgba(255, 210, 150, 0.8);
+  }
+}
+
+.controls {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+  font-size: 14px;
+  line-height: 1.9;
+  opacity: 0.9;
+}
+
+.controls b {
+  font-weight: 600;
+}
+
+.best,
+.pause-stats {
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.pause-stats {
+  margin: 0 0 18px;
+}
+
+.settings {
+  margin-top: 22px;
+  display: grid;
+  gap: 12px;
+  text-align: left;
+  font-size: 15px;
+}
+
+.settings label {
+  display: grid;
+  gap: 6px;
+}
+
+.settings label.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings input[type='range'] {
+  width: 100%;
+  accent-color: #ffd98f;
+}
+
+.settings input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: #ffd98f;
+}
+
+.settings select {
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 250, 240, 0.9);
+  color: var(--ink);
+}
+
+.pause-btn {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 250, 240, 0.15);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.pause-btn span {
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.pause-btn.show {
+  display: flex;
+}
+
+.pause-btn:hover {
+  opacity: 1;
+}
+
+@media (max-height: 520px) {
+  .card h1 {
+    font-size: 54px;
+  }
+  .tag {
+    margin-bottom: 14px;
+  }
+  .controls {
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+  .pause .card {
+    padding: 16px 22px;
+  }
+  .settings {
+    margin-top: 12px;
+    gap: 8px;
+  }
+}
+
+body.paused .toast {
+  opacity: 0;
+  transition: none;
 }

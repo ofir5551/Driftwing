@@ -33,7 +33,7 @@ export class ChaseCamera {
     // Portrait screens are narrow: back off and widen the view so the bird and the path ahead fit.
     const narrow = clamp(1 / this.camera.aspect, 1, 2.2) - 1;
     const targetDist =
-      c.distance * (1 + narrow * 0.45) + Math.max(0, p.speed - Config.flight.cruiseSpeed) * 0.04;
+      c.distance * (1 + narrow * 0.22) + Math.max(0, p.speed - Config.flight.cruiseSpeed) * 0.04;
     // Only part of the pitch: dives are seen from above, climbs from below, horizon stays calm.
     const targetPitch = p.pitch * c.pitchFollow;
     if (!this.initialised) {
@@ -66,11 +66,11 @@ export class ChaseCamera {
     cam.rotateZ(-this.roll);
 
     // FOV widens with speed: the cheapest, strongest sense of velocity.
-    const base = c.baseFov + narrow * 14;
+    const base = c.baseFov + narrow * 18;
     const targetFov = clamp(
       base + (p.speed - Config.flight.cruiseSpeed) * c.fovPerSpeed,
       base - 4,
-      c.maxFov + narrow * 14,
+      c.maxFov + narrow * 18,
     );
     this.fov += (targetFov - this.fov) * expDecay(3, dt);
     if (Math.abs(cam.fov - this.fov) > 0.01) {

@@ -82,3 +82,12 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   sixteenth grid and come from a phrase generator that resolves to the tonic every 8 notes.
 - Mix: sub drone kept low (most of its energy moved to the octave) so phones still hear it;
   the context suspends when the tab is hidden; master fades in on unlock.
+- Menus: the title screen floats over a live attract flight (bot steering toward wisps), so the
+  first frame is already the game. Play is the audio-unlock gesture and continues seamlessly.
+  One-time hints: "Follow the wisps" on start; a flap hint only if the player hasn't flapped by 14 s.
+- Pause: P/Esc, the touch pause button, losing pointer lock, or hiding the tab. Music ducks.
+- Settings (volume, mute, quality, invert-Y) and best score persist in localStorage (guarded).
+- Adaptive quality: below ~47 fps for a second, render scale drops 0.1 (floor 0.55); after 6 s
+  comfortably fast it creeps back 0.05. In Auto quality, hitting the floor steps the preset down.
+  Phones default to Medium. Pixel ratio is capped per preset (max 2).
+- Debug-only lil-gui is a dynamic import, so it is a separate chunk players never download.

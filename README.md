@@ -49,7 +49,7 @@ ground or water is only ever a soft skim.
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`.
 
-Pushing to `main` (or `master`) deploys to GitHub Pages via `.github/workflows/pages.yml` (enable Pages with
+Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (enable Pages with
 "GitHub Actions" as the source in the repository settings).
 
 ## How it works

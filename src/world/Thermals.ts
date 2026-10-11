@@ -12,7 +12,7 @@ export interface Thermal {
 }
 
 const CELL = 420;
-const MOTES = 140;
+const MOTES = 220; // spread over a taller column, so a few more keep it reading as a column
 
 // Motes spiral up the column entirely in the vertex shader: per-mote angle/radius/phase/speed
 // are static attributes, time does the rest.

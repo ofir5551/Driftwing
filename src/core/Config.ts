@@ -22,7 +22,7 @@ export const Config = {
     flapCooldown: 0.45, // s between flaps while held
     liftDecay: 1.6, // 1/s, how quickly the extra vertical velocity fades
     minAltitude: 6, // m above water level the bird is gently pushed back up from
-    maxAltitude: 220, // m above water level where a soft ceiling starts
+    maxAltitude: 400, // m above water level where a soft ceiling starts
     boundsPush: 0.06, // strength of the soft altitude push (per metre of overshoot)
     clearance: 1.6, // m the bird's body keeps above the ground/water surface
     terrainLookahead: 1.4, // s ahead to sample the ground for the climb assist
@@ -80,10 +80,28 @@ export const Config = {
     magnetSpeed: 26,
     cruiseClearance: 22, // preferred path height above ground
     minClearance: 7,
+    maxClearance: 240, // highest the path rides above ground (after spirals, climbs, or a high anchor)
+    glideSink: 1.5, // m per wisp the path sinks back toward cruiseClearance: a long, gentle glide down
+    maxRise: 6, // m per wisp the path may climb, so it never asks for more than a flapping bird can do
+    climbGain: 35, // m of extra height a 'climb' pattern adds to the path
+    spiralCount: 24, // wisps in a thermal spiral
+    spiralRise: 4.5, // m per wisp up the thermal spiral
+    reanchorHeight: 150, // m between the path and the player before the path restarts at the player
   },
   thermals: {
     strength: 13, // m/s^2 upward at the column centre (equilibrium climb ~8 m/s with liftDecay)
-    height: 170, // m above ground the column reaches
+    height: 300, // m above ground the column reaches
+  },
+  bird: {
+    // Visual wingbeats only: the flight model is untouched, so the bird's own beats are cosmetic.
+    flapPeriod: 0.42, // s, one full down-up stroke for a player flap
+    idleBeatPeriod: 0.34, // s per stroke of the bird's own occasional wingbeats
+    idleAmplitude: 0.55, // fraction of a full flap stroke
+    idleBeatsMin: 2, // beats per burst
+    idleBeatsMax: 4,
+    idleGapMin: 1.4, // s of glide between bursts when slow or climbing
+    idleGapMax: 6, // s of glide between bursts in fast level flight
+    blendRate: 10, // 1/s, how fast the wings ease into and out of a beat
   },
   render: {
     // Overwritten by the quality preset (see Quality.ts); exposed here for live tuning.

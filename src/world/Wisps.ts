@@ -62,7 +62,7 @@ export class Wisps {
   readonly mesh: THREE.InstancedMesh;
   readonly list: Wisp[] = [];
   private readonly rand: () => number;
-  private readonly cursor = { x: 0, y: 40, z: 0, heading: 0, valid: false };
+  private readonly cursor = { x: 0, y: 40, z: 0, heading: 0, clear: 22, valid: false };
   private readonly m = new THREE.Matrix4();
   private readonly u: Record<string, THREE.IUniform>;
   private spawned = 0;
@@ -130,6 +130,9 @@ export class Wisps {
     c.x = px + Math.sin(yaw) * ahead;
     c.z = pz + Math.cos(yaw) * ahead;
     c.y = py;
+    // Start the path at the player's own height (within reason) so flying high still finds wisps.
+    const g = Math.max(this.groundAt(c.x, c.z), Config.world.waterLevel);
+    c.clear = clamp(py - g, Config.wisps.cruiseClearance, Config.wisps.maxClearance);
     c.valid = true;
   }
 
@@ -155,16 +158,19 @@ export class Wisps {
       const g = Math.max(this.groundAt(th.x, th.z), Config.world.waterLevel);
       const r = th.r * 0.75;
       const start = Math.atan2(c.x - th.x, c.z - th.z);
-      const count = 14;
+      const count = T.spiralCount;
+      const step = (Math.PI * 2.4) / 14; // ~1.2 turns per 14 wisps, whatever the count
       const turn = this.rand() < 0.5 ? 1 : -1;
       for (let i = 0; i < count; i++) {
-        const a = start + turn * (i / count) * Math.PI * 2.4;
-        this.spawn(th.x + Math.sin(a) * r, g + 18 + i * 4.5, th.z + Math.cos(a) * r);
+        const a = start + turn * i * step;
+        this.spawn(th.x + Math.sin(a) * r, g + 18 + i * T.spiralRise, th.z + Math.cos(a) * r);
       }
-      const a = start + turn * Math.PI * 2.4;
+      const a = start + turn * count * step;
       c.x = th.x + Math.sin(a) * r;
       c.z = th.z + Math.cos(a) * r;
-      c.y = g + 18 + count * 4.5;
+      c.y = g + 18 + count * T.spiralRise;
+      // Leave the thermal high: the following patterns glide down slowly from the top.
+      c.clear = clamp(c.y - g, T.cruiseClearance, T.maxClearance);
       c.heading = a + turn * Math.PI * 0.5;
     } else {
       const turnTotal =
@@ -177,20 +183,23 @@ export class Wisps {
         c.heading += turnTotal / n;
         c.x += Math.sin(c.heading) * sp;
         c.z += Math.cos(c.heading) * sp;
-        // Ease the path height toward a comfortable cruise height above the terrain so the
-        // ribbon follows valleys and hills without asking for sudden climbs.
+        // The path's preferred height above ground ('clear') sinks slowly back to cruise after
+        // a thermal or climb, like a bird gliding down; climbs raise it a little per wisp.
+        if (kind === 'climb') c.clear += T.climbGain / n;
+        else c.clear -= T.glideSink;
+        c.clear = clamp(c.clear, T.cruiseClearance, T.maxClearance);
+        // Ease the path height toward it so the ribbon follows valleys and hills without asking
+        // for sudden climbs; rises are capped to what a flapping bird can actually follow.
         const g = Math.max(this.groundAt(c.x, c.z), Config.world.waterLevel);
-        c.y += (g + T.cruiseClearance - c.y) * 0.25;
+        c.y += Math.min((g + c.clear - c.y) * 0.25, T.maxRise);
         let y = c.y;
         let lx = 0;
         if (kind === 'wave') lx = Math.sin(s * Math.PI * 2) * amp;
         if (kind === 'dive') y -= Math.sin(s * Math.PI) * 16;
-        if (kind === 'climb') y += s * s * 26;
         const rx = Math.cos(c.heading);
         const rz = -Math.sin(c.heading);
         this.spawn(c.x + rx * lx, y, c.z + rz * lx);
       }
-      if (kind === 'climb') c.y += 20;
     }
     // Gap before the next pattern.
     c.x += Math.sin(c.heading) * T.gap;
@@ -213,12 +222,14 @@ export class Wisps {
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
     const c = this.cursor;
-    // Re-anchor when the path is behind us or far off to the side.
+    // Re-anchor when the path is behind us, far off to the side, or far above or below us
+    // (say after riding a thermal high): new patterns then start near the player's height.
     const cdx = c.x - px;
     const cdz = c.z - pz;
     const ahead = cdx * fx + cdz * fz;
     const off = Math.hypot(cdx, cdz);
-    if (!c.valid || ahead < -40 || off > 650) this.anchor(px, py, pz, yaw);
+    if (!c.valid || ahead < -40 || off > 650 || Math.abs(c.y - py) > T.reanchorHeight)
+      this.anchor(px, py, pz, yaw);
 
     let upcoming = 0;
     for (const w of this.list) {

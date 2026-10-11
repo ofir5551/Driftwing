@@ -13,7 +13,7 @@ soft min/max speed. Steering is critically damped; turns bank into the curve and
 Flap (Space / click / button): gentle lift + speed boost, short cooldown, no stamina.
 Soft altitude bounds push back gently. Ground/water contact skims with a puff/splash and a small
 slowdown. Chase camera: spring-damped, FOV widens with speed, follows roll slightly, looks ahead.
-Thermals lift the bird for free.
+Thermals lift the bird for free. Soft ceiling at 400 m above water, above the cloud layer.
 
 ## Controls
 
@@ -65,13 +65,24 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   reflections (calm, cheap, painterly).
 - Post: half-res bloom (high threshold so only glints/wisps bloom) -> painterly pass (paper
   fibre texture, edge wobble, graded shadows, saturation, vignette) -> OutputPass.
+- Bird: stylised low-poly gull. Lathed body (pale belly, warm-grey back via vertex colours),
+  arm + hand wings with five separate primaries that fan open when slow and fold in a dive, a
+  slightly forked six-feather tail, a head that stays level through banks and looks into turns.
+- Wingbeats are cosmetic (`WingBeat`, pure): flap-and-glide bursts of 2-4 beats every 1.4-6 s,
+  more often when slow or climbing, none while tucked in a dive. A player flap is one stronger
+  stroke on the same oscillator, so bursts and flaps blend without snapping. Strokes start and
+  end on the glide pose (sin-shaped, up first); the hand lags the arm and folds on the upstroke.
 - Wisps: 56 pooled, laid out as continuous patterns (arc, wave, dive, climb, thermal spiral)
-  from a path cursor ahead of the player, ~15 m apart (~0.6 s at cruise). Magnet radius 11 m,
+  from a path cursor ahead of the player, ~15 m apart (~0.6 s at cruise). The cursor keeps a
+  preferred height above ground: 22 m normally, raised by thermal spirals (24 wisps, ~125 m),
+  climbs (+35 m) and re-anchoring at the player's height (up to 240 m; also when the player is
+  150 m above or below the path), then sinking 1.5 m per
+  wisp so high ribbons read as a long glide down. Rises are capped at 6 m per wisp. Magnet radius 11 m,
   collect radius 3.6 m: near misses count. Missed wisps quietly expire. Wisps shrink as they
   are absorbed so pickups never flash the screen. Gold by day, moonlit cyan at night.
 - Flow: +0.03 per pickup plus a chain bonus; ~18 quick pickups fill it; drains 0.05/s after a
   2 s grace. Score multiplier up to 5x. Every 24 wisps (about once a minute for a human) a lantern beacon ignites ~170 m ahead.
-- Thermals on a 420 m grid over low ground; ~13 m/s^2 lift at the core. Spiral wisp patterns
+- Thermals on a 420 m grid over low ground, 300 m tall; ~13 m/s^2 lift at the core. Spiral wisp patterns
   are placed around them so players learn thermals by following wisps.
 - FX: one additive and one alpha particle pool (ring buffers), wingtip ribbons faded near the
   lens, shader-wrapped air motes that stretch into streaks with speed, blob shadow for height.

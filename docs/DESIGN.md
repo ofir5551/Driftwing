@@ -76,9 +76,8 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   from a path cursor ahead of the player, ~15 m apart (~0.6 s at cruise). The cursor keeps a
   preferred height above ground: 22 m normally, raised by thermal spirals (24 wisps, ~125 m),
   climbs (+35 m) and re-anchoring at the player's height (up to 240 m; also when the player is
-  150 m above or below the path), then sinking 1.5 m per
-  wisp so high ribbons read as a long glide down. Rises are capped at 6 m per wisp. Magnet radius 11 m,
-  collect radius 3.6 m: near misses count. Missed wisps quietly expire. Wisps shrink as they
+  150 m above or below the path), then sinking 1.5 m per wisp so high ribbons read as a long
+  glide down. Rises are capped at 6 m per wisp. Magnet radius 11 m, collect radius 3.6 m: near misses count. Missed wisps quietly expire. Wisps shrink as they
   are absorbed so pickups never flash the screen. Gold by day, moonlit cyan at night.
 - Flow: +0.03 per pickup plus a chain bonus; ~18 quick pickups fill it; drains 0.05/s after a
   2 s grace. Score multiplier up to 5x. Every 24 wisps (about once a minute for a human) a lantern beacon ignites ~170 m ahead.

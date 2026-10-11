@@ -25,6 +25,7 @@ export class GameAudio {
       this.sfx.start();
     });
     game.events.on('flap', () => this.sfx.flap());
+    game.events.on('wingbeat', () => this.sfx.wingbeat());
     game.events.on('wisp', (e) => this.music.playWispNote(e.flow));
     game.events.on('lantern', () => this.music.lantern());
     game.events.on('contact', (e) => this.sfx.contact(e.kind, e.strength));

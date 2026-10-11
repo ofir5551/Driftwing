@@ -211,6 +211,7 @@ export class Game {
       }
     }
     if (s.flapped) this.events.emit('flap', { x: s.x, y: s.y, z: s.z });
+    if (s.climbBeat) this.events.emit('wingbeat', { x: s.x, y: s.y, z: s.z });
     if (s.contact !== 'none')
       this.events.emit('contact', {
         kind: s.contact,
@@ -257,7 +258,7 @@ export class Game {
     o.speed = lerp(p.speed, s.speed, alpha);
 
     this.day.update(dt, Config.world.dayLength);
-    this.bird.update(o, s.sinceFlap + alpha * STEP, this.time, dt);
+    this.bird.update(o, s.sinceFlap + alpha * STEP, s.sinceClimbBeat + alpha * STEP, this.time, dt);
     this.chase.update(o, Math.max(dt, 1e-4), (x, z) => this.field.height(x, z));
     this.chunks.update(o.x, o.z);
     this.islands.update(o.x, o.z);

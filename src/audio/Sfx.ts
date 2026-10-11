@@ -83,6 +83,11 @@ export class Sfx {
     this.burst('bandpass', 380, 1500, 1.4, 0.22, 0.32, 0.04);
   }
 
+  /** Climb wingbeat: a quieter, shorter, lower cousin of the flap. */
+  wingbeat(): void {
+    this.burst('bandpass', 320, 1100, 1.4, 0.07, 0.2, 0.03);
+  }
+
   thermal(inside: boolean): void {
     if (inside) this.burst('bandpass', 250, 1300, 2, 0.12, 1.6, 0.5);
   }

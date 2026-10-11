@@ -45,6 +45,11 @@ export interface FlightState {
   contactStrength: number;
   /** True only on the step a flap fired. */
   flapped: boolean;
+  climbBeatTimer: number; // cooldown remaining
+  /** Seconds since the last climb wingbeat; Bird animates it like a softer flap. */
+  sinceClimbBeat: number;
+  /** True only on the step a climb wingbeat fired. */
+  climbBeat: boolean;
 }
 
 export function createFlightState(x = 0, y = 60, z = 0, yaw = 0): FlightState {
@@ -65,6 +70,9 @@ export function createFlightState(x = 0, y = 60, z = 0, yaw = 0): FlightState {
     contact: 'none',
     contactStrength: 0,
     flapped: false,
+    climbBeatTimer: 0,
+    sinceClimbBeat: 99,
+    climbBeat: false,
   };
 }
 
@@ -76,9 +84,11 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const c = Config.flight;
   const water = Config.world.waterLevel;
   s.flapped = false;
+  s.climbBeat = false;
   s.contact = 'none';
   s.contactStrength = 0;
   s.sinceFlap += dt;
+  s.sinceClimbBeat += dt;
 
   // --- Pitch -------------------------------------------------------------------------------
   // Climb authority fades out as speed approaches minSpeed, so holding "up" can never stall the
@@ -123,22 +133,48 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   s.bank = s.bankSpring.x;
 
   // --- Speed ---------------------------------------------------------------------------------
-  // dv/dt = -g*sin(pitch) (dive gains, climb loses) + relaxation toward cruise.
-  let accel = -c.gravityAlongPath * Math.sin(s.pitch) + (c.cruiseSpeed - s.speed) * c.speedRelax;
+  // dv/dt = -g*sin(pitch) (dive gains, climb loses) + relaxation toward cruise. Nose-down gets a
+  // stronger pull and speed above cruise bleeds off slowly, so a dive builds real speed (about
+  // 70 m/s flat out vs 26 cruise) and that speed carries through the pull-up into a zoom climb.
+  const g = c.gravityAlongPath * (s.pitch < 0 ? c.diveGravity : 1);
+  const relax = s.speed > c.cruiseSpeed ? c.speedRelaxFast : c.speedRelax;
+  let accel = -g * Math.sin(s.pitch) + (c.cruiseSpeed - s.speed) * relax;
   if (s.speed > c.maxSpeed) accel -= (s.speed - c.maxSpeed) * 1.5;
   if (s.speed < c.minSpeed) accel += (c.minSpeed - s.speed) * 2;
   s.speed = Math.max(c.minSpeed * 0.6, s.speed + accel * dt);
 
   // --- Flap ----------------------------------------------------------------------------------
+  // Taper the lift near the ceiling so mashing flap cannot punch through it.
+  const ceilingFade = 1 - smoothstep(c.maxAltitude - 30, c.maxAltitude, s.y - water);
   s.flapTimer = Math.max(0, s.flapTimer - dt);
   if (input.flap && s.flapTimer <= 0) {
     s.flapTimer = c.flapCooldown;
     s.sinceFlap = 0;
     s.flapped = true;
-    // Taper the lift near the ceiling so mashing flap cannot punch through it.
-    const ceilingFade = 1 - smoothstep(c.maxAltitude - 30, c.maxAltitude, s.y - water);
     s.liftVy = Math.min(s.liftVy + c.flapLift * ceilingFade, c.flapLift * 1.6);
     s.speed = Math.min(s.speed + c.flapBoost, c.maxSpeed + 4);
+  }
+
+  // --- Climb wingbeats -----------------------------------------------------------------------
+  // Steering up with the nose up, the bird works for its height: steady beats, each a small lift
+  // and push, stronger the steeper the climb. Much softer than a flap (which still matters), and
+  // skipped right after one so the two never stack into a double beat.
+  s.climbBeatTimer = Math.max(0, s.climbBeatTimer - dt);
+  if (
+    steerY > 0.15 &&
+    s.pitch > c.climbBeatPitch &&
+    s.climbBeatTimer <= 0 &&
+    s.sinceFlap > c.flapCooldown
+  ) {
+    s.climbBeatTimer = c.climbBeatInterval;
+    s.sinceClimbBeat = 0;
+    s.climbBeat = true;
+    const steep = smoothstep(c.climbBeatPitch, c.maxClimb, s.pitch);
+    s.liftVy = Math.min(
+      s.liftVy + c.climbBeatLift * (0.5 + 0.5 * steep) * ceilingFade,
+      c.flapLift * 1.6,
+    );
+    s.speed += c.climbBeatBoost;
   }
 
   // --- Vertical extras: thermals and soft bounds ---------------------------------------------

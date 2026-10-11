@@ -59,6 +59,43 @@ describe('FlightModel', () => {
     expect(climb.y).toBeGreaterThan(80);
   });
 
+  it('holding climb beats the wings, each beat adding a little height', () => {
+    let beats = 0;
+    const s = createFlightState(0, 80, 0);
+    for (let t = 0; t < 3; t += DT) {
+      stepFlight(s, input(0, 1), flat(-50), DT);
+      if (s.climbBeat) beats++;
+    }
+    expect(beats).toBeGreaterThan(3);
+    const saved = Config.flight.climbBeatLift;
+    Config.flight.climbBeatLift = 0;
+    const noLift = run(createFlightState(0, 80, 0), 3, input(0, 1)).s;
+    Config.flight.climbBeatLift = saved;
+    expect(s.y).toBeGreaterThan(noLift.y + 2);
+  });
+
+  it('no climb wingbeats in level flight or a dive', () => {
+    const s = createFlightState(0, 200, 0);
+    let beats = 0;
+    for (let t = 0; t < 4; t += DT) {
+      stepFlight(s, input(0, t < 2 ? 0 : -1), flat(-50), DT);
+      if (s.climbBeat) beats++;
+    }
+    expect(beats).toBe(0);
+  });
+
+  it('a steep dive builds well past the old top speed and carries into the pull-up', () => {
+    const s = createFlightState(0, 380, 0);
+    let top = 0;
+    for (let t = 0; t < 8; t += DT) {
+      stepFlight(s, input(0, -1), flat(-50), DT);
+      top = Math.max(top, s.speed);
+    }
+    expect(top).toBeGreaterThan(62);
+    for (let t = 0; t < 1.5; t += DT) stepFlight(s, input(0, 0), flat(-50), DT);
+    expect(s.speed).toBeGreaterThan(Config.flight.cruiseSpeed + 20);
+  });
+
   it('never stalls or falls while holding climb', () => {
     const s = createFlightState(0, 60, 0);
     let minSpeed = Infinity;

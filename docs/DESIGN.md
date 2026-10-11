@@ -14,6 +14,10 @@ Flap (Space / click / button): gentle lift + speed boost, short cooldown, no sta
 Soft altitude bounds push back gently. Ground/water contact skims with a puff/splash and a small
 slowdown. Chase camera: spring-damped, FOV widens with speed, follows roll slightly, looks ahead.
 Thermals lift the bird for free. Soft ceiling at 400 m above water, above the cloud layer.
+Holding climb makes the bird beat its wings (a small lift and push every 0.4 s, stronger the
+steeper the climb, with a soft whoosh); the flap button stays the big boost. Nose-down pulls
+harder (1.35x) and speed above cruise bleeds off slowly, so a full dive reaches ~70 m/s
+(cruise 26, top speed 68) with wings fully tucked, and the speed carries into a zoom climb.
 
 ## Controls
 
@@ -65,12 +69,13 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   reflections (calm, cheap, painterly).
 - Post: half-res bloom (high threshold so only glints/wisps bloom) -> painterly pass (paper
   fibre texture, edge wobble, graded shadows, saturation, vignette) -> OutputPass.
-- Bird: stylised low-poly gull. Lathed body (pale belly, warm-grey back via vertex colours),
-  arm + hand wings with five separate primaries that fan open when slow and fold in a dive, a
+- Bird: stylised tern-like seabird. One lathed body from tail to neck (flat back, fuller belly,
+  pinched neck) so it doesn't read as stacked blobs; a stretched head with a dark cap sloping from
+  bill to nape, eye under the cap edge, a long orange bill. Arm + hand wings with five separate primaries that fan open when slow and fold in a dive, a
   slightly forked six-feather tail, a head that stays level through banks and looks into turns.
 - Wingbeats are cosmetic (`WingBeat`, pure): flap-and-glide bursts of 2-4 beats every 1.4-6 s,
-  more often when slow or climbing, none while tucked in a dive. A player flap is one stronger
-  stroke on the same oscillator, so bursts and flaps blend without snapping. Strokes start and
+  more often when slow, none while tucked in a dive. Player flaps and climb beats are strokes
+  fired by the flight model on the same oscillator, so bursts and flaps blend without snapping. Strokes start and
   end on the glide pose (sin-shaped, up first); the hand lags the arm and folds on the upstroke.
 - Wisps: 56 pooled, laid out as continuous patterns (arc, wave, dive, climb, thermal spiral)
   from a path cursor ahead of the player, ~15 m apart (~0.6 s at cruise). The cursor keeps a

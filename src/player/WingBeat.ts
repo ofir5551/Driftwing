@@ -30,9 +30,24 @@ export class WingBeat {
   private ampTarget = 0;
   private glideLeft: number;
   private lastSinceFlap = -Infinity;
+  private lastSinceClimb = -Infinity;
 
   constructor(private readonly rand: () => number = Math.random) {
     this.glideLeft = lerp(Config.bird.idleGapMin, Config.bird.idleGapMax, rand());
+  }
+
+  /** A beat the flight model fired (player flap or climb wingbeat). */
+  private trigger(period: number, amp: number): void {
+    // Finish a stroke that is already past its downstroke, then give one full beat.
+    this.beatsLeft = this.beatsLeft > 0 && this.phase > 0.5 ? 2 : 1;
+    this.period = period;
+    this.ampTarget = amp;
+    if (this.weight < 0.3) {
+      // From a glide: start a fresh stroke. The envelope still eases it in, so no snap.
+      this.phase = 0;
+      this.amp = amp;
+    }
+    this.glideLeft = Math.max(this.glideLeft, Config.bird.idleGapMin);
   }
 
   /** How much the bird "wants" to flap: slow or nose-up flight, 0..1. */
@@ -42,25 +57,24 @@ export class WingBeat {
   }
 
   /**
-   * `sinceFlap` is the flight model's time since the last player flap. It only ever grows
-   * except when a flap fires; interpolation and dt clamping can nudge it back by under a step,
-   * so a fresh flap is a drop well beyond that.
+   * `sinceFlap` / `sinceClimbBeat` are the flight model's times since the last player flap and
+   * climb wingbeat. Each only ever grows except when its beat fires; interpolation and dt
+   * clamping can nudge it back by under a step, so a fresh beat is a drop well beyond that.
    */
-  update(dt: number, sinceFlap: number, speed: number, pitch: number, tuck: number): void {
+  update(
+    dt: number,
+    sinceFlap: number,
+    sinceClimbBeat: number,
+    speed: number,
+    pitch: number,
+    tuck: number,
+  ): void {
     const B = Config.bird;
-    if (sinceFlap + 0.1 < this.lastSinceFlap) {
-      // Finish a stroke that is already past its downstroke, then give one full-strength beat.
-      this.beatsLeft = this.beatsLeft > 0 && this.phase > 0.5 ? 2 : 1;
-      this.period = B.flapPeriod;
-      this.ampTarget = 1;
-      if (this.weight < 0.3) {
-        // From a glide: start a fresh stroke. The envelope still eases it in, so no snap.
-        this.phase = 0;
-        this.amp = 1;
-      }
-      this.glideLeft = Math.max(this.glideLeft, B.idleGapMin);
-    }
+    if (sinceFlap + 0.1 < this.lastSinceFlap) this.trigger(B.flapPeriod, 1);
+    else if (sinceClimbBeat + 0.1 < this.lastSinceClimb)
+      this.trigger(B.climbBeatPeriod, B.climbAmplitude);
     this.lastSinceFlap = sinceFlap;
+    this.lastSinceClimb = sinceClimbBeat;
 
     if (this.beatsLeft === 0) {
       this.glideLeft -= dt;

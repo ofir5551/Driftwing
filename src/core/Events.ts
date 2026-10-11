@@ -1,6 +1,7 @@
 /** Tiny typed event bus so audio, FX and UI react to gameplay without importing each other. */
 export interface GameEvents {
   flap: { x: number; y: number; z: number };
+  wingbeat: { x: number; y: number; z: number };
   contact: { kind: 'ground' | 'water'; x: number; y: number; z: number; strength: number };
   wisp: { x: number; y: number; z: number; count: number; flow: number; chain: number };
   lantern: { x: number; y: number; z: number; index: number };

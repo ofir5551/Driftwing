@@ -13,7 +13,7 @@ function glide(seconds: number, speed: number, pitch: number, tuck = 0, seed = 7
   let wasBeating = false;
   let edge = 0; // largest |arm| on a frame where a burst starts or ends
   for (let t = 0; t < seconds; t += DT) {
-    w.update(DT, 99 + t, speed, pitch, tuck);
+    w.update(DT, 99 + t, 99 + t, speed, pitch, tuck);
     const beating = w.beatsLeft > 0;
     if (beating && !wasBeating) bursts++;
     if (beating !== wasBeating) edge = Math.max(edge, Math.abs(w.arm));
@@ -45,16 +45,35 @@ describe('WingBeat', () => {
 
   it('a player flap triggers one full-strength stroke', () => {
     const w = new WingBeat(() => 0.99); // long first gap: no idle burst in the way
-    for (let t = 0; t < 0.5; t += DT) w.update(DT, 99, CRUISE, 0, 0);
+    for (let t = 0; t < 0.5; t += DT) w.update(DT, 99, 99, CRUISE, 0, 0);
     expect(w.beatsLeft).toBe(0);
     let since = 0;
     let down = 0;
     for (let t = 0; t < Config.bird.flapPeriod * 1.5; t += DT) {
-      w.update(DT, since, CRUISE, 0, 0);
+      w.update(DT, since, 99, CRUISE, 0, 0);
       since += DT;
       down = Math.min(down, w.arm);
     }
     expect(down).toBeLessThan(-0.85); // a strong downstroke
     expect(w.beatsLeft).toBe(0);
+  });
+
+  it('climb wingbeats keep the wings beating steadily, softer than a flap', () => {
+    const w = new WingBeat(() => 0.99);
+    let since = 0;
+    let beating = 0;
+    let down = 0;
+    let frames = 0;
+    for (let t = 0; t < 3; t += DT) {
+      if (since >= Config.flight.climbBeatInterval) since = 0;
+      w.update(DT, 99, since, CRUISE, 0.3, 0);
+      since += DT;
+      frames++;
+      if (w.beatsLeft > 0) beating++;
+      down = Math.min(down, w.arm);
+    }
+    expect(beating / frames).toBeGreaterThan(0.8);
+    expect(down).toBeLessThan(-0.5);
+    expect(down).toBeGreaterThan(-0.9);
   });
 });

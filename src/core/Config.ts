@@ -6,9 +6,11 @@ export const Config = {
   flight: {
     cruiseSpeed: 26, // speed the bird relaxes to in level flight
     minSpeed: 15, // soft floor: below this the nose is gently pushed down, never a stall
-    maxSpeed: 58, // soft ceiling: extra drag above it
-    speedRelax: 0.35, // 1/s, how quickly speed returns to cruise
+    maxSpeed: 68, // soft ceiling: extra drag above it
+    speedRelax: 0.35, // 1/s, how quickly speed returns to cruise from below
+    speedRelaxFast: 0.18, // 1/s, slower bleed above cruise so dive speed carries into the pull-up
     gravityAlongPath: 14, // m/s^2 traded between speed and pitch (dive = faster, climb = slower)
+    diveGravity: 1.35, // multiplier on gravityAlongPath when nose-down: dives build speed faster
     maxClimb: 0.6, // rad, ~34 deg nose-up at full input
     maxDive: 0.85, // rad, ~49 deg nose-down at full input
     pitchOmega: 3.2, // critically damped spring frequency for pitch response
@@ -21,6 +23,10 @@ export const Config = {
     flapBoost: 4, // m/s of forward speed added per flap
     flapCooldown: 0.45, // s between flaps while held
     liftDecay: 1.6, // 1/s, how quickly the extra vertical velocity fades
+    climbBeatPitch: 0.12, // rad nose-up (while steering up) above which the bird beats its wings
+    climbBeatInterval: 0.4, // s between climb wingbeats
+    climbBeatLift: 1.7, // m/s of upward velocity per climb wingbeat (at the steepest climb)
+    climbBeatBoost: 0.8, // m/s of forward speed per climb wingbeat
     minAltitude: 6, // m above water level the bird is gently pushed back up from
     maxAltitude: 400, // m above water level where a soft ceiling starts
     boundsPush: 0.06, // strength of the soft altitude push (per metre of overshoot)
@@ -37,7 +43,7 @@ export const Config = {
     posOmega: 5.5, // spring frequency for camera position
     baseFov: 62,
     fovPerSpeed: 0.55, // extra degrees of FOV per m/s above cruise
-    maxFov: 82,
+    maxFov: 90,
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
   },
@@ -95,6 +101,8 @@ export const Config = {
   bird: {
     // Visual wingbeats only: the flight model is untouched, so the bird's own beats are cosmetic.
     flapPeriod: 0.42, // s, one full down-up stroke for a player flap
+    climbBeatPeriod: 0.4, // s per stroke while climbing: matches climbBeatInterval, strokes run back to back
+    climbAmplitude: 0.75, // fraction of a full flap stroke
     idleBeatPeriod: 0.34, // s per stroke of the bird's own occasional wingbeats
     idleAmplitude: 0.55, // fraction of a full flap stroke
     idleBeatsMin: 2, // beats per burst

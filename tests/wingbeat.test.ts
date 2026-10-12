@@ -77,11 +77,12 @@ describe('WingBeat', () => {
     expect(down).toBeGreaterThan(-0.9);
   });
 
-  it('only a dive folds the wings, never speed in level or climbing flight', () => {
+  it('only a steep dive folds the wings, never speed or a gentle descent', () => {
     const fast = Config.flight.maxSpeed;
     expect(WingBeat.tuck(fast, 0)).toBe(0); // boosted to top speed, level
     expect(WingBeat.tuck(fast, 0.3)).toBe(0); // zooming up out of a dive
-    expect(WingBeat.tuck(CRUISE, -0.6)).toBe(1); // steep dive
-    expect(WingBeat.tuck(fast, -0.15)).toBeGreaterThan(WingBeat.tuck(CRUISE, -0.15));
+    expect(WingBeat.tuck(fast, -0.25)).toBe(0); // gentle descent, even fast: wings stay open
+    expect(WingBeat.tuck(CRUISE, -0.75)).toBe(1); // steep dive
+    expect(WingBeat.tuck(fast, -0.4)).toBeGreaterThan(WingBeat.tuck(CRUISE, -0.4));
   });
 });

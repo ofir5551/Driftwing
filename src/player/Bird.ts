@@ -318,6 +318,11 @@ export class Bird {
 
     const b = this.beat;
     b.update(dt, sinceFlap, sinceClimbBeat, p.speed, p.pitch, this.tuck);
+    // A bird can't beat folded wings: any stroke (a boost mid-dive included) opens them, and they
+    // fold back as the stroke fades if the dive goes on.
+    const tuck = this.tuck * (1 - b.weight);
+    // Gentle descents keep the wings open, just swept back a little.
+    const descend = smoothstep(-0.05, -0.35, p.pitch) * (1 - b.weight);
 
     // Glide pose: a gull's shallow "M" (arms up, hands drooping) with a slow breathing sway and
     // a little flex in turns. Beats ride on top; the hand flattens out while beating.
@@ -329,29 +334,28 @@ export class Bird {
     const arm = b.arm > 0 ? b.arm : b.arm * DOWNSTROKE;
     const hand = b.hand > 0 ? b.hand : b.hand * DOWNSTROKE;
     const shoulderAngle =
-      (0.14 + sway * 0.035 - Math.abs(p.bank) * 0.05 + slow * 0.05) * (1 - this.tuck) -
-      this.tuck * 0.08 +
+      (0.14 + sway * 0.035 - Math.abs(p.bank) * 0.05 + slow * 0.05) * (1 - tuck) -
+      tuck * 0.08 +
       arm * 0.85;
     const elbowAngle =
-      (-0.14 + Math.sin(time * 1.6 - 0.7) * 0.03 + this.tuck * 0.1) * (1 - b.weight * 0.7) +
-      hand * 0.5;
-    const sweep = this.tuck * 0.95 + b.fold * 0.15;
+      (-0.14 + Math.sin(time * 1.6 - 0.7) * 0.03 + tuck * 0.1) * (1 - b.weight * 0.7) + hand * 0.5;
+    const sweep = Math.max(tuck * 0.95, descend * 0.25) + b.fold * 0.15;
     for (let i = 0; i < 2; i++) {
       // Shoulders rotate in the unmirrored body frame, so the right wing needs flipped signs;
       // elbows live inside the mirrored shoulder, so the same values mirror automatically.
       const side = i === 0 ? 1 : -1;
-      this.shoulders[i].rotation.set(0, this.tuck * 0.75 * side, shoulderAngle * side);
+      this.shoulders[i].rotation.set(0, tuck * 0.75 * side, shoulderAngle * side);
       this.elbows[i].rotation.set(0, sweep, elbowAngle);
     }
     // Primaries fan open ("fingers") when slow, close up in a dive and on the upstroke.
-    const spread = clamp(1 - this.tuck * 0.85 - b.fold * 0.15 + slow * 0.15, 0.1, 1.15);
+    const spread = clamp(1 - tuck * 0.85 - b.fold * 0.15 + slow * 0.15, 0.1, 1.15);
     for (let i = 0; i < this.primaries.length; i++) {
       const base = PRIMARIES[i % PRIMARIES.length][2];
       this.primaries[i].rotation.y = PRIMARY_FOLD + (base - PRIMARY_FOLD) * spread;
     }
 
     // Tail fans and tilts with pitch for a bit of life.
-    const fan = 0.22 + (1 - this.tuck) * 0.12 + Math.max(0, p.pitch) * 0.5 + slow * 0.1;
+    const fan = 0.22 + (1 - tuck) * 0.12 + Math.max(0, p.pitch) * 0.5 + slow * 0.1;
     const tilt = clamp(p.pitch * 0.6, -0.4, 0.4);
     const half = (TAIL_FEATHERS - 1) / 2;
     for (let i = 0; i < TAIL_FEATHERS; i++) {

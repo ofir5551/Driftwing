@@ -89,7 +89,12 @@ game.onFrame((dt) => {
     if (!hintShown && !flapped && playTime > 14) {
       hintShown = true;
       const touch = document.body.classList.contains('touch');
-      gameplay.hud.toast(touch ? 'Hold the wing button to flap' : 'Hold Space or click to flap', 4);
+      gameplay.hud.toast(
+        touch
+          ? 'Hold the wing button, or tap with a second finger, to flap'
+          : 'Hold Space or click to flap',
+        4,
+      );
     }
   }
 });

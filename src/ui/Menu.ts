@@ -19,7 +19,7 @@ export class Menu {
 
   constructor(ui: HTMLElement, settings: Settings, h: MenuHandlers) {
     const controls = isTouch()
-      ? `<li><b>Drag</b> anywhere to steer</li><li><b>Hold the wing button</b> to flap</li>`
+      ? `<li><b>Drag</b> anywhere to steer</li><li><b>Hold the wing button</b> (or tap with a second finger) to flap</li>`
       : `<li><b>Mouse</b> or <b>WASD</b> to steer</li><li><b>Click</b> or <b>Space</b> to flap</li><li><b>P</b> pause · <b>M</b> mute · <b>L</b> lock pointer</li>`;
     this.start = this.panel(
       'start',

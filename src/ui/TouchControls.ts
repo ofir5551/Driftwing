@@ -4,12 +4,21 @@ import { clamp } from '../core/math';
 /**
  * Touch: drag anywhere to steer, relative to where the finger went down (a floating stick),
  * plus a dedicated flap button. Works in portrait and landscape because nothing is anchored
- * to a fixed stick position.
+ * to a fixed stick position. While one finger steers, a second finger touching anywhere else
+ * also flaps (held = repeat), so the flap never needs the button's exact spot.
  */
 export class TouchControls {
   steerX = 0;
   steerY = 0;
-  flap = false;
+  /** Held flap (button or second finger), or a tap too quick for the 60 Hz step to see. */
+  get flap(): boolean {
+    const f = this.held || this.tap;
+    this.tap = false;
+    return f;
+  }
+  private held = false;
+  private tap = false;
+  private flapId: number | null = null;
   /** True once any touch has been seen: switches hints/UI to touch mode. */
   active = false;
   private steerId: number | null = null;
@@ -34,8 +43,7 @@ export class TouchControls {
 
     const press = (down: boolean) => (e: Event) => {
       e.preventDefault();
-      this.flap = down;
-      this.button.classList.toggle('down', down);
+      this.setFlap(down);
     };
     this.button.addEventListener('touchstart', press(true), { passive: false });
     this.button.addEventListener('touchend', press(false));
@@ -46,7 +54,11 @@ export class TouchControls {
       (e) => {
         this.setActive();
         for (const t of Array.from(e.changedTouches)) {
-          if (this.steerId === null) {
+          if (this.steerId !== null && this.flapId === null) {
+            // A second finger anywhere flaps for as long as it stays down.
+            this.flapId = t.identifier;
+            this.setFlap(true);
+          } else if (this.steerId === null) {
             this.steerId = t.identifier;
             this.ox = t.clientX;
             this.oy = t.clientY;
@@ -86,6 +98,10 @@ export class TouchControls {
     );
     const end = (e: TouchEvent) => {
       for (const t of Array.from(e.changedTouches)) {
+        if (t.identifier === this.flapId) {
+          this.flapId = null;
+          this.setFlap(false);
+        }
         if (t.identifier === this.steerId) {
           this.steerId = null;
           this.steerX = 0;
@@ -97,6 +113,15 @@ export class TouchControls {
     surface.addEventListener('touchend', end);
     surface.addEventListener('touchcancel', end);
     if (matchMedia('(pointer: coarse)').matches) this.setActive();
+  }
+
+  private setFlap(down: boolean): void {
+    if (down) {
+      this.tap = true;
+      navigator.vibrate?.(8); // a faint tick where supported (Android); ignored elsewhere
+    }
+    this.held = down;
+    this.button.classList.toggle('down', down);
   }
 
   private setActive(): void {

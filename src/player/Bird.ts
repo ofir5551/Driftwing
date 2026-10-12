@@ -37,6 +37,7 @@ const PRIMARIES: [number, number, number, number][] = [
 ];
 const PRIMARY_FOLD = 0.35; // fan angle the primaries collapse toward when tucked
 const TAIL_FEATHERS = 6;
+const DOWNSTROKE = 0.3; // how far the downstroke goes, relative to the upstroke
 
 const scratch = new THREE.Color();
 const scratch2 = new THREE.Color();
@@ -325,14 +326,19 @@ export class Bird {
     // a little flex in turns. Beats ride on top; the hand flattens out while beating.
     const sway = Math.sin(time * 1.6);
     // Tucked, the arms drop flush along the body instead of holding the glide dihedral.
+    // A real stroke is lopsided: the wings swing high on the upstroke but the downstroke ends
+    // only a little below level. A symmetric swing dips them far under the body, which from the
+    // chase camera reads as the wings folding down. The hand follows the same rule.
+    const arm = b.arm > 0 ? b.arm : b.arm * DOWNSTROKE;
+    const hand = b.hand > 0 ? b.hand : b.hand * DOWNSTROKE;
     const shoulderAngle =
       (0.14 + sway * 0.035 - Math.abs(p.bank) * 0.05 + slow * 0.05) * (1 - this.tuck) -
       this.tuck * 0.08 +
-      b.arm * 0.85;
+      arm * 0.85;
     const elbowAngle =
       (-0.14 + Math.sin(time * 1.6 - 0.7) * 0.03 + this.tuck * 0.1) * (1 - b.weight * 0.7) +
-      b.hand * 0.5;
-    const sweep = this.tuck * 0.95 + b.fold * 0.3;
+      hand * 0.5;
+    const sweep = this.tuck * 0.95 + b.fold * 0.15;
     for (let i = 0; i < 2; i++) {
       // Shoulders rotate in the unmirrored body frame, so the right wing needs flipped signs;
       // elbows live inside the mirrored shoulder, so the same values mirror automatically.
@@ -341,7 +347,7 @@ export class Bird {
       this.elbows[i].rotation.set(0, sweep, elbowAngle);
     }
     // Primaries fan open ("fingers") when slow, close up in a dive and on the upstroke.
-    const spread = clamp(1 - this.tuck * 0.85 - b.fold * 0.35 + slow * 0.15, 0.1, 1.15);
+    const spread = clamp(1 - this.tuck * 0.85 - b.fold * 0.15 + slow * 0.15, 0.1, 1.15);
     for (let i = 0; i < this.primaries.length; i++) {
       const base = PRIMARIES[i % PRIMARIES.length][2];
       this.primaries[i].rotation.y = PRIMARY_FOLD + (base - PRIMARY_FOLD) * spread;

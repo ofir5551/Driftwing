@@ -50,12 +50,13 @@ body {
   position: fixed;
   right: max(24px, env(safe-area-inset-right));
   bottom: max(28px, env(safe-area-inset-bottom));
-  width: 96px;
-  height: 96px;
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  background: rgba(255, 250, 240, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(60, 50, 80, 0.32);
   color: #fff;
+  box-shadow: 0 2px 14px rgba(40, 30, 60, 0.25);
   backdrop-filter: blur(4px);
   display: none;
   touch-action: none;
@@ -65,12 +66,20 @@ body {
 }
 
 .flap-btn svg {
-  width: 48px;
-  height: 48px;
+  width: 62px;
+  height: 62px;
+}
+
+/* Invisible padding: a thumb that lands near the button still counts. */
+.flap-btn::after {
+  content: '';
+  position: absolute;
+  inset: -22px;
+  border-radius: 50%;
 }
 
 .flap-btn.down {
-  transform: scale(0.9);
+  transform: scale(0.92);
   background: rgba(255, 250, 240, 0.5);
 }
 

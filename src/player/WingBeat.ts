@@ -50,6 +50,19 @@ export class WingBeat {
     this.glideLeft = Math.max(this.glideLeft, Config.bird.idleGapMin);
   }
 
+  /**
+   * How far the wings fold back into a stoop, 0..1. Only a nose-down dive tucks them: speed
+   * alone never does, because boosts and a pull-up out of a dive keep the bird fast in level or
+   * climbing flight, where folded wings look wrong. Speed only deepens a tuck already started
+   * by diving, so a fast, shallow dive still folds a little more than a slow one.
+   */
+  static tuck(speed: number, pitch: number): number {
+    const c = Config.flight;
+    const dive = smoothstep(-0.12, -0.55, pitch);
+    const fast = smoothstep(c.cruiseSpeed + 6, c.maxSpeed, speed);
+    return Math.max(dive, fast * smoothstep(-0.04, -0.2, pitch));
+  }
+
   /** How much the bird "wants" to flap: slow or nose-up flight, 0..1. */
   static need(speed: number, pitch: number): number {
     const c = Config.flight;

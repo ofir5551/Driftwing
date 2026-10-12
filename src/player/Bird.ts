@@ -312,10 +312,7 @@ export class Bird {
     this.root.position.set(p.x, p.y, p.z);
     this.root.rotation.set(-p.pitch, p.yaw, p.bank, 'YXZ');
 
-    // Dives tuck the wings back into a stoop, fully once the nose is well down or the bird is
-    // near top speed; slow flight spreads them wide.
-    const speedT = smoothstep(Config.flight.cruiseSpeed + 6, Config.flight.maxSpeed, p.speed);
-    const tuckTarget = Math.max(speedT, smoothstep(-0.15, -0.55, p.pitch));
+    const tuckTarget = WingBeat.tuck(p.speed, p.pitch);
     this.tuck += (tuckTarget - this.tuck) * expDecay(4, dt);
     const slow = smoothstep(Config.flight.cruiseSpeed, Config.flight.minSpeed, p.speed);
 

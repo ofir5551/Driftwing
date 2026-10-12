@@ -87,6 +87,12 @@ body.touch .flap-btn {
   display: block;
 }
 
+/* Left-handed: mirror the flap button to the bottom left. */
+body.left-handed .flap-btn {
+  right: auto;
+  left: max(24px, env(safe-area-inset-left));
+}
+
 .touch-ring {
   position: fixed;
   left: -44px;
@@ -254,6 +260,9 @@ body.touch .flap-btn {
   padding: 26px 30px;
   backdrop-filter: blur(10px);
   box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+  /* Short landscape phones: scroll the card instead of cutting off the last settings. */
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
 }
 
 .card h1 {
@@ -363,6 +372,15 @@ body.touch .flap-btn {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Only meaningful on touch devices, so hidden for mouse and keyboard players. */
+.settings label.touch-only {
+  display: none;
+}
+
+body.touch .settings label.touch-only {
+  display: flex;
 }
 
 .settings input[type='range'] {

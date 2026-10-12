@@ -5,11 +5,19 @@ export interface Settings {
   muted: boolean;
   quality: QualityLevel | 'auto';
   invertY: boolean;
+  /** Touch: put the flap button at the bottom left instead of the bottom right. */
+  leftHanded: boolean;
 }
 
 const KEY = 'driftwing:settings';
 const BEST = 'driftwing:best';
-const DEFAULTS: Settings = { volume: 0.8, muted: false, quality: 'auto', invertY: false };
+const DEFAULTS: Settings = {
+  volume: 0.8,
+  muted: false,
+  quality: 'auto',
+  invertY: false,
+  leftHanded: false,
+};
 
 // localStorage can throw (private mode, disabled storage): settings then just don't persist.
 export function loadSettings(): Settings {
@@ -23,6 +31,7 @@ export function loadSettings(): Settings {
       quality:
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',
       invertY: s.invertY === true,
+      leftHanded: s.leftHanded === true,
     };
   } catch {
     return { ...DEFAULTS };

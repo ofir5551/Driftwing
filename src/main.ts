@@ -22,6 +22,7 @@ function applySettings(s: Settings): void {
   audio.engine.setVolume(s.volume);
   audio.engine.setMuted(s.muted);
   Config.input.invertY = s.invertY;
+  document.body.classList.toggle('left-handed', s.leftHanded);
   if (!params.has('quality')) {
     game.autoQuality = s.quality === 'auto';
     if (s.quality !== 'auto' && s.quality !== game.quality) game.setQuality(s.quality);

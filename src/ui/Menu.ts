@@ -45,6 +45,7 @@ export class Menu {
            </select>
          </label>
          <label class="row"><input type="checkbox" id="invert"> Invert vertical steering</label>
+         <label class="row touch-only"><input type="checkbox" id="lefty"> Left-handed (flap button on the left)</label>
        </div>`,
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
@@ -61,11 +62,13 @@ export class Menu {
     const mute = this.pause.querySelector<HTMLInputElement>('#mute')!;
     const quality = this.pause.querySelector<HTMLSelectElement>('#quality')!;
     const invert = this.pause.querySelector<HTMLInputElement>('#invert')!;
+    const lefty = this.pause.querySelector<HTMLInputElement>('#lefty')!;
     const sync = () => {
       vol.value = String(settings.volume);
       mute.checked = settings.muted;
       quality.value = settings.quality;
       invert.checked = settings.invertY;
+      lefty.checked = settings.leftHanded;
     };
     sync();
     this.syncInputs = sync;
@@ -74,9 +77,10 @@ export class Menu {
       settings.muted = mute.checked;
       settings.quality = quality.value as Settings['quality'];
       settings.invertY = invert.checked;
+      settings.leftHanded = lefty.checked;
       h.change(settings);
     };
-    for (const el of [vol, mute, quality, invert]) el.addEventListener('input', changed);
+    for (const el of [vol, mute, quality, invert, lefty]) el.addEventListener('input', changed);
     // Keep keyboard/mouse events on menus from steering or flapping the bird.
     for (const p of [this.start, this.pause])
       p.addEventListener('pointerdown', (e) => e.stopPropagation());

@@ -23,7 +23,7 @@ harder (1.35x) and speed above cruise bleeds off slowly, so a full dive reaches 
 
 Mouse: pointer offset from centre steers (optional pointer lock). Click/Space flaps.
 Keyboard: WASD/arrows steer, Space flap, M mute, P/Esc pause.
-Touch: drag relative to touch start steers; flap is a big 124 px button (with extra invisible hit padding)
+Touch (settings: left-handed mirrors the flap button to the left): drag relative to touch start steers; flap is a big 124 px button (with extra invisible hit padding)
 or a second finger tapped anywhere while one steers; very quick taps are latched so no step misses them. Gamepad: left stick + A.
 
 ## World

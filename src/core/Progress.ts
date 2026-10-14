@@ -16,6 +16,8 @@ export class Progress {
   lanterns = 0;
   best = 0;
   private sincePickup = 99;
+  /** The last two tricks, newest first (variety scoring). */
+  private readonly recent = ['', ''];
 
   /** Register a pickup. Returns points awarded and whether a lantern milestone was reached. */
   collect(): { points: number; lantern: boolean } {
@@ -32,6 +34,36 @@ export class Progress {
     return { points, lantern };
   }
 
+  /**
+   * A landed trick: flow and points like a few wisps, scaled by its size (`scale`), by variety
+   * (repeating the last trick pays half, one unlike the last two pays more) and by an arch. It
+   * keeps the chain alive but isn't a wisp, so lanterns still come from wisps alone.
+   */
+  trick(kind: string, scale: number, atArch: boolean): { points: number; variety: number } {
+    const t = Config.flow;
+    const [last, before] = this.recent;
+    const variety = kind === last ? t.trickRepeat : kind !== before ? t.trickVariety : 1;
+    this.recent[1] = last;
+    this.recent[0] = kind;
+    const m = variety * scale * (atArch ? t.archMultiplier : 1);
+    return { points: this.reward(t.trickGain * m, t.trickPoints * m), variety };
+  }
+
+  /** Flying through an arch: about one wisp's worth. */
+  arch(): number {
+    return this.reward(Config.flow.gain, 1);
+  }
+
+  private reward(gain: number, points: number): number {
+    const t = Config.flow;
+    this.sincePickup = 0;
+    this.flow = Math.min(1, this.flow + gain);
+    const p = Math.round(t.basePoints * points * (1 + this.flow * t.flowMultiplier));
+    this.score += p;
+    this.best = Math.max(this.best, this.score);
+    return p;
+  }
+
   update(dt: number): void {
     this.sincePickup += dt;
     if (this.sincePickup > Config.flow.chainWindow) this.chain = 0;
@@ -46,6 +78,7 @@ export class Progress {
 
   reset(): void {
     this.count = this.score = this.flow = this.chain = this.lanterns = 0;
+    this.recent[0] = this.recent[1] = '';
     this.sincePickup = 99;
   }
 }

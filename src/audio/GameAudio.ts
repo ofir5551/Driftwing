@@ -29,6 +29,13 @@ export class GameAudio {
     game.events.on('wingbeat', () => this.sfx.wingbeat());
     game.events.on('wisp', (e) => this.music.playWispNote(e.flow));
     game.events.on('lantern', () => this.music.lantern());
+    game.events.on('trickStart', (e) => {
+      this.music.trick(e.kind);
+      if (e.kind === 'dive') this.sfx.dive();
+      else if (e.kind !== 'loop') this.sfx.roll();
+    });
+    game.events.on('trick', (e) => this.music.land(e.kind, e.atArch));
+    game.events.on('arch', () => this.music.arch());
     game.events.on('contact', (e) => this.sfx.contact(e.kind, e.strength));
     game.events.on('thermal', (e) => this.sfx.thermal(e.inside));
     // Audio params are smoothed with setTargetAtTime, so ~10 updates/s is plenty and keeps

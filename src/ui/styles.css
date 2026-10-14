@@ -221,6 +221,29 @@ body.left-handed .flap-btn {
   transform: translate(-50%, 0);
 }
 
+.trick-toast {
+  position: fixed;
+  top: 31%;
+  left: 50%;
+  transform: translate(-50%, 6px);
+  font-size: clamp(15px, 2.6vw, 22px);
+  letter-spacing: 0.1em;
+  white-space: pre;
+  color: #fff8e8;
+  text-shadow: 0 1px 12px rgba(255, 190, 110, 0.8);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.trick-toast.show {
+  opacity: 0.92;
+  transform: translate(-50%, 0);
+  transition-duration: 0.15s;
+}
+
 /* Menus */
 .menu {
   position: fixed;
@@ -592,6 +615,7 @@ body.touch .settings label.touch-only {
   }
 }
 
+body.paused .trick-toast,
 body.paused .toast {
   opacity: 0;
   transition: none;

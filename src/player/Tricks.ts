@@ -190,3 +190,25 @@ export function advanceTrick(s: FlightState, held: boolean, env: FlightEnv, dt: 
 export function loopSpeed(tr: TrickState): number {
   return tr.entrySpeed * (1 - Config.tricks.loopDip * 0.5 * (1 - Math.cos(tr.angle)));
 }
+
+/** Rolls either way are one trick for variety scoring. */
+export const trickFamily = (kind: TrickKind): string =>
+  kind === 'rollL' || kind === 'rollR' ? 'roll' : kind;
+
+const range01 = (v: number, lo: number, hi: number): number =>
+  Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
+
+/** Score multiplier for a trick's size: committing to a bigger trick pays a little more. */
+export function trickScale(kind: TrickKind, size: number): number {
+  const c = Config.tricks;
+  if (kind === 'loop') return 1 + 0.5 * range01(size, c.loopMin, c.loopMax);
+  if (kind === 'dive') return 1 + 0.5 * range01(size, c.diveMin, c.diveMax);
+  return 1 + 0.4 * (size - 1);
+}
+
+export function trickName(kind: TrickKind, size: number): string {
+  const c = Config.tricks;
+  if (kind === 'loop') return range01(size, c.loopMin, c.loopMax) > 0.6 ? 'Big loop' : 'Loop';
+  if (kind === 'dive') return size > 1.6 ? 'Long dive-bomb' : 'Dive-bomb';
+  return size >= 3 ? 'Triple roll' : size >= 2 ? 'Double roll' : 'Barrel roll';
+}

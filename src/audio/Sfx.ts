@@ -88,6 +88,16 @@ export class Sfx {
     this.burst('bandpass', 320, 1100, 1.4, 0.07, 0.2, 0.03);
   }
 
+  /** Dive-bomb: the wings fold and the air roars, falling in pitch as the stoop steepens. */
+  dive(): void {
+    this.burst('bandpass', 700, 260, 1.1, 0.2, 1.1, 0.12);
+  }
+
+  /** Barrel roll: a quick swish. */
+  roll(): void {
+    this.burst('bandpass', 600, 1600, 1.6, 0.1, 0.4, 0.05);
+  }
+
   thermal(inside: boolean): void {
     if (inside) this.burst('bandpass', 250, 1300, 2, 0.12, 1.6, 0.5);
   }

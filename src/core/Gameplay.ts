@@ -4,6 +4,7 @@ import type { Game } from './Game';
 import { Progress } from './Progress';
 import { clamp, smoothstep } from './math';
 import { BlobShadow } from '../fx/BlobShadow';
+import { trickFamily, trickName, trickScale, type TrickKind } from '../player/Tricks';
 import { Particles } from '../fx/Particles';
 import { Trails } from '../fx/Trails';
 import { Wind } from '../fx/Wind';
@@ -38,6 +39,9 @@ export class Gameplay {
   private readonly vel = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
   private contactFx = 0;
+  /** Seconds since the bird last flew through an arch, and whether the running trick did. */
+  private sinceArch = 99;
+  private trickAtArch = false;
   /** What the blob shadow lands on: roofs and decks below the bird, else the ground. */
   private readonly shadowGround: (x: number, z: number) => number;
 
@@ -112,8 +116,31 @@ export class Gameplay {
       if (lantern) this.lightLantern();
     });
     if (scoring) this.progress.update(dt);
+    this.sinceArch += dt;
+    const tr = s.trick;
+    if (tr.started) {
+      // A trick begun just after passing through an arch still counts as through it.
+      this.trickAtArch = this.sinceArch < Config.arches.afterWindow;
+      g.events.emit('trickStart', { kind: tr.started, x: s.x, y: s.y, z: s.z });
+    }
+    if (tr.finished) this.landTrick(tr.finished, tr.size, scoring);
     const t = this.wisps.nextTarget(s.x, s.z, s.yaw);
     g.autopilotTarget = t;
+  }
+
+  private landTrick(kind: TrickKind, size: number, scoring: boolean): void {
+    const g = this.game;
+    const s = g.flight;
+    const atArch = this.trickAtArch;
+    this.trickAtArch = false;
+    this.glow.burst(atArch ? 40 : 16, s.x, s.y, s.z, atArch ? 12 : 6, 0.9, 0.7, this.wispColor);
+    if (!scoring) return;
+    const { points } = this.progress.trick(trickFamily(kind), trickScale(kind, size), atArch);
+    const name = trickName(kind, size);
+    this.hud.trick(atArch ? `${name} through the arch` : name, points);
+    this.hud.pulse();
+    if (atArch) g.composer.flash = 0.3;
+    g.events.emit('trick', { kind, size, atArch, points });
   }
 
   private lightLantern(): void {
@@ -223,7 +250,11 @@ export class Gameplay {
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);
     const cam = g.chase.camera.position;
-    const trailIntensity = Math.min(0.85, speedT * 0.7 + Math.abs(pose.bank) * 0.45);
+    // Tricks draw bright ribbons: a roll leaves a spiral, a loop a ring.
+    const trailIntensity =
+      g.flight.trick.kind !== null
+        ? 0.9
+        : Math.min(0.85, speedT * 0.7 + Math.abs(pose.bank) * 0.45);
     this.trails.update(
       dt,
       [g.bird.tipL, g.bird.tipR],

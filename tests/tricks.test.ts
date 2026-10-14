@@ -7,7 +7,7 @@ import {
   type FlightInput,
   type FlightState,
 } from '../src/player/FlightModel';
-import type { TrickKind } from '../src/player/Tricks';
+import { trickName, trickScale, type TrickKind } from '../src/player/Tricks';
 
 const DT = 1 / 60;
 const flat = (h: number): FlightEnv => ({ groundAt: () => h, thermalAt: () => 0 });
@@ -146,5 +146,19 @@ describe('tricks', () => {
     inp.trick = 'loop';
     stepFlight(s, inp, flat(-50), DT);
     expect(s.trick.kind).toBe('rollL');
+  });
+});
+
+describe('trick names and sizes', () => {
+  it('bigger tricks have bigger names and pay a little more', () => {
+    const c = Config.tricks;
+    expect(trickName('rollL', 1)).toBe('Barrel roll');
+    expect(trickName('rollR', 3)).toBe('Triple roll');
+    expect(trickName('loop', c.loopMax)).toBe('Big loop');
+    expect(trickName('dive', c.diveMax)).toBe('Long dive-bomb');
+    expect(trickScale('rollL', 1)).toBe(1);
+    expect(trickScale('rollL', 2)).toBeGreaterThan(1);
+    expect(trickScale('loop', c.loopMax)).toBeCloseTo(1.5);
+    expect(trickScale('dive', c.diveMin)).toBe(1);
   });
 });

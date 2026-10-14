@@ -9,6 +9,7 @@ import {
 } from './scales';
 import { HIGHLANDS_MUSIC, type MusicStyle } from './styles';
 import { mulberry32 } from '../world/noise';
+import type { TrickKind } from '../player/Tricks';
 
 const STEPS_PER_CHORD = 16; // two bars of eighth notes
 const LOOKAHEAD = 0.15; // s of audio scheduled ahead of the clock
@@ -172,6 +173,49 @@ export class Music {
     const deg = this.phrase.next() + this.chordRoot;
     const midi = degreeToMidi(this.root + this.shift, this.mode, deg) + 12;
     this.note(t, midi, 0.5 + flow * 0.3, (this.rand() - 0.5) * 0.4, 2.0, 0.17, true);
+  }
+
+  /**
+   * A trick's phrase in the level's voice, on the grid: a quick scale run for a roll (rising to
+   * the right, falling to the left), an arc up and back down for a loop, a short fall for a
+   * dive-bomb. Played as the trick starts, so the music moves with the bird.
+   */
+  trick(kind: TrickKind): void {
+    const ctx = this.engine.ctx;
+    if (!ctx || !this.sched) return;
+    const d = this.sched.stepDur;
+    const t0 = this.sched.quantize(ctx.currentTime, 4, 0.01);
+    const key = this.root + this.shift;
+    const run = (degs: number[], gap: number, vel: number): void => {
+      degs.forEach((deg, i) => {
+        const m = degreeToMidi(key, this.mode, this.chordRoot + deg) + 12;
+        this.note(t0 + i * gap, m, vel, (i / (degs.length - 1) - 0.5) * 0.6, 1.4, 0.1, false);
+      });
+    };
+    if (kind === 'rollR') run([0, 1, 2, 3, 4], d / 4, 0.45);
+    else if (kind === 'rollL') run([4, 3, 2, 1, 0], d / 4, 0.45);
+    else if (kind === 'loop') run([0, 2, 4, 6, 7, 6, 4, 2], d / 2, 0.5);
+    else run([4, 2, 0], d / 4, 0.35);
+  }
+
+  /** A trick landed: a bright high note after a dive-bomb, a flourish through an arch. */
+  land(kind: TrickKind, atArch: boolean): void {
+    const ctx = this.engine.ctx;
+    if (!ctx || !this.sched) return;
+    const t = this.sched.quantize(ctx.currentTime, 2, 0.01);
+    const key = this.root + this.shift;
+    if (kind === 'dive')
+      this.note(t, degreeToMidi(key, this.mode, this.chordRoot + 9) + 12, 0.6, 0, 2.4, 0.14, true);
+    if (atArch) this.flourishPending = true;
+  }
+
+  /** Through an arch: one soft chord tone, like passing under a bell. */
+  arch(): void {
+    const ctx = this.engine.ctx;
+    if (!ctx || !this.sched) return;
+    const t = this.sched.quantize(ctx.currentTime, 2, 0.01);
+    const m = degreeToMidi(this.root + this.shift, this.mode, this.chordRoot + 4) + 12;
+    this.note(t, m, 0.5, 0, 3, 0.12, false);
   }
 
   /** Swap the level's style; it lands on the next chord boundary (tempo, keys, voices). */

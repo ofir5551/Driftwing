@@ -1,6 +1,8 @@
 import { Config } from './Config';
+import { DoubleTap, type Dir } from './Gestures';
 import { clamp } from './math';
 import type { FlightInput } from '../player/FlightModel';
+import type { TrickKind } from '../player/Tricks';
 import { TouchControls } from '../ui/TouchControls';
 
 type Device = 'mouse' | 'keys' | 'touch' | 'pad';
@@ -8,10 +10,17 @@ type Device = 'mouse' | 'keys' | 'touch' | 'pad';
 /**
  * Merges mouse, keyboard, touch and gamepad into one FlightInput. Steering comes from the most
  * recently used device (so a resting mouse pointer doesn't fight the keyboard); flap is the OR
- * of every source.
+ * of every source. Trick gestures: double-tap a direction (keys, stick), flick the steering
+ * finger (touch) or right-click toward a direction (mouse); keeping it held extends the trick.
  */
 export class Input {
-  readonly state: FlightInput = { steerX: 0, steerY: 0, flap: false };
+  readonly state: FlightInput = {
+    steerX: 0,
+    steerY: 0,
+    flap: false,
+    trick: null,
+    trickHeld: false,
+  };
   readonly touch: TouchControls;
   /** One-shot actions, consumed by Game each frame. */
   pausePressed = false;
@@ -24,6 +33,13 @@ export class Input {
   private padFlap = false;
   private padPausePrev = false;
   private locked = false;
+  private readonly keyTaps = new DoubleTap();
+  private readonly padTaps = new DoubleTap();
+  private padDir: Dir | null = null;
+  private rightDown = false;
+  /** A gesture waiting for the next step, and the direction it was made in (for the hold). */
+  private pending: Dir | null = null;
+  private trickDir: Dir | null = null;
   /** False while menus are open so clicks on buttons don't flap. */
   enabled = false;
 
@@ -42,7 +58,11 @@ export class Input {
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k))
         e.preventDefault();
       this.keys.add(k);
-      if (this.isSteerKey(k)) this.device = 'keys';
+      if (this.isSteerKey(k)) {
+        this.device = 'keys';
+        const dir = keyDir(k);
+        if (dir && this.keyTaps.press(dir, e.timeStamp / 1000)) this.pending = dir;
+      }
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => {
@@ -65,10 +85,23 @@ export class Input {
       this.device = 'mouse';
     });
     canvas.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'mouse' && e.button === 0) this.mouseFlap = true;
+      if (e.pointerType !== 'mouse') return;
+      if (e.button === 0) this.mouseFlap = true;
+      if (e.button === 2) {
+        // Right-click: a trick toward wherever the pointer is steering (centred: a loop).
+        this.rightDown = true;
+        this.device = 'mouse';
+        const x = this.mx;
+        const y = -this.my;
+        this.pending =
+          Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : y < -0.15 ? 'down' : 'up';
+      }
     });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     addEventListener('pointerup', (e) => {
-      if (e.pointerType === 'mouse') this.mouseFlap = false;
+      if (e.pointerType !== 'mouse') return;
+      if (e.button === 0) this.mouseFlap = false;
+      if (e.button === 2) this.rightDown = false;
     });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === this.canvas;
@@ -127,6 +160,26 @@ export class Input {
         y = this.padY;
         break;
     }
+    const flick = this.touch.takeFlick();
+    if (flick) {
+      this.pending = flick;
+      this.device = 'touch';
+    }
+    // The hold: still pushing the way the gesture went (right button for the mouse).
+    const td = this.trickDir;
+    s.trickHeld =
+      this.enabled &&
+      td !== null &&
+      (this.device === 'mouse'
+        ? this.rightDown
+        : (td === 'left' ? -x : td === 'right' ? x : td === 'up' ? y : -y) > 0.4);
+    s.trick = null;
+    if (this.pending && this.enabled) {
+      s.trick = trickFor(this.pending);
+      this.trickDir = this.pending;
+      s.trickHeld = true;
+    }
+    this.pending = null;
     if (Config.input.invertY) y = -y;
     s.steerX = this.enabled ? x : 0;
     s.steerY = this.enabled ? y : 0;
@@ -144,9 +197,42 @@ export class Input {
     this.padX = dz(pad.axes[0] ?? 0);
     this.padY = -dz(pad.axes[1] ?? 0);
     if (this.padX !== 0 || this.padY !== 0) this.device = 'pad';
+    // The stick snapped to an edge counts as a press of that direction (released past halfway).
+    const ax = Math.abs(this.padX);
+    const ay = Math.abs(this.padY);
+    const edge: Dir | null =
+      Math.max(ax, ay) > 0.85
+        ? ax > ay
+          ? this.padX > 0
+            ? 'right'
+            : 'left'
+          : this.padY > 0
+            ? 'up'
+            : 'down'
+        : null;
+    if (edge && edge !== this.padDir && this.padTaps.press(edge, performance.now() / 1000))
+      this.pending = edge;
+    if (edge) this.padDir = edge;
+    else if (Math.max(ax, ay) < 0.5) this.padDir = null;
     this.padFlap = !!(pad.buttons[0]?.pressed || pad.buttons[7]?.pressed);
     const pause = !!pad.buttons[9]?.pressed;
     if (pause && !this.padPausePrev) this.pausePressed = true;
     this.padPausePrev = pause;
   }
+}
+
+function keyDir(code: string): Dir | null {
+  if (code === 'KeyW' || code === 'ArrowUp') return 'up';
+  if (code === 'KeyS' || code === 'ArrowDown') return 'down';
+  if (code === 'KeyA' || code === 'ArrowLeft') return 'left';
+  if (code === 'KeyD' || code === 'ArrowRight') return 'right';
+  return null;
+}
+
+/** Up (as steered: nose up, so it follows invert-Y) loops, down dive-bombs, sideways rolls. */
+function trickFor(dir: Dir): TrickKind {
+  const inv = Config.input.invertY;
+  if (dir === 'left') return 'rollL';
+  if (dir === 'right') return 'rollR';
+  return (dir === 'up') !== inv ? 'loop' : 'dive';
 }

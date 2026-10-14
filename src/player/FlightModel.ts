@@ -1,5 +1,13 @@
 import { Config } from '../core/Config';
 import { clamp, expDecay, smoothstep, springStep, type Spring } from '../core/math';
+import {
+  advanceTrick,
+  createTrickState,
+  loopSpeed,
+  startTrick,
+  type TrickKind,
+  type TrickState,
+} from './Tricks';
 
 /**
  * Pure arcade glide model. No Three.js, no DOM: state in, state out, so it is unit-tested.
@@ -13,6 +21,10 @@ export interface FlightInput {
   steerX: number; // -1..1, +1 = turn right
   steerY: number; // -1..1, +1 = nose up
   flap: boolean; // held
+  /** One-shot: a trick gesture this step (see Tricks). */
+  trick?: TrickKind | null;
+  /** The gesture is still held (extends a roll or a dive-bomb). */
+  trickHeld?: boolean;
 }
 
 export interface FlightEnv {
@@ -50,6 +62,11 @@ export interface FlightState {
   sinceClimbBeat: number;
   /** True only on the step a climb wingbeat fired. */
   climbBeat: boolean;
+  trick: TrickState;
+  /** Extra pitch from a loop (0..2pi), on top of `pitch`, which stays the gliding pitch. */
+  trickPitch: number;
+  /** Extra roll from a barrel roll, on top of `bank` (so the camera doesn't follow it). */
+  spin: number;
 }
 
 export function createFlightState(x = 0, y = 60, z = 0, yaw = 0): FlightState {
@@ -73,6 +90,9 @@ export function createFlightState(x = 0, y = 60, z = 0, yaw = 0): FlightState {
     climbBeatTimer: 0,
     sinceClimbBeat: 99,
     climbBeat: false,
+    trick: createTrickState(),
+    trickPitch: 0,
+    spin: 0,
   };
 }
 
@@ -89,6 +109,11 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   s.contactStrength = 0;
   s.sinceFlap += dt;
   s.sinceClimbBeat += dt;
+  advanceTrick(s, input.trickHeld ?? false, env, dt);
+  if (input.trick) startTrick(s, input.trick, env);
+  const tr = s.trick;
+  const looping = tr.kind === 'loop';
+  const diving = tr.kind === 'dive';
 
   // --- Pitch -------------------------------------------------------------------------------
   // Climb authority fades out as speed approaches minSpeed, so holding "up" can never stall the
@@ -97,6 +122,13 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const steerY = clamp(input.steerY, -1, 1);
   let targetPitch = steerY > 0 ? steerY * c.maxClimb * climbAuthority : steerY * c.maxDive;
   if (s.speed < c.minSpeed) targetPitch -= (c.minSpeed - s.speed) * 0.04;
+  // A loop carries the nose round in trickPitch; the gliding pitch eases level underneath it.
+  // A dive-bomb holds the nose down, then pulls out firmly (terrain assist still applies).
+  if (looping) targetPitch = 0;
+  else if (diving)
+    targetPitch = tr.pulling
+      ? Config.tricks.pullPitch * (1 - tr.t / Config.tricks.pullTime)
+      : -Config.tricks.divePitch;
 
   // Terrain assist: sample the surface where we will be shortly and lift the nose if it would
   // put us underground. Forgiving by design; the player should rarely notice it working.
@@ -108,7 +140,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     surfaceAt(env, s.x + fx * ahead * 0.5, s.z + fz * ahead * 0.5),
   );
   const shortfall = aheadSurface + c.clearance * 3 - s.y;
-  if (shortfall > 0) {
+  if (shortfall > 0 && !looping) {
     targetPitch = Math.max(
       targetPitch,
       Math.min(c.maxClimb, (shortfall / ahead) * c.terrainAssist),
@@ -119,14 +151,17 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const over = s.y - (water + c.maxAltitude);
   if (over > 0) targetPitch = Math.min(targetPitch, -over * 0.01);
 
-  springStep(s.pitchSpring, targetPitch, c.pitchOmega, dt);
-  s.pitch = clamp(s.pitchSpring.x, -c.maxDive - 0.1, c.maxClimb + 0.1);
+  springStep(s.pitchSpring, targetPitch, c.pitchOmega * (diving ? 1.5 : 1), dt);
+  const pitchMin = diving ? -Config.tricks.divePitch - 0.1 : -c.maxDive - 0.1;
+  s.pitch = clamp(s.pitchSpring.x, pitchMin, c.maxClimb + 0.1);
 
   // --- Turning & bank ------------------------------------------------------------------------
   // The yaw *rate* follows the input through a critically damped spring: turns ease in and out
   // with no overshoot, and releasing input naturally levels the wings because bank is derived
   // from the current turn rate.
-  springStep(s.turnSpring, -clamp(input.steerX, -1, 1) * c.maxTurnRate, c.turnOmega, dt);
+  // No turning round a loop: yawing while inverted would scramble the circle.
+  const steerX = looping ? 0 : clamp(input.steerX, -1, 1);
+  springStep(s.turnSpring, -steerX * c.maxTurnRate, c.turnOmega, dt);
   s.yaw += s.turnSpring.x * dt;
   const targetBank = clamp(-s.turnSpring.x * c.bankPerTurn, -c.maxBank, c.maxBank);
   springStep(s.bankSpring, targetBank, c.bankOmega, dt);
@@ -136,18 +171,22 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // dv/dt = -g*sin(pitch) (dive gains, climb loses) + relaxation toward cruise. Nose-down gets a
   // stronger pull and speed above cruise bleeds off slowly, so a dive builds real speed (about
   // 70 m/s flat out vs 26 cruise) and that speed carries through the pull-up into a zoom climb.
-  const g = c.gravityAlongPath * (s.pitch < 0 ? c.diveGravity : 1);
+  // A dive-bomb pulls harder and may run past the usual top speed.
+  const g =
+    c.gravityAlongPath *
+    (s.pitch < 0 ? c.diveGravity * (diving ? Config.tricks.diveGravity : 1) : 1);
+  const top = c.maxSpeed + (diving ? Config.tricks.diveExtraSpeed : 0);
   const relax = s.speed > c.cruiseSpeed ? c.speedRelaxFast : c.speedRelax;
   let accel = -g * Math.sin(s.pitch) + (c.cruiseSpeed - s.speed) * relax;
-  if (s.speed > c.maxSpeed) accel -= (s.speed - c.maxSpeed) * 1.5;
+  if (s.speed > top) accel -= (s.speed - top) * 1.5;
   if (s.speed < c.minSpeed) accel += (c.minSpeed - s.speed) * 2;
-  s.speed = Math.max(c.minSpeed * 0.6, s.speed + accel * dt);
+  s.speed = looping ? loopSpeed(tr) : Math.max(c.minSpeed * 0.6, s.speed + accel * dt);
 
   // --- Flap ----------------------------------------------------------------------------------
   // Taper the lift near the ceiling so mashing flap cannot punch through it.
   const ceilingFade = 1 - smoothstep(c.maxAltitude - 30, c.maxAltitude, s.y - water);
   s.flapTimer = Math.max(0, s.flapTimer - dt);
-  if (input.flap && s.flapTimer <= 0) {
+  if (input.flap && s.flapTimer <= 0 && !looping) {
     s.flapTimer = c.flapCooldown;
     s.sinceFlap = 0;
     s.flapped = true;
@@ -162,6 +201,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   s.climbBeatTimer = Math.max(0, s.climbBeatTimer - dt);
   if (
     steerY > 0.15 &&
+    tr.kind === null &&
     s.pitch > c.climbBeatPitch &&
     s.climbBeatTimer <= 0 &&
     s.sinceFlap > c.flapCooldown
@@ -178,17 +218,29 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   }
 
   // --- Vertical extras: thermals and soft bounds ---------------------------------------------
-  s.liftVy += env.thermalAt(s.x, s.y, s.z) * dt;
-  const minY = water + c.minAltitude;
-  if (s.y < minY) s.liftVy += (minY - s.y) * c.boundsPush * 20 * dt;
-  if (over > 0) s.liftVy -= over * c.boundsPush * 20 * dt;
+  // Round a loop the circle is the whole motion (its room was checked on entry).
+  if (!looping) {
+    s.liftVy += env.thermalAt(s.x, s.y, s.z) * dt;
+    const minY = water + c.minAltitude;
+    if (s.y < minY) s.liftVy += (minY - s.y) * c.boundsPush * 20 * dt;
+    if (over > 0) s.liftVy -= over * c.boundsPush * 20 * dt;
+  }
   s.liftVy -= s.liftVy * expDecay(c.liftDecay, dt);
 
   // --- Integrate -----------------------------------------------------------------------------
-  const cp = Math.cos(s.pitch);
-  const vy = Math.sin(s.pitch) * s.speed + s.liftVy;
-  s.x += fx * cp * s.speed * dt;
-  s.z += fz * cp * s.speed * dt;
+  const pitch = s.pitch + s.trickPitch;
+  const cp = Math.cos(pitch);
+  const vy = Math.sin(pitch) * s.speed + s.liftVy;
+  // A loop drifts forward so it comes out a little ahead of where it went in; a roll hops
+  // sideways (to its own side) by rollHop per turn.
+  let along = cp * s.speed;
+  let side = 0;
+  if (looping) along += Config.tricks.loopDrift * s.speed;
+  else if (tr.kind === 'rollL' || tr.kind === 'rollR')
+    side = ((tr.kind === 'rollR' ? 1 : -1) * Config.tricks.rollHop * tr.rate) / (Math.PI * 2);
+  // Right of the heading is (-cos yaw, 0, sin yaw).
+  s.x += (fx * along - fz * side) * dt;
+  s.z += (fz * along + fx * side) * dt;
   s.y += vy * dt;
 
   // --- Soft contact --------------------------------------------------------------------------
@@ -201,7 +253,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     s.contactStrength = Math.max(0, -vy);
     s.y = floor;
     s.liftVy = Math.max(s.liftVy, s.contactStrength * c.bounce + 1.5);
-    if (s.pitchSpring.x < 0) {
+    if (s.pitchSpring.x < 0 && !looping) {
       s.pitchSpring.x *= 0.5;
       s.pitchSpring.v = Math.max(s.pitchSpring.v, 0.8);
     }
@@ -211,8 +263,9 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
 
 /** Unit forward vector of the nose, written into `out` (no allocation). */
 export function forwardOf(s: FlightState, out: { x: number; y: number; z: number }): void {
-  const cp = Math.cos(s.pitch);
+  const pitch = s.pitch + s.trickPitch;
+  const cp = Math.cos(pitch);
   out.x = Math.sin(s.yaw) * cp;
-  out.y = Math.sin(s.pitch);
+  out.y = Math.sin(pitch);
   out.z = Math.cos(s.yaw) * cp;
 }

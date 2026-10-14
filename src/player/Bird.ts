@@ -13,6 +13,11 @@ export interface Pose {
   pitch: number;
   bank: number;
   speed: number;
+  /** Loop angle on top of pitch, barrel-roll spin on top of bank (see FlightState). */
+  trickPitch: number;
+  spin: number;
+  /** Radius of the loop being flown, 0 when not looping (the camera watches loops). */
+  loopR: number;
 }
 
 // Palette (sRGB). A pale tern-like seabird: warm-grey mantle, dark cap, warm-to-dusky primaries.
@@ -310,7 +315,7 @@ export class Bird {
 
   update(p: Pose, sinceFlap: number, sinceClimbBeat: number, time: number, dt: number): void {
     this.root.position.set(p.x, p.y, p.z);
-    this.root.rotation.set(-p.pitch, p.yaw, p.bank, 'YXZ');
+    this.root.rotation.set(-(p.pitch + p.trickPitch), p.yaw, p.bank + p.spin, 'YXZ');
 
     const tuckTarget = WingBeat.tuck(p.speed, p.pitch);
     this.tuck += (tuckTarget - this.tuck) * expDecay(4, dt);

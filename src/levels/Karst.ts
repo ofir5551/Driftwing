@@ -1,4 +1,4 @@
-import { KARST_KEYS } from '../audio/scales';
+import { KARST_MUSIC } from '../audio/styles';
 import { DAY_SKY, makePalette, type SkyKey } from '../world/DayCycle';
 import { KarstWorld } from '../world/karst/KarstWorld';
 import type { LevelDef } from './World';
@@ -94,7 +94,7 @@ export const Karst: LevelDef = {
   blurb: 'Misty peaks on a jade river',
   startPhase: 0.02,
   dayScale: 1.5, // linger in the morning mist
-  keys: KARST_KEYS,
+  music: KARST_MUSIC,
   backdrop: 'karst',
   sky: KARST_SKY,
   saturation: 0.82,

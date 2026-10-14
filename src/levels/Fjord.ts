@@ -1,4 +1,4 @@
-import { FJORD_KEYS } from '../audio/scales';
+import { FJORD_MUSIC } from '../audio/styles';
 import { DAY_SKY, makePalette, type SkyKey } from '../world/DayCycle';
 import { FjordWorld } from '../world/fjord/FjordWorld';
 import type { LevelDef } from './World';
@@ -95,7 +95,7 @@ export const Fjord: LevelDef = {
   blurb: 'Northern lights over still fjords',
   startPhase: 0.84, // opens under the aurora
   dayScale: 2, // a long polar night: linger under the aurora
-  keys: FJORD_KEYS,
+  music: FJORD_MUSIC,
   backdrop: 'aurora',
   sky: FJORD_SKY,
   // Room to rise over the plateau's peaks (~300 m) and into the aurora's glow.

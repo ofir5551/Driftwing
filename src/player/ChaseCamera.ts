@@ -12,6 +12,11 @@ import type { Pose } from './Bird';
  * separately keeps the bird a steady size on screen while turns still swing the camera wide and
  * settle without wobble. The camera looks slightly ahead along the heading and borrows a
  * fraction of the bank so turns feel like leaning into the curve.
+ *
+ * Loops are watched instead of followed: a chase camera turned upside down with the bird is
+ * disorienting, and following only the gliding pitch would put the lens inside the circle. So
+ * when a loop starts the camera eases to a fixed spot off to the side and behind, stays upright
+ * and keeps the bird in view while it draws the circle, then eases back into the chase.
  */
 export class ChaseCamera {
   readonly camera: THREE.PerspectiveCamera;
@@ -22,6 +27,10 @@ export class ChaseCamera {
   private fov = Config.camera.baseFov;
   private initialised = false;
   private readonly target = new THREE.Vector3();
+  private readonly anchor = new THREE.Vector3();
+  private readonly chasePos = new THREE.Vector3();
+  private watching = false;
+  private watch = 0;
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(Config.camera.baseFov, aspect, 0.3, 2000);
@@ -59,16 +68,43 @@ export class ChaseCamera {
     const cz = p.z - Math.cos(this.yaw.x) * back;
     const floor = Math.max(groundAt(cx, cz), Config.world.waterLevel) + 1.2;
     const cam = this.camera;
-    cam.position.set(cx, Math.max(p.y + c.height - Math.sin(this.pitch.x) * d, floor), cz);
-    push?.(cam.position); // keep the lens out of buildings when flying close to walls
-
-    const la = c.lookAhead;
     const fx = Math.sin(p.yaw);
     const fz = Math.cos(p.yaw);
-    this.target.set(p.x + fx * la, p.y + Math.sin(p.pitch) * la * 0.5 + 1.1, p.z + fz * la);
+    if (p.loopR > 0 && !this.watching) {
+      this.watching = true;
+      // Off to the right and behind the loop's centre (which drifts ~0.6 r ahead on average),
+      // a little above it: the circle is seen at an angle, never edge-on.
+      const r = p.loopR;
+      const dist = Math.max(14, r * c.loopWatch);
+      const k = dist / Math.hypot(1.1, 1, 0.15);
+      this.anchor.set(
+        p.x + fx * (r * 0.6 - 1.1 * k) - fz * k,
+        p.y + r + 0.15 * k,
+        p.z + fz * (r * 0.6 - 1.1 * k) + fx * k,
+      );
+      this.anchor.y = Math.max(
+        this.anchor.y,
+        Math.max(groundAt(this.anchor.x, this.anchor.z), Config.world.waterLevel) + 3,
+      );
+      push?.(this.anchor);
+    } else if (p.loopR === 0) this.watching = false;
+    this.watch += ((this.watching ? 1 : 0) - this.watch) * expDecay(this.watching ? 4 : 3, dt);
+    const w = this.watch < 1e-3 ? 0 : this.watch;
+
+    this.chasePos.set(cx, Math.max(p.y + c.height - Math.sin(this.pitch.x) * d, floor), cz);
+    push?.(this.chasePos); // keep the lens out of buildings when flying close to walls
+    cam.position.copy(this.chasePos);
+    if (w > 0) cam.position.lerp(this.anchor, w);
+
+    const la = c.lookAhead * (1 - w);
+    this.target.set(
+      p.x + fx * la,
+      p.y + Math.sin(p.pitch) * la * 0.5 + 1.1 * (1 - w),
+      p.z + fz * la,
+    );
     cam.up.set(0, 1, 0);
     cam.lookAt(this.target);
-    this.roll += (p.bank * c.rollFollow - this.roll) * expDecay(6, dt);
+    this.roll += (p.bank * c.rollFollow * (1 - w) - this.roll) * expDecay(6, dt);
     cam.rotateZ(-this.roll);
 
     // FOV widens with speed: the cheapest, strongest sense of velocity.

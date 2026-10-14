@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 import type { FlightInput, FlightState } from '../player/FlightModel';
 import type { DayCycle, SkyKey } from '../world/DayCycle';
 import type { Backdrop } from '../world/Sky';
-import type { DayKey } from '../audio/scales';
+import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 
@@ -60,8 +60,8 @@ export interface LevelDef {
   startPhase: number;
   /** Multiplier on Config.world.dayLength (the city lingers in its evening). */
   dayScale: number;
-  /** Music key and mode per day keyframe. */
-  keys: DayKey[];
+  /** The level's score: keys per time of day, tempo, instruments, space. */
+  music: MusicStyle;
   /** What is painted into the sky dome beyond the world (Fuji, karst ridges). */
   backdrop: Backdrop;
   /** The level's own palettes per time of day (default: the shared DAY_SKY). */

@@ -1,0 +1,58 @@
+import { describe, expect, it } from 'vitest';
+import { Config } from '../src/core/Config';
+import { DoubleTap, Flick } from '../src/core/Gestures';
+
+describe('DoubleTap', () => {
+  it('fires on two presses of one direction inside the window', () => {
+    const d = new DoubleTap();
+    expect(d.press('left', 1)).toBe(false);
+    expect(d.press('left', 1 + Config.input.doubleTap * 0.8)).toBe(true);
+  });
+
+  it('ignores slow presses, mixed directions, and starts over after firing', () => {
+    const d = new DoubleTap();
+    d.press('up', 0);
+    expect(d.press('up', Config.input.doubleTap * 1.5)).toBe(false);
+    d.press('left', 10);
+    expect(d.press('right', 10.1)).toBe(false);
+    d.press('down', 20);
+    expect(d.press('down', 20.1)).toBe(true);
+    expect(d.press('down', 20.2)).toBe(false); // a third tap is a new first tap
+  });
+});
+
+describe('Flick', () => {
+  const stroke = (f: Flick, dx: number, dy: number, seconds: number, steps = 6) => {
+    let out = null;
+    f.start(200, 300, 0);
+    for (let i = 1; i <= steps; i++) {
+      const k = i / steps;
+      out = f.move(200 + dx * k, 300 + dy * k, seconds * k) ?? out;
+    }
+    return out;
+  };
+
+  it('a fast long stroke flicks in its dominant direction (screen y is down)', () => {
+    const d = Config.input.flickDistance * 1.2;
+    const t = Config.input.flickTime * 0.8;
+    expect(stroke(new Flick(), d, 10, t)).toBe('right');
+    expect(stroke(new Flick(), -d, 10, t)).toBe('left');
+    expect(stroke(new Flick(), 10, -d, t)).toBe('up');
+    expect(stroke(new Flick(), 10, d, t)).toBe('down');
+  });
+
+  it('steering-speed drags never flick', () => {
+    const d = Config.input.flickDistance * 1.2;
+    expect(stroke(new Flick(), d, 0, Config.input.flickTime * 3, 20)).toBe(null);
+    expect(stroke(new Flick(), Config.input.flickDistance * 0.6, 0, 0.05)).toBe(null);
+  });
+
+  it('one stroke fires once', () => {
+    const f = new Flick();
+    const d = Config.input.flickDistance * 1.1;
+    let fired = 0;
+    f.start(0, 0, 0);
+    for (let i = 1; i <= 8; i++) if (f.move((d / 6) * i, 0, 0.02 * i)) fired++;
+    expect(fired).toBe(1);
+  });
+});

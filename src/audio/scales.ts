@@ -78,9 +78,6 @@ export function degreeToMidi(root: number, mode: ModeName, degree: number): numb
   return root + oct * 12 + s[idx];
 }
 
-/** Chord progression in scale degrees (root of each chord), two bars each. */
-export const PROGRESSION = [0, 3, 1, 4, 0, 2, 3, 4];
-
 /** Stack every other scale degree from `rootDegree` (pentatonic "triads" sound open, never sour). */
 export function chordDegrees(rootDegree: number, voices: number, spread = 2): number[] {
   const out: number[] = [];

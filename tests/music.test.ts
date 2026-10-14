@@ -7,6 +7,7 @@ import {
   PhraseGenerator,
   StepScheduler,
 } from '../src/audio/scales';
+import { CITY_MUSIC, FJORD_MUSIC, HIGHLANDS_MUSIC, KARST_MUSIC } from '../src/audio/styles';
 import { mulberry32 } from '../src/world/noise';
 
 describe('scales', () => {
@@ -76,5 +77,38 @@ describe('StepScheduler', () => {
     expect(q2).toBeCloseTo(10.5, 9);
     // Already on the grid with enough lead: keep it.
     expect(s.quantize(10.45, 2, 0.05)).toBeCloseTo(10.5, 9);
+  });
+
+  it('a tempo change inside a step callback respaces the following steps seamlessly', () => {
+    const s = new StepScheduler(0.5, 0);
+    const times: number[] = [];
+    s.advance(0, 3, (st, t) => {
+      times.push(t);
+      if (st === 2) s.stepDur = 0.25;
+    });
+    expect(times.slice(0, 4)).toEqual([0, 0.5, 1, 1.25]);
+    // The quantize grid follows the new tempo.
+    expect(s.quantize(s.nextTime + 0.01, 1, 0) - s.nextTime).toBeCloseTo(0.25, 9);
+  });
+});
+
+describe('level music styles', () => {
+  const styles = { HIGHLANDS_MUSIC, CITY_MUSIC, KARST_MUSIC, FJORD_MUSIC };
+
+  it.each(Object.entries(styles))('%s is a playable style', (_, st) => {
+    expect(st.keys).toHaveLength(5);
+    for (const k of st.keys) expect(MODES[k.mode]).toBeDefined();
+    expect(st.bpm).toBeGreaterThanOrEqual(50);
+    expect(st.bpm).toBeLessThanOrEqual(90);
+    expect(st.progression.length).toBeGreaterThan(0);
+    for (const d of st.progression) expect(d).toBeGreaterThanOrEqual(0);
+    for (const d of st.progression) expect(d).toBeLessThan(5);
+    expect(st.pad.attack + st.pad.release).toBeLessThan((60 / st.bpm / 2) * 16 * 2);
+    for (const d of st.arp?.pattern ?? []) expect(d).toBeLessThanOrEqual(8);
+  });
+
+  it('every level sounds different: no two share tempo and voice', () => {
+    const sig = Object.values(styles).map((s) => `${s.bpm}/${s.voice}`);
+    expect(new Set(sig).size).toBe(sig.length);
   });
 });

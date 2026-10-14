@@ -15,6 +15,8 @@ export class Hud {
   private readonly lanterns: HTMLSpanElement;
   private readonly toastEl: HTMLDivElement;
   private toastTimer = 0;
+  private readonly trickEl: HTMLDivElement;
+  private trickTimer = 0;
   private opacity = 0;
   private lastCount = -1;
   private lastScore = -1;
@@ -38,7 +40,9 @@ export class Hud {
       </div>`;
     this.toastEl = document.createElement('div');
     this.toastEl.className = 'toast';
-    ui.append(this.el, this.toastEl);
+    this.trickEl = document.createElement('div');
+    this.trickEl.className = 'trick-toast';
+    ui.append(this.el, this.toastEl, this.trickEl);
     this.arc = this.el.querySelector('.ring-flow')!;
     this.count = this.el.querySelector('.hud-count')!;
     this.score = this.el.querySelector('.hud-score')!;
@@ -49,6 +53,15 @@ export class Hud {
     this.toastEl.textContent = text;
     this.toastEl.classList.add('show');
     this.toastTimer = seconds;
+  }
+
+  /** A landed trick's name and points: smaller and quicker than a toast, never covering one. */
+  trick(name: string, points: number): void {
+    this.trickEl.textContent = points > 0 ? `${name}  +${points.toLocaleString()}` : name;
+    this.trickEl.classList.remove('show');
+    void this.trickEl.offsetWidth; // restart the CSS transition for back-to-back tricks
+    this.trickEl.classList.add('show');
+    this.trickTimer = 1.4;
   }
 
   pulse(): void {
@@ -77,6 +90,10 @@ export class Hud {
     }
     this.arc.style.strokeDashoffset = (CIRC * (1 - p.flow)).toFixed(1);
     this.el.classList.toggle('flowing', p.flow > 0.6);
+    if (this.trickTimer > 0) {
+      this.trickTimer -= dt;
+      if (this.trickTimer <= 0) this.trickEl.classList.remove('show');
+    }
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;
       if (this.toastTimer <= 0) this.toastEl.classList.remove('show');

@@ -4,6 +4,7 @@ import type { Game } from './Game';
 import { Progress } from './Progress';
 import { clamp, smoothstep } from './math';
 import { BlobShadow } from '../fx/BlobShadow';
+import { trickFamily, trickName, trickScale, type TrickKind } from '../player/Tricks';
 import { Particles } from '../fx/Particles';
 import { Trails } from '../fx/Trails';
 import { Wind } from '../fx/Wind';
@@ -112,8 +113,22 @@ export class Gameplay {
       if (lantern) this.lightLantern();
     });
     if (scoring) this.progress.update(dt);
+    const tr = s.trick;
+    if (tr.started) g.events.emit('trickStart', { kind: tr.started, x: s.x, y: s.y, z: s.z });
+    if (tr.finished) this.landTrick(tr.finished, tr.size, scoring);
     const t = this.wisps.nextTarget(s.x, s.z, s.yaw);
     g.autopilotTarget = t;
+  }
+
+  private landTrick(kind: TrickKind, size: number, scoring: boolean): void {
+    const g = this.game;
+    const s = g.flight;
+    this.glow.burst(16, s.x, s.y, s.z, 6, 0.9, 0.7, this.wispColor);
+    if (!scoring) return;
+    const { points } = this.progress.trick(trickFamily(kind), trickScale(kind, size));
+    this.hud.trick(trickName(kind, size), points);
+    this.hud.pulse();
+    g.events.emit('trick', { kind, size, points });
   }
 
   private lightLantern(): void {
@@ -223,7 +238,11 @@ export class Gameplay {
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);
     const cam = g.chase.camera.position;
-    const trailIntensity = Math.min(0.85, speedT * 0.7 + Math.abs(pose.bank) * 0.45);
+    // Tricks draw bright ribbons: a roll leaves a spiral, a loop a ring.
+    const trailIntensity =
+      g.flight.trick.kind !== null
+        ? 0.9
+        : Math.min(0.85, speedT * 0.7 + Math.abs(pose.bank) * 0.45);
     this.trails.update(
       dt,
       [g.bird.tipL, g.bird.tipR],
@@ -231,9 +250,10 @@ export class Gameplay {
       trailIntensity,
       this.tmp.copy(WHITE).lerp(this.wispColor, this.progress.flow * 0.6),
     );
-    const cp = Math.cos(pose.pitch);
+    const pitch = pose.pitch + pose.trickPitch;
+    const cp = Math.cos(pitch);
     this.vel
-      .set(Math.sin(pose.yaw) * cp, Math.sin(pose.pitch), Math.cos(pose.yaw) * cp)
+      .set(Math.sin(pose.yaw) * cp, Math.sin(pitch), Math.cos(pose.yaw) * cp)
       .multiplyScalar(pose.speed);
     this.wind.update(
       cam,

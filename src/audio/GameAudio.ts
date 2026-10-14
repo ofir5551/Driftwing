@@ -5,7 +5,7 @@ import { clamp } from '../core/math';
 import { AudioEngine } from './AudioEngine';
 import { Music, type MusicParams } from './Music';
 import { Sfx } from './Sfx';
-import type { DayKey } from './scales';
+import type { MusicStyle } from './styles';
 
 /** Connects gameplay events and flight state to the music and SFX. */
 export class GameAudio {
@@ -29,6 +29,12 @@ export class GameAudio {
     game.events.on('wingbeat', () => this.sfx.wingbeat());
     game.events.on('wisp', (e) => this.music.playWispNote(e.flow));
     game.events.on('lantern', () => this.music.lantern());
+    game.events.on('trickStart', (e) => {
+      this.music.trick(e.kind);
+      if (e.kind === 'dive') this.sfx.dive();
+      else if (e.kind !== 'loop') this.sfx.roll();
+    });
+    game.events.on('trick', (e) => this.music.land(e.kind));
     game.events.on('contact', (e) => this.sfx.contact(e.kind, e.strength));
     game.events.on('thermal', (e) => this.sfx.thermal(e.inside));
     // Audio params are smoothed with setTargetAtTime, so ~10 updates/s is plenty and keeps
@@ -51,9 +57,9 @@ export class GameAudio {
     });
   }
 
-  /** Level change: the music follows the level's key table. */
-  setKeys(keys: DayKey[]): void {
-    this.music.setKeys(keys);
+  /** Level change: the music takes on the level's style. */
+  setStyle(style: MusicStyle): void {
+    this.music.setStyle(style);
   }
 
   /** Call from a user gesture. */

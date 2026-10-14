@@ -2,6 +2,12 @@ import type { Settings } from '../core/Settings';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
 import { TIME_OF_DAY_LIST, type TimeOfDay } from '../world/DayCycle';
+import {
+  fullscreenSupport,
+  isFullscreen,
+  onFullscreenChange,
+  toggleFullscreen,
+} from './Fullscreen';
 
 export interface MenuHandlers {
   play(): void;
@@ -47,6 +53,8 @@ export class Menu {
            `<button class="time" role="radio" aria-checked="false" data-time="${t.id}">${t.label}</button>`,
        ).join('')}</div>
        <button class="btn primary" id="play-btn">Play</button>
+       <button class="fs-nudge" hidden>⤢ Best played fullscreen</button>
+       <p class="fs-tip" hidden>For fullscreen, tap Share, then <b>Add to Home Screen</b>, and open Driftwing from there.</p>
        <ul class="controls">${controls}</ul>
        <p class="best" hidden></p>`,
     );
@@ -76,6 +84,7 @@ export class Menu {
     this.pauseBtn.setAttribute('aria-label', 'Pause');
     this.pauseBtn.innerHTML = '<span></span><span></span>';
     ui.append(this.start, this.pause, this.pauseBtn);
+    this.setupFullscreen(ui);
 
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
     this.levelCards = [...this.start.querySelectorAll<HTMLButtonElement>('.level')];
@@ -129,6 +138,32 @@ export class Menu {
     el.className = `menu ${cls}`;
     el.innerHTML = `<div class="card">${html}</div>`;
     return el;
+  }
+
+  /** Corner button on every screen, a nudge on the title, or an install tip where iPhone has no API. */
+  private setupFullscreen(ui: HTMLElement): void {
+    const support = fullscreenSupport();
+    const nudge = this.start.querySelector<HTMLButtonElement>('.fs-nudge')!;
+    const tip = this.start.querySelector<HTMLElement>('.fs-tip')!;
+    if (support === 'ios') tip.hidden = false;
+    if (support !== 'api') return;
+    const btn = document.createElement('button');
+    btn.className = 'fs-btn';
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+    ui.appendChild(btn);
+    document.body.classList.add('has-fs');
+    const sync = (on: boolean) => {
+      btn.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
+      btn.classList.toggle('active', on);
+      nudge.hidden = on;
+    };
+    sync(isFullscreen());
+    onFullscreenChange(sync);
+    for (const el of [btn, nudge]) {
+      el.addEventListener('click', () => void toggleFullscreen());
+      el.addEventListener('pointerdown', (e) => e.stopPropagation());
+    }
   }
 
   private markTime(t: TimeOfDay): void {

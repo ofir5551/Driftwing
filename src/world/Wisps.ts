@@ -12,6 +12,8 @@ export interface Wisp {
   /** 0..1 spawn-in animation. */
   grow: number;
   sparkle: number;
+  /** Spawn order: the ribbon's sequence, which the autopilot follows. */
+  seq: number;
 }
 
 type Pattern = 'arc' | 'wave' | 'dive' | 'climb' | 'spiral';
@@ -37,6 +39,8 @@ export interface WispPlanner {
     c: WispCursor,
     rand: () => number,
     spawn: (x: number, y: number, z: number) => void,
+    /** Free wisps in the pool: a pattern longer than this is cut short. */
+    free: number,
   ): boolean;
 }
 
@@ -88,8 +92,9 @@ export class Wisps {
   private readonly rand: () => number;
   private readonly cursor: WispCursor = { x: 0, y: 40, z: 0, heading: 0, clear: 22, valid: false };
   planner: WispPlanner | null = null;
+  // Planner wisps are placed exactly: the planner has already cleared them of scenery.
   private readonly spawnAt = (x: number, y: number, z: number): void => {
-    this.spawn(x, y, z);
+    this.spawn(x, y, z, true);
   };
   private readonly m = new THREE.Matrix4();
   private readonly u: Record<string, THREE.IUniform>;
@@ -106,7 +111,16 @@ export class Wisps {
   ) {
     this.rand = mulberry32(seed + 501);
     for (let i = 0; i < Config.wisps.max; i++)
-      this.list.push({ x: 0, y: -999, z: 0, alive: false, phase: i * 0.618, grow: 0, sparkle: 0 });
+      this.list.push({
+        x: 0,
+        y: -999,
+        z: 0,
+        alive: false,
+        phase: i * 0.618,
+        grow: 0,
+        sparkle: 0,
+        seq: 0,
+      });
     const geo = new THREE.PlaneGeometry(1, 1);
     const phases = new Float32Array(Config.wisps.max);
     for (let i = 0; i < phases.length; i++) phases[i] = (i * 0.618) % 1;
@@ -137,11 +151,14 @@ export class Wisps {
     );
   }
 
-  private spawn(x: number, y: number, z: number): boolean {
+  private spawn(x: number, y: number, z: number, exact = false): boolean {
     const w = this.list.find((v) => !v.alive);
     if (!w) return false;
     w.x = x;
-    w.y = this.safeY(x, z, y);
+    w.y = exact
+      ? Math.min(y, Config.world.waterLevel + Config.flight.maxAltitude - 25)
+      : this.safeY(x, z, y);
+    w.seq = this.spawned;
     w.z = z;
     w.alive = true;
     w.grow = 0;
@@ -164,6 +181,12 @@ export class Wisps {
     c.valid = true;
   }
 
+  private free(): number {
+    let n = 0;
+    for (const w of this.list) if (!w.alive) n++;
+    return n;
+  }
+
   /** Drop every wisp and restart the path (level switch). */
   reset(): void {
     for (const w of this.list) w.alive = false;
@@ -173,7 +196,7 @@ export class Wisps {
   private spawnPattern(): void {
     const T = Config.wisps;
     const c = this.cursor;
-    if (this.planner?.pattern(c, this.rand, this.spawnAt)) {
+    if (this.planner?.pattern(c, this.rand, this.spawnAt, this.free())) {
       c.x += Math.sin(c.heading) * T.gap;
       c.z += Math.cos(c.heading) * T.gap;
       return;
@@ -261,16 +284,8 @@ export class Wisps {
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
     const c = this.cursor;
-    // Re-anchor when the path is behind us, far off to the side, or far above or below us
-    // (say after riding a thermal high): new patterns then start near the player's height.
-    const cdx = c.x - px;
-    const cdz = c.z - pz;
-    const ahead = cdx * fx + cdz * fz;
-    const off = Math.hypot(cdx, cdz);
-    if (!c.valid || ahead < -40 || off > 650 || Math.abs(c.y - py) > T.reanchorHeight)
-      this.anchor(px, py, pz, yaw);
-
     let upcoming = 0;
+    let nearAhead = Infinity;
     for (const w of this.list) {
       if (!w.alive) continue;
       const dx = w.x - px;
@@ -282,7 +297,10 @@ export class Wisps {
         w.alive = false; // missed: quietly expire
         continue;
       }
-      if (along > 0) upcoming++;
+      if (along > 0) {
+        upcoming++;
+        nearAhead = Math.min(nearAhead, d);
+      }
       w.grow = Math.min(1, w.grow + dt * 1.5);
       if (d < T.magnetRadius) {
         // Gentle magnet: drift toward the bird so near-misses still count.
@@ -296,20 +314,71 @@ export class Wisps {
         onCollect(w);
       }
     }
+    // Re-anchor when the path is behind us, far above or below us (say after riding a
+    // thermal high), or when the bird has left it: far away with no wisp ahead in reach. A
+    // path that merely wanders off to the side or runs far ahead is still the path, and
+    // re-anchoring then would start a second ribbon on top of the first.
+    const cdx = c.x - px;
+    const cdz = c.z - pz;
+    const ahead = cdx * fx + cdz * fz;
+    const off = Math.hypot(cdx, cdz);
+    if (
+      !c.valid ||
+      ahead < -40 ||
+      Math.abs(c.y - py) > T.reanchorHeight ||
+      (off > 650 && nearAhead > 280)
+    )
+      this.anchor(px, py, pz, yaw);
+
     let guard = 0;
-    while (upcoming < T.keepAhead && guard++ < 3) {
+    // Only lay a new pattern when the pool has room for it: patterns that cannot spawn would
+    // still move the cursor on, and the ribbon would run away from the bird.
+    // Nor while the path end is already far ahead (its wisps would expire as they spawn).
+    while (
+      upcoming < T.keepAhead &&
+      guard++ < 3 &&
+      this.free() >= 12 &&
+      Math.hypot(c.x - px, c.z - pz) < 600
+    ) {
       const before = this.spawned;
       this.spawnPattern();
       upcoming += this.spawned - before;
     }
   }
 
-  /** The next wisp roughly ahead of the player (autopilot target). */
+  /**
+   * The next wisp for the autopilot: the earliest in the ribbon that is still ahead, so it
+   * follows spirals and street corners in order instead of cutting across them. Falls back to
+   * the nearest wisp roughly ahead.
+   */
   nextTarget(px: number, pz: number, yaw: number): Wisp | null {
     let best: Wisp | null = null;
     let bestScore = Infinity;
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
+    for (const w of this.list) {
+      if (!w.alive) continue;
+      const dx = w.x - px;
+      const dz = w.z - pz;
+      if (dx * fx + dz * fz < 4 || dx * dx + dz * dz > 220 * 220) continue;
+      if (w.seq < bestScore) {
+        bestScore = w.seq;
+        best = w;
+      }
+    }
+    if (best) {
+      // Pure pursuit: aim at a carrot ~24 m along the ribbon rather than the very next wisp,
+      // which at a few metres away would demand a hard correction and an overshoot.
+      const first = best.seq;
+      let carrot = best;
+      for (const w of this.list) {
+        if (!w.alive || w.seq <= carrot.seq || w.seq > first + 3) continue;
+        if (Math.hypot(carrot.x - px, carrot.z - pz) >= 24) break;
+        carrot = w;
+      }
+      return carrot;
+    }
+    bestScore = Infinity;
     for (const w of this.list) {
       if (!w.alive) continue;
       const dx = w.x - px;

@@ -44,18 +44,18 @@ void main() {
   if (uMountain > 0.5) {
     vec2 dh = normalize(d.xz + 1e-5);
     float da = atan(uMountainDir.x * dh.y - uMountainDir.y * dh.x, dot(uMountainDir, dh));
-    float prof = pow(max(1.0 - abs(da) / 0.62, 0.0), 1.7) * 0.085;
-    prof = min(prof, 0.079) * (1.0 + 0.025 * sin(da * 70.0));
+    float prof = pow(max(1.0 - abs(da) / 0.55, 0.0), 1.9) * 0.24;
+    prof = min(prof, 0.205);
     float m = smoothstep(prof + 0.0015, prof - 0.0015, h) * step(0.0005, prof);
     if (m > 0.0) {
       vec2 side = normalize(-uMountainDir * 0.6 + vec2(uMountainDir.y, -uMountainDir.x) * sign(da));
       float lit = 0.82 + 0.3 * dot(side, normalize(uSunDir.xz + 1e-5)) * smoothstep(-0.1, 0.1, uSunDir.y);
       vec3 rock = mix(uTop, uFog, 0.5) * 0.8 * lit;
-      float snowLine = prof * (0.5 + 0.08 * sin(da * 41.0) + 0.05 * sin(da * 97.0));
+      float snowLine = 0.2 * (0.62 + 0.06 * sin(da * 41.0) + 0.04 * sin(da * 97.0));
       float bright = clamp(dot(uFog, vec3(0.4)) * 1.5, 0.3, 1.0);
       vec3 snow = mix(uHorizon, vec3(1.0), 0.5) * bright * lit;
       vec3 mc = mix(rock, snow, smoothstep(snowLine - 0.002, snowLine + 0.002, h));
-      mc = mix(mc, uFog, mix(0.7, 0.3, smoothstep(0.0, 0.08, h)));
+      mc = mix(mc, uFog, mix(0.55, 0.12, smoothstep(0.0, 0.12, h)));
       col = mix(col, mc, m);
       peak = m;
     }
@@ -99,7 +99,8 @@ export class Sky {
       uStars: { value: 0 },
       uTime: { value: 0 },
       uMountain: { value: 0 },
-      uMountainDir: { value: new THREE.Vector2(0.28, -0.96).normalize() },
+      // Ahead and to the right of the spawn, beside where the sun sets at dusk.
+      uMountainDir: { value: new THREE.Vector2(0.5, -0.87).normalize() },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,

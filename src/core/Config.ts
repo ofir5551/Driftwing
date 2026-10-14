@@ -66,6 +66,20 @@ export const Config = {
     buildBudgetMs: 4, // max chunk-building time per frame
     cloudDrift: 3, // m/s
   },
+  city: {
+    // Street grid (the layout reads these when a city is created; the ground shader matches).
+    superblock: 240, // m between avenue centre lines
+    avenueHalf: 20, // half width of an avenue: 40 m boulevards with 4 m tree-lined sidewalks
+    streetHalf: 6, // half width of a local street
+    canopy: 7, // m, park and forest canopy counts as soft ground this high
+    // Flying among buildings.
+    avoidLook: 1.1, // s of flight scanned ahead for walls
+    avoidSteer: 1.5, // how hard the bird veers toward the open side of a wall ahead
+    avoidClimb: 1.2, // how hard it pulls up over a roof it can clear
+    glance: 0.9, // fraction of the angle into a wall turned away on contact
+    glanceSlow: 0.25, // speed lost against a wall, scaled by how head-on (about 0.04 per step head-on)
+    lights: 1, // brightness of windows, neon and lamps after dark
+  },
   flow: {
     gain: 0.03, // flow per pickup
     chainBonus: 0.003, // extra flow per link in the current chain (capped)

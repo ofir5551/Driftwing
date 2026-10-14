@@ -1,6 +1,7 @@
 import type { QualityLevel } from './Config';
 import { isLevelId } from '../levels';
 import type { LevelId } from '../levels/World';
+import { isTimeOfDay, type TimeOfDay } from '../world/DayCycle';
 
 export interface Settings {
   volume: number;
@@ -11,6 +12,8 @@ export interface Settings {
   leftHanded: boolean;
   /** Last level picked on the title screen. */
   level: LevelId;
+  /** Fixed look chosen on the title screen, or 'auto' for the level's own day cycle. */
+  timeOfDay: TimeOfDay;
 }
 
 const KEY = 'driftwing:settings';
@@ -22,6 +25,7 @@ const DEFAULTS: Settings = {
   invertY: false,
   leftHanded: false,
   level: 'highlands',
+  timeOfDay: 'auto',
 };
 
 // localStorage can throw (private mode, disabled storage): settings then just don't persist.
@@ -38,6 +42,7 @@ export function loadSettings(): Settings {
       invertY: s.invertY === true,
       leftHanded: s.leftHanded === true,
       level: isLevelId(s.level) ? s.level : DEFAULTS.level,
+      timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : DEFAULTS.timeOfDay,
     };
   } catch {
     return { ...DEFAULTS };

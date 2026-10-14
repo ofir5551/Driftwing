@@ -17,7 +17,7 @@ import { Composer } from '../fx/Composer';
 import { LEVELS } from '../levels';
 import type { LevelDef, LevelId, World } from '../levels/World';
 import { Clouds } from '../world/Clouds';
-import { DayCycle } from '../world/DayCycle';
+import { DayCycle, presetPhase, type TimeOfDay } from '../world/DayCycle';
 import { Sky } from '../world/Sky';
 import type { HeightField } from '../world/Terrain';
 import { Water } from '../world/Water';
@@ -64,10 +64,17 @@ export class Game {
   private perfTimer = 0;
   private fastTime = 0;
   readonly autopilot = params.has('autopilot');
+  private timeOfDay: TimeOfDay = 'auto';
   /** Autopilot steering target, set by gameplay (wisps) when available. */
   autopilotTarget: { x: number; y: number; z: number } | null = null;
 
-  constructor(container: HTMLElement, ui: HTMLElement, levelId: LevelId) {
+  constructor(
+    container: HTMLElement,
+    ui: HTMLElement,
+    levelId: LevelId,
+    timeOfDay: TimeOfDay = 'auto',
+  ) {
+    this.timeOfDay = timeOfDay;
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
       powerPreference: 'high-performance',
@@ -162,9 +169,20 @@ export class Game {
     world.prime(spawn.x, spawn.z);
     this.copyPrev();
     this.chase.snap();
-    if (!params.has('time')) this.day.setPhase(this.level.startPhase);
+    this.setTimeOfDay(this.timeOfDay);
     this.sky.mountain = this.level.mountain;
     this.events.emit('level', { id });
+  }
+
+  /**
+   * Pick the time of day: 'auto' runs the level's own cycle from its start phase, anything else
+   * holds that keyframe. A `?time=` URL flag overrides this for debugging and screenshots.
+   */
+  setTimeOfDay(t: TimeOfDay): void {
+    this.timeOfDay = t;
+    if (params.has('time')) return;
+    this.day.frozen = t !== 'auto';
+    this.day.setPhase(t === 'auto' ? this.level.startPhase : presetPhase(t));
   }
 
   /** Bare terrain of the current level. */

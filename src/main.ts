@@ -6,6 +6,7 @@ import { loadBest, loadSettings, saveBest, saveSettings, type Settings } from '.
 import { GameAudio } from './audio/GameAudio';
 import { isLevelId } from './levels';
 import type { LevelId } from './levels/World';
+import type { TimeOfDay } from './world/DayCycle';
 import { Menu, type MenuHandlers } from './ui/Menu';
 
 const params = new URLSearchParams(location.search);
@@ -16,7 +17,7 @@ document.body.appendChild(ui);
 
 const settings = loadSettings();
 const urlLevel = params.get('level');
-const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level);
+const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level, settings.timeOfDay);
 const gameplay = new Gameplay(game, ui);
 const audio = new GameAudio(game, gameplay.progress);
 gameplay.progress.best = loadBest(game.level.id);
@@ -94,6 +95,11 @@ const handlers: MenuHandlers = {
   },
   change: applySettings,
   selectLevel: switchLevel,
+  selectTime(t: TimeOfDay) {
+    settings.timeOfDay = t;
+    game.setTimeOfDay(t);
+    saveSettings(settings);
+  },
   toTitle() {
     if (game.mode !== 'paused') return;
     persistBest();

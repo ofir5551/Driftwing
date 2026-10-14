@@ -386,6 +386,41 @@ body.left-handed .flap-btn {
   opacity: 0.9;
 }
 
+/* Time-of-day chips under the level cards; picking one previews it on the live backdrop. */
+.times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 0 0 24px;
+}
+
+.time {
+  font: inherit;
+  font-size: 13.5px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fffaf0;
+  text-shadow: 0 1px 8px rgba(60, 40, 80, 0.5);
+  background: rgba(255, 248, 238, 0.12);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.time:hover,
+.time:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.time.selected {
+  border-color: rgba(255, 244, 220, 1);
+  background: rgba(255, 236, 210, 0.36);
+}
+
 .btn.ghost {
   display: block;
   margin: 14px auto 0;

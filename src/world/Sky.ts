@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Config } from '../core/Config';
 import type { DayCycle } from './DayCycle';
 
 const vert = /* glsl */ `
@@ -21,6 +22,8 @@ uniform float uStars;
 uniform float uTime;
 uniform float uMountain;
 uniform vec2 uMountainDir;
+uniform float uMountainBase;
+uniform float uMountainFade;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -40,13 +43,18 @@ void main() {
 
   // A distant volcano (the city's Fuji) painted into the dome: a concave cone with a flat
   // crater, snow streaking down from the top, lit on the sun side and sunk into the haze.
+  // Heights are measured from its foot (uMountainBase, which drops as the camera climbs), and
+  // below the foot it dissolves into the haze instead of filling the whole sector down to the
+  // nadir: from altitude the ground no longer hides that, and it showed as a flat-sided slab.
   float peak = 0.0;
   if (uMountain > 0.5) {
     vec2 dh = normalize(d.xz + 1e-5);
     float da = atan(uMountainDir.x * dh.y - uMountainDir.y * dh.x, dot(uMountainDir, dh));
     float prof = pow(max(1.0 - abs(da) / 0.55, 0.0), 1.9) * 0.24;
     prof = min(prof, 0.205);
-    float m = smoothstep(prof + 0.0015, prof - 0.0015, h) * step(0.0005, prof);
+    float hm = h - uMountainBase;
+    float m = smoothstep(prof + 0.0015, prof - 0.0015, hm) * step(0.0005, prof)
+      * smoothstep(-uMountainFade, 0.0, hm);
     if (m > 0.0) {
       vec2 side = normalize(-uMountainDir * 0.6 + vec2(uMountainDir.y, -uMountainDir.x) * sign(da));
       float lit = 0.82 + 0.3 * dot(side, normalize(uSunDir.xz + 1e-5)) * smoothstep(-0.1, 0.1, uSunDir.y);
@@ -54,8 +62,8 @@ void main() {
       float snowLine = 0.2 * (0.62 + 0.06 * sin(da * 41.0) + 0.04 * sin(da * 97.0));
       float bright = clamp(dot(uFog, vec3(0.4)) * 1.5, 0.3, 1.0);
       vec3 snow = mix(uHorizon, vec3(1.0), 0.5) * bright * lit;
-      vec3 mc = mix(rock, snow, smoothstep(snowLine - 0.002, snowLine + 0.002, h));
-      mc = mix(mc, uFog, mix(0.55, 0.12, smoothstep(0.0, 0.12, h)));
+      vec3 mc = mix(rock, snow, smoothstep(snowLine - 0.002, snowLine + 0.002, hm));
+      mc = mix(mc, uFog, mix(0.55, 0.12, smoothstep(0.0, 0.12, hm)));
       col = mix(col, mc, m);
       peak = m;
     }
@@ -101,6 +109,8 @@ export class Sky {
       uMountain: { value: 0 },
       // Ahead and to the right of the spawn, beside where the sun sets at dusk.
       uMountainDir: { value: new THREE.Vector2(0.5, -0.87).normalize() },
+      uMountainBase: { value: 0 },
+      uMountainFade: { value: 0.05 },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -128,6 +138,10 @@ export class Sky {
     this.u.uStars.value = p.stars;
     this.u.uTime.value = time;
     this.u.uMountain.value = this.mountain ? 1 : 0;
+    // Elevation (as the sine the shader compares against) of a foot at sea level that far away.
+    const drop = Config.world.waterLevel - camera.position.y;
+    this.u.uMountainBase.value = drop / Math.hypot(drop, Config.city.mountainDistance);
+    this.u.uMountainFade.value = Config.city.mountainFootFade;
     this.mesh.position.copy(camera.position);
   }
 }

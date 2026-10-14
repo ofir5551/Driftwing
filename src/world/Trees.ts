@@ -42,6 +42,22 @@ export function roundTreeGeometry(): THREE.BufferGeometry {
   ])!;
 }
 
+/** Sakura: the round tree's shape in blossom pinks on a darker trunk. */
+export function cherryGeometry(): THREE.BufferGeometry {
+  const canopy = new THREE.IcosahedronGeometry(3.2, 0);
+  canopy.scale(1.15, 0.7, 1.15);
+  const top = new THREE.IcosahedronGeometry(2.1, 0);
+  top.translate(-0.7, 1.4, 0.4);
+  const side = new THREE.IcosahedronGeometry(1.8, 0);
+  side.translate(1.6, 0.3, -0.8);
+  return mergeGeometries([
+    colored(new THREE.CylinderGeometry(0.3, 0.55, 3.2, 5), '#6d5058', 1.6),
+    colored(canopy, '#f2b6c6', 4.6),
+    colored(top, '#f8cfd9', 4.6),
+    colored(side, '#eaa2b6', 4.6),
+  ])!;
+}
+
 /**
  * Deterministic scatter for one chunk. Cells are enumerated by global index so every cell
  * belongs to exactly one chunk and seams never double up or leave gaps.
@@ -93,17 +109,23 @@ const sc = new THREE.Vector3();
 const up = new THREE.Vector3(0, 1, 0);
 const col = new THREE.Color();
 
-/** Two global instanced meshes (pine, round) refilled from active chunks when the set changes. */
+/**
+ * One global instanced mesh per tree shape (by default round and pine; a scatter list's type
+ * field indexes `geometries`), refilled from active chunks when the set changes.
+ */
 export class Trees {
   readonly group = new THREE.Group();
   private readonly meshes: THREE.InstancedMesh[];
+  private readonly counts: number[];
+  private readonly material: THREE.MeshToonMaterial;
 
-  constructor(capacity = 9000) {
-    const mat = new THREE.MeshToonMaterial({
+  constructor(capacity = 9000, geometries = [roundTreeGeometry(), pineGeometry()]) {
+    const mat = (this.material = new THREE.MeshToonMaterial({
       vertexColors: true,
       gradientMap: getToonGradient(),
-    });
-    this.meshes = [roundTreeGeometry(), pineGeometry()].map((g) => {
+    }));
+    this.counts = geometries.map(() => 0);
+    this.meshes = geometries.map((g) => {
       const mesh = new THREE.InstancedMesh(g, mat, capacity);
       mesh.count = 0;
       mesh.frustumCulled = false; // instances span the whole view; per-mesh culling would be wrong
@@ -114,7 +136,8 @@ export class Trees {
   }
 
   rebuild(lists: Iterable<number[]>, px: number, pz: number, maxDist: number): void {
-    const counts = [0, 0];
+    const counts = this.counts;
+    counts.fill(0);
     const cap = this.meshes[0].instanceMatrix.count;
     const max2 = maxDist * maxDist;
     for (const list of lists)
@@ -135,11 +158,41 @@ export class Trees {
         mesh.setColorAt(idx, col.setRGB(0.88 + t * 0.2, 0.92 + t * 0.12, 0.85 + (1 - t) * 0.2));
         counts[type]++;
       }
-    for (let t = 0; t < 2; t++) {
+    for (let t = 0; t < this.meshes.length; t++) {
       const mesh = this.meshes[t];
       mesh.count = counts[t];
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
+  }
+
+  dispose(): void {
+    for (const m of this.meshes) {
+      m.geometry.dispose();
+      m.dispose();
+    }
+    this.material.dispose();
+  }
+}
+
+/** The highlands' chunk decor: the forest scatter feeding the two global tree meshes. */
+export class TreeDecor {
+  readonly trees = new Trees();
+  readonly group = this.trees.group;
+
+  constructor(private readonly field: HeightField) {}
+
+  scatter(ox: number, oz: number, size: number): number[] {
+    const out: number[] = [];
+    scatterTrees(this.field, ox, oz, size, out);
+    return out;
+  }
+
+  rebuild(items: number[][], px: number, pz: number): void {
+    this.trees.rebuild(items, px, pz, Config.render.treeDistance);
+  }
+
+  dispose(): void {
+    this.trees.dispose();
   }
 }

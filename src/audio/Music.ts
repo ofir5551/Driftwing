@@ -3,6 +3,7 @@ import {
   chordDegrees,
   DAY_KEYS,
   degreeToMidi,
+  type DayKey,
   midiToFreq,
   PhraseGenerator,
   PROGRESSION,
@@ -38,6 +39,7 @@ export class Music {
   private readonly phrase = new PhraseGenerator(mulberry32(77), 8, 0, 9);
   private params: MusicParams = { speed: 0, altitude: 0.3, flow: 0, dayKey: 0, paused: false };
   // Harmony state
+  private keys: DayKey[] = DAY_KEYS;
   private root = DAY_KEYS[0].root;
   private mode: ModeName = DAY_KEYS[0].mode;
   private shift = 0; // semitones added by lanterns ("modulation")
@@ -147,6 +149,12 @@ export class Music {
     this.bell(t, midi, 0.5 + flow * 0.3, (this.rand() - 0.5) * 0.4, 2.0, 0.17, true);
   }
 
+  /** Swap the per-time-of-day key table (a level change); lands on the next chord boundary. */
+  setKeys(keys: DayKey[]): void {
+    this.keys = keys;
+    this.shift = 0;
+  }
+
   /** Lantern lit: modulate up a fourth at the next chord and play a rising flourish. */
   lantern(): void {
     this.shift = ((this.shift + 5 + 6) % 12) - 6; // stay within +-6 semitones of home
@@ -160,7 +168,7 @@ export class Music {
   }
 
   private applyKey(t: number, immediate = false): void {
-    const k = DAY_KEYS[this.params.dayKey % DAY_KEYS.length];
+    const k = this.keys[this.params.dayKey % this.keys.length];
     this.root = k.root;
     this.mode = k.mode;
     const base = this.root + this.shift;

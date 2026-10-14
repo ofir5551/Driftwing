@@ -62,6 +62,9 @@ class Ribbon {
   }
 
   push(p: THREE.Vector3): void {
+    // A teleport (level switch) restarts the ribbon instead of drawing a streak across the map.
+    if (this.filled > 0 && Math.abs(p.x - this.pts[0]) + Math.abs(p.z - this.pts[2]) > 60)
+      this.filled = 0;
     // Shift history down one slot (N is tiny; copyWithin is a memmove, no allocation).
     this.pts.copyWithin(3, 0, (N - 1) * 3);
     this.pts[0] = p.x;

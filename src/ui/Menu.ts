@@ -1,7 +1,13 @@
 import type { Settings } from '../core/Settings';
+import { LEVEL_LIST } from '../levels';
+import type { LevelId } from '../levels/World';
 
 export interface MenuHandlers {
   play(): void;
+  /** A level card was picked on the title screen. */
+  selectLevel(id: LevelId): void;
+  /** Pause menu -> back to the title screen to pick another level. */
+  toTitle(): void;
   resume(): void;
   pause(): void;
   change(s: Settings): void;
@@ -16,6 +22,7 @@ export class Menu {
   private readonly pauseBtn: HTMLButtonElement;
   private readonly best: HTMLElement;
   private readonly pauseStats: HTMLElement;
+  private readonly levelCards: HTMLButtonElement[];
 
   constructor(ui: HTMLElement, settings: Settings, h: MenuHandlers) {
     const controls = isTouch()
@@ -25,6 +32,12 @@ export class Menu {
       'start',
       `<h1>Driftwing</h1>
        <p class="tag">Glide. Gather the light. Breathe.</p>
+       <div class="levels" role="radiogroup" aria-label="Level">${LEVEL_LIST.map(
+         (l) =>
+           `<button class="level" role="radio" aria-checked="false" data-level="${l.id}">
+              <span class="level-name">${l.name}</span><span class="level-blurb">${l.blurb}</span>
+            </button>`,
+       ).join('')}</div>
        <button class="btn primary" id="play-btn">Play</button>
        <ul class="controls">${controls}</ul>
        <p class="best" hidden></p>`,
@@ -35,6 +48,7 @@ export class Menu {
       `<h2>Paused</h2>
        <p class="pause-stats"></p>
        <button class="btn primary" id="resume-btn">Resume</button>
+       <button class="btn ghost" id="title-btn">Change level</button>
        <div class="settings">
          <label>Volume <input type="range" id="vol" min="0" max="1" step="0.01"></label>
          <label class="row"><input type="checkbox" id="mute"> Mute</label>
@@ -56,7 +70,11 @@ export class Menu {
     ui.append(this.start, this.pause, this.pauseBtn);
 
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
+    this.levelCards = [...this.start.querySelectorAll<HTMLButtonElement>('.level')];
+    for (const card of this.levelCards)
+      card.addEventListener('click', () => h.selectLevel(card.dataset.level as LevelId));
     this.pause.querySelector('#resume-btn')!.addEventListener('click', () => h.resume());
+    this.pause.querySelector('#title-btn')!.addEventListener('click', () => h.toTitle());
     this.pauseBtn.addEventListener('click', () => h.pause());
     const vol = this.pause.querySelector<HTMLInputElement>('#vol')!;
     const mute = this.pause.querySelector<HTMLInputElement>('#mute')!;
@@ -96,10 +114,13 @@ export class Menu {
     return el;
   }
 
-  showStart(best: number): void {
-    if (best > 0) {
-      this.best.hidden = false;
-      this.best.textContent = `Best: ${best.toLocaleString()}`;
+  showStart(best: number, level: LevelId): void {
+    this.best.hidden = best <= 0;
+    this.best.textContent = `Best: ${best.toLocaleString()}`;
+    for (const card of this.levelCards) {
+      const on = card.dataset.level === level;
+      card.classList.toggle('selected', on);
+      card.setAttribute('aria-checked', String(on));
     }
     this.start.classList.add('show');
     this.pause.classList.remove('show');

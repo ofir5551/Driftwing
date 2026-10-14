@@ -16,6 +16,30 @@ export interface Wisp {
 
 type Pattern = 'arc' | 'wave' | 'dive' | 'climb' | 'spiral';
 
+/** Where the next pattern starts: the end of the last one, heading onward. */
+export interface WispCursor {
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  /** Preferred height above the wisp floor. */
+  clear: number;
+  valid: boolean;
+}
+
+/**
+ * Level-specific wisp patterns (city avenues, tower spirals). `pattern` lays wisps from the
+ * cursor through `spawn`, leaves the cursor at the pattern's end and returns true, or returns
+ * false to let a generic pattern run.
+ */
+export interface WispPlanner {
+  pattern(
+    c: WispCursor,
+    rand: () => number,
+    spawn: (x: number, y: number, z: number) => void,
+  ): boolean;
+}
+
 const vert = /* glsl */ `
 attribute float aPhase;
 uniform float uTime;
@@ -62,7 +86,11 @@ export class Wisps {
   readonly mesh: THREE.InstancedMesh;
   readonly list: Wisp[] = [];
   private readonly rand: () => number;
-  private readonly cursor = { x: 0, y: 40, z: 0, heading: 0, clear: 22, valid: false };
+  private readonly cursor: WispCursor = { x: 0, y: 40, z: 0, heading: 0, clear: 22, valid: false };
+  planner: WispPlanner | null = null;
+  private readonly spawnAt = (x: number, y: number, z: number): void => {
+    this.spawn(x, y, z);
+  };
   private readonly m = new THREE.Matrix4();
   private readonly u: Record<string, THREE.IUniform>;
   private spawned = 0;
@@ -136,9 +164,20 @@ export class Wisps {
     c.valid = true;
   }
 
+  /** Drop every wisp and restart the path (level switch). */
+  reset(): void {
+    for (const w of this.list) w.alive = false;
+    this.cursor.valid = false;
+  }
+
   private spawnPattern(): void {
     const T = Config.wisps;
     const c = this.cursor;
+    if (this.planner?.pattern(c, this.rand, this.spawnAt)) {
+      c.x += Math.sin(c.heading) * T.gap;
+      c.z += Math.cos(c.heading) * T.gap;
+      return;
+    }
     // Prefer a thermal spiral when one is close to the path: it teaches thermals by example.
     const th = this.thermalNear(
       c.x + Math.sin(c.heading) * 120,

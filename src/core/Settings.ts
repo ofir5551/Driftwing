@@ -1,4 +1,6 @@
 import type { QualityLevel } from './Config';
+import { isLevelId } from '../levels';
+import type { LevelId } from '../levels/World';
 
 export interface Settings {
   volume: number;
@@ -7,6 +9,8 @@ export interface Settings {
   invertY: boolean;
   /** Touch: put the flap button at the bottom left instead of the bottom right. */
   leftHanded: boolean;
+  /** Last level picked on the title screen. */
+  level: LevelId;
 }
 
 const KEY = 'driftwing:settings';
@@ -17,6 +21,7 @@ const DEFAULTS: Settings = {
   quality: 'auto',
   invertY: false,
   leftHanded: false,
+  level: 'highlands',
 };
 
 // localStorage can throw (private mode, disabled storage): settings then just don't persist.
@@ -32,6 +37,7 @@ export function loadSettings(): Settings {
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',
       invertY: s.invertY === true,
       leftHanded: s.leftHanded === true,
+      level: isLevelId(s.level) ? s.level : DEFAULTS.level,
     };
   } catch {
     return { ...DEFAULTS };
@@ -46,17 +52,20 @@ export function saveSettings(s: Settings): void {
   }
 }
 
-export function loadBest(): number {
+// The first level keeps the original key so existing best scores carry over.
+const bestKey = (level: LevelId) => (level === 'highlands' ? BEST : `${BEST}:${level}`);
+
+export function loadBest(level: LevelId): number {
   try {
-    return Number(localStorage.getItem(BEST)) || 0;
+    return Number(localStorage.getItem(bestKey(level))) || 0;
   } catch {
     return 0;
   }
 }
 
-export function saveBest(score: number): void {
+export function saveBest(level: LevelId, score: number): void {
   try {
-    localStorage.setItem(BEST, String(score));
+    localStorage.setItem(bestKey(level), String(score));
   } catch {
     /* not persisted */
   }

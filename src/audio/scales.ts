@@ -8,17 +8,35 @@ export const MODES = {
   minorPenta: [0, 3, 5, 7, 10],
   // "Suspended" pentatonic (no third): open and floating, good for dawn and twilight.
   susPenta: [0, 2, 5, 7, 10],
+  // Japanese pentatonics for the city. Yo (min-yo folk scale) has no semitones, so stacked
+  // chords stay open; hirajoshi (koto tuning) has two, giving dusk its bittersweet colour.
+  yo: [0, 2, 5, 7, 9],
+  hirajoshi: [0, 2, 3, 7, 8],
 } as const;
 
 export type ModeName = keyof typeof MODES;
 
+export interface DayKey {
+  root: number;
+  mode: ModeName;
+}
+
 /** Key and mode per day-cycle keyframe (dawn, day, golden, dusk, twilight). Roots as MIDI. */
-export const DAY_KEYS: { root: number; mode: ModeName }[] = [
+export const DAY_KEYS: DayKey[] = [
   { root: 62, mode: 'susPenta' }, // D, dawn
   { root: 64, mode: 'majorPenta' }, // E, day
   { root: 57, mode: 'majorPenta' }, // A, golden hour
   { root: 66, mode: 'minorPenta' }, // F#, dusk
   { root: 62, mode: 'minorPenta' }, // D, twilight
+];
+
+/** The city's keys: bright yo by day, hirajoshi once the neon comes on. */
+export const CITY_KEYS: DayKey[] = [
+  { root: 62, mode: 'yo' }, // D, dawn
+  { root: 64, mode: 'yo' }, // E, day
+  { root: 57, mode: 'yo' }, // A, golden hour
+  { root: 64, mode: 'hirajoshi' }, // E, dusk
+  { root: 61, mode: 'hirajoshi' }, // C#, twilight
 ];
 
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

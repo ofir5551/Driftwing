@@ -38,16 +38,25 @@ export class Gameplay {
   private readonly vel = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
   private contactFx = 0;
-  private readonly ground: (x: number, z: number) => number;
+  /** What the blob shadow lands on: roofs and decks below the bird, else the ground. */
+  private readonly shadowGround: (x: number, z: number) => number;
 
   constructor(
     private readonly game: Game,
     ui: HTMLElement,
   ) {
     this.hud = new Hud(ui);
-    const ground = (this.ground = (x: number, z: number) => game.flightGround(x, z));
-    this.thermals = new Thermals((x, z) => game.field.height(x, z));
-    this.wisps = new Wisps(Config.world.seed, ground, (x, z, r) => this.thermals.nearest(x, z, r));
+    this.shadowGround = (x, z) => game.world.surfaceBelow(x, game.pose.y, z);
+    this.thermals = new Thermals(
+      (x, z) => game.field.height(x, z),
+      (x, z, r) => game.world.thermalOk(x, z, r),
+    );
+    this.wisps = new Wisps(
+      Config.world.seed,
+      (x, z) => game.world.wispFloor(x, z),
+      (x, z, r) => this.thermals.nearest(x, z, r),
+    );
+    this.wisps.planner = game.world.planner;
     game.setThermalSource((x, y, z) => this.thermals.lift(x, y, z));
     game.scene.add(
       this.wisps.mesh,
@@ -64,6 +73,18 @@ export class Gameplay {
     game.onStep((dt) => this.step(dt));
     game.onFrame((dt, time) => this.frame(dt, time));
     game.events.on('contact', (e) => this.onContact(e.kind, e.x, e.y, e.z, e.strength));
+    game.events.on('level', () => this.onLevel());
+  }
+
+  /** New level: clear the old world's wisps, thermals and lanterns; the path restarts at the bird. */
+  private onLevel(): void {
+    const g = this.game;
+    this.wisps.reset();
+    this.wisps.planner = g.world.planner;
+    this.thermals.reset();
+    this.thermals.update(g.flight.x, g.flight.z);
+    this.lanterns.reset();
+    g.autopilotTarget = null;
   }
 
   private step(dt: number): void {
@@ -103,7 +124,7 @@ export class Gameplay {
     const a = s.yaw + side * 0.16;
     const x = s.x + Math.sin(a) * 170;
     const z = s.z + Math.cos(a) * 170;
-    const orb = this.lanterns.ignite(x, g.field.height(x, z), z);
+    const orb = this.lanterns.ignite(x, g.world.surfaceBelow(x, Infinity, z), z);
     this.glow.burst(60, orb.x, orb.y, orb.z, 16, 2.2, 2.2, GOLD, -2, 6);
     this.glow.burst(30, orb.x, orb.y + 20, orb.z, 24, 2.6, 1.6, WHITE, 3, 8);
     g.composer.flash = 0.6;
@@ -222,7 +243,7 @@ export class Gameplay {
       this.tmp.copy(WHITE).lerp(pal.skyHorizon, 0.3),
       density,
     );
-    this.shadow.update(pose.x, pose.y, pose.z, pose.yaw, this.ground);
+    this.shadow.update(pose.x, pose.y, pose.z, pose.yaw, this.shadowGround);
     this.hud.update(dt, this.progress, g.mode === 'paused');
   }
 }

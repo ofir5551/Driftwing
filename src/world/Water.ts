@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
 import type { DayCycle } from './DayCycle';
+import { MIST_PARS, mistUniforms } from './Mist';
 
 const vert = /* glsl */ `
 #include <fog_pars_vertex>
@@ -17,6 +18,7 @@ void main() {
 // slow interfering sine ripples for the normal and a soft sun glint that bloom picks up.
 const frag = /* glsl */ `
 #include <fog_pars_fragment>
+${MIST_PARS}
 uniform vec3 uColor;
 uniform vec3 uSky;
 uniform vec3 uSun;
@@ -43,6 +45,7 @@ void main() {
   gl_FragColor = vec4(col, 0.86);
   #include <colorspace_fragment>
   #include <fog_fragment>
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, uMistColor, mistAmount(vWorld));
 }`;
 
 /** One large plane at water level that follows the camera; lakes are wherever terrain dips below it. */
@@ -61,6 +64,8 @@ export class Water {
         uTime: { value: 0 },
       },
     ]);
+    // Shared (not cloned by merge), so the level's mist reaches the water too.
+    Object.assign(this.u, mistUniforms);
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
       vertexShader: vert,

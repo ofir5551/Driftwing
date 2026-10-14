@@ -12,6 +12,9 @@ export const MODES = {
   // chords stay open; hirajoshi (koto tuning) has two, giving dusk its bittersweet colour.
   yo: [0, 2, 5, 7, 9],
   hirajoshi: [0, 2, 3, 7, 8],
+  // The five Chinese modes are the rotations of one pentatonic: gong is majorPenta, shang is
+  // susPenta, zhi is yo and yu is minorPenta. Jue, the odd one out, adds the minor sixth.
+  jue: [0, 3, 5, 8, 10],
 } as const;
 
 export type ModeName = keyof typeof MODES;
@@ -37,6 +40,18 @@ export const CITY_KEYS: DayKey[] = [
   { root: 57, mode: 'yo' }, // A, golden hour
   { root: 64, mode: 'hirajoshi' }, // E, dusk
   { root: 61, mode: 'hirajoshi' }, // C#, twilight
+];
+
+/**
+ * Jade River's keys walk the Chinese modes through the day, like a guqin player retuning:
+ * shang at first light, gong by day, zhi in the golden hour, jue at dusk, yu at night.
+ */
+export const KARST_KEYS: DayKey[] = [
+  { root: 62, mode: 'susPenta' }, // D shang, dawn
+  { root: 60, mode: 'majorPenta' }, // C gong, day
+  { root: 57, mode: 'yo' }, // A zhi, golden hour
+  { root: 59, mode: 'jue' }, // B jue, dusk
+  { root: 62, mode: 'minorPenta' }, // D yu, twilight
 ];
 
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

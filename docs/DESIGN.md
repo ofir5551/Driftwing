@@ -42,6 +42,9 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
 
 - **Highlands**: the original endless landscape (see World).
 - **Neon Bay**: an endless Japanese bay city, a Tokyo/Osaka blend, opening at dusk.
+- **Jade River**: misty limestone pillars along a jade river (the Li River at Guilin), opening
+  at dawn. The quiet one: Highlands is open and bright, Neon Bay buzzes at dusk, Jade River is
+  a scroll painting in the morning mist.
 
 ## Neon Bay
 
@@ -65,6 +68,39 @@ roof within reach, dips under a deck or beam, or veers to the more open side of 
 contact the bird glances off, turning along the wall and losing a little speed. Wisps run down
 the avenues at street-canyon height, turning a quarter at crossings, circle towers, or glide
 over the roofs; the opening ribbon goes through the torii and up the spawn avenue.
+
+## Jade River
+
+Mood: still, contemplative, ink-wash. Muted colour (the post saturation is scaled to 0.82 and
+the level paints its own palettes: paper-pale mist, jade water), with a few warm accents: red
+pavilions and lanterns, the wisps' gold.
+
+Plan: rivers run along the zero contour of a low-frequency noise (distance = |n| / |grad n|),
+40-90 m wide, endless in every direction; spawn is on the river through the origin, facing
+along it. Limestone pillars stand on a 72 m jittered grid (up to two per cell, density from a
+clustering noise, giants in the dense clusters), never within reach of a river. Five
+silhouettes (sugarloaf, dome, needle, leaning, pot-bellied) are lathed from one radius profile
+(flared foot, belly, narrowing neck, round summit dome, lean) that the collisions use as well.
+Each has fluted rock with dark rain streaks, moss on ledges, pines on the crown, shrubs on the
+walls and a scree mound in the terrain; some summits carry a red pavilion. The valley floor has
+terraced paddies (flooded, young, ripening), bamboo along the banks, broadleaf groves,
+whitewashed villages with dark gable roofs, and cormorant fishers' rafts on the water.
+
+Atmosphere: a valley mist (shared uniforms, patched into the level's toon materials and the
+water shader) lies below ~55 m, drifts in slow banks, clears near the bird and thickens with
+distance; it is thickest at dawn and thins by midday. A distance haze fades far pillars in
+layers. Low billboard mist banks drift between the pillars. Three rings of karst peaks are
+painted round the horizon in the sky dome, each layer a deeper wash with mist at its foot.
+Lanterns (houses, rafts, pavilions) are red paper by day and glow (HDR, bloomed) after dark.
+Music walks the Chinese modes: shang at dawn, gong by day, zhi at golden hour, jue at dusk,
+yu at night.
+
+Flight: pillars are solid but soft, flown with the city's look-ahead and wall glance; the
+summit dome pushes up (skim it), the walls push straight out from the axis. Wisps: the river
+is the spine (low ribbons following its bends); slaloms weave between pillars (of the clear
+candidates, the one passing most rock wins); now and then a spiral climbs the last ~100 m of a
+tall pillar and crosses its summit. Every pattern is checked 9 m clear of rock and ground, and
+a slowly updated trend heading keeps the ribbon from doubling back.
 
 ## Gameplay
 
@@ -162,6 +198,12 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   pillars) and high (32 m). Turns are 40 m arcs that stay inside the crossing and its corner plazas
   even when cut, and go toward the ribbon's overall heading so it never doubles back. Runs follow
   on from the last wisp with no gap (an unchecked gap could cross a tower).
+- Levels may paint their own day palettes (same phases and names as the default, so the
+  time-of-day picker still works), scale the post saturation and pick a sky backdrop
+  (none, Fuji, karst ridges).
+- Jade River pillars use a detailed mesh within 480 m and a coarse one beyond (chosen when the
+  chunk set changes); bamboo clumps are ~50 triangles. A frame is ~550k triangles at High
+  (Highlands ~200k). Pillar queries scan the grid cells within reach; cells are cached.
 - Wisps (all levels): the autopilot follows the ribbon in spawn order with a carrot ~24 m ahead
   (pure pursuit) instead of the nearest wisp; the path re-anchors only when it is behind the bird
   or the bird has left it (no wisp ahead in reach), not merely when it runs far ahead; no pattern

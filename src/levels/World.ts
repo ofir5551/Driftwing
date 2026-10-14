@@ -1,11 +1,12 @@
 import type * as THREE from 'three';
 import type { FlightInput, FlightState } from '../player/FlightModel';
-import type { DayCycle } from '../world/DayCycle';
+import type { DayCycle, SkyKey } from '../world/DayCycle';
+import type { Backdrop } from '../world/Sky';
 import type { DayKey } from '../audio/scales';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 
-export type LevelId = 'highlands' | 'city';
+export type LevelId = 'highlands' | 'city' | 'karst';
 
 /**
  * Everything level-specific about the world the bird flies through: terrain, scenery, what
@@ -61,8 +62,12 @@ export interface LevelDef {
   dayScale: number;
   /** Music key and mode per day keyframe. */
   keys: DayKey[];
-  /** Distant volcano painted into the sky dome. */
-  mountain: boolean;
+  /** What is painted into the sky dome beyond the world (Fuji, karst ridges). */
+  backdrop: Backdrop;
+  /** The level's own palettes per time of day (default: the shared DAY_SKY). */
+  sky?: SkyKey[];
+  /** Multiplier on the post pass's saturation (an ink-wash level mutes its colour). */
+  saturation?: number;
   /** Soft ceiling, m above water (copied into Config.flight.maxAltitude on a level switch). */
   maxAltitude: number;
   create(seed: number): { world: World; spawn: Spawn };

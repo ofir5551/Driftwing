@@ -11,7 +11,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/shot.mjs <url> <out.png> [waitMs] [clickSelector] [w] [h]`: one headless screenshot.
 - `npm run shots`: regenerate README screenshots into `docs/screenshots/` (needs a running server).
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city`.
+  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city|karst`.
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio).
 - Headless Chromium: on Windows `--use-angle=d3d11` uses the real GPU; elsewhere SwiftShader works but is slow.
@@ -34,7 +34,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `core/Game.ts`: renderer, scene, flight, camera, sky/water/clouds, adaptive resolution/quality, and the
   current level's `World` (`setLevel` swaps it in place). Modes: `menu` (bot flies the attract backdrop),
   `playing`, `paused`. `onStep`/`onFrame` hooks.
-- `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`; `index` registry.
+- `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`, `Karst`
+  (Jade River, with its own palettes); `index` registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics. `Bird.ts` visuals only. `ChaseCamera.ts` polar springs.
@@ -44,6 +45,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; queries), `collide`
   (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
   `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.
+- `world/karst/`: `KarstLayout` (pure: rivers, pillars + shared radius profile, terrain, queries),
+  `KarstWisps` (river/slalom/spiral planner), `KarstDecor`, `geometry`, `KarstWorld`.
+  `world/Mist.ts`: shared valley-mist uniforms + `withMist` material patch (also in `Water`).
 - `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),

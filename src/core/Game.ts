@@ -17,7 +17,7 @@ import { Composer } from '../fx/Composer';
 import { LEVELS } from '../levels';
 import type { LevelDef, LevelId, World } from '../levels/World';
 import { Clouds } from '../world/Clouds';
-import { DayCycle, presetPhase, type TimeOfDay } from '../world/DayCycle';
+import { DAY_SKY, DayCycle, presetPhase, type TimeOfDay } from '../world/DayCycle';
 import { Sky } from '../world/Sky';
 import type { HeightField } from '../world/Terrain';
 import { Water } from '../world/Water';
@@ -169,8 +169,9 @@ export class Game {
     world.prime(spawn.x, spawn.z);
     this.copyPrev();
     this.chase.snap();
+    this.day.setKeys(this.level.sky ?? DAY_SKY);
     this.setTimeOfDay(this.timeOfDay);
-    this.sky.mountain = this.level.mountain;
+    this.sky.backdrop = this.level.backdrop;
     this.events.emit('level', { id });
   }
 
@@ -305,7 +306,7 @@ export class Game {
     this.water.update(this.day, cam, this.time);
     this.clouds.update(this.day, cam.position, this.time);
     for (const fn of this.frameHooks) fn(dt, this.time);
-    this.composer.render(this.day, this.time, dt);
+    this.composer.render(this.day, this.time, dt, this.level.saturation ?? 1);
     this.adaptQuality(frameDt);
   }
 

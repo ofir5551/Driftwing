@@ -1,11 +1,14 @@
 import type { Settings } from '../core/Settings';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
+import { TIME_OF_DAY_LIST, type TimeOfDay } from '../world/DayCycle';
 
 export interface MenuHandlers {
   play(): void;
   /** A level card was picked on the title screen. */
   selectLevel(id: LevelId): void;
+  /** A time-of-day chip was picked on the title screen. */
+  selectTime(t: TimeOfDay): void;
   /** Pause menu -> back to the title screen to pick another level. */
   toTitle(): void;
   resume(): void;
@@ -23,6 +26,7 @@ export class Menu {
   private readonly best: HTMLElement;
   private readonly pauseStats: HTMLElement;
   private readonly levelCards: HTMLButtonElement[];
+  private readonly timeChips: HTMLButtonElement[];
 
   constructor(ui: HTMLElement, settings: Settings, h: MenuHandlers) {
     const controls = isTouch()
@@ -37,6 +41,10 @@ export class Menu {
            `<button class="level" role="radio" aria-checked="false" data-level="${l.id}">
               <span class="level-name">${l.name}</span><span class="level-blurb">${l.blurb}</span>
             </button>`,
+       ).join('')}</div>
+       <div class="times" role="radiogroup" aria-label="Time of day">${TIME_OF_DAY_LIST.map(
+         (t) =>
+           `<button class="time" role="radio" aria-checked="false" data-time="${t.id}">${t.label}</button>`,
        ).join('')}</div>
        <button class="btn primary" id="play-btn">Play</button>
        <ul class="controls">${controls}</ul>
@@ -73,6 +81,15 @@ export class Menu {
     this.levelCards = [...this.start.querySelectorAll<HTMLButtonElement>('.level')];
     for (const card of this.levelCards)
       card.addEventListener('click', () => h.selectLevel(card.dataset.level as LevelId));
+    this.timeChips = [...this.start.querySelectorAll<HTMLButtonElement>('.time')];
+    for (const chip of this.timeChips)
+      chip.addEventListener('click', () => {
+        const t = chip.dataset.time as TimeOfDay;
+        settings.timeOfDay = t;
+        this.markTime(t);
+        h.selectTime(t);
+      });
+    this.markTime(settings.timeOfDay);
     this.pause.querySelector('#resume-btn')!.addEventListener('click', () => h.resume());
     this.pause.querySelector('#title-btn')!.addEventListener('click', () => h.toTitle());
     this.pauseBtn.addEventListener('click', () => h.pause());
@@ -112,6 +129,14 @@ export class Menu {
     el.className = `menu ${cls}`;
     el.innerHTML = `<div class="card">${html}</div>`;
     return el;
+  }
+
+  private markTime(t: TimeOfDay): void {
+    for (const chip of this.timeChips) {
+      const on = chip.dataset.time === t;
+      chip.classList.toggle('selected', on);
+      chip.setAttribute('aria-checked', String(on));
+    }
   }
 
   showStart(best: number, level: LevelId): void {

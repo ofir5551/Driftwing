@@ -153,6 +153,25 @@ const KEYS: Key[] = [
   },
 ];
 
+/** Title-screen choices: 'auto' lets the level's own cycle run, the rest hold one look. */
+export type TimeOfDay = 'auto' | 'dawn' | 'day' | 'golden' | 'dusk' | 'twilight';
+
+export const TIME_OF_DAY_LIST: { id: TimeOfDay; label: string }[] = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'dawn', label: 'Dawn' },
+  { id: 'day', label: 'Day' },
+  { id: 'golden', label: 'Golden' },
+  { id: 'dusk', label: 'Dusk' },
+  { id: 'twilight', label: 'Night' },
+];
+
+export const isTimeOfDay = (v: unknown): v is TimeOfDay => TIME_OF_DAY_LIST.some((t) => t.id === v);
+
+/** Phase of the keyframe named `id`, so a preset lands exactly on that look. */
+export function presetPhase(id: Exclude<TimeOfDay, 'auto'>): number {
+  return KEYS.find((k) => k.name === id)!.t;
+}
+
 export class DayCycle {
   readonly palette: Palette = pal({
     skyTop: '#000',
@@ -174,6 +193,8 @@ export class DayCycle {
   phase: number;
   /** Index of the current keyframe; Music uses it to drift key/mode. */
   keyIndex = 0;
+  /** Hold the current phase (a fixed time of day was picked). */
+  frozen = false;
 
   constructor(phase = 0.08) {
     this.phase = phase;
@@ -185,6 +206,7 @@ export class DayCycle {
   }
 
   update(dt: number, dayLength: number): void {
+    if (this.frozen) return;
     this.phase = (this.phase + dt / dayLength) % 1;
     this.apply();
   }

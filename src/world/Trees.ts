@@ -128,6 +128,7 @@ export class Trees {
     this.counts = geometries.map(() => 0);
     this.meshes = geometries.map((g) => {
       const mesh = new THREE.InstancedMesh(g, mat, capacity);
+      mesh.name = 'tree';
       mesh.count = 0;
       mesh.frustumCulled = false; // instances span the whole view; per-mesh culling would be wrong
       mesh.setColorAt(0, col.set('#fff'));

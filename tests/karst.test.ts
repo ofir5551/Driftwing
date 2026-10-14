@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
-import { angleDelta, clamp } from '../src/core/math';
 import { KARST_KEYS, MODES } from '../src/audio/scales';
-import { createFlightState, stepFlight, type FlightInput } from '../src/player/FlightModel';
 import { KarstLayout, profile, SHAPES } from '../src/world/karst/KarstLayout';
 import { KarstWorld } from '../src/world/karst/KarstWorld';
-import { Wisps } from '../src/world/Wisps';
+import { flyBot } from './helpers';
 
 const L = new KarstLayout(1337);
 
@@ -79,46 +77,16 @@ describe('karst layout', () => {
 });
 
 describe('karst wisps', () => {
-  /** Autopilot (the same steering as the title-screen bot) over the river and pillars. */
-  function fly(seed: number, seconds: number) {
-    const w = new KarstWorld(seed);
-    const sp = w.layout.spawn;
-    const s = createFlightState(sp.x, sp.y, sp.z, sp.yaw);
-    const wisps = new Wisps(
-      seed,
-      (x, z) => w.wispFloor(x, z),
-      () => null,
-    );
-    wisps.planner = w.planner;
-    const env = { groundAt: (x: number, z: number) => w.flightGround(x, z), thermalAt: () => 0 };
-    const inp: FlightInput = { steerX: 0, steerY: 0, flap: false };
-    let got = 0;
-    let glances = 0;
-    let touching = false;
-    let inside = 0;
-    for (let i = 0; i < 60 * seconds; i++) {
-      const t = wisps.nextTarget(s.x, s.z, s.yaw);
-      if (t) {
-        inp.steerX = clamp(-angleDelta(s.yaw, Math.atan2(t.x - s.x, t.z - s.z)) * 2.2, -1, 1);
-        inp.steerY = clamp((t.y - s.y) * 0.08, -0.8, 0.8);
-      }
-      w.assist(s, inp);
-      stepFlight(s, inp, env, 1 / 60);
-      const hit = w.collide(s) > 0;
-      if (hit && !touching) glances++;
-      touching = hit;
-      wisps.update(1 / 60, s.x, s.y, s.z, s.yaw, () => got++);
-      if (i % 30 === 0)
-        for (const v of wisps.list)
-          if (v.alive && w.layout.solidTop(v.x, v.y, v.z, 0) !== -Infinity) inside++;
-    }
-    w.dispose();
-    return { got, glances, inside };
-  }
-
   it('ribbons never sit inside the rock, and an autopilot flies them among the pillars', () => {
     for (const seed of [42, 2024]) {
-      const r = fly(seed, 120);
+      const w = new KarstWorld(seed);
+      const r = flyBot(
+        w,
+        w.layout.spawn,
+        seed,
+        120,
+        (x, y, z) => w.layout.solidTop(x, y, z, 0) !== -Infinity,
+      );
       expect(r.inside).toBe(0);
       expect(r.got).toBeGreaterThan(150);
       expect(r.glances).toBeLessThanOrEqual(2);

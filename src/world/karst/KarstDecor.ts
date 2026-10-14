@@ -97,6 +97,13 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
     this.rafts = this.make(raftGeometry(), 500);
     this.pavilions = this.make(pavilionGeometry(), 300);
     this.lanterns = this.make(lanternGeometry(), 5000, this.lanternMaterial);
+    // Names show up in scripts/level-shots.mjs's triangle report.
+    this.pillars.forEach((m, i) => (m.name = `pillar-${i}`));
+    this.farPillars.forEach((m, i) => (m.name = `pillar-far-${i}`));
+    this.houses.forEach((m, i) => (m.name = `house-${i + 1}storey`));
+    this.rafts.name = 'raft';
+    this.pavilions.name = 'pavilion';
+    this.lanterns.name = 'lantern';
     this.group.add(
       ...this.pillars,
       ...this.farPillars,

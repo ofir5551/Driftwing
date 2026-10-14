@@ -10,6 +10,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `npm run typecheck` / `npm run lint` / `npm test` / `npm run build` / `npm run preview` / `npm run format`
 - `node scripts/shot.mjs <url> <out.png> [waitMs] [clickSelector] [w] [h]`: one headless screenshot.
 - `npm run shots`: regenerate README screenshots into `docs/screenshots/` (needs a running server).
+- `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
+  golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
   `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city|karst`.
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).

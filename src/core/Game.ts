@@ -15,7 +15,7 @@ import {
 } from '../player/FlightModel';
 import { Composer } from '../fx/Composer';
 import { LEVELS } from '../levels';
-import type { LevelDef, LevelId, World } from '../levels/World';
+import type { LevelDef, LevelId, Spawn, World } from '../levels/World';
 import { Clouds } from '../world/Clouds';
 import { DAY_SKY, DayCycle, presetPhase, type TimeOfDay } from '../world/DayCycle';
 import { Sky } from '../world/Sky';
@@ -35,6 +35,8 @@ export class Game {
   /** The level being flown and its streamed world (swapped by setLevel). */
   level!: LevelDef;
   world!: World;
+  /** Where the current level starts the bird (screenshot scripts frame views from it). */
+  spawn!: Spawn;
   readonly flight = createFlightState(0, 45, 0, 0);
   readonly pose: Pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, bank: 0, speed: 0 };
   readonly chase: ChaseCamera;
@@ -164,6 +166,7 @@ export class Game {
     Config.flight.maxAltitude = this.level.maxAltitude;
     const { world, spawn } = this.level.create(Config.world.seed);
     this.world = world;
+    this.spawn = spawn;
     this.scene.add(world.group);
     Object.assign(this.flight, createFlightState(spawn.x, spawn.y, spawn.z, spawn.yaw));
     world.prime(spawn.x, spawn.z);

@@ -68,6 +68,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
       cap,
     );
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
+    mesh.name = `city-${['box', 'cylinder', 'gable', 'hip', 'ridge', 'lattice'][m]}`;
     mesh.count = 0;
     mesh.frustumCulled = false; // instances span the whole view
     return mesh;

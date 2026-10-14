@@ -60,6 +60,16 @@ const C = {
 };
 const tmp = new THREE.Color();
 
+/** Colours a ground vertex from position, height and slope (0 flat..1 cliff). */
+export type GroundColorFn = (
+  field: HeightField,
+  x: number,
+  z: number,
+  y: number,
+  slope: number,
+  out: THREE.Color,
+) => THREE.Color;
+
 /** Ground colour from height, slope (0 flat..1 cliff) and noise. Soft height banding adds a painted strata feel. */
 export function groundColor(
   field: HeightField,
@@ -130,6 +140,7 @@ export function fillChunkGeometry(
   oz: number,
   size: number,
   res: number,
+  color: GroundColorFn = groundColor,
 ): void {
   const n = res + 1;
   const b = n + 2; // with border
@@ -166,7 +177,7 @@ export function fillChunkGeometry(
       N[k] = nx;
       N[k + 1] = ny;
       N[k + 2] = nz;
-      groundColor(field, ox + i * step, oz + j * step, h, 1 - ny, col);
+      color(field, ox + i * step, oz + j * step, h, 1 - ny, col);
       Cc[k] = col.r;
       Cc[k + 1] = col.g;
       Cc[k + 2] = col.b;

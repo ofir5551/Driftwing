@@ -4,6 +4,8 @@ import { Gameplay } from './core/Gameplay';
 import { Config } from './core/Config';
 import { loadBest, loadSettings, saveBest, saveSettings, type Settings } from './core/Settings';
 import { GameAudio } from './audio/GameAudio';
+import { isLevelId } from './levels';
+import type { LevelId } from './levels/World';
 import { Menu, type MenuHandlers } from './ui/Menu';
 
 const params = new URLSearchParams(location.search);
@@ -13,10 +15,15 @@ ui.id = 'ui';
 document.body.appendChild(ui);
 
 const settings = loadSettings();
-const game = new Game(app, ui);
+const urlLevel = params.get('level');
+const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level);
 const gameplay = new Gameplay(game, ui);
 const audio = new GameAudio(game, gameplay.progress);
-gameplay.progress.best = loadBest();
+gameplay.progress.best = loadBest(game.level.id);
+audio.setKeys(game.level.keys);
+const veil = document.createElement('div');
+veil.className = 'veil';
+ui.appendChild(veil);
 
 function applySettings(s: Settings): void {
   audio.engine.setVolume(s.volume);
@@ -31,7 +38,27 @@ function applySettings(s: Settings): void {
 }
 
 function persistBest(): void {
-  if (gameplay.progress.best > loadBest()) saveBest(gameplay.progress.best);
+  const id = game.level.id;
+  if (gameplay.progress.best > loadBest(id)) saveBest(id, gameplay.progress.best);
+}
+
+let switching = false;
+/** Fade to a veil, rebuild the world for the new level behind it, fade back in. */
+function switchLevel(id: LevelId): void {
+  if (switching || id === game.level.id) return;
+  switching = true;
+  persistBest();
+  veil.classList.add('show');
+  setTimeout(() => {
+    game.setLevel(id);
+    audio.setKeys(game.level.keys);
+    gameplay.progress.best = loadBest(id);
+    settings.level = id;
+    saveSettings(settings);
+    menu.showStart(gameplay.progress.best, id);
+    veil.classList.remove('show');
+    switching = false;
+  }, 380);
 }
 
 let flapped = false;
@@ -66,6 +93,15 @@ const handlers: MenuHandlers = {
     menu.showPlaying();
   },
   change: applySettings,
+  selectLevel: switchLevel,
+  toTitle() {
+    if (game.mode !== 'paused') return;
+    persistBest();
+    game.setMode('menu');
+    document.body.classList.remove('paused');
+    gameplay.hud.visible = false;
+    menu.showStart(gameplay.progress.best, game.level.id);
+  },
 };
 const menu = new Menu(ui, settings, handlers);
 
@@ -115,7 +151,7 @@ addEventListener('contextmenu', (e) => e.preventDefault());
 
 applySettings(settings);
 game.setMode('menu');
-menu.showStart(gameplay.progress.best);
+menu.showStart(gameplay.progress.best, game.level.id);
 game.start();
 if (params.has('autopilot')) handlers.play(); // screenshots / demos: skip the title
 

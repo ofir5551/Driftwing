@@ -4,16 +4,38 @@ import {
   createChunkGeometry,
   fillChunkGeometry,
   getToonGradient,
+  groundColor,
+  type GroundColorFn,
   type HeightField,
 } from './Terrain';
-import { scatterTrees, Trees } from './Trees';
 
-interface Chunk {
+/**
+ * Scenery scattered per chunk (trees, buildings). `scatter` runs once when a chunk is first
+ * built and returns whatever the decor needs; `rebuild` refills the global instanced meshes
+ * from every live chunk's data whenever the set of chunks changes.
+ */
+export interface ChunkDecor<T> {
+  readonly group: THREE.Object3D;
+  scatter(ox: number, oz: number, size: number): T;
+  rebuild(items: T[], px: number, pz: number): void;
+  dispose?(): void;
+}
+
+export interface ChunkOptions<T> {
+  decor: ChunkDecor<T>;
+  color?: GroundColorFn;
+  material?: THREE.Material;
+  /** Allocate a chunk geometry (extra attributes) and fill them after the terrain pass. */
+  createGeometry?: (res: number) => THREE.BufferGeometry;
+  fillExtra?: (g: THREE.BufferGeometry, ox: number, oz: number, size: number, res: number) => void;
+}
+
+interface Chunk<T> {
   cx: number;
   cz: number;
   lod: number;
   mesh: THREE.Mesh;
-  trees: number[];
+  decor: T;
 }
 
 /** Numeric key (no string allocation): chunk coords are far below +-2^20 in any real session. */
@@ -25,25 +47,33 @@ const key = (cx: number, cz: number) => (cx + 0x80000) * 0x100000 + (cz + 0x8000
  * nearest-first, and a chunk changing LOD keeps its old mesh until the new one is ready, so
  * there are never holes.
  */
-export class ChunkManager {
+export class ChunkManager<T> {
   readonly group = new THREE.Group();
-  readonly trees = new Trees();
-  private readonly chunks = new Map<number, Chunk>();
+  private readonly chunks = new Map<number, Chunk<T>>();
   private readonly pools: THREE.Mesh[][] = [[], []];
-  private readonly material: THREE.MeshToonMaterial;
+  private readonly material: THREE.Material;
   private readonly queue: { cx: number; cz: number; lod: number; d: number }[] = [];
   private lastCx = NaN;
   private lastCz = NaN;
   private lastDraw = 0;
-  private treesDirty = false;
-  private readonly treeLists: number[][] = [];
+  private decorDirty = false;
+  private readonly decorItems: T[] = [];
+  private readonly decor: ChunkDecor<T>;
+  private readonly color: GroundColorFn;
 
-  constructor(private readonly field: HeightField) {
-    this.material = new THREE.MeshToonMaterial({
-      vertexColors: true,
-      gradientMap: getToonGradient(),
-    });
-    this.group.add(this.trees.group);
+  constructor(
+    private readonly field: HeightField,
+    private readonly opts: ChunkOptions<T>,
+  ) {
+    this.decor = opts.decor;
+    this.color = opts.color ?? groundColor;
+    this.material =
+      opts.material ??
+      new THREE.MeshToonMaterial({
+        vertexColors: true,
+        gradientMap: getToonGradient(),
+      });
+    this.group.add(this.decor.group);
   }
 
   /** Synchronously build everything near the player (used behind the start screen). */
@@ -60,16 +90,16 @@ export class ChunkManager {
       this.lastCz = cz;
       this.lastDraw = Config.render.drawDistance;
       this.plan(px, pz);
-      this.treesDirty = true;
+      this.decorDirty = true;
     }
     const t0 = performance.now();
     while (this.queue.length && performance.now() - t0 < budgetMs) {
       const job = this.queue.pop()!; // sorted far -> near, so pop() takes the nearest
       this.build(job.cx, job.cz, job.lod);
-      this.treesDirty = true;
+      this.decorDirty = true;
     }
-    if (this.treesDirty && this.queue.length === 0) this.refreshTrees(px, pz);
-    else if (this.treesDirty && performance.now() - t0 < budgetMs) this.refreshTrees(px, pz);
+    if (this.decorDirty && this.queue.length === 0) this.refreshDecor(px, pz);
+    else if (this.decorDirty && performance.now() - t0 < budgetMs) this.refreshDecor(px, pz);
   }
 
   private plan(px: number, pz: number): void {
@@ -107,10 +137,15 @@ export class ChunkManager {
   private build(cx: number, cz: number, lod: number): void {
     const size = Config.world.chunkSize;
     const res = lod === 0 ? Config.world.chunkRes : Config.world.farRes;
-    const mesh = this.pools[lod].pop() ?? new THREE.Mesh(createChunkGeometry(res), this.material);
+    const ox = cx * size;
+    const oz = cz * size;
+    const mesh =
+      this.pools[lod].pop() ??
+      new THREE.Mesh((this.opts.createGeometry ?? createChunkGeometry)(res), this.material);
     mesh.userData.lod = lod;
-    fillChunkGeometry(mesh.geometry, this.field, cx * size, cz * size, size, res);
-    mesh.position.set(cx * size, 0, cz * size);
+    fillChunkGeometry(mesh.geometry, this.field, ox, oz, size, res, this.color);
+    this.opts.fillExtra?.(mesh.geometry, ox, oz, size, res);
+    mesh.position.set(ox, 0, oz);
     mesh.updateMatrix();
     mesh.matrixAutoUpdate = false;
     this.group.add(mesh);
@@ -121,22 +156,20 @@ export class ChunkManager {
       old.mesh = mesh;
       old.lod = lod;
     } else {
-      const trees: number[] = [];
-      scatterTrees(this.field, cx * size, cz * size, size, trees);
-      this.chunks.set(k, { cx, cz, lod, mesh, trees });
+      this.chunks.set(k, { cx, cz, lod, mesh, decor: this.decor.scatter(ox, oz, size) });
     }
   }
 
-  private release(c: Chunk): void {
+  private release(c: Chunk<T>): void {
     this.group.remove(c.mesh);
     this.pools[c.mesh.userData.lod as number].push(c.mesh);
   }
 
-  private refreshTrees(px: number, pz: number): void {
-    this.treesDirty = false;
-    this.treeLists.length = 0;
-    for (const c of this.chunks.values()) this.treeLists.push(c.trees);
-    this.trees.rebuild(this.treeLists, px, pz, Config.render.treeDistance);
+  private refreshDecor(px: number, pz: number): void {
+    this.decorDirty = false;
+    this.decorItems.length = 0;
+    for (const c of this.chunks.values()) this.decorItems.push(c.decor);
+    this.decor.rebuild(this.decorItems, px, pz);
   }
 
   get pending(): number {
@@ -145,5 +178,16 @@ export class ChunkManager {
 
   get count(): number {
     return this.chunks.size;
+  }
+
+  /** Free GPU memory: chunk geometries (pooled and live), the shared material, the decor. */
+  dispose(): void {
+    const geos = new Set<THREE.BufferGeometry>();
+    for (const c of this.chunks.values()) geos.add(c.mesh.geometry);
+    for (const pool of this.pools) for (const m of pool) geos.add(m.geometry);
+    for (const g of geos) g.dispose();
+    this.chunks.clear();
+    this.material.dispose();
+    this.decor.dispose?.();
   }
 }

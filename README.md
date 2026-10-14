@@ -1,9 +1,9 @@
 # Driftwing
 
-A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
-follow ribbons of glowing wisps and build a melody as you gather them. No fail state, no timer,
-no enemies. Everything (terrain, trees, sky, music, sound) is generated procedurally: the
-repository contains no art or audio assets.
+A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape or
+through a neon-lit Japanese bay city, follow ribbons of glowing wisps and build a melody as you
+gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
+music, sound) is generated procedurally: the repository contains no art or audio assets.
 
 ![Title screen at dawn](docs/screenshots/title.jpg)
 
@@ -14,6 +14,30 @@ repository contains no art or audio assets.
 | ![Dusk](docs/screenshots/dusk.jpg) | ![Twilight](docs/screenshots/twilight.jpg)  |
 
 <img src="docs/screenshots/mobile.jpg" alt="Portrait phone layout" width="240">
+
+### Levels
+
+Pick a level on the title screen (the live backdrop follows your pick; the pause menu can take
+you back to choose again).
+
+- **Highlands**: endless valleys, lakes, forests and floating islands.
+- **Neon Bay**: an endless Japanese megacity on a bay, a Tokyo and Osaka blend, opening at dusk.
+  Start out on the water, fly through a giant torii and up a boulevard into the skyline. Glass
+  towers, narrow neon-signed shopping streets (busiest along the river), tiled-roof houses,
+  shrines and temples with pagodas, cherry-tree parks, elevated expressways, a lattice
+  broadcast tower and Fuji on the horizon. Windows and neon light up as night falls; the music
+  turns to Japanese pentatonic scales. Wisps lead down the avenues at street-canyon height:
+  buildings are solid but soft (you glance off them) and the bird veers around walls ahead.
+
+![Neon Bay title screen](docs/screenshots/city-title.jpg)
+
+| Down the boulevard at dusk                          | Night                                     |
+| --------------------------------------------------- | ----------------------------------------- |
+| ![Canyon](docs/screenshots/city-canyon.jpg)         | ![Night](docs/screenshots/city-night.jpg) |
+| **Temple and pagoda**                               | **Broadcast tower and Fuji**              |
+| ![Temple](docs/screenshots/city-temple.jpg)         | ![Tower](docs/screenshots/city-tower.jpg) |
+| **Under the expressway**                            |                                           |
+| ![Expressway](docs/screenshots/city-expressway.jpg) |                                           |
 
 ## Play
 
@@ -47,7 +71,10 @@ ground or water is only ever a soft skim.
 | `npm run shots`   | Regenerate the README screenshots (needs a running dev or preview server).                   |
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
-`?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`.
+`?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
+`?level=highlands|city`.
+
+Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
 Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (enable Pages with
 "GitHub Actions" as the source in the repository settings).
@@ -57,9 +84,16 @@ Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (ena
 - **Flight**: an arcade glide model (`src/player/FlightModel.ts`) that trades height for speed,
   steers through critically damped springs and can't stall or crash, at a fixed 60 Hz step with
   interpolated rendering.
+- **Levels**: a level supplies a `World` (`src/levels/`): terrain, scenery, what is solid, and
+  hooks for where wisps and thermals go. Game and gameplay only talk to that interface, so the
+  level can be swapped at runtime.
 - **World**: seeded simplex noise drives one height function shared by terrain chunks (streamed,
   pooled, two LODs), instanced forests, wisp placement and collisions. A palette-driven day cycle
   tints sky, fog, light, water and the post grade.
+- **City**: a pure, seeded layout (`src/world/city/CityLayout.ts`) of superblocks, blocks and
+  avenues gives every building, shrine and tree as data, shared by the instanced renderer (a
+  handful of meshes; window grids and neon are drawn by a facade shader, the street grid
+  analytically on the ground), collisions and wisp planning, which checks every ribbon is clear.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

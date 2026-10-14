@@ -98,6 +98,12 @@ export class Lanterns {
     return new THREE.Vector3(x, l.root.position.y + 10.8, z);
   }
 
+  /** Put every lantern out (level switch). */
+  reset(): void {
+    for (const l of this.items) l.root.visible = false;
+    this.nextSlot = 0;
+  }
+
   update(dt: number, time: number): void {
     for (const l of this.items) {
       l.age += dt;

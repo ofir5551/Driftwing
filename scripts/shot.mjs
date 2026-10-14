@@ -2,6 +2,7 @@
 import { chromium } from 'playwright';
 const [url, out, wait = '2000', click = '', w = '1280', h = '720'] = process.argv.slice(2);
 const b = await chromium.launch({
+  executablePath: process.env.CHROMIUM_PATH, // optional: a system Chromium instead of Playwright's
   args: [
     '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader',

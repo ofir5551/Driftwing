@@ -81,7 +81,10 @@ export class Thermals {
   private lastCz = NaN;
   private wasInside = false;
 
-  constructor(private readonly groundAt: (x: number, z: number) => number) {
+  constructor(
+    private readonly groundAt: (x: number, z: number) => number,
+    private readonly allowed: (x: number, z: number, r: number) => boolean = () => true,
+  ) {
     const motes = new Float32Array(MOTES * 4);
     for (let i = 0; i < MOTES; i++) {
       motes.set(
@@ -135,6 +138,7 @@ export class Thermals {
     const base = Math.max(this.groundAt(x, z), Config.world.waterLevel);
     if (base > 70) return null; // keep them over valleys and meadows
     const r = 18 + hash2(i, j, seed + 63) * 10;
+    if (!this.allowed(x, z, r)) return null;
     return { x, z, base, r, top: base + Config.thermals.height };
   }
 
@@ -165,6 +169,12 @@ export class Thermals {
         this.used.push(g);
         this.active.push(t);
       }
+  }
+
+  /** Forget the placed columns so the next update re-places them (level switch). */
+  reset(): void {
+    this.lastCx = this.lastCz = NaN;
+    this.wasInside = false;
   }
 
   private makeVisual(): THREE.Group {

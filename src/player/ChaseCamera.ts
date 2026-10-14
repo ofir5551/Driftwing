@@ -27,7 +27,12 @@ export class ChaseCamera {
     this.camera = new THREE.PerspectiveCamera(Config.camera.baseFov, aspect, 0.3, 2000);
   }
 
-  update(p: Pose, dt: number, groundAt: (x: number, z: number) => number): void {
+  update(
+    p: Pose,
+    dt: number,
+    groundAt: (x: number, z: number) => number,
+    push?: (pos: THREE.Vector3) => void,
+  ): void {
     const c = Config.camera;
     // Pull back a touch at speed so fast flight reads as fast without losing the bird.
     // Portrait screens are narrow: back off and widen the view so the bird and the path ahead fit.
@@ -55,6 +60,7 @@ export class ChaseCamera {
     const floor = Math.max(groundAt(cx, cz), Config.world.waterLevel) + 1.2;
     const cam = this.camera;
     cam.position.set(cx, Math.max(p.y + c.height - Math.sin(this.pitch.x) * d, floor), cz);
+    push?.(cam.position); // keep the lens out of buildings when flying close to walls
 
     const la = c.lookAhead;
     const fx = Math.sin(p.yaw);

@@ -331,6 +331,91 @@ body.left-handed .flap-btn {
   }
 }
 
+/* Level picker on the title screen: one card per level, the live backdrop follows the pick. */
+.levels {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 0 0 24px;
+}
+
+.level {
+  font: inherit;
+  flex: 1 1 0;
+  max-width: 200px;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fffaf0;
+  text-shadow: 0 1px 8px rgba(60, 40, 80, 0.5);
+  background: rgba(255, 248, 238, 0.12);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease;
+}
+
+.level:hover,
+.level:focus-visible {
+  transform: translateY(-1px);
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.level.selected {
+  border: 2px solid rgba(255, 244, 220, 1);
+  background: rgba(255, 236, 210, 0.36);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.14),
+    0 0 26px rgba(255, 210, 150, 0.6);
+}
+
+.level-name {
+  font-family: Georgia, 'Palatino Linotype', serif;
+  font-style: italic;
+  font-size: 21px;
+}
+
+.level-blurb {
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+
+.btn.ghost {
+  display: block;
+  margin: 14px auto 0;
+  font-size: 15px;
+  padding: 9px 26px;
+  color: #fffaf0;
+  background: rgba(255, 250, 240, 0.16);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.btn.ghost:hover,
+.btn.ghost:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+/* Brief veil while a level switch rebuilds the world. */
+.veil {
+  position: fixed;
+  inset: 0;
+  background: #2f2a44;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none !important;
+  z-index: 2;
+}
+
+.veil.show {
+  opacity: 1;
+}
+
 .controls {
   list-style: none;
   padding: 0;

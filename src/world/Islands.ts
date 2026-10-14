@@ -160,4 +160,9 @@ export class Islands {
     }
     return 0;
   }
+
+  dispose(): void {
+    for (const g of this.geometries) g.dispose();
+    this.material.dispose();
+  }
 }

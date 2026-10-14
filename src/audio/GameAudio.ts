@@ -5,6 +5,7 @@ import { clamp } from '../core/math';
 import { AudioEngine } from './AudioEngine';
 import { Music, type MusicParams } from './Music';
 import { Sfx } from './Sfx';
+import type { DayKey } from './scales';
 
 /** Connects gameplay events and flight state to the music and SFX. */
 export class GameAudio {
@@ -48,6 +49,11 @@ export class GameAudio {
       this.music.setParams(p);
       this.sfx.update(p.speed, p.paused);
     });
+  }
+
+  /** Level change: the music follows the level's key table. */
+  setKeys(keys: DayKey[]): void {
+    this.music.setKeys(keys);
   }
 
   /** Call from a user gesture. */

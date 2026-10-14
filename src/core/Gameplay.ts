@@ -231,9 +231,10 @@ export class Gameplay {
       trailIntensity,
       this.tmp.copy(WHITE).lerp(this.wispColor, this.progress.flow * 0.6),
     );
-    const cp = Math.cos(pose.pitch);
+    const pitch = pose.pitch + pose.trickPitch;
+    const cp = Math.cos(pitch);
     this.vel
-      .set(Math.sin(pose.yaw) * cp, Math.sin(pose.pitch), Math.cos(pose.yaw) * cp)
+      .set(Math.sin(pose.yaw) * cp, Math.sin(pitch), Math.cos(pose.yaw) * cp)
       .multiplyScalar(pose.speed);
     this.wind.update(
       cam,

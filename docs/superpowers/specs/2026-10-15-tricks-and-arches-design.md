@@ -11,16 +11,16 @@ Triggered by gestures (keyboard and touch are the primary devices):
 - Touch: a fast flick of the steering finger; keeping the finger down extends it.
 - Pad: stick snapped to the edge twice. Mouse: right-click + pointer direction.
 
-| Trick         | Motion                                                    | Hybrid extension                  |
-| ------------- | --------------------------------------------------------- | --------------------------------- |
-| Barrel roll   | 360 deg spin in ~0.6 s with a ~5 m sideways hop           | Keep holding: double/triple roll  |
-| Loop          | Vertical circle (pitch sweeps 2 pi), same heading on exit | Radius grows with speed (15-40 m) |
-| Dive-bomb     | Nose ~70 deg down, tucked, extra pull, strong pull-out    | Lasts while down is held (<2.5 s) |
+| Trick       | Motion                                                    | Hybrid extension                  |
+| ----------- | --------------------------------------------------------- | --------------------------------- |
+| Barrel roll | 360 deg spin in ~0.6 s with a ~5 m sideways hop           | Keep holding: double/triple roll  |
+| Loop        | Vertical circle (pitch sweeps 2 pi), same heading on exit | Radius grows with speed (8-26 m)  |
+| Dive-bomb   | Nose ~70 deg down, tucked, extra pull, strong pull-out    | Lasts while down is held (<2.5 s) |
 
 Authored, parameterised curves in a pure `player/Tricks.ts`, layered on `stepFlight` (speed and
 integration still run). Never a failure: the loop's speed follows a scripted dip (no stall), the
-loop shrinks to fit under the ceiling (or becomes a hop), terrain assist stays on in a dive,
-contacts end a trick and hand back control. Spin is its own field (`spin`), so the chase camera
+loop shrinks to fit under the ceiling and clear the ground (or is not started), and a dive-bomb
+pulls out early near the surface. Contacts don't end a trick: the soft bounce still applies. Spin is its own field (`spin`), so the chase camera
 does not roll with it. During a loop the camera stops orbiting, stays upright and watches the
 bird draw the circle, then springs back into chase.
 

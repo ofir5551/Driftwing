@@ -38,6 +38,28 @@ export const Config = {
     bounce: 0.55, // fraction of downward speed returned as upward speed on contact
     skimSlowdown: 0.18, // fraction of speed lost per second while skimming
   },
+  tricks: {
+    cooldown: 0.25, // s after a trick before the next can start
+    rollRate: 13, // rad/s peak spin of a barrel roll (~0.7 s per turn with the ease in and out)
+    rollAccel: 70, // rad/s^2 spin-up and braking
+    rollHop: 5, // m sideways per turn, toward the roll
+    maxRolls: 3, // turns a held roll can reach
+    loopRadiusPerSpeed: 0.34, // m of loop radius per m/s of entry speed (a loop takes ~2.4 s)
+    loopMin: 8, // m, smallest loop (a smaller fit becomes no loop at all)
+    loopMax: 26, // m, largest loop (after a fast dive)
+    loopDip: 0.2, // fraction of entry speed lost over the top (it comes back on the way down)
+    loopDrift: 0.18, // forward drift round the loop as a fraction of speed: exits ~1.1 r ahead
+    divePitch: 1.2, // rad nose-down in a dive-bomb (~70 deg)
+    diveMin: 0.6, // s, shortest stoop (a quick double tap)
+    diveMax: 2.5, // s, longest stoop while held
+    diveBoost: 5, // m/s added as the wings tuck
+    diveGravity: 1.8, // extra pull on top of the usual dive gravity
+    diveExtraSpeed: 14, // m/s the dive-bomb may run past maxSpeed
+    diveMinHeight: 30, // m above the surface needed to start one
+    divePullTime: 0.9, // s of fall left when the pull-out starts, whatever the hold
+    pullTime: 0.7, // s of firm pull-out after the stoop
+    pullPitch: 0.35, // rad nose-up at the start of the pull-out
+  },
   camera: {
     distance: 6.2,
     height: 1.5,
@@ -48,11 +70,15 @@ export const Config = {
     maxFov: 90,
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
+    loopWatch: 2.4, // distance (in loop radii) from which the camera watches a loop
   },
   input: {
     mouseDeadZone: 0.06, // fraction of half-screen
     mouseRange: 0.6, // pointer offset (fraction of half-screen) that maps to full input
     touchRadius: 70, // px of drag for full input
+    doubleTap: 0.26, // s between two presses of a direction that make a trick gesture
+    flickDistance: 110, // px the steering finger must travel within flickTime to flick a trick
+    flickTime: 0.12, // s
     invertY: false,
   },
   fjord: {

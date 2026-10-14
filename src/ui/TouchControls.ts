@@ -1,11 +1,13 @@
 import { Config } from '../core/Config';
+import { Flick, type Dir } from '../core/Gestures';
 import { clamp } from '../core/math';
 
 /**
  * Touch: drag anywhere to steer, relative to where the finger went down (a floating stick),
  * plus a dedicated flap button. Works in portrait and landscape because nothing is anchored
  * to a fixed stick position. While one finger steers, a second finger touching anywhere else
- * also flaps (held = repeat), so the flap never needs the button's exact spot.
+ * also flaps (held = repeat), so the flap never needs the button's exact spot. A fast flick
+ * of the steering finger is a trick gesture (see Gestures).
  */
 export class TouchControls {
   steerX = 0;
@@ -18,6 +20,18 @@ export class TouchControls {
   }
   private held = false;
   private tap = false;
+  private readonly flicker = new Flick();
+  private flicked: Dir | null = null;
+  /** Direction of a flick since the last call (consumed), else null. */
+  takeFlick(): Dir | null {
+    const f = this.flicked;
+    this.flicked = null;
+    return f;
+  }
+  /** True while the steering finger is down. */
+  get steering(): boolean {
+    return this.steerId !== null;
+  }
   private flapId: number | null = null;
   /** True once any touch has been seen: switches hints/UI to touch mode. */
   active = false;
@@ -62,6 +76,7 @@ export class TouchControls {
             this.steerId = t.identifier;
             this.ox = t.clientX;
             this.oy = t.clientY;
+            this.flicker.start(t.clientX, t.clientY, e.timeStamp / 1000);
             this.ring.style.transform = `translate(${t.clientX}px, ${t.clientY}px)`;
             this.ring.classList.add('show');
             this.knob.style.transform = '';
@@ -76,6 +91,8 @@ export class TouchControls {
       (e) => {
         for (const t of Array.from(e.changedTouches)) {
           if (t.identifier !== this.steerId) continue;
+          this.flicked =
+            this.flicker.move(t.clientX, t.clientY, e.timeStamp / 1000) ?? this.flicked;
           const r = Config.input.touchRadius;
           let dx = (t.clientX - this.ox) / r;
           let dy = (t.clientY - this.oy) / r;

@@ -23,8 +23,8 @@ let hitBottom = 0;
 function march(s: FlightState, solids: Solids, yaw: number, range: number): number {
   const fx = Math.sin(yaw);
   const fz = Math.cos(yaw);
-  const cp = Math.cos(s.pitch);
-  const sp = Math.sin(s.pitch);
+  const cp = Math.cos(s.pitch + s.trickPitch);
+  const sp = Math.sin(s.pitch + s.trickPitch);
   for (let d = STEP; d <= range; d += STEP) {
     const top = solids.solidTop(s.x + fx * cp * d, s.y + sp * d, s.z + fz * cp * d, MARGIN);
     if (top !== -Infinity) {

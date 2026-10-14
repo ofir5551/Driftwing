@@ -53,8 +53,10 @@ void main() {
     float prof = pow(max(1.0 - abs(da) / 0.55, 0.0), 1.9) * 0.24;
     prof = min(prof, 0.205);
     float hm = h - uMountainBase;
-    float m = smoothstep(prof + 0.0015, prof - 0.0015, hm) * step(0.0005, prof)
-      * smoothstep(-uMountainFade, 0.0, hm);
+    // Only above the foot, and it fades in over a soft band rather than starting at full
+    // strength: a hard start drew a flat shelf along the foot with vertical cut-offs at the
+    // cone's ends. The low flanks now thin out into the mist bank instead.
+    float m = smoothstep(prof + 0.0015, prof - 0.0015, hm) * smoothstep(0.0, uMountainFade, hm);
     if (m > 0.0) {
       vec2 side = normalize(-uMountainDir * 0.6 + vec2(uMountainDir.y, -uMountainDir.x) * sign(da));
       float lit = 0.82 + 0.3 * dot(side, normalize(uSunDir.xz + 1e-5)) * smoothstep(-0.1, 0.1, uSunDir.y);
@@ -63,7 +65,7 @@ void main() {
       float bright = clamp(dot(uFog, vec3(0.4)) * 1.5, 0.3, 1.0);
       vec3 snow = mix(uHorizon, vec3(1.0), 0.5) * bright * lit;
       vec3 mc = mix(rock, snow, smoothstep(snowLine - 0.002, snowLine + 0.002, hm));
-      mc = mix(mc, uFog, mix(0.55, 0.12, smoothstep(0.0, 0.12, hm)));
+      mc = mix(mc, uFog, mix(0.75, 0.12, smoothstep(0.0, 0.14, hm)));
       col = mix(col, mc, m);
       peak = m;
     }
@@ -73,7 +75,7 @@ void main() {
     // higher the camera, the thicker the mist bank along the foot, so the mountain rises out of
     // it. Near the ground (foot at the horizon) this is all hidden behind the city.
     float lift = clamp(-uMountainBase * 25.0, 0.0, 1.0);
-    float mist = max(smoothstep(0.0, -uMountainFade, hm), exp(-max(hm, 0.0) * 28.0) * 0.75 * lift);
+    float mist = max(smoothstep(0.0, -uMountainFade, hm), exp(-max(hm, 0.0) * 20.0) * 0.85 * lift);
     col = mix(col, uFog, mist);
     peak *= 1.0 - mist;
   }

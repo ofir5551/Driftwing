@@ -33,6 +33,8 @@ export class Menu {
   private readonly pauseStats: HTMLElement;
   private readonly levelCards: HTMLButtonElement[];
   private readonly timeChips: HTMLButtonElement[];
+  /** Only exists where the Fullscreen API does. */
+  private fsBtn?: HTMLButtonElement;
 
   constructor(ui: HTMLElement, settings: Settings, h: MenuHandlers) {
     const controls = isTouch()
@@ -140,7 +142,8 @@ export class Menu {
     return el;
   }
 
-  /** Corner button on every screen, a nudge on the title, or an install tip where iPhone has no API. */
+  /** Corner button on the title and pause screens (never mid-flight), a nudge on the title, or an
+   *  install tip where iPhone has no API. */
   private setupFullscreen(ui: HTMLElement): void {
     const support = fullscreenSupport();
     const nudge = this.start.querySelector<HTMLButtonElement>('.fs-nudge')!;
@@ -152,7 +155,7 @@ export class Menu {
     btn.innerHTML =
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
     ui.appendChild(btn);
-    document.body.classList.add('has-fs');
+    this.fsBtn = btn;
     const sync = (on: boolean) => {
       btn.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
       btn.classList.toggle('active', on);
@@ -185,12 +188,14 @@ export class Menu {
     this.start.classList.add('show');
     this.pause.classList.remove('show');
     this.pauseBtn.classList.remove('show');
+    this.fsBtn?.classList.add('show');
   }
 
   showPlaying(): void {
     this.start.classList.remove('show');
     this.pause.classList.remove('show');
     this.pauseBtn.classList.add('show');
+    this.fsBtn?.classList.remove('show');
   }
 
   showPause(score: number, best: number, wisps: number): void {
@@ -198,5 +203,6 @@ export class Menu {
     this.pauseStats.textContent = `${wisps} wisps · ${score.toLocaleString()} points · best ${best.toLocaleString()}`;
     this.pause.classList.add('show');
     this.pauseBtn.classList.remove('show');
+    this.fsBtn?.classList.add('show');
   }
 }

@@ -572,8 +572,9 @@ body.touch .settings label.touch-only {
   opacity: 1;
 }
 
-/* Fullscreen: a corner button on every screen (the pause button shifts left to make room), plus a
-   gentle nudge under Play on the title that pulses a few times and then settles. */
+/* Fullscreen: a corner button on the title and pause screens only (it takes the pause button's
+   corner, which is hidden then), plus a gentle nudge under Play on the title that pulses a few times
+   and then settles. */
 .fs-btn {
   position: fixed;
   top: max(14px, env(safe-area-inset-top));
@@ -583,11 +584,15 @@ body.touch .settings label.touch-only {
   border-radius: 50%;
   border: 1.5px solid rgba(255, 255, 255, 0.55);
   background: rgba(255, 250, 240, 0.15);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   opacity: 0.7;
+}
+
+.fs-btn.show {
+  display: flex;
 }
 
 .fs-btn svg {
@@ -608,10 +613,6 @@ body.touch .settings label.touch-only {
 .fs-btn:focus-visible {
   opacity: 1;
   outline: none;
-}
-
-body.has-fs .pause-btn {
-  right: calc(max(14px, env(safe-area-inset-right)) + 54px);
 }
 
 .fs-nudge {

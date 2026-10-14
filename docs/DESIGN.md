@@ -13,7 +13,7 @@ soft min/max speed. Steering is critically damped; turns bank into the curve and
 Flap (Space / click / button): gentle lift + speed boost, short cooldown, no stamina.
 Soft altitude bounds push back gently. Ground/water contact skims with a puff/splash and a small
 slowdown. Chase camera: spring-damped, FOV widens with speed, follows roll slightly, looks ahead.
-Thermals lift the bird for free. Soft ceiling at 400 m above water, above the cloud layer.
+Thermals lift the bird for free. Soft ceiling at 400 m above water, above the cloud layer (300 m in Neon Bay, per level).
 Holding climb makes the bird beat its wings (a small lift and push every 0.4 s, stronger the
 steeper the climb, with a soft whoosh); the flap button stays the big boost. Nose-down pulls
 harder (1.35x) and speed above cruise bleeds off slowly, so a full dive reaches ~70 m/s
@@ -37,7 +37,7 @@ Post: bloom, paper grain, vignette, colour grade.
 Chosen on the title screen as cards; the attract flight behind the menu switches to the picked
 world at once (a short veil hides the rebuild). The pause menu's "Change level" returns to the
 title. The pick and a best score per level persist. A level is a `LevelDef` (name, opening time of
-day, day length, music keys, sky mountain) that creates a `World`: terrain, streamed scenery,
+day, day length, music keys, sky mountain, ceiling) that creates a `World`: terrain, streamed scenery,
 what counts as solid, a steering assist, and hooks for wisp patterns and thermal placement.
 
 - **Highlands**: the original endless landscape (see World).

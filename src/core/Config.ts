@@ -28,7 +28,9 @@ export const Config = {
     climbBeatLift: 1.7, // m/s of upward velocity per climb wingbeat (at the steepest climb)
     climbBeatBoost: 0.8, // m/s of forward speed per climb wingbeat
     minAltitude: 6, // m above water level the bird is gently pushed back up from
-    maxAltitude: 400, // m above water level where a soft ceiling starts
+    // m above water level where a soft ceiling starts. Overwritten by the level's ceiling on a
+    // level switch (LevelDef.maxAltitude); exposed here for live tuning.
+    maxAltitude: 400,
     boundsPush: 0.06, // strength of the soft altitude push (per metre of overshoot)
     clearance: 1.6, // m the bird's body keeps above the ground/water surface
     terrainLookahead: 1.4, // s ahead to sample the ground for the climb assist

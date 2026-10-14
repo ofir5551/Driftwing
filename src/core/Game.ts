@@ -154,6 +154,7 @@ export class Game {
       this.world.dispose();
     }
     this.level = LEVELS[id];
+    Config.flight.maxAltitude = this.level.maxAltitude;
     const { world, spawn } = this.level.create(Config.world.seed);
     this.world = world;
     this.scene.add(world.group);

@@ -89,6 +89,7 @@ export const Highlands: LevelDef = {
   dayScale: 1,
   keys: DAY_KEYS,
   mountain: false,
+  maxAltitude: 400, // above the cloud layer
   create: (seed) => ({
     world: new HighlandsWorld(seed),
     spawn: { x: 0, y: 45, z: 0, yaw: 0 },

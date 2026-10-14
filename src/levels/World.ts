@@ -63,5 +63,7 @@ export interface LevelDef {
   keys: DayKey[];
   /** Distant volcano painted into the sky dome. */
   mountain: boolean;
+  /** Soft ceiling, m above water (copied into Config.flight.maxAltitude on a level switch). */
+  maxAltitude: number;
   create(seed: number): { world: World; spawn: Spawn };
 }

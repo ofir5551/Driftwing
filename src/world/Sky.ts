@@ -27,6 +27,7 @@ uniform float uMountainFade;
 uniform float uRidges;
 uniform float uRidgeBase;
 uniform vec3 uInk;
+uniform float uAurora;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -126,6 +127,34 @@ void main() {
     col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
   }
 
+  // Aurora Fjords: three curtains of light hung across the sky. Each has a sharp, wandering
+  // lower hem and fades upward from green to violet, is combed into fine vertical rays that
+  // shimmer, and swells and thins along its length. Drifts slowly; bloom halos the brightest.
+  // Every azimuth frequency is a whole number, so the curtains close round the sky seamlessly.
+  if (uAurora > 0.0 && h > 0.0) {
+    float az = atan(d.x, d.z);
+    vec3 glow = vec3(0.0);
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i);
+      float t = uTime * (0.03 + 0.012 * fi);
+      // The hem folds back and forth (a sum of incommensurate waves), so the curtain hangs in
+      // pleats instead of a flat band.
+      float fold = sin(az * 3.0 + fi * 2.1 + t) + 0.6 * sin(az * 7.0 - fi * 1.3 - t * 1.7)
+        + 0.35 * sin(az * 13.0 + fi * 4.0 + t * 2.3);
+      float hem = 0.2 + 0.09 * fi + 0.035 * fold;
+      float y = h - hem;
+      float v = smoothstep(-0.01, 0.004, y) * (0.35 + 0.65 * exp(-max(y, 0.0) * 22.0))
+        * exp(-max(y, 0.0) * (4.0 + 2.0 * fi));
+      // Rays: two beating combs of different pitch, bent by the folds, so they bunch and thin.
+      float bend = fold * 2.0 + az * 61.0 + fi * 5.0;
+      float rays = 0.35 + 0.65 * (0.5 + 0.5 * sin(bend * 1.7)) * (0.5 + 0.5 * sin(az * 23.0 - t * 3.0 + fi));
+      float swell = smoothstep(0.35, 0.9, 0.5 + 0.5 * sin(az * 2.0 + fi * 2.7 - t * 0.7));
+      vec3 c = mix(vec3(0.25, 1.35, 0.7), vec3(0.65, 0.28, 1.0), smoothstep(0.02, 0.2, y));
+      glow += c * v * rays * swell * (1.0 - 0.25 * fi);
+    }
+    col += glow * uAurora * smoothstep(0.0, 0.06, h) * (1.0 - peak);
+  }
+
   // Faint stars, only above the horizon haze; twinkle slowly.
   if (uStars > 0.0 && h > 0.02 && peak < 0.5) {
     vec3 cell = floor(d * 220.0);
@@ -147,8 +176,8 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
-/** What a level paints into the sky beyond its world: nothing, Fuji, or karst ridges. */
-export type Backdrop = 'none' | 'fuji' | 'karst';
+/** What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, or the aurora. */
+export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora';
 
 export class Sky {
   readonly mesh: THREE.Mesh;
@@ -173,6 +202,7 @@ export class Sky {
       uRidges: { value: 0 },
       uRidgeBase: { value: 0 },
       uInk: { value: new THREE.Color() },
+      uAurora: { value: 0 },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -201,6 +231,9 @@ export class Sky {
     this.u.uTime.value = time;
     this.u.uMountain.value = this.backdrop === 'fuji' ? 1 : 0;
     this.u.uRidges.value = this.backdrop === 'karst' ? 1 : 0;
+    // The aurora comes out with the stars.
+    this.u.uAurora.value =
+      this.backdrop === 'aurora' ? Math.max(0, (p.stars - 0.25) / 0.75) * Config.fjord.aurora : 0;
     // Elevation (as the sine the shader compares against) of a foot at sea level that far away.
     const drop = Config.world.waterLevel - camera.position.y;
     this.u.uMountainBase.value = drop / Math.hypot(drop, Config.city.mountainDistance);

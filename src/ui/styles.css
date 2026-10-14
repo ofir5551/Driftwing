@@ -331,18 +331,17 @@ body.left-handed .flap-btn {
   }
 }
 
-/* Level picker on the title screen: one card per level, the live backdrop follows the pick. */
+/* Level picker on the title screen: one card per level, two to a row, the live backdrop follows
+   the pick. */
 .levels {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
   margin: 0 0 24px;
 }
 
 .level {
   font: inherit;
-  flex: 1 1 0;
-  max-width: 200px;
   display: grid;
   gap: 4px;
   padding: 12px 14px;
@@ -386,7 +385,7 @@ body.left-handed .flap-btn {
   opacity: 0.9;
 }
 
-/* Three cards on a phone: tighter cards and type so the names stay on one line. */
+/* On a phone: tighter cards and type so the names stay on one line. */
 @media (max-width: 480px) {
   .levels {
     gap: 6px;

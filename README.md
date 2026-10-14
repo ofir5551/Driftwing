@@ -1,7 +1,8 @@
 # Driftwing
 
 A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
-through a neon-lit Japanese bay city or among misty karst peaks on a jade river, follow ribbons of glowing wisps and build a melody as you
+through a neon-lit Japanese bay city, among misty karst peaks on a jade river or down deep fjords
+under the northern lights, follow ribbons of glowing wisps and build a melody as you
 gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
 music, sound) is generated procedurally: the repository contains no art or audio assets.
 
@@ -56,6 +57,22 @@ you back to choose again).
 | **Golden hour**                              | **Night**                                  |
 | ![Golden](docs/screenshots/karst-golden.jpg) | ![Night](docs/screenshots/karst-night.jpg) |
 
+- **Aurora Fjords**: endless Norwegian fjords after Lofoten, opening at night under the aurora.
+  Steep snowy walls rise from black water strewn with sea ice and icebergs to a plateau of
+  ridged peaks; spruce cling to the lower slopes and red rorbu huts line the strands, their
+  windows warm after dark. A lighthouse sweeps its beam over the water ahead of the start, and
+  sea smoke lies on the fjord at night. The polar night lingers, then a low winter sun turns the
+  snow pink and gold. The music takes a dorian colour. Wisps run low down the fjords between the
+  walls; the bird veers along a wall ahead and glances off one it touches.
+
+![Aurora Fjords title screen](docs/screenshots/fjord-title.jpg)
+
+| Under the aurora                             | Down the fjord by day                        |
+| -------------------------------------------- | -------------------------------------------- |
+| ![Aurora](docs/screenshots/fjord-aurora.jpg) | ![Day](docs/screenshots/fjord-day.jpg)       |
+| **Dawn over the plateau**                    | **A hamlet at night**                        |
+| ![Dawn](docs/screenshots/fjord-dawn.jpg)     | ![Hamlet](docs/screenshots/fjord-hamlet.jpg) |
+
 ## Play
 
 ```bash
@@ -89,7 +106,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst`.
+`?level=highlands|city|karst|fjord`.
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -114,6 +131,9 @@ Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (ena
 - **Jade River**: another pure, seeded layout (`src/world/karst/KarstLayout.ts`): rivers on the
   zero contours of a noise, pillars lathed from one radius profile that the mesh and the
   collisions share, and a valley mist shader patched into the level's materials and the water.
+- **Aurora Fjords**: fjords on the zero contours of a noise again (`src/world/fjord/`), with
+  glacial walls as plain terrain that the city's look-ahead treats as solid, and the aurora
+  painted into the sky dome.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

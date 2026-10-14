@@ -15,6 +15,8 @@ export const MODES = {
   // The five Chinese modes are the rotations of one pentatonic: gong is majorPenta, shang is
   // susPenta, zhi is yo and yu is minorPenta. Jue, the odd one out, adds the minor sixth.
   jue: [0, 3, 5, 8, 10],
+  // Minor third with a major sixth: the dorian colour of Nordic folk tunes, in five notes.
+  dorianPenta: [0, 2, 3, 7, 9],
 } as const;
 
 export type ModeName = keyof typeof MODES;
@@ -52,6 +54,18 @@ export const KARST_KEYS: DayKey[] = [
   { root: 57, mode: 'yo' }, // A zhi, golden hour
   { root: 59, mode: 'jue' }, // B jue, dusk
   { root: 62, mode: 'minorPenta' }, // D yu, twilight
+];
+
+/**
+ * Aurora Fjords' keys: a cold, open dorian under the aurora, opening out to major by day and
+ * settling to minor as the light goes, like a hardanger fiddle in the next room.
+ */
+export const FJORD_KEYS: DayKey[] = [
+  { root: 62, mode: 'susPenta' }, // D, dawn
+  { root: 64, mode: 'majorPenta' }, // E, day
+  { root: 57, mode: 'dorianPenta' }, // A, golden hour
+  { root: 62, mode: 'minorPenta' }, // D, dusk
+  { root: 59, mode: 'dorianPenta' }, // B, twilight (the aurora)
 ];
 
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

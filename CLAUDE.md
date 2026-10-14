@@ -13,7 +13,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city|karst`.
+  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city|karst|fjord`.
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio).
 - Headless Chromium: on Windows `--use-angle=d3d11` uses the real GPU; elsewhere SwiftShader works but is slow.
@@ -37,7 +37,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   current level's `World` (`setLevel` swaps it in place). Modes: `menu` (bot flies the attract backdrop),
   `playing`, `paused`. `onStep`/`onFrame` hooks.
 - `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`, `Karst`
-  (Jade River, with its own palettes); `index` registry.
+  (Jade River, with its own palettes), `Fjord` (Aurora Fjords); `index` registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics. `Bird.ts` visuals only. `ChaseCamera.ts` polar springs.
@@ -50,6 +50,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `world/karst/`: `KarstLayout` (pure: rivers, pillars + shared radius profile, terrain, queries),
   `KarstWisps` (river/slalom/spiral planner), `KarstDecor`, `geometry`, `KarstWorld`.
   `world/Mist.ts`: shared valley-mist uniforms + `withMist` material patch (also in `Water`).
+- `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain, icebergs, lighthouse;
+  walls are terrain that `solidTop` reports for the look-ahead), `FjordWisps`, `FjordDecor`,
+  `geometry`, `FjordWorld`. The aurora is the `aurora` backdrop in `Sky`.
 - `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),

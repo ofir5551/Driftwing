@@ -45,6 +45,8 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
 - **Jade River**: misty limestone pillars along a jade river (the Li River at Guilin), opening
   at dawn. The quiet one: Highlands is open and bright, Neon Bay buzzes at dusk, Jade River is
   a scroll painting in the morning mist.
+- **Aurora Fjords**: deep Norwegian fjords under the northern lights, opening at night. The hushed
+  one: vast walls, black water, the sky moving overhead.
 
 ## Neon Bay
 
@@ -101,6 +103,38 @@ is the spine (low ribbons following its bends); slaloms weave between pillars (o
 candidates, the one passing most rock wins); now and then a spiral climbs the last ~100 m of a
 tall pillar and crosses its summit. Every pattern is checked 9 m clear of rock and ground, and
 a slowly updated trend heading keeps the ribbon from doubling back.
+
+## Aurora Fjords
+
+Mood: hushed, vast, starlit. The first level to open at night: a deep blue polar night (never
+black) with the aurora overhead, lingering (the day runs at half speed) before a low winter sun
+turns the snow pink at dawn and gold in the afternoon. Cold palette with a few warm accents: red
+huts, lamplit windows, the lighthouse.
+
+Plan: fjords run along the zero contour of a low-frequency noise (as Jade River's rivers),
+120-240 m wide, endless in every direction; spawn is mid-fjord through the origin, facing along
+it. From the water: a deep bed, a pebble strand up to ~38 m wide (from a noise), then a glacial
+wall that is steep at its foot and rounds over at the lip (1 - (1 - t)^2.2 over 150 m) onto a
+plateau of ~100-200 m that throws up ridged peaks away from the walls. Ridged noise scores the
+walls into buttresses and gullies. Spruce (snow-tipped, ~40 triangles) stand on the strands
+and lower walls under a treeline; red rorbu huts on stilts line the strand in hamlets, facing
+the water; pans of sea ice and icebergs (a jagged faceted lump, tabular or peaked) drift on the
+open water. A lighthouse stands on the shore ~260 m down the fjord from the spawn.
+
+Atmosphere: the aurora is three curtains painted into the sky dome, each with a folded,
+wandering hem, fine rays bunching and thinning along it, green at the hem fading to violet
+above, swelling and thinning along its length and drifting slowly; it comes out with the stars
+and bloom halos it. A low sea smoke (the shared mist shader) lies on the water, thickest at
+night, and a distance haze layers the far walls. After dark hut windows glow and the
+lighthouse sweeps a beam (two additive cones fading along their length). Music: suspended at
+dawn, major by day, dorian at golden hour and under the aurora, minor at dusk.
+
+Flight: the walls are terrain, not props. `solidTop` reports terrain above the strand as solid,
+so the city's look-ahead veers along the fjord before a wall (or climbs if the lip is within
+reach); a bird that still touches a steep slope (gradient > 0.9) glances off it downhill.
+Icebergs are soft ground (skimmed); the lighthouse is solid. Wisps: the fjord is the spine (low
+ribbons following its bends and swinging across the channel), glides carry on over the plateau,
+and generic patterns run only far out on the plateau.
 
 ## Gameplay
 
@@ -210,3 +244,13 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   is laid while the pool is nearly full or the path end is 600 m+ away (they would expire on
   spawn and the path would run away). In a 10 minute headless flight per seed the city bot
   gathers ~1.6 wisps/s and glances off a wall 0-6 times.
+- Aurora Fjords' walls are terrain, not solids: a height field can't overhang and the flight model
+  already floors the bird on it. The look-ahead reads terrain above the strand as solid (no
+  underside), and a ground contact on a steep slope glances off downhill, so a wall is a turn,
+  not a climb.
+- Fjord wisps never hand over to the generic patterns near a wall: those lift a path straight up
+  a slope steeper than any bird can climb (the bot ground up a wall at minimum speed). Hemmed in
+  at a bend or a fjord's head, the planner follows the water either way or wheels round instead.
+- The aurora is painted in the sky dome (no geometry): every azimuth frequency is a whole number
+  so the curtains close round the sky without a seam.
+- Title-screen level cards are a 2x2 grid: four in a row squeezed the names onto two lines.

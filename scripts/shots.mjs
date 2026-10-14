@@ -78,6 +78,32 @@ const shots = [
     wait: 3000,
     place: { x: 223, y: 17, z: 139, yaw: 1.2, phase: 0.86 },
   },
+  // Aurora Fjords (default seed).
+  { name: 'fjord-title', query: '?level=fjord', wait: 4500 },
+  {
+    name: 'fjord-aurora',
+    query: '?level=fjord&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 22, z: 100, yaw: 0, phase: 0.86 },
+  },
+  {
+    name: 'fjord-day',
+    query: '?level=fjord&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 30, z: -150, yaw: 0, phase: 0.25 },
+  },
+  {
+    name: 'fjord-dawn',
+    query: '?level=fjord&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 230, z: -200, yaw: 0, pitch: -0.25, phase: 0.05 },
+  },
+  {
+    name: 'fjord-hamlet',
+    query: '?level=fjord&autopilot',
+    wait: 3000,
+    place: { x: 202, y: 15, z: -822, yaw: 1.15, phase: 0.9 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */

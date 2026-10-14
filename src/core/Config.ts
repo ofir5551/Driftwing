@@ -55,6 +55,28 @@ export const Config = {
     touchRadius: 70, // px of drag for full input
     invertY: false,
   },
+  fjord: {
+    // Plan (read when a level is created).
+    fjordScale: 0.00055, // frequency of the fjord noise: a fjord every ~900 m
+    fjordMin: 60, // m, half width of the narrowest reaches
+    fjordMax: 120, // m, half width of the broadest
+    shelfMax: 38, // m, widest flat strand between water and wall (huts stand on it)
+    wall: 150, // m, horizontal run of a wall from the strand to the plateau's lip
+    plateau: 150, // m, mean plateau height above the water
+    plateauVar: 55, // m, plateau swell either way
+    peaks: 110, // m, ridged peaks rising off the plateau, away from the walls
+    treeline: 75, // m, spruce stop climbing here
+    snowline: 55, // m, snow lies above this on anything but cliffs
+    bergCell: 110, // m, grid cell that may hold one iceberg
+    lighthouseAhead: 260, // m along the fjord from the spawn to the lighthouse
+    // Atmosphere.
+    aurora: 1, // brightness of the aurora curtains (they show as the stars come out)
+    seaSmoke: 0.5, // low mist over the water, thickest at night
+    mistTop: 22, // m, the sea smoke lies below this
+    mistFar: 0.32, // distance haze: far walls fade in layers
+    windows: 1, // brightness of hut windows and the lighthouse after dark
+    beamSpeed: 0.5, // rad/s, the lighthouse beam's sweep
+  },
   world: {
     seed: 1337,
     chunkSize: 160,

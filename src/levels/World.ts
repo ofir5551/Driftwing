@@ -6,7 +6,7 @@ import type { DayKey } from '../audio/scales';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 
-export type LevelId = 'highlands' | 'city' | 'karst';
+export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord';
 
 /**
  * Everything level-specific about the world the bird flies through: terrain, scenery, what

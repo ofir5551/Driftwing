@@ -5,7 +5,7 @@ import { clamp } from '../core/math';
 import { AudioEngine } from './AudioEngine';
 import { Music, type MusicParams } from './Music';
 import { Sfx } from './Sfx';
-import type { DayKey } from './scales';
+import type { MusicStyle } from './styles';
 
 /** Connects gameplay events and flight state to the music and SFX. */
 export class GameAudio {
@@ -51,9 +51,9 @@ export class GameAudio {
     });
   }
 
-  /** Level change: the music follows the level's key table. */
-  setKeys(keys: DayKey[]): void {
-    this.music.setKeys(keys);
+  /** Level change: the music takes on the level's style. */
+  setStyle(style: MusicStyle): void {
+    this.music.setStyle(style);
   }
 
   /** Call from a user gesture. */

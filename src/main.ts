@@ -21,7 +21,7 @@ const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level, 
 const gameplay = new Gameplay(game, ui);
 const audio = new GameAudio(game, gameplay.progress);
 gameplay.progress.best = loadBest(game.level.id);
-audio.setKeys(game.level.keys);
+audio.setStyle(game.level.music);
 const veil = document.createElement('div');
 veil.className = 'veil';
 ui.appendChild(veil);
@@ -52,7 +52,7 @@ function switchLevel(id: LevelId): void {
   veil.classList.add('show');
   setTimeout(() => {
     game.setLevel(id);
-    audio.setKeys(game.level.keys);
+    audio.setStyle(game.level.music);
     gameplay.progress.best = loadBest(id);
     settings.level = id;
     saveSettings(settings);

@@ -63,7 +63,8 @@ broadcast towers in their own parks. Avenue crossings keep open corner plazas (a
 tree). Landmarks: a giant torii standing in the bay on the spawn line, elevated expressways
 (north-south decks at 15 m, east-west at 23 m) that cross the bay as bridges, and Fuji painted
 into the sky dome. Dusk lights the city: a hashed share of windows, shop fronts, neon, lanterns
-and lamp pools on the avenues. Music: yo pentatonic by day, hirajoshi after dusk.
+and lamp pools on the avenues. Music: night-neon lo-fi at 78 BPM, koto plucks over a mellow
+keys pad and a soft swung beat, in a drier room; yo pentatonic by day, hirajoshi after dusk.
 
 Flight among buildings: walls are solid but soft. A look-ahead (about a second) climbs over a
 roof within reach, dips under a deck or beam, or veers to the more open side of a tall wall; on
@@ -94,8 +95,9 @@ distance; it is thickest at dawn and thins by midday. A distance haze fades far 
 layers. Low billboard mist banks drift between the pillars. Three rings of karst peaks are
 painted round the horizon in the sky dome, each layer a deeper wash with mist at its foot.
 Lanterns (houses, rafts, pavilions) are red paper by day and glow (HDR, bloomed) after dark.
-Music walks the Chinese modes: shang at dawn, gong by day, zhi at golden hour, jue at dusk,
-yu at night.
+Music is a sparse guqin at 56 BPM: notes slide up into pitch and bloom a slow vibrato, with
+falling grace notes, over a sine pad, a root-and-fifth drone and deep reverb, no arpeggio. It
+walks the Chinese modes: shang at dawn, gong by day, zhi at golden hour, jue at dusk, yu at night.
 
 Flight: pillars are solid but soft, flown with the city's look-ahead and wall glance; the
 summit dome pushes up (skim it), the walls push straight out from the axis. Wisps: the river
@@ -126,8 +128,10 @@ wandering hem, fine rays bunching and thinning along it, green at the hem fading
 above, swelling and thinning along its length and drifting slowly; it comes out with the stars
 and bloom halos it. A low sea smoke (the shared mist shader) lies on the water, thickest at
 night, and a distance haze layers the far walls. After dark hut windows glow and the
-lighthouse sweeps a beam (two additive cones fading along their length). Music: suspended at
-dawn, major by day, dorian at golden hour and under the aurora, minor at dusk.
+lighthouse sweeps a beam (two additive cones fading along their length). Music: glassy,
+celesta-like bells at 62 BPM over a hardanger-style open-fifth drone, a slow high music-box
+arpeggio and the largest reverb; suspended at dawn, major by day, dorian at golden hour and
+under the aurora, minor at dusk.
 
 Flight: the walls are terrain, not props. `solidTop` reports terrain above the strand as solid,
 so the city's look-ahead veers along the fjord before a wall (or climbs if the lip is within
@@ -148,7 +152,8 @@ invert-Y), settings and best score in localStorage.
 Generative ambient on Web Audio: detuned pads -> lowpass -> synthesized convolution reverb,
 sub drone, sparse pentatonic bells on a slow grid. Wisp pickups play the next note of a phrase,
 quantized to the grid. Speed opens the filter, altitude shifts voicing, flow adds arp/shimmer.
-Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Lookahead scheduler.
+Key drifts with the day cycle. Each level has a `MusicStyle` (`audio/styles.ts`): keys, tempo,
+progression, voice (bell, koto, guqin, glass), pad, drone fifth, reverb, arpeggio, beat. SFX: flap whoosh, speed-scaled wind, splash. Lookahead scheduler.
 
 ## Decisions log
 
@@ -195,11 +200,14 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   are placed around them so players learn thermals by following wisps.
 - FX: one additive and one alpha particle pool (ring buffers), wingtip ribbons faded near the
   lens, shader-wrapped air motes that stretch into streaks with speed, blob shadow for height.
-- Audio: 70 BPM eighth-note grid, 25 ms timer + 150 ms lookahead. Chords change every two bars
+- Audio: eighth-note grid (70 BPM in the Highlands), 25 ms timer + 150 ms lookahead. Chords change every two bars
   through a pentatonic progression; key/mode per day keyframe (D sus, E maj, A maj, F# min,
   D min pentatonic), applied on chord boundaries so changes are never abrupt. Lanterns modulate
   up a fourth (wrapped to +-6 semitones) with a bell flourish. Wisp notes quantize to the
   sixteenth grid and come from a phrase generator that resolves to the tonic every 8 notes.
+- Level music is a style, not a key table: changing only key and mode made every level the same
+  piece. A level switch lands on the next chord boundary; the new tempo takes effect from the
+  next step (the scheduler's step length changes inside its own callback), so nothing jumps.
 - Mix: sub drone kept low (most of its energy moved to the octave) so phones still hear it;
   the context suspends when the tab is hidden; master fades in on unlock.
 - Menus: the title screen floats over a live attract flight (bot steering toward wisps), so the

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
 import { smoothstep } from '../core/math';
-import { DAY_KEYS } from '../audio/scales';
+import { HIGHLANDS_MUSIC } from '../audio/styles';
 import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
 import { Islands } from '../world/Islands';
@@ -87,7 +87,7 @@ export const Highlands: LevelDef = {
   blurb: 'Valleys, lakes and floating isles',
   startPhase: 0.06,
   dayScale: 1,
-  keys: DAY_KEYS,
+  music: HIGHLANDS_MUSIC,
   backdrop: 'none',
   maxAltitude: 400, // above the cloud layer
   create: (seed) => ({

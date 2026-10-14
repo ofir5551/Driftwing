@@ -63,7 +63,7 @@ describe('Progress / flow', () => {
 describe('Progress / tricks', () => {
   it('a trick builds flow and points but no lantern progress', () => {
     const p = new Progress();
-    const { points } = p.trick('loop', 1, false);
+    const { points } = p.trick('loop', 1);
     expect(points).toBeGreaterThan(FlowTuning.basePoints);
     expect(p.flow).toBeGreaterThan(FlowTuning.gain);
     expect(p.count).toBe(0);
@@ -71,26 +71,17 @@ describe('Progress / tricks', () => {
 
   it('repeats pay less, variety pays more', () => {
     const p = new Progress();
-    p.trick('roll', 1, false);
-    expect(p.trick('roll', 1, false).variety).toBe(FlowTuning.trickRepeat);
-    expect(p.trick('loop', 1, false).variety).toBe(FlowTuning.trickVariety);
-    expect(p.trick('roll', 1, false).variety).toBe(1); // one of the last two
-  });
-
-  it('an arch multiplies a trick', () => {
-    const a = new Progress();
-    const b = new Progress();
-    const plain = a.trick('dive', 1, false).points;
-    const arched = b.trick('dive', 1, true).points;
-    expect(arched).toBeGreaterThan(plain * (FlowTuning.archMultiplier - 0.5));
-    expect(b.flow).toBeCloseTo(a.flow * FlowTuning.archMultiplier, 5);
+    p.trick('roll', 1);
+    expect(p.trick('roll', 1).variety).toBe(FlowTuning.trickRepeat);
+    expect(p.trick('loop', 1).variety).toBe(FlowTuning.trickVariety);
+    expect(p.trick('roll', 1).variety).toBe(1); // one of the last two
   });
 
   it('tricks keep a wisp chain alive', () => {
     const p = new Progress();
     p.collect();
     p.update(FlowTuning.chainWindow * 0.7);
-    p.trick('roll', 1, false);
+    p.trick('roll', 1);
     p.update(FlowTuning.chainWindow * 0.7);
     p.collect();
     expect(p.chain).toBe(2);

@@ -161,11 +161,10 @@ export const Config = {
     basePoints: 10,
     flowMultiplier: 4, // full flow = 5x points
     wispsPerLantern: 24,
-    trickGain: 0.06, // flow per landed trick (before variety, size and arch multipliers)
+    trickGain: 0.06, // flow per landed trick (before the variety and size multipliers)
     trickPoints: 4, // points per trick, in basePoints
     trickRepeat: 0.5, // multiplier for repeating the last trick (rolls either way count as one)
     trickVariety: 1.3, // multiplier for a trick unlike the last two
-    archMultiplier: 3, // multiplier for a trick through an arch
   },
   wisps: {
     max: 56,
@@ -184,9 +183,6 @@ export const Config = {
     spiralCount: 24, // wisps in a thermal spiral
     spiralRise: 4.5, // m per wisp up the thermal spiral
     reanchorHeight: 150, // m between the path and the player before the path restarts at the player
-  },
-  arches: {
-    afterWindow: 0.6, // s after flying through an arch in which a trick still counts as through it
   },
   thermals: {
     strength: 13, // m/s^2 upward at the column centre (equilibrium climb ~8 m/s with liftDecay)

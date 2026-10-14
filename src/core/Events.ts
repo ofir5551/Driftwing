@@ -11,10 +11,8 @@ export interface GameEvents {
   thermal: { inside: boolean };
   /** A trick began (the motion and its music start together). */
   trickStart: { kind: TrickKind; x: number; y: number; z: number };
-  /** A trick landed (scored only while playing). `atArch`: done through an arch. */
-  trick: { kind: TrickKind; size: number; atArch: boolean; points: number };
-  /** Flew through an arch's opening; `trick`: while doing one. */
-  arch: { x: number; y: number; z: number; trick: boolean };
+  /** A trick landed (scored only while playing). */
+  trick: { kind: TrickKind; size: number; points: number };
   level: { id: LevelId };
 }
 

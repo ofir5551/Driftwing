@@ -198,24 +198,13 @@ export class Music {
     else run([4, 2, 0], d / 4, 0.35);
   }
 
-  /** A trick landed: a bright high note after a dive-bomb, a flourish through an arch. */
-  land(kind: TrickKind, atArch: boolean): void {
+  /** A dive-bomb landed: a bright high note as the bird pulls out. */
+  land(kind: TrickKind): void {
     const ctx = this.engine.ctx;
-    if (!ctx || !this.sched) return;
+    if (!ctx || !this.sched || kind !== 'dive') return;
     const t = this.sched.quantize(ctx.currentTime, 2, 0.01);
-    const key = this.root + this.shift;
-    if (kind === 'dive')
-      this.note(t, degreeToMidi(key, this.mode, this.chordRoot + 9) + 12, 0.6, 0, 2.4, 0.14, true);
-    if (atArch) this.flourishPending = true;
-  }
-
-  /** Through an arch: one soft chord tone, like passing under a bell. */
-  arch(): void {
-    const ctx = this.engine.ctx;
-    if (!ctx || !this.sched) return;
-    const t = this.sched.quantize(ctx.currentTime, 2, 0.01);
-    const m = degreeToMidi(this.root + this.shift, this.mode, this.chordRoot + 4) + 12;
-    this.note(t, m, 0.5, 0, 3, 0.12, false);
+    const m = degreeToMidi(this.root + this.shift, this.mode, this.chordRoot + 9) + 12;
+    this.note(t, m, 0.6, 0, 2.4, 0.14, true);
   }
 
   /** Swap the level's style; it lands on the next chord boundary (tempo, keys, voices). */

@@ -79,6 +79,10 @@ export const Config = {
     glance: 0.9, // fraction of the angle into a wall turned away on contact
     glanceSlow: 0.25, // speed lost against a wall, scaled by how head-on (about 0.04 per step head-on)
     lights: 1, // brightness of windows, neon and lamps after dark
+    // The volcano painted into the sky: how far away it pretends to be. Its foot sits on the
+    // sea at this distance, so climbing sinks it a little below the horizon (400 m -> ~3.5 deg).
+    mountainDistance: 6500, // m
+    mountainFootFade: 0.05, // rad below the foot over which it dissolves into the haze
   },
   flow: {
     gain: 0.03, // flow per pickup

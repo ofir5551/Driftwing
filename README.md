@@ -1,7 +1,7 @@
 # Driftwing
 
-A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape or
-through a neon-lit Japanese bay city, follow ribbons of glowing wisps and build a melody as you
+A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
+through a neon-lit Japanese bay city or among misty karst peaks on a jade river, follow ribbons of glowing wisps and build a melody as you
 gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
 music, sound) is generated procedurally: the repository contains no art or audio assets.
 
@@ -39,6 +39,23 @@ you back to choose again).
 | **Under the expressway**                            |                                           |
 | ![Expressway](docs/screenshots/city-expressway.jpg) |                                           |
 
+- **Jade River**: an endless valley of limestone pillars after the Li River at Guilin, opening
+  at dawn. Morning mist pools between the peaks and burns off through the day; far peaks fade
+  in layers like ink washes, and more are painted round the horizon. Rivers wind through
+  terraced paddies (some flooded, mirroring the sky), bamboo-lined banks and whitewashed
+  villages; cormorant fishers' rafts drift on the water and red pavilions crown a few summits.
+  Lanterns glow after dark. The music walks the Chinese pentatonic modes. Wisps follow the
+  river, weave between the pillars and now and then spiral up a peak and over its summit;
+  pillars are solid but soft, like the city's walls.
+
+![Jade River title screen](docs/screenshots/karst-title.jpg)
+
+| Down the river at dawn                       | Above the morning mist                     |
+| -------------------------------------------- | ------------------------------------------ |
+| ![River](docs/screenshots/karst-river.jpg)   | ![Mist](docs/screenshots/karst-mist.jpg)   |
+| **Golden hour**                              | **Night**                                  |
+| ![Golden](docs/screenshots/karst-golden.jpg) | ![Night](docs/screenshots/karst-night.jpg) |
+
 ## Play
 
 ```bash
@@ -72,7 +89,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city`.
+`?level=highlands|city|karst`.
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -94,6 +111,9 @@ Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (ena
   avenues gives every building, shrine and tree as data, shared by the instanced renderer (a
   handful of meshes; window grids and neon are drawn by a facade shader, the street grid
   analytically on the ground), collisions and wisp planning, which checks every ribbon is clear.
+- **Jade River**: another pure, seeded layout (`src/world/karst/KarstLayout.ts`): rivers on the
+  zero contours of a noise, pillars lathed from one radius profile that the mesh and the
+  collisions share, and a valley mist shader patched into the level's materials and the water.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

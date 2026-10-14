@@ -6,6 +6,31 @@ import { mulberry32 } from './noise';
 const PUFFS_PER_CLOUD = 7;
 const WHITE = new THREE.Color(1, 1, 1);
 
+/** Where and how a set of clouds floats. The defaults are the sky's own clouds. */
+export interface CloudLayer {
+  /** Share of clouds in the low band (the rest float in the high band). */
+  lowShare: number;
+  low: [number, number];
+  high: [number, number];
+  size: [number, number];
+  /** Vertical squash of each puff (lower = flatter banks). */
+  squash: number;
+  opacity: number;
+  /** Clouds drawn, as a fraction of Config.render.clouds. */
+  share: number;
+}
+
+const SKY_LAYER: CloudLayer = {
+  // Most clouds float high; some sit low enough that the bird can glide through them.
+  lowShare: 0.3,
+  low: [70, 130],
+  high: [150, 270],
+  size: [45, 95],
+  squash: 0.62,
+  opacity: 0.75,
+  share: 1,
+};
+
 // Billboarded puffs. Wrapping around the player and wind drift happen entirely in the vertex
 // shader (toroidal domain centred on uOrigin), so the CPU never touches cloud instances.
 const vert = /* glsl */ `
@@ -13,6 +38,7 @@ uniform vec3 uOrigin;
 uniform float uTime;
 uniform float uDomain;
 uniform vec2 uWind;
+uniform float uSquash;
 varying vec2 vUv;
 varying float vFade;
 varying float vShade;
@@ -25,7 +51,7 @@ void main() {
   vec3 center = vec3(uOrigin.x + rel.x, base.y, uOrigin.z + rel.y);
   vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
-  vec3 wp = center + (right * position.x + up * position.y * 0.62) * scale;
+  vec3 wp = center + (right * position.x + up * position.y * uSquash) * scale;
   vec4 mv = viewMatrix * vec4(wp, 1.0);
   gl_Position = projectionMatrix * mv;
   float dist = -mv.z;
@@ -59,8 +85,10 @@ void main() {
 export class Clouds {
   readonly mesh: THREE.InstancedMesh;
   private readonly u: Record<string, THREE.IUniform>;
+  private readonly layer: CloudLayer;
 
-  constructor(seed: number, maxClouds = 60) {
+  constructor(seed: number, maxClouds = 60, layer: Partial<CloudLayer> = {}) {
+    const L = (this.layer = { ...SKY_LAYER, ...layer });
     const rand = mulberry32(seed + 99);
     const count = maxClouds * PUFFS_PER_CLOUD;
     this.u = {
@@ -70,7 +98,8 @@ export class Clouds {
       uWind: { value: new THREE.Vector2(1, 0.4) },
       uLit: { value: new THREE.Color() },
       uShadow: { value: new THREE.Color() },
-      uOpacity: { value: 0.75 },
+      uOpacity: { value: L.opacity },
+      uSquash: { value: L.squash },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -88,9 +117,9 @@ export class Clouds {
     for (let c = 0; c < maxClouds; c++) {
       const cx = (rand() - 0.5) * 2000;
       const cz = (rand() - 0.5) * 2000;
-      // Most clouds float high; some sit low enough that the bird can glide through them.
-      const cy = rand() < 0.3 ? 70 + rand() * 60 : 150 + rand() * 120;
-      const size = 45 + rand() * 50;
+      const [y0, y1] = rand() < L.lowShare ? L.low : L.high;
+      const cy = y0 + rand() * (y1 - y0);
+      const size = L.size[0] + rand() * (L.size[1] - L.size[0]);
       for (let p = 0; p < PUFFS_PER_CLOUD; p++) {
         const s = size * (0.55 + rand() * 0.6) * (p === 0 ? 1.3 : 1);
         const ox = (rand() - 0.5) * size * 2.2;
@@ -120,7 +149,9 @@ export class Clouds {
       .lerp(p.skyHorizon, 0.3)
       .multiplyScalar(b);
     this.mesh.count =
-      Math.min(Config.render.clouds, this.mesh.instanceMatrix.count / PUFFS_PER_CLOUD) *
-      PUFFS_PER_CLOUD;
+      Math.min(
+        Math.round(Config.render.clouds * this.layer.share),
+        this.mesh.instanceMatrix.count / PUFFS_PER_CLOUD,
+      ) * PUFFS_PER_CLOUD;
   }
 }

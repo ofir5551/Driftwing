@@ -7,7 +7,8 @@ import { hash2 } from './noise';
 /** Floats stored per tree in a chunk's scatter list: type, x, y, z, scale, rotY, tint. */
 export const TREE_STRIDE = 7;
 
-function colored(g: THREE.BufferGeometry, hex: string, y = 0): THREE.BufferGeometry {
+/** Non-indexed copy lifted by y, painted one flat colour, with crisp per-face normals. */
+export function colored(g: THREE.BufferGeometry, hex: string, y = 0): THREE.BufferGeometry {
   const ng = g.index ? g.toNonIndexed() : g;
   ng.translate(0, y, 0);
   const c = new THREE.Color(hex);
@@ -117,7 +118,7 @@ export class Trees {
   readonly group = new THREE.Group();
   private readonly meshes: THREE.InstancedMesh[];
   private readonly counts: number[];
-  private readonly material: THREE.MeshToonMaterial;
+  readonly material: THREE.MeshToonMaterial;
 
   constructor(capacity = 9000, geometries = [roundTreeGeometry(), pineGeometry()]) {
     const mat = (this.material = new THREE.MeshToonMaterial({

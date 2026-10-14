@@ -86,6 +86,24 @@ export const Config = {
     mountainDistance: 6500, // m
     mountainFootFade: 0.05, // rad below the foot over which it dissolves into the haze
   },
+  karst: {
+    // Plan (read when a level is created).
+    riverScale: 0.0008, // frequency of the river noise: a river every ~700 m
+    riverMin: 24, // m, half width of the narrowest reaches
+    riverMax: 44, // m, half width of the broadest
+    pillarCell: 72, // m, grid cell holding up to two pillars
+    pillarMin: 12, // m, base radius of the smallest pillars
+    pillarMax: 34, // m, base radius of the largest (before the dense-cluster boost)
+    pillarTop: 250, // m, no summit rises above this (the ceiling is 320)
+    pillarLod: 480, // m, beyond this pillars use the coarse mesh (chosen when chunks change)
+    canopy: 9, // m, bamboo and groves count as soft ground this high
+    // Atmosphere.
+    mist: 0.85, // valley mist at dawn; it thins through the day and gathers again at dusk
+    mistTop: 55, // m, the mist lies below this
+    mistFar: 0.42, // distance haze: far pillars fade in layers, like ink washes
+    ridgeDistance: 2600, // m, how far the painted ridges on the horizon pretend to be
+    lanterns: 1, // brightness of lanterns after dark
+  },
   flow: {
     gain: 0.03, // flow per pickup
     chainBonus: 0.003, // extra flow per link in the current chain (capped)

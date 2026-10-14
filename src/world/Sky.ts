@@ -24,12 +24,37 @@ uniform float uMountain;
 uniform vec2 uMountainDir;
 uniform float uMountainBase;
 uniform float uMountainFade;
+uniform float uRidges;
+uniform float uRidgeBase;
+uniform vec3 uInk;
 varying vec3 vDir;
 
 float hash(vec3 p) {
   p = fract(p * 0.3183099 + 0.1);
   p *= 17.0;
   return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float hash1(float x) { return fract(sin(x * 127.1 + 11.7) * 43758.5453); }
+
+// A ring of karst peaks around the horizon: n cells of azimuth, each holding one steep-sided,
+// round-topped peak of random width and a height that is usually low and now and then towers
+// (so the skyline never reads as an even wall). Periodic in azimuth.
+float ridge(float az, float n, float seed) {
+  float x = (az / 6.2831853 + 0.5) * n;
+  float c = floor(x);
+  float h = 0.0;
+  for (int k = -1; k <= 1; k++) {
+    float cc = c + float(k);
+    float id = mod(cc, n) + seed;
+    float centre = cc + 0.5 + (hash1(id) - 0.5) * 0.7;
+    float w = 0.25 + 0.4 * hash1(id + 7.3);
+    float q = (x - centre) / w;
+    float dome = sqrt(max(1.0 - q * q, 0.0));
+    float tall = hash1(id + 3.1);
+    h = max(h, dome * (0.2 + 0.8 * tall * tall));
+  }
+  return h;
 }
 
 void main() {
@@ -80,6 +105,27 @@ void main() {
     peak *= 1.0 - mist;
   }
 
+  // Jade River: layers of karst hills painted round the horizon, far to near, each a deeper
+  // wash of ink with mist pooled at its foot, like the receding planes of a scroll painting.
+  if (uRidges > 0.5) {
+    float az = atan(d.x, d.z);
+    float hm = h - uRidgeBase;
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i);
+      // ~2-3 deg wide and up to ~4-6 deg tall: peaks, taller than they are wide.
+      float amp = 0.045 + 0.02 * fi;
+      float top = ridge(az + fi * 1.9, 64.0 - fi * 14.0, fi * 17.0) * amp;
+      float m = smoothstep(top + 0.0015, top - 0.0015, hm);
+      if (m <= 0.0) continue;
+      vec3 ink = mix(uFog, uInk, 0.16 + 0.15 * fi);
+      ink = mix(ink, uFog, (1.0 - smoothstep(-0.004, amp * 0.75, hm)) * 0.8);
+      col = mix(col, ink, m);
+      peak = max(peak, m);
+    }
+    // Below the foot (from altitude) the haze carries on down to the world's edge.
+    col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
+  }
+
   // Faint stars, only above the horizon haze; twinkle slowly.
   if (uStars > 0.0 && h > 0.02 && peak < 0.5) {
     vec3 cell = floor(d * 220.0);
@@ -101,10 +147,12 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
+/** What a level paints into the sky beyond its world: nothing, Fuji, or karst ridges. */
+export type Backdrop = 'none' | 'fuji' | 'karst';
+
 export class Sky {
   readonly mesh: THREE.Mesh;
-  /** Paint the distant volcano (the city level). */
-  mountain = false;
+  backdrop: Backdrop = 'none';
   private readonly u: Record<string, THREE.IUniform>;
 
   constructor() {
@@ -122,6 +170,9 @@ export class Sky {
       uMountainDir: { value: new THREE.Vector2(0.5, -0.87).normalize() },
       uMountainBase: { value: 0 },
       uMountainFade: { value: 0.05 },
+      uRidges: { value: 0 },
+      uRidgeBase: { value: 0 },
+      uInk: { value: new THREE.Color() },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -148,10 +199,14 @@ export class Sky {
     this.u.uSunDir.value.copy(day.sunDir);
     this.u.uStars.value = p.stars;
     this.u.uTime.value = time;
-    this.u.uMountain.value = this.mountain ? 1 : 0;
+    this.u.uMountain.value = this.backdrop === 'fuji' ? 1 : 0;
+    this.u.uRidges.value = this.backdrop === 'karst' ? 1 : 0;
     // Elevation (as the sine the shader compares against) of a foot at sea level that far away.
     const drop = Config.world.waterLevel - camera.position.y;
     this.u.uMountainBase.value = drop / Math.hypot(drop, Config.city.mountainDistance);
+    this.u.uRidgeBase.value = drop / Math.hypot(drop, Config.karst.ridgeDistance);
+    // Ink: the upper sky deepened toward the ground light, so ridges darken with the day.
+    this.u.uInk.value.copy(p.skyTop).lerp(p.hemiGround, 0.55).multiplyScalar(0.8);
     this.u.uMountainFade.value = Config.city.mountainFootFade;
     this.mesh.position.copy(camera.position);
   }

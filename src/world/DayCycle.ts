@@ -22,13 +22,15 @@ export interface Palette {
   water: THREE.Color;
 }
 
-interface Key {
+/** One keyframe of a level's day: its phase, name and palette. */
+export interface SkyKey {
   t: number;
   name: string;
   p: Palette;
 }
 
-const pal = (o: {
+/** A palette from sRGB hex colours. */
+export const makePalette = (o: {
   skyTop: string;
   skyHorizon: string;
   skyBottom: string;
@@ -55,11 +57,12 @@ const pal = (o: {
   water: new THREE.Color(o.water),
 });
 
-const KEYS: Key[] = [
+/** The default day (Highlands, Neon Bay). Other levels may paint their own on the same phases. */
+export const DAY_SKY: SkyKey[] = [
   {
     t: 0,
     name: 'dawn',
-    p: pal({
+    p: makePalette({
       skyTop: '#8fa6d6',
       skyHorizon: '#f6c6b4',
       skyBottom: '#d9b3c0',
@@ -78,7 +81,7 @@ const KEYS: Key[] = [
   {
     t: 0.22,
     name: 'day',
-    p: pal({
+    p: makePalette({
       skyTop: '#6fa3dc',
       skyHorizon: '#cfe5ee',
       skyBottom: '#bcd6dc',
@@ -97,7 +100,7 @@ const KEYS: Key[] = [
   {
     t: 0.48,
     name: 'golden',
-    p: pal({
+    p: makePalette({
       skyTop: '#7f98cf',
       skyHorizon: '#f9cc9c',
       skyBottom: '#f0c08f',
@@ -116,7 +119,7 @@ const KEYS: Key[] = [
   {
     t: 0.68,
     name: 'dusk',
-    p: pal({
+    p: makePalette({
       skyTop: '#4e4f8f',
       skyHorizon: '#f29a8c',
       skyBottom: '#b4789a',
@@ -135,7 +138,7 @@ const KEYS: Key[] = [
   {
     t: 0.84,
     name: 'twilight',
-    p: pal({
+    p: makePalette({
       skyTop: '#2b3266',
       skyHorizon: '#8a74ae',
       skyBottom: '#5e5684',
@@ -169,11 +172,11 @@ export const isTimeOfDay = (v: unknown): v is TimeOfDay => TIME_OF_DAY_LIST.some
 
 /** Phase of the keyframe named `id`, so a preset lands exactly on that look. */
 export function presetPhase(id: Exclude<TimeOfDay, 'auto'>): number {
-  return KEYS.find((k) => k.name === id)!.t;
+  return DAY_SKY.find((k) => k.name === id)!.t;
 }
 
 export class DayCycle {
-  readonly palette: Palette = pal({
+  readonly palette: Palette = makePalette({
     skyTop: '#000',
     skyHorizon: '#000',
     skyBottom: '#000',
@@ -195,6 +198,7 @@ export class DayCycle {
   keyIndex = 0;
   /** Hold the current phase (a fixed time of day was picked). */
   frozen = false;
+  private keys = DAY_SKY;
 
   constructor(phase = 0.08) {
     this.phase = phase;
@@ -202,7 +206,13 @@ export class DayCycle {
   }
 
   get name(): string {
-    return KEYS[this.keyIndex].name;
+    return this.keys[this.keyIndex].name;
+  }
+
+  /** Swap the level's palettes (same phases and names as DAY_SKY); applies at once. */
+  setKeys(keys: SkyKey[]): void {
+    this.keys = keys;
+    this.apply();
   }
 
   update(dt: number, dayLength: number): void {
@@ -217,6 +227,7 @@ export class DayCycle {
   }
 
   private apply(): void {
+    const KEYS = this.keys;
     let i = KEYS.length - 1;
     for (let k = 0; k < KEYS.length; k++) if (KEYS[k].t <= this.phase) i = k;
     const a = KEYS[i];

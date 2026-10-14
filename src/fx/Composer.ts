@@ -45,7 +45,7 @@ export class Composer {
     this.paint.uniforms.uResolution.value.set(w * pixelRatio, h * pixelRatio);
   }
 
-  render(day: DayCycle, time: number, dt: number): void {
+  render(day: DayCycle, time: number, dt: number, saturation = 1): void {
     const r = Config.render;
     this.bloom.strength = r.bloomStrength;
     this.bloom.radius = r.bloomRadius;
@@ -54,7 +54,7 @@ export class Composer {
     u.uTime.value = time;
     u.uGrade.value.copy(day.palette.grade);
     u.uShadowTint.value.copy(day.palette.hemiGround).lerp(day.palette.skyTop, 0.4);
-    u.uSaturation.value = r.saturation;
+    u.uSaturation.value = r.saturation * saturation;
     u.uGrain.value = r.grain;
     u.uVignette.value = r.vignette;
     this.flash = Math.max(0, this.flash - dt * 1.5);

@@ -52,6 +52,32 @@ const shots = [
     wait: 3000,
     place: { x: -475, y: 10, z: -200, yaw: Math.PI, phase: 0.7 },
   },
+  // Jade River (default seed).
+  { name: 'karst-title', query: '?level=karst', wait: 4500 },
+  {
+    name: 'karst-river',
+    query: '?level=karst&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 18, z: 0, yaw: 0, phase: 0.03 },
+  },
+  {
+    name: 'karst-mist',
+    query: '?level=karst&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 230, z: -200, yaw: 0.3, pitch: -0.25, phase: 0.05 },
+  },
+  {
+    name: 'karst-golden',
+    query: '?level=karst&autopilot',
+    wait: 3000,
+    place: { x: 200, y: 60, z: 300, yaw: 2.2, phase: 0.5 },
+  },
+  {
+    name: 'karst-night',
+    query: '?level=karst&autopilot',
+    wait: 3000,
+    place: { x: 223, y: 17, z: 139, yaw: 1.2, phase: 0.86 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */

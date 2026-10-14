@@ -10,7 +10,7 @@ export const City: LevelDef = {
   startPhase: 0.655,
   dayScale: 2,
   keys: CITY_KEYS,
-  mountain: true,
+  backdrop: 'fuji',
   // ~50 m over the tallest towers (215 m glass, the 232 m lattice tower): room to loop over the
   // skyline and circle the spires, but not so high that the city's edge and the empty bay take
   // over the view.

@@ -367,9 +367,11 @@ body.left-handed .flap-btn {
 }
 
 .level.selected {
-  border-color: rgba(255, 240, 210, 0.95);
-  background: rgba(255, 238, 214, 0.28);
-  box-shadow: 0 0 22px rgba(255, 210, 150, 0.45);
+  border: 2px solid rgba(255, 244, 220, 1);
+  background: rgba(255, 236, 210, 0.36);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.14),
+    0 0 26px rgba(255, 210, 150, 0.6);
 }
 
 .level-name {

@@ -11,7 +11,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/shot.mjs <url> <out.png> [waitMs] [clickSelector] [w] [h]`: one headless screenshot.
 - `npm run shots`: regenerate README screenshots into `docs/screenshots/` (needs a running server).
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`.
+  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city`.
+- Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio).
 - Headless Chromium: on Windows `--use-angle=d3d11` uses the real GPU; elsewhere SwiftShader works but is slow.
 
@@ -30,13 +31,19 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 
 - `main.ts`: wires Game + Gameplay + GameAudio + Menu, settings persistence, pause/mute/hints.
 - `core/Loop.ts`: fixed 60 Hz step + accumulator; render gets `alpha` to interpolate. dt clamped.
-- `core/Game.ts`: renderer, scene, flight, camera, world systems, adaptive resolution/quality.
-  Modes: `menu` (bot flies the attract backdrop), `playing`, `paused`. `onStep`/`onFrame` hooks.
+- `core/Game.ts`: renderer, scene, flight, camera, sky/water/clouds, adaptive resolution/quality, and the
+  current level's `World` (`setLevel` swaps it in place). Modes: `menu` (bot flies the attract backdrop),
+  `playing`, `paused`. `onStep`/`onFrame` hooks.
+- `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`; `index` registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics. `Bird.ts` visuals only. `ChaseCamera.ts` polar springs.
-- `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD), `Trees`
-  (instanced), `Islands`, `Wisps`, `Thermals`. `DayCycle` palette drives `Sky`, `Water`, `Clouds`, lights, post.
+- `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
+  decor), `Trees` (instanced), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
+  palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
+- `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; queries), `collide`
+  (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
+  `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.
 - `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),

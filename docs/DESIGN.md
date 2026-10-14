@@ -32,6 +32,40 @@ Endless chunks from seeded noise: valleys, lakes, instanced low-poly forests, fl
 drifting clouds. Day cycle dawn -> day -> golden hour -> dusk drives sky gradient, fog and light.
 Post: bloom, paper grain, vignette, colour grade.
 
+## Levels
+
+Chosen on the title screen as cards; the attract flight behind the menu switches to the picked
+world at once (a short veil hides the rebuild). The pause menu's "Change level" returns to the
+title. The pick and a best score per level persist. A level is a `LevelDef` (name, opening time of
+day, day length, music keys, sky mountain) that creates a `World`: terrain, streamed scenery,
+what counts as solid, a steering assist, and hooks for wisp patterns and thermal placement.
+
+- **Highlands**: the original endless landscape (see World).
+- **Neon Bay**: an endless Japanese bay city, a Tokyo/Osaka blend, opening at dusk.
+
+## Neon Bay
+
+Plan: 240 m superblocks bounded by 40 m avenues (4 m tree-lined sidewalks), each split into
+3x3 blocks by 12 m streets. A bay runs east-west (spawn out on the water facing south, the sun
+setting over the skyline), a river meanders through with flat bridges, and a density field that
+peaks at a core just inland picks each block: glass towers (podium, tower, setback crown,
+antenna, blinking aviation lights), narrow mid-rises with blade signs and rooftop billboards
+(more along the river, after Dotonbori), apartment slabs, tiled gable-roof houses with gardens,
+parks (cherry, zelkova, pine, ponds, a pavilion), plazas, shrines (torii, approach path, stone
+lanterns, haiden and honden with copper or cypress roofs, a grove; sometimes an Inari tunnel of
+small torii), temples (gate, main hall, five-storey pagoda), grand wooded shrines and lattice
+broadcast towers in their own parks. Avenue crossings keep open corner plazas (a koban or a
+tree). Landmarks: a giant torii standing in the bay on the spawn line, elevated expressways
+(north-south decks at 15 m, east-west at 23 m) that cross the bay as bridges, and Fuji painted
+into the sky dome. Dusk lights the city: a hashed share of windows, shop fronts, neon, lanterns
+and lamp pools on the avenues. Music: yo pentatonic by day, hirajoshi after dusk.
+
+Flight among buildings: walls are solid but soft. A look-ahead (about a second) climbs over a
+roof within reach, dips under a deck or beam, or veers to the more open side of a tall wall; on
+contact the bird glances off, turning along the wall and losing a little speed. Wisps run down
+the avenues at street-canyon height, turning a quarter at crossings, circle towers, or glide
+over the roofs; the opening ribbon goes through the torii and up the spawn avenue.
+
 ## Gameplay
 
 Wisps in arcs/ribbons ahead of the player. Quick chains fill a flow meter (score multiplier,
@@ -107,3 +141,30 @@ Key drifts with the day cycle. SFX: flap whoosh, speed-scaled wind, splash. Look
   comfortably fast it creeps back 0.05. In Auto quality, hitting the floor steps the preset down.
   Phones default to Medium. Pixel ratio is capped per preset (max 2).
 - Debug-only lil-gui is a dynamic import, so it is a separate chunk players never download.
+- Levels swap in place (dispose the old world, build the new one at its spawn, reset time of day)
+  rather than reloading the page: audio stays unlocked and the title backdrop changes live.
+- The city layout is one pure, seeded function (no Three.js): superblocks are generated on demand
+  into parts (mesh, position, size, yaw, colour, style), trees and solid boxes, cached, and shared
+  by the renderer, collisions and wisp planning. Unit-tested in Node.
+- City rendering: six global instanced meshes (box, cylinder, gable, hip and ridge roofs, lattice)
+  plus three tree shapes, refilled from live chunks when the chunk set changes. One toon material
+  with a facade pass keyed by a per-instance style: window grids in world metres from the face
+  normal (any box gets correctly sized floors), faded to their average at a distance; lit windows,
+  neon, lanterns and aviation lights emit after dark (neon and beacons in HDR for bloom). The
+  street grid is regular, so the ground shader draws asphalt, sidewalks, lane lines, crossings and
+  lamp pools analytically from world position; a vertex attribute turns streets off in parks.
+- City collisions: boxes bucketed per superblock on an 8x8 grid (covering 24 m around it, since
+  avenue structures straddle edges), so a point query checks one cell. The push leaves through the
+  nearest face (undersides only for floating decks and beams). A wall contact kicks the turn rate
+  (a released critically damped spring turns 2r/omega in total) instead of snapping the heading.
+- City wisps are planned as a whole polyline and only spawned if every segment is clear of solids
+  (3.5 m margin). Avenue runs try canyon height, then low (9.5 m, under both deck levels, beside the
+  pillars) and high (32 m). Turns are 40 m arcs that stay inside the crossing and its corner plazas
+  even when cut, and go toward the ribbon's overall heading so it never doubles back. Runs follow
+  on from the last wisp with no gap (an unchecked gap could cross a tower).
+- Wisps (all levels): the autopilot follows the ribbon in spawn order with a carrot ~24 m ahead
+  (pure pursuit) instead of the nearest wisp; the path re-anchors only when it is behind the bird
+  or the bird has left it (no wisp ahead in reach), not merely when it runs far ahead; no pattern
+  is laid while the pool is nearly full or the path end is 600 m+ away (they would expire on
+  spawn and the path would run away). In a 10 minute headless flight per seed the city bot
+  gathers ~1.6 wisps/s and glances off a wall 0-6 times.

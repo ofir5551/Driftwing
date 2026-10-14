@@ -67,6 +67,15 @@ void main() {
       col = mix(col, mc, m);
       peak = m;
     }
+    // From altitude the plain between the world's fogged edge and the far foot isn't drawn, and
+    // the sky there (skyBottom) doesn't match the fog, so the world's edge showed as a seam and
+    // the foot as a straight line floating on a band. Paint it as the haze it would be, and the
+    // higher the camera, the thicker the mist bank along the foot, so the mountain rises out of
+    // it. Near the ground (foot at the horizon) this is all hidden behind the city.
+    float lift = clamp(-uMountainBase * 25.0, 0.0, 1.0);
+    float mist = max(smoothstep(0.0, -uMountainFade, hm), exp(-max(hm, 0.0) * 28.0) * 0.75 * lift);
+    col = mix(col, uFog, mist);
+    peak *= 1.0 - mist;
   }
 
   // Faint stars, only above the horizon haze; twinkle slowly.

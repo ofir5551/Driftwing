@@ -8,8 +8,6 @@ export interface Settings {
   muted: boolean;
   quality: QualityLevel | 'auto';
   invertY: boolean;
-  /** Touch: put the flap button at the bottom left instead of the bottom right. */
-  leftHanded: boolean;
   /** Last level picked on the title screen. */
   level: LevelId;
   /** Fixed look chosen on the title screen, or 'auto' for the level's own day cycle. */
@@ -23,7 +21,6 @@ const DEFAULTS: Settings = {
   muted: false,
   quality: 'auto',
   invertY: false,
-  leftHanded: false,
   level: 'highlands',
   timeOfDay: 'auto',
 };
@@ -40,7 +37,6 @@ export function loadSettings(): Settings {
       quality:
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',
       invertY: s.invertY === true,
-      leftHanded: s.leftHanded === true,
       level: isLevelId(s.level) ? s.level : DEFAULTS.level,
       timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : DEFAULTS.timeOfDay,
     };

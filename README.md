@@ -83,7 +83,7 @@ npm run dev        # http://localhost:5173
 | Action       | Mouse / keyboard                             | Touch                                         | Gamepad    |
 | ------------ | -------------------------------------------- | --------------------------------------------- | ---------- |
 | Steer        | Pointer offset from centre, or WASD / arrows | Drag anywhere (relative to where you touched) | Left stick |
-| Flap         | Click or hold Space                          | Hold the wing button, or tap a second finger  | A / RT     |
+| Boost (flap) | Click or hold Space                          | Tap or hold a second finger while steering    | A / RT     |
 | Pause        | P or Esc                                     | Pause button (top right)                      | Start      |
 | Mute         | M                                            | Pause menu                                    |            |
 | Pointer lock | L (optional, relative mouse steering)        |                                               |            |

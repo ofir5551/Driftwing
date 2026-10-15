@@ -23,8 +23,10 @@ harder (1.35x) and speed above cruise bleeds off slowly, so a full dive reaches 
 
 Mouse: pointer offset from centre steers (optional pointer lock). Click/Space flaps.
 Keyboard: WASD/arrows steer, Space flap, M mute, P/Esc pause.
-Touch (settings: left-handed mirrors the flap button to the left): drag relative to touch start steers; flap is a big 124 px button (with extra invisible hit padding)
-or a second finger tapped anywhere while one steers; very quick taps are latched so no step misses them. Gamepad: left stick + A.
+Touch: drag relative to touch start steers; a second finger tapped (or held) anywhere while one steers
+flaps (boosts); very quick taps are latched so no step misses them. There is no on-screen flap button:
+it covered the view and a second finger works for either hand. Gamepad: left stick + A.
+A Controls panel (title and pause screens) lists the controls for the current device.
 
 ## World
 
@@ -212,7 +214,8 @@ progression, voice (bell, koto, guqin, glass), pad, drone fifth, reverb, arpeggi
   the context suspends when the tab is hidden; master fades in on unlock.
 - Menus: the title screen floats over a live attract flight (bot steering toward wisps), so the
   first frame is already the game. Play is the audio-unlock gesture and continues seamlessly.
-  One-time hints: "Follow the wisps" on start; a flap hint only if the player hasn't flapped by 14 s.
+  One-time hints: "Follow the wisps" on start, then (touch only) "Tap with a second finger to boost";
+  a flap hint only if the player hasn't flapped by 14 s.
 - Pause: P/Esc, the touch pause button, losing pointer lock, or hiding the tab. Music ducks.
 - Settings (volume, mute, quality, invert-Y) and best score persist in localStorage (guarded).
 - Adaptive quality: below ~47 fps for a second, render scale drops 0.1 (floor 0.55); after 6 s

@@ -3,16 +3,16 @@ import { Flick, type Dir } from '../core/Gestures';
 import { clamp } from '../core/math';
 
 /**
- * Touch: drag anywhere to steer, relative to where the finger went down (a floating stick),
- * plus a dedicated flap button. Works in portrait and landscape because nothing is anchored
- * to a fixed stick position. While one finger steers, a second finger touching anywhere else
- * also flaps (held = repeat), so the flap never needs the button's exact spot. A fast flick
- * of the steering finger is a trick gesture (see Gestures).
+ * Touch: drag anywhere to steer, relative to where the finger went down (a floating stick).
+ * Works in portrait and landscape because nothing is anchored to a fixed stick position.
+ * While one finger steers, a second finger touching anywhere else flaps (held = repeat), so
+ * there is no button to find and nothing covers the view. A fast flick of the steering finger
+ * is a trick gesture (see Gestures).
  */
 export class TouchControls {
   steerX = 0;
   steerY = 0;
-  /** Held flap (button or second finger), or a tap too quick for the 60 Hz step to see. */
+  /** Held flap (second finger), or a tap too quick for the 60 Hz step to see. */
   get flap(): boolean {
     const f = this.held || this.tap;
     this.tap = false;
@@ -38,30 +38,16 @@ export class TouchControls {
   private steerId: number | null = null;
   private ox = 0;
   private oy = 0;
-  private readonly button: HTMLButtonElement;
   private readonly ring: HTMLDivElement;
   private readonly knob: HTMLDivElement;
 
   constructor(surface: HTMLElement, ui: HTMLElement) {
-    this.button = document.createElement('button');
-    this.button.className = 'flap-btn';
-    this.button.setAttribute('aria-label', 'Flap');
-    this.button.innerHTML =
-      '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30c8-2 12-10 18-16 6 6 10 14 18 16-7 0-12-3-18-8-6 5-11 8-18 8z" fill="currentColor"/></svg>';
     this.ring = document.createElement('div');
     this.ring.className = 'touch-ring';
     this.knob = document.createElement('div');
     this.knob.className = 'touch-knob';
     this.ring.appendChild(this.knob);
-    ui.append(this.button, this.ring);
-
-    const press = (down: boolean) => (e: Event) => {
-      e.preventDefault();
-      this.setFlap(down);
-    };
-    this.button.addEventListener('touchstart', press(true), { passive: false });
-    this.button.addEventListener('touchend', press(false));
-    this.button.addEventListener('touchcancel', press(false));
+    ui.appendChild(this.ring);
 
     surface.addEventListener(
       'touchstart',
@@ -138,7 +124,6 @@ export class TouchControls {
       navigator.vibrate?.(8); // a faint tick where supported (Android); ignored elsewhere
     }
     this.held = down;
-    this.button.classList.toggle('down', down);
   }
 
   private setActive(): void {
@@ -147,9 +132,8 @@ export class TouchControls {
     document.body.classList.add('touch');
   }
 
-  /** Show or hide the on-screen controls (hidden in menus). */
+  /** Show or hide the on-screen steering ring (hidden in menus). */
   setVisible(v: boolean): void {
-    this.button.style.display = v ? '' : 'none';
     if (!v) this.ring.classList.remove('show');
   }
 }

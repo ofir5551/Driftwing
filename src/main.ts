@@ -30,7 +30,6 @@ function applySettings(s: Settings): void {
   audio.engine.setVolume(s.volume);
   audio.engine.setMuted(s.muted);
   Config.input.invertY = s.invertY;
-  document.body.classList.toggle('left-handed', s.leftHanded);
   if (!params.has('quality')) {
     game.autoQuality = s.quality === 'auto';
     if (s.quality !== 'auto' && s.quality !== game.quality) game.setQuality(s.quality);
@@ -65,6 +64,8 @@ function switchLevel(id: LevelId): void {
 let flapped = false;
 let playTime = 0;
 let hintShown = false;
+let boostHintShown = false;
+const isTouch = () => document.body.classList.contains('touch');
 
 const handlers: MenuHandlers = {
   play() {
@@ -76,6 +77,7 @@ const handlers: MenuHandlers = {
     menu.showPlaying();
     playTime = 0;
     hintShown = false;
+    boostHintShown = false;
     gameplay.hud.toast('Follow the wisps', 3);
   },
   pause() {
@@ -128,14 +130,16 @@ game.onFrame((dt) => {
   }
   if (game.mode === 'playing') {
     playTime += dt;
+    // Touch has no boost button, so say how to boost once "Follow the wisps" has faded.
+    if (!boostHintShown && playTime > 3.4) {
+      boostHintShown = true;
+      if (isTouch()) gameplay.hud.toast('Tap with a second finger to boost', 4);
+    }
     // One gentle nudge if the player hasn't discovered flapping yet.
     if (!hintShown && !flapped && playTime > 14) {
       hintShown = true;
-      const touch = document.body.classList.contains('touch');
       gameplay.hud.toast(
-        touch
-          ? 'Hold the wing button, or tap with a second finger, to flap'
-          : 'Hold Space or click to flap',
+        isTouch() ? 'Tap with a second finger to boost' : 'Hold Space or click to boost',
         4,
       );
     }

@@ -224,6 +224,23 @@ export class Music {
     this.flourishPending = true;
   }
 
+  /**
+   * Lantern reached: a bright chord rolled upward on the grid, in the key the lantern
+   * modulated to, so arriving answers the lighting's flourish.
+   */
+  lanternReached(): void {
+    const ctx = this.engine.ctx;
+    if (!ctx || !this.sched) return;
+    const gap = this.sched.stepDur / 4;
+    const t0 = this.sched.quantize(ctx.currentTime, 2, 0.01);
+    const key = this.root + this.shift;
+    const degs = [0, 2, 4, 7, 9];
+    degs.forEach((deg, i) => {
+      const m = degreeToMidi(key, this.mode, this.chordRoot + deg) + 12;
+      this.note(t0 + i * gap, m, 0.55, (i / (degs.length - 1) - 0.5) * 0.8, 3, 0.14, true);
+    });
+  }
+
   private tick(): void {
     const ctx = this.engine.ctx;
     if (!ctx || !this.sched || ctx.state !== 'running') return;

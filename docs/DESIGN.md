@@ -146,7 +146,8 @@ and generic patterns run only far out on the plateau.
 
 Wisps in arcs/ribbons ahead of the player. Quick chains fill a flow meter (score multiplier,
 music intensity) that decays slowly. Every N wisps a lantern lights up with a celebration and the
-music modulates. Minimal HUD that fades when idle. Start screen, pause menu (volume, quality,
+music modulates. A lit lantern is an optional destination: flying through its light refills
+flow, pays a bonus and gives a surge of speed and lift. Minimal HUD that fades when idle. Start screen, pause menu (volume, quality,
 invert-Y), settings and best score in localStorage.
 
 ## Audio
@@ -198,6 +199,13 @@ progression, voice (bell, koto, guqin, glass), pad, drone fifth, reverb, arpeggi
   are absorbed so pickups never flash the screen. Gold by day, moonlit cyan at night.
 - Flow: +0.03 per pickup plus a chain bonus; ~18 quick pickups fill it; drains 0.05/s after a
   2 s grace. Score multiplier up to 5x. Every 24 wisps (about once a minute for a human) a lantern beacon ignites ~170 m ahead.
+- Lanterns are destinations, not decoration, but never pressure: no timer, no fade, nothing lost
+  by ignoring one. Reaching one (anywhere in its column, 16 m radius, any height above the orb)
+  fills flow, pays 20 base points at the full 5x, and gusts the bird (+9 m/s, +6 m/s lift, sharing
+  the flap's lift cap). Waiting lanterns have a wide breathing beam and sparks rising at the reach
+  radius; reached ones flare, then settle to a narrow calm column. The HUD's ✦ counts lanterns
+  reached; a rolled bell chord answers the lighting's flourish. The autopilot heads for one within
+  400 m, so `?autopilot` exercises it.
 - Thermals on a 420 m grid over low ground, 300 m tall; ~13 m/s^2 lift at the core. Spiral wisp patterns
   are placed around them so players learn thermals by following wisps.
 - FX: one additive and one alpha particle pool (ring buffers), wingtip ribbons faded near the

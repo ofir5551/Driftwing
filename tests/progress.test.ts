@@ -60,6 +60,36 @@ describe('Progress / flow', () => {
   });
 });
 
+describe('Progress / lanterns', () => {
+  it('reaching a lantern refills flow and pays at the full multiplier', () => {
+    const p = new Progress();
+    p.collect();
+    const before = p.score;
+    const points = p.reachLantern();
+    expect(p.flow).toBe(1);
+    expect(p.reached).toBe(1);
+    expect(points).toBe(
+      FlowTuning.basePoints * Config.lantern.points * (1 + FlowTuning.flowMultiplier),
+    );
+    expect(p.score).toBe(before + points);
+    expect(p.best).toBe(p.score);
+  });
+
+  it('is a wisp-free reward: no wisp count, no lantern lit, and it keeps the chain', () => {
+    const p = new Progress();
+    p.collect();
+    p.update(FlowTuning.chainWindow * 0.7);
+    p.reachLantern();
+    p.update(FlowTuning.chainWindow * 0.7);
+    p.collect();
+    expect(p.chain).toBe(2);
+    expect(p.count).toBe(2);
+    expect(p.lanterns).toBe(0);
+    p.reset();
+    expect(p.reached).toBe(0);
+  });
+});
+
 describe('Progress / tricks', () => {
   it('a trick builds flow and points but no lantern progress', () => {
     const p = new Progress();

@@ -8,6 +8,8 @@ export interface GameEvents {
   contact: { kind: 'ground' | 'water'; x: number; y: number; z: number; strength: number };
   wisp: { x: number; y: number; z: number; count: number; flow: number; chain: number };
   lantern: { x: number; y: number; z: number; index: number };
+  /** The bird flew through a lit lantern's light. */
+  lanternReached: { x: number; y: number; z: number; points: number };
   thermal: { inside: boolean };
   /** A trick began (the motion and its music start together). */
   trickStart: { kind: TrickKind; x: number; y: number; z: number };

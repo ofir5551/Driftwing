@@ -166,6 +166,15 @@ export const Config = {
     trickRepeat: 0.5, // multiplier for repeating the last trick (rolls either way count as one)
     trickVariety: 1.3, // multiplier for a trick unlike the last two
   },
+  lantern: {
+    // A lit lantern is a destination: fly through its column of light to reach it.
+    reachRadius: 16, // m from the column's axis that counts (generous: the beam itself is narrower)
+    reachBelow: 12, // m below the orb that still counts, so skimming its foot works too
+    points: 20, // bonus for reaching one, in basePoints, at the full flow it refills
+    boost: 9, // m/s forward surge on reaching one
+    lift: 6, // m/s upward lift on reaching one
+    guide: 400, // m within which the autopilot heads for a lantern still to reach
+  },
   wisps: {
     max: 56,
     keepAhead: 26, // spawn new patterns while fewer upcoming wisps than this

@@ -14,6 +14,8 @@ export class Progress {
   flow = 0;
   chain = 0;
   lanterns = 0;
+  /** Lit lanterns the bird has flown through. */
+  reached = 0;
   best = 0;
   private sincePickup = 99;
   /** The last two tricks, newest first (variety scoring). */
@@ -56,6 +58,21 @@ export class Progress {
     return { points, variety };
   }
 
+  /**
+   * A lit lantern reached: flow refills to the brim and pays a bonus at the full multiplier.
+   * It keeps the chain alive, like a trick. Purely a reward: ignoring a lantern costs nothing.
+   */
+  reachLantern(): number {
+    const t = Config.flow;
+    this.reached++;
+    this.sincePickup = 0;
+    this.flow = 1;
+    const points = Math.round(t.basePoints * Config.lantern.points * (1 + t.flowMultiplier));
+    this.score += points;
+    this.best = Math.max(this.best, this.score);
+    return points;
+  }
+
   update(dt: number): void {
     this.sincePickup += dt;
     if (this.sincePickup > Config.flow.chainWindow) this.chain = 0;
@@ -69,7 +86,7 @@ export class Progress {
   }
 
   reset(): void {
-    this.count = this.score = this.flow = this.chain = this.lanterns = 0;
+    this.count = this.score = this.flow = this.chain = this.lanterns = this.reached = 0;
     this.recent[0] = this.recent[1] = '';
     this.sincePickup = 99;
   }

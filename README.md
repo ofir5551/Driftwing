@@ -90,7 +90,8 @@ npm run dev        # http://localhost:5173
 
 Fly through wisps to score. Quick chains fill the **flow** ring, which multiplies points (up to
 5x) and brings extra layers into the music. Every 24 wisps a lantern ignites ahead of you and
-the music modulates. Rising **thermals** (sparkling columns) lift you for free. Brushing the
+the music modulates. Fly through its column of light to reach it: flow refills, you get a bonus
+and a surge of speed. It never fades, so it's yours to chase or ignore. Rising **thermals** (sparkling columns) lift you for free. Brushing the
 ground or water is only ever a soft skim.
 
 ## Develop

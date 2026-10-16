@@ -269,3 +269,14 @@ export function forwardOf(s: FlightState, out: { x: number; y: number; z: number
   out.y = Math.sin(pitch);
   out.z = Math.cos(s.yaw) * cp;
 }
+
+/**
+ * A push from outside the bird (a reached lantern): a forward surge and some lift. The surge
+ * bleeds off through the usual over-maxSpeed drag, and lift shares the flap cap so a gust on
+ * top of flaps never launches the bird.
+ */
+export function gust(s: FlightState, boost: number, lift: number): void {
+  const c = Config.flight;
+  s.speed = Math.min(s.speed + boost, c.maxSpeed + boost);
+  s.liftVy = Math.min(s.liftVy + lift, c.flapLift * 1.6);
+}

@@ -6,6 +6,7 @@ import { clamp, smoothstep } from './math';
 import { BlobShadow } from '../fx/BlobShadow';
 import { trickFamily, trickName, trickScale, type TrickKind } from '../player/Tricks';
 import { Particles } from '../fx/Particles';
+import { gust } from '../player/FlightModel';
 import { Trails } from '../fx/Trails';
 import { Wind } from '../fx/Wind';
 import { Hud } from '../ui/Hud';
@@ -37,8 +38,12 @@ export class Gameplay {
   private readonly shadow = new BlobShadow();
   private readonly wispColor = new THREE.Color();
   private readonly vel = new THREE.Vector3();
+  private readonly lanternTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
   private contactFx = 0;
+  /** Rising sparks round a lantern still to reach (bound once: no per-frame closure). */
+  private readonly lanternSpark = (x: number, y: number, z: number): void =>
+    this.glow.emit(x, y, z, 0, 4 + Math.random() * 3, 0, 2.4, 1.5, GOLD, -0.5, 0.3);
   /** What the blob shadow lands on: roofs and decks below the bird, else the ground. */
   private readonly shadowGround: (x: number, z: number) => number;
 
@@ -118,8 +123,33 @@ export class Gameplay {
     // Live multiplier through the stoop and the pull-out (stoop freezes once pulling).
     if (scoring && tr.kind === 'dive') this.hud.stoop(trickScale('dive', tr.stoop));
     if (tr.finished) this.landTrick(tr.finished, tr.size, scoring);
-    const t = this.wisps.nextTarget(s.x, s.z, s.yaw);
-    g.autopilotTarget = t;
+    if (scoring) {
+      const orb = this.lanterns.reach(s.x, s.y, s.z);
+      if (orb) this.reachLantern(orb.x, orb.y, orb.z);
+    }
+    // The bot prefers a lantern still to reach over the wisps (lanterns only light while scoring).
+    const lantern = scoring ? this.lanterns.pending(s.x, s.z, Config.lantern.guide) : null;
+    if (lantern) {
+      this.lanternTarget.set(lantern.x, Math.max(s.y, lantern.y + 20), lantern.z);
+      g.autopilotTarget = this.lanternTarget;
+    } else {
+      g.autopilotTarget = this.wisps.nextTarget(s.x, s.z, s.yaw);
+    }
+  }
+
+  /** Flew through a lit lantern: full flow, a bonus, a surge of speed and lift, and a flare. */
+  private reachLantern(x: number, y: number, z: number): void {
+    const g = this.game;
+    const s = g.flight;
+    const points = this.progress.reachLantern();
+    const c = Config.lantern;
+    gust(s, c.boost, c.lift);
+    this.glow.burst(50, s.x, s.y, s.z, 14, 1.4, 1.6, GOLD, -1, 4);
+    this.glow.burst(40, x, y + 30, z, 20, 2.4, 2, WHITE, -2, 10);
+    g.composer.flash = 0.45;
+    this.hud.trick('Lantern reached', points);
+    this.hud.pulse();
+    g.events.emit('lanternReached', { x, y, z, points });
   }
 
   private landTrick(kind: TrickKind, size: number, scoring: boolean): void {
@@ -136,7 +166,8 @@ export class Gameplay {
   private lightLantern(): void {
     const g = this.game;
     const s = g.flight;
-    // Ahead and a little to the side, so the beacon rises in view but not in the bird's way.
+    // Ahead and a little to the side: it rises in view, and reaching it is a gentle turn away
+    // from the wisp path, so it's a choice rather than something flown through by accident.
     const side = Math.random() < 0.5 ? -1 : 1;
     const a = s.yaw + side * 0.16;
     const x = s.x + Math.sin(a) * 170;
@@ -146,7 +177,8 @@ export class Gameplay {
     this.glow.burst(30, orb.x, orb.y + 20, orb.z, 24, 2.6, 1.6, WHITE, 3, 8);
     g.composer.flash = 0.6;
     const n = this.progress.lanterns;
-    this.hud.toast(n === 1 ? 'A lantern awakens' : `Lantern ${n} awakens`);
+    // The first one says what lanterns are for; after that the sparks and beam say it.
+    this.hud.toast(n === 1 ? 'A lantern awakens: fly through its light' : `Lantern ${n} awakens`);
     g.events.emit('lantern', { x: orb.x, y: orb.y, z: orb.z, index: n });
   }
 
@@ -235,7 +267,7 @@ export class Gameplay {
     this.glow.update(dt, halfH);
     this.soft.update(dt, halfH);
     this.thermals.render(time, halfH, this.tmp.copy(WHITE).lerp(pal.sun, 0.3));
-    this.lanterns.update(dt, time);
+    this.lanterns.update(dt, time, this.lanternSpark, 14 * density);
 
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);

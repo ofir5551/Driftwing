@@ -133,6 +133,16 @@ describe('dive-bomb', () => {
     expect(held.size).toBeGreaterThan(1.4);
   });
 
+  it('keeps stooping for as long as it is held, and the multiplier keeps growing', () => {
+    // From just under the altitude ceiling, so the only limit is how long the gesture is held.
+    const top = Config.flight.maxAltitude - 20;
+    const short = perform(createFlightState(0, top, 0, 0), 'dive', 3, flat(0));
+    const long = perform(createFlightState(0, top, 0, 0), 'dive', 4.5, flat(0));
+    expect(short.size).toBeGreaterThan(2.9);
+    expect(long.size).toBeGreaterThan(4.4);
+    expect(trickScale('dive', long.size)).toBeGreaterThan(trickScale('dive', short.size));
+  });
+
   it('needs height to start', () => {
     expect(perform(createFlightState(0, 20, 0, 0), 'dive', 0, flat(0)).started).toBe(false);
   });
@@ -155,10 +165,11 @@ describe('trick names and sizes', () => {
     expect(trickName('rollL', 1)).toBe('Barrel roll');
     expect(trickName('rollR', 3)).toBe('Triple roll');
     expect(trickName('loop', c.loopMax)).toBe('Big loop');
-    expect(trickName('dive', c.diveMax)).toBe('Long dive-bomb');
+    expect(trickName('dive', 3)).toBe('Long dive-bomb');
     expect(trickScale('rollL', 1)).toBe(1);
     expect(trickScale('rollL', 2)).toBeGreaterThan(1);
     expect(trickScale('loop', c.loopMax)).toBeCloseTo(1.5);
     expect(trickScale('dive', c.diveMin)).toBe(1);
+    expect(trickScale('dive', c.diveMin + 5)).toBeCloseTo(1 + 5 * c.diveScalePerSec); // no ceiling
   });
 });

@@ -115,6 +115,8 @@ export class Gameplay {
     if (scoring) this.progress.update(dt);
     const tr = s.trick;
     if (tr.started) g.events.emit('trickStart', { kind: tr.started, x: s.x, y: s.y, z: s.z });
+    // Live multiplier through the stoop and the pull-out (stoop freezes once pulling).
+    if (scoring && tr.kind === 'dive') this.hud.stoop(trickScale('dive', tr.stoop));
     if (tr.finished) this.landTrick(tr.finished, tr.size, scoring);
     const t = this.wisps.nextTarget(s.x, s.z, s.yaw);
     g.autopilotTarget = t;

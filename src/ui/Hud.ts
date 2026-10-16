@@ -17,6 +17,7 @@ export class Hud {
   private toastTimer = 0;
   private readonly trickEl: HTMLDivElement;
   private trickTimer = 0;
+  private stoopTenths = -1;
   private opacity = 0;
   private lastCount = -1;
   private lastScore = -1;
@@ -57,11 +58,26 @@ export class Hud {
 
   /** A landed trick's name and points: smaller and quicker than a toast, never covering one. */
   trick(name: string, points: number): void {
+    this.stoopTenths = -1; // the live readout's text was just replaced
     this.trickEl.textContent = points > 0 ? `${name}  +${points.toLocaleString()}` : name;
     this.trickEl.classList.remove('show');
     void this.trickEl.offsetWidth; // restart the CSS transition for back-to-back tricks
     this.trickEl.classList.add('show');
     this.trickTimer = 1.4;
+  }
+
+  /**
+   * The running dive-bomb multiplier. Called every step, so the text is only rebuilt when the
+   * displayed tenth changes; it fades on its own shortly after the calls stop.
+   */
+  stoop(scale: number): void {
+    const tenths = Math.round(scale * 10);
+    if (tenths !== this.stoopTenths) {
+      this.stoopTenths = tenths;
+      this.trickEl.textContent = `Dive-bomb  ×${(tenths / 10).toFixed(1)}`;
+    }
+    this.trickEl.classList.add('show');
+    this.trickTimer = 0.3;
   }
 
   pulse(): void {

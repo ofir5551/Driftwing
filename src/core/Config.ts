@@ -51,7 +51,7 @@ export const Config = {
     loopDrift: 0.18, // forward drift round the loop as a fraction of speed: exits ~1.1 r ahead
     divePitch: 1.2, // rad nose-down in a dive-bomb (~70 deg)
     diveMin: 0.6, // s, shortest stoop (a quick double tap)
-    diveMax: 2.5, // s, longest stoop while held
+    diveScalePerSec: 0.4, // score multiplier gained per second of stoop past diveMin (uncapped while held)
     diveBoost: 5, // m/s added as the wings tuck
     diveGravity: 1.8, // extra pull on top of the usual dive gravity
     diveExtraSpeed: 14, // m/s the dive-bomb may run past maxSpeed

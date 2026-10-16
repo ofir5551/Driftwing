@@ -175,7 +175,9 @@ export function advanceTrick(s: FlightState, held: boolean, env: FlightEnv, dt: 
         s.y -
           surface(env, s.x + Math.sin(s.yaw) * ahead * 0.4, s.z + Math.cos(s.yaw) * ahead * 0.4),
       );
-      const wants = tr.stoop < c.diveMin || (held && tr.stoop < c.diveMax);
+      // No time cap: the stoop runs while the gesture is held, and the terrain look-ahead above
+      // is what ends it (speed is already clamped by diveExtraSpeed, so a long hold is safe).
+      const wants = tr.stoop < c.diveMin || held;
       if (!wants || h < ahead * 0.9) {
         tr.pulling = true;
         tr.t = 0;
@@ -202,7 +204,8 @@ const range01 = (v: number, lo: number, hi: number): number =>
 export function trickScale(kind: TrickKind, size: number): number {
   const c = Config.tricks;
   if (kind === 'loop') return 1 + 0.5 * range01(size, c.loopMin, c.loopMax);
-  if (kind === 'dive') return 1 + 0.5 * range01(size, c.diveMin, c.diveMax);
+  // Unlike the others a dive has no ceiling: the multiplier grows for as long as it is held.
+  if (kind === 'dive') return 1 + c.diveScalePerSec * Math.max(0, size - c.diveMin);
   return 1 + 0.4 * (size - 1);
 }
 

@@ -104,6 +104,32 @@ const shots = [
     wait: 3000,
     place: { x: 202, y: 15, z: -822, yaw: 1.15, phase: 0.9 },
   },
+  // City of Gold (default seed).
+  { name: 'jerusalem-title', query: '?level=jerusalem', wait: 4500 },
+  {
+    name: 'jerusalem-olives',
+    query: '?level=jerusalem&autopilot',
+    wait: 3000,
+    place: { x: -640, y: 128, z: -95, yaw: Math.PI / 2, pitch: -0.05, phase: 0.47 },
+  },
+  {
+    name: 'jerusalem-roofs',
+    query: '?level=jerusalem&autopilot',
+    wait: 3000,
+    place: { x: 120, y: 86, z: -42, yaw: Math.PI / 2, pitch: -0.12, phase: 0.5 },
+  },
+  {
+    name: 'jerusalem-dome',
+    query: '?level=jerusalem&autopilot',
+    wait: 3000,
+    place: { x: -330, y: 96, z: -40, yaw: 1.75, pitch: -0.05, phase: 0.47 },
+  },
+  {
+    name: 'jerusalem-night',
+    query: '?level=jerusalem&autopilot',
+    wait: 3000,
+    place: { x: -540, y: 128, z: -95, yaw: Math.PI / 2, phase: 0.86 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */

@@ -330,9 +330,16 @@ export class Music {
         this.pluck(t + (h * dur) / arp.perStep, midi, h === 0 ? 0.6 : 0.4, i % 2 ? 0.3 : -0.3);
       }
     }
-    // Lo-fi beat over a bar of eight eighths: kick on 1 and the "and" of 3, rim on 2 and 4,
-    // swung hats once the player is in flow.
-    if (s.pulse > 0) {
+    if (s.pulse > 0 && s.beat === 'maqsum') {
+      // Maqsum over a bar of eight eighths: dum tek . tek dum . tek . ; soft ka fills join
+      // with flow.
+      const b = step % 8;
+      if (b === 0 || b === 4) this.dum(t);
+      if (b === 1 || b === 3 || b === 6) this.tek(t, b === 6 ? 0.8 : 1);
+      if (p.flow > 0.35 && (b === 5 || b === 7)) this.tek(t + dur * 0.5, 0.4);
+    } else if (s.pulse > 0) {
+      // Lo-fi beat over a bar of eight eighths: kick on 1 and the "and" of 3, rim on 2 and 4,
+      // swung hats once the player is in flow.
       const b = step % 8;
       if (b === 0 || b === 5) this.kick(t);
       if (b === 2 || b === 6) this.rim(t);
@@ -382,6 +389,13 @@ export class Music {
         return this.guqin(t, midi, vel, pan, dur, level);
       case 'glass':
         return this.glass(t, midi, vel, pan, dur, level);
+      case 'oud':
+        this.oud(t, midi, vel, pan, dur, level);
+        // Risha: a long note now and then trembles under quick re-strikes of the plectrum.
+        if (dur > 3 && this.rand() < 0.3) {
+          const q = this.sched!.stepDur / 4;
+          for (let k = 1; k <= 3; k++) this.oud(t + k * q, midi, vel * 0.45, pan, 0.8, level);
+        }
     }
   }
 
@@ -537,6 +551,59 @@ export class Music {
     mod.start(t);
     car.stop(end + 0.05);
     mod.stop(t + 0.3);
+  }
+
+  /**
+   * Oud: two saws a few cents apart (a doubled course of strings) through a lowpass that
+   * closes fast, darker and shorter than the koto. Fretless, so each note settles from a
+   * touch sharp as the finger finds it.
+   */
+  private oud(t: number, midi: number, vel: number, pan: number, dur: number, level: number): void {
+    const ctx = this.engine.ctx!;
+    const f = midiToFreq(midi);
+    const end = t + Math.min(dur * 0.55, 1.7);
+    const flt = ctx.createBiquadFilter();
+    flt.type = 'lowpass';
+    flt.Q.value = 2.2;
+    flt.frequency.setValueAtTime(Math.min(f * 8, 9000), t);
+    flt.frequency.exponentialRampToValueAtTime(f * 1.5, t + 0.35);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(level * vel * 0.55, t + 0.004);
+    env.gain.exponentialRampToValueAtTime(0.0001, end);
+    for (const det of [-6, 6]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      o.detune.setValueAtTime(det + 30, t);
+      o.detune.setTargetAtTime(det, t, 0.035);
+      o.connect(flt);
+      o.start(t);
+      o.stop(end + 0.05);
+    }
+    flt.connect(env);
+    this.out(env, pan);
+  }
+
+  /** Frame drum "dum": a deep, short boom from the skin's centre. */
+  private dum(t: number): void {
+    const ctx = this.engine.ctx!;
+    const o = ctx.createOscillator();
+    o.frequency.setValueAtTime(125, t);
+    o.frequency.exponentialRampToValueAtTime(58, t + 0.22);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.32, t + 0.005);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.connect(env).connect(this.pulseBus);
+    o.start(t);
+    o.stop(t + 0.55);
+    this.noiseHit(t, 'lowpass', 500, 0.05, 0.08);
+  }
+
+  /** Frame drum "tek": a dry slap at the rim. */
+  private tek(t: number, vel: number): void {
+    this.noiseHit(t, 'bandpass', 3300, 0.075 * vel, 0.06);
   }
 
   /** Soft plucked note for the arpeggio layer: triangle through a closing lowpass. */

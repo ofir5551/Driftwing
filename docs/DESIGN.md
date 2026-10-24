@@ -49,6 +49,8 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
   a scroll painting in the morning mist.
 - **Aurora Fjords**: deep Norwegian fjords under the northern lights, opening at night. The hushed
   one: vast walls, black water, the sky moving overhead.
+- **City of Gold**: Jerusalem's walled Old City on its hills, opening in the golden hour. The warm
+  one: ancient stone that glows, a sense of arrival, swooping over roofs and down valleys.
 
 ## Neon Bay
 
@@ -141,6 +143,56 @@ reach); a bird that still touches a steep slope (gradient > 0.9) glances off it 
 Icebergs are soft ground (skimmed); the lighthouse is solid. Wisps: the fjord is the spine (low
 ribbons following its bends and swinging across the channel), glides carry on over the plateau,
 and generic patterns run only far out on the plateau.
+
+## City of Gold
+
+Mood: warm, timeless, a little reverent; the feeling of arriving at a holy city. Golden
+limestone everywhere, softened by dust and distance; a few vivid accents: the gilded dome and
+its blue tiles, lead-grey church domes, cypress green, the red earth of the terraces. It opens in
+a lingering golden hour (the day runs at 1.4x), the sun at the bird's back.
+
+Plan: the land round the origin is designed, after the real city (+z is north, -x is east, so it
+reads like a map). The Old City is an irregular hexagon of walls about 640 m across on a plateau
+that falls gently to the south-east; the Temple Mount is a raised, paved platform in its
+south-east corner with the Dome of the Rock (marble and blue-tiled octagon, tiled drum, gilded
+pointed dome on a dais), the Dome of the Chain, Al-Aqsa with its silver dome, square and round
+minarets; the Western Wall faces an open plaza. The quarters are packed with stone houses on an
+11 m jittered grid (flat roofs a storey or two up, a third with small domes, water heaters,
+rooftop rooms, courtyards with a tree), split by David Street and the Cardo; the Holy
+Sepulchre's grey domes, the Redeemer's tower, the Hurva's white dome and the Citadel with the
+Tower of David's minaret rise out of them. The walls are crenellated pieces with a square tower
+every ~46 m and gatehouses with dark arches (Damascus, Jaffa, Zion, Dung, Lions, Herod's, New),
+and the sealed, double-domed Golden Gate. The Kidron runs under the east wall and the Hinnom wraps
+round the west and south (valley floors as polylines); the Mount of Olives rises beyond the
+Kidron with its cemetery of pale slabs, Gethsemane's grove and the Church of All Nations, Mary
+Magdalene's gold onion domes, the Russian belfry and Augusta Victoria's tower; Mount Zion carries
+the Dormition Abbey; the new city spreads over the western hills (the Montefiore windmill, a
+grand hotel, the YMCA tower). Past ~1.3 km the designed land blends into endless Judean hills:
+rounded ridges cut by wadis (the zero contours of a noise, as Jade River's rivers), terraced
+olive orchards with dry-stone risers, Aleppo pine forest, and hill towns that crown the ridges
+(flats with rooftop water heaters, domed village houses, red-roofed houses, square to the slope
+so rows step down the hillside; now and then a minaret or bell tower).
+
+Stone: one instanced material (boxes, domes, onion domes, drums, spires, octagons, merlons,
+arches, water heaters, tile roofs) with a style per instance: ashlar courses laid in world
+metres (so neighbouring pieces line up), small arched windows on houses and rows of them on
+flats (lit warmly after dark), floodlight from the foot of walls and landmarks after dark (the
+amber glow of the real walls at night), gold leaf with a sun glint and an HDR glow at night,
+lead with a dull sheen, glazed tile. The valley mist pools in the Kidron at dawn and burns off;
+a distance haze layers the hills; three washes of rolling hills are painted round the horizon.
+
+Flight: low roofs (the Old City's fabric, the towns) and treetops are soft ground the bird skims;
+walls, gatehouses, towers, domes, minarets and landmarks are solid, flown with the city's
+look-ahead and wall glance. Music: an oud (two saws a few cents apart through a fast-closing
+lowpass, settling from a touch sharp as on a fretless neck, with the odd risha tremolo) at 66
+BPM over a sine pad and an open-fifth drone, qanun-like ripples with flow, maqsum on a frame
+drum; nahawand at dawn and dusk, major pentatonic by day, hijaz in the golden hour and at night.
+
+Wisps: the opening ribbon glides down off the Mount of Olives across the Kidron, over the east
+wall, swings round the golden dome and runs low along David Street to Jaffa Gate. Then: swoops
+that hug the land (12 m over roofs, 16 m elsewhere), weaving gently either side of a slowly
+turning trend; runs along the Kidron, the Hinnom and the wadis; climbing swings round a minaret,
+a tower or a dome.
 
 ## Gameplay
 
@@ -273,3 +325,16 @@ progression, voice (bell, koto, guqin, glass), pad, drone fifth, reverb, arpeggi
 - The aurora is painted in the sky dome (no geometry): every azimuth frequency is a whole number
   so the curtains close round the sky without a seam.
 - Title-screen level cards are a 2x2 grid: four in a row squeezed the names onto two lines.
+- City of Gold opens on the Mount of Olives, the real postcard view: from the west the walls hid
+  the city entirely. Levels may turn the sun's path (`sunTurn`); here it rides behind the Mount of
+  Olives so the Old City is lit, not backlit, from the spawn.
+- City of Gold's low roofs are a smooth canopy (soft ground), not solids: flying low over the
+  Old City is skimming its roofscape, and the walls and towers are the only things to steer
+  round. Houses are only placed where the canopy is full, and never taller than it.
+- Its wisps swing round landmarks (under a half turn) instead of spiralling: in a full spiral a
+  bird that misses a wisp faces it again on the next lap, and the bot circled back for each one.
+  Heights are planned with a look past the pattern's end, so a ribbon never dives into a valley
+  steeper on its far side than a ribbon may climb (the Kidron's Olives side), and candidates are
+  penalised for a sharp corner where they join the last pattern.
+- `withMist` runs a material's own `onBeforeCompile` patch first, so the stone shader carries the
+  valley mist too.

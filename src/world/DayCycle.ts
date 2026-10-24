@@ -198,6 +198,8 @@ export class DayCycle {
   keyIndex = 0;
   /** Hold the current phase (a fixed time of day was picked). */
   frozen = false;
+  /** Radians added to the sun's path round the sky (a level picks where its light comes from). */
+  private turn = 0;
   private keys = DAY_SKY;
 
   constructor(phase = 0.08) {
@@ -209,9 +211,10 @@ export class DayCycle {
     return this.keys[this.keyIndex].name;
   }
 
-  /** Swap the level's palettes (same phases and names as DAY_SKY); applies at once. */
-  setKeys(keys: SkyKey[]): void {
+  /** Swap the level's palettes (same phases and names as DAY_SKY) and sun path; applies at once. */
+  setKeys(keys: SkyKey[], sunTurn = 0): void {
     this.keys = keys;
+    this.turn = sunTurn;
     this.apply();
   }
 
@@ -254,7 +257,7 @@ export class DayCycle {
     P.sunElevation = A.sunElevation + (B.sunElevation - A.sunElevation) * f;
     P.stars = A.stars + (B.stars - A.stars) * f;
     // The sun swings across the sky over the cycle; azimuth chosen so golden hour is backlit-ish.
-    const az = 0.6 + this.phase * Math.PI * 1.2;
+    const az = 0.6 + this.phase * Math.PI * 1.2 + this.turn;
     const el = P.sunElevation;
     this.sunDir
       .set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az))

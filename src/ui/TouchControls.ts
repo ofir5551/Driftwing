@@ -2,9 +2,9 @@ import { Config } from '../core/Config';
 import { Flick, type Dir } from '../core/Gestures';
 import { clamp } from '../core/math';
 import type { TouchSteer } from '../core/Settings';
+import { ArrowClusters, SIDE_ARROWS, SPLIT_ARROWS } from './ArrowClusters';
 import { BoostButton } from './BoostButton';
 import { DirectionPad, type SteerHandlers } from './DirectionPad';
-import { SideArrows } from './SideArrows';
 
 /**
  * Touch: drag anywhere to steer, relative to where the finger went down (a floating stick).
@@ -12,8 +12,8 @@ import { SideArrows } from './SideArrows';
  * While one finger steers, a second finger touching anywhere else flaps (held = repeat), so
  * there is no button to find and nothing covers the view. A fast flick of the steering finger
  * is a trick gesture (see Gestures). The Steering setting can swap all of this for on-screen
- * buttons, a D-pad (DirectionPad) or an arrow column at each edge (SideArrows), plus a Boost
- * button; touches elsewhere then do nothing.
+ * buttons, a D-pad (DirectionPad) or clusters of arrows (ArrowClusters: side arrows or split),
+ * plus a Boost button; touches elsewhere then do nothing.
  */
 export class TouchControls {
   steerX = 0;
@@ -47,7 +47,8 @@ export class TouchControls {
   private readonly ring: HTMLDivElement;
   private readonly knob: HTMLDivElement;
   private readonly pad: DirectionPad;
-  private readonly arrows: SideArrows;
+  private readonly arrows: ArrowClusters;
+  private readonly split: ArrowClusters;
   private readonly boost: BoostButton;
   private scheme: TouchSteer = 'drag';
   private shown = false;
@@ -67,7 +68,8 @@ export class TouchControls {
       trick: (dir) => (this.trick = dir),
     };
     this.pad = new DirectionPad(ui, buttons);
-    this.arrows = new SideArrows(ui, buttons);
+    this.arrows = new ArrowClusters(ui, SIDE_ARROWS, buttons);
+    this.split = new ArrowClusters(ui, SPLIT_ARROWS, buttons);
     this.boost = new BoostButton(ui, (down) => this.setFlap(down));
 
     surface.addEventListener(
@@ -157,12 +159,15 @@ export class TouchControls {
     document.body.classList.add('touch');
   }
 
-  /** Drag, D-pad or side-arrow steering (the Steering setting). Switching lets go of anything held. */
-  setScheme(s: TouchSteer): void {
+  /** The Steering setting, and for Split which thumb turns (swap: turning on the right). Switching
+   *  scheme lets go of anything held; swapping only moves the clusters. */
+  setScheme(s: TouchSteer, swap: boolean): void {
+    document.body.classList.toggle('split-swap', swap);
     if (s === this.scheme) return;
     this.scheme = s;
     document.body.classList.toggle('steer-dpad', s === 'dpad');
     document.body.classList.toggle('steer-arrows', s === 'arrows');
+    document.body.classList.toggle('steer-split', s === 'split');
     this.releaseSteer();
     this.releaseFlap();
     this.setVisible(this.shown);
@@ -174,6 +179,7 @@ export class TouchControls {
     if (!v) this.ring.classList.remove('show');
     this.pad.setShown(v && this.scheme === 'dpad');
     this.arrows.setShown(v && this.scheme === 'arrows');
+    this.split.setShown(v && this.scheme === 'split');
     this.boost.setShown(v && this.scheme !== 'drag');
   }
 }

@@ -73,7 +73,7 @@ body {
   background: rgba(255, 255, 255, 0.7);
 }
 
-/* On-screen touch steering (the D-pad and Side arrows settings), shown only while playing. */
+/* On-screen touch steering (the D-pad, Side arrows and Split settings), shown only while playing. */
 .dpad,
 .boost-btn,
 .arrow-btn {
@@ -86,7 +86,7 @@ body {
 
 .dpad,
 .boost-btn,
-.side-arrows {
+.arrow-cluster {
   display: none;
   position: fixed;
   bottom: max(28px, env(safe-area-inset-bottom));
@@ -102,7 +102,7 @@ body.touch .boost-btn.show {
   display: block;
 }
 
-body.touch .side-arrows.show {
+body.touch .arrow-cluster.show {
   display: grid;
 }
 
@@ -168,17 +168,24 @@ body.touch .side-arrows.show {
   pointer-events: none;
 }
 
-/* Side arrows: a cluster under each thumb, a tall turn button on the outside with up and down
-   stacked just inside it, lifted a little off the bottom edge to where thumbs rest. */
+/* Arrow clusters (Side arrows, Split): one per thumb, lifted a little off the bottom edge to
+   where thumbs rest. Every cluster has the same footprint, two buttons wide and two rows tall. */
 body {
-  --btn: 62px; /* side arrow sizes and spacing, shared with the Boost button above them */
+  --btn: 62px; /* arrow sizes and spacing, shared with the Boost button above them */
   --half: 50px;
   --gap: 8px;
   --cluster-bottom: max(28px, 9vh, env(safe-area-inset-bottom));
+  --edge-l: max(20px, env(safe-area-inset-left));
+  --edge-r: max(20px, env(safe-area-inset-right));
 }
 
-.side-arrows {
+.arrow-cluster {
   bottom: var(--cluster-bottom);
+  gap: var(--gap);
+}
+
+/* Side arrows: a tall turn button on the outside with up and down stacked just inside it. */
+.side-arrows {
   grid-template-columns: var(--btn) var(--btn);
   grid-template-rows: var(--half) var(--half);
   gap: var(--gap);
@@ -188,11 +195,11 @@ body {
 }
 
 .side-arrows.left {
-  left: max(20px, env(safe-area-inset-left));
+  left: var(--edge-l);
 }
 
 .side-arrows.right {
-  right: max(20px, env(safe-area-inset-right));
+  right: var(--edge-r);
   grid-template-areas:
     'up turn'
     'down turn';
@@ -203,17 +210,41 @@ body {
   border-radius: 18px;
 }
 
-.arrow-btn.left,
-.arrow-btn.right {
+.side-arrows .arrow-btn.left,
+.side-arrows .arrow-btn.right {
   grid-area: turn;
 }
 
-.arrow-btn.up {
+.side-arrows .arrow-btn.up {
   grid-area: up;
 }
 
-.arrow-btn.down {
+.side-arrows .arrow-btn.down {
   grid-area: down;
+}
+
+/* Split: two tall turn buttons side by side under one thumb, two wide climb buttons stacked under
+   the other. Turning is on the left unless Swap sides (body.split-swap) mirrors them. */
+.split-turn {
+  grid-template-columns: var(--btn) var(--btn);
+  grid-template-rows: calc(var(--half) * 2 + var(--gap));
+  left: var(--edge-l);
+}
+
+.split-climb {
+  grid-template-columns: calc(var(--btn) * 2 + var(--gap));
+  grid-template-rows: var(--half) var(--half);
+  right: var(--edge-r);
+}
+
+body.split-swap .split-turn {
+  left: auto;
+  right: var(--edge-r);
+}
+
+body.split-swap .split-climb {
+  right: auto;
+  left: var(--edge-l);
 }
 
 .arrow-btn.on {
@@ -263,13 +294,18 @@ body {
   box-shadow: 0 0 18px rgba(255, 220, 140, 0.7);
 }
 
-/* With side arrows, Boost sits just above the right cluster, centred over it. */
-body.steer-arrows .boost-btn {
+/* With arrow clusters, Boost sits just above the right cluster (Split: above up and down,
+   wherever they are), centred over it. */
+body.steer-arrows .boost-btn,
+body.steer-split .boost-btn {
   --size: 76px;
-  right: calc(
-    max(20px, env(safe-area-inset-right)) + var(--btn) + var(--gap) / 2 - var(--size) / 2
-  );
+  right: calc(var(--edge-r) + var(--btn) + var(--gap) / 2 - var(--size) / 2);
   bottom: calc(var(--cluster-bottom) + var(--half) * 2 + var(--gap) + 14px);
+}
+
+body.steer-split.split-swap .boost-btn {
+  right: auto;
+  left: calc(var(--edge-l) + var(--btn) + var(--gap) / 2 - var(--size) / 2);
 }
 
 /* HUD */
@@ -675,13 +711,16 @@ body.touch .controls-list.touch-only {
 
 .controls.touch-dpad,
 .controls.touch-arrows,
+.controls.touch-split,
 body.steer-dpad .controls.touch-drag,
-body.steer-arrows .controls.touch-drag {
+body.steer-arrows .controls.touch-drag,
+body.steer-split .controls.touch-drag {
   display: none;
 }
 
 body.steer-dpad .controls.touch-dpad,
-body.steer-arrows .controls.touch-arrows {
+body.steer-arrows .controls.touch-arrows,
+body.steer-split .controls.touch-split {
   display: block;
 }
 
@@ -742,6 +781,11 @@ body.touch .settings label.touch-only {
 
 body.touch .settings label.touch-only.row {
   display: flex;
+}
+
+/* Swap sides only means something for Split steering. */
+body:not(.steer-split) .settings label.touch-only.split-only {
+  display: none;
 }
 
 .settings input[type='range'] {
@@ -886,7 +930,8 @@ body.touch .settings label.touch-only.row {
     --btn: 56px;
     --half: 44px;
   }
-  body.steer-arrows .boost-btn {
+  body.steer-arrows .boost-btn,
+  body.steer-split .boost-btn {
     --size: 68px;
   }
   .card h1 {

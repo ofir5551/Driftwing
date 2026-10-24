@@ -79,6 +79,7 @@ export const Config = {
     doubleTap: 0.26, // s between two presses of a direction that make a trick gesture
     flickDistance: 110, // px the steering finger must travel within flickTime to flick a trick
     flickTime: 0.12, // s
+    padDeadZone: 0.22, // fraction of the D-pad's radius round its centre that presses nothing
     invertY: false,
   },
   fjord: {

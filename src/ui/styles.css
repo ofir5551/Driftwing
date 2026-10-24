@@ -73,6 +73,205 @@ body {
   background: rgba(255, 255, 255, 0.7);
 }
 
+/* On-screen touch steering (the D-pad and Side arrows settings), shown only while playing. */
+.dpad,
+.boost-btn,
+.arrow-btn {
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 250, 240, 0.12);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+
+.dpad,
+.boost-btn,
+.side-arrows {
+  display: none;
+  position: fixed;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.touch .dpad.show,
+body.touch .boost-btn.show {
+  display: block;
+}
+
+body.touch .side-arrows.show {
+  display: grid;
+}
+
+.dpad {
+  --arm: 44px; /* centre to arrow */
+  left: max(28px, env(safe-area-inset-left));
+  width: 136px;
+  height: 136px;
+  border-radius: 50%;
+}
+
+.dpad.on {
+  background: rgba(255, 250, 240, 0.2);
+}
+
+/* A chevron: two borders of a square, turned to point its way. */
+.dpad-arrow,
+.arrow-btn::before {
+  position: absolute;
+  left: calc(50% - 8px);
+  top: calc(50% - 8px);
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-top: 3px solid rgba(255, 255, 255, 0.6);
+  border-left: 3px solid rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  transition:
+    border-color 0.1s,
+    filter 0.1s;
+}
+
+.dpad-arrow.up {
+  transform: translateY(calc(var(--arm) * -1)) rotate(45deg);
+}
+
+.dpad-arrow.right {
+  transform: translateX(var(--arm)) rotate(135deg);
+}
+
+.dpad-arrow.down {
+  transform: translateY(var(--arm)) rotate(225deg);
+}
+
+.dpad-arrow.left {
+  transform: translateX(calc(var(--arm) * -1)) rotate(315deg);
+}
+
+.dpad-arrow.on,
+.arrow-btn.on::before {
+  border-color: #fff;
+  filter: drop-shadow(0 0 5px rgba(255, 220, 140, 0.95));
+}
+
+.dpad-knob {
+  position: absolute;
+  left: calc(50% - 17px);
+  top: calc(50% - 17px);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+/* Side arrows: a cluster under each thumb, a tall turn button on the outside with up and down
+   stacked just inside it, lifted a little off the bottom edge to where thumbs rest. */
+body {
+  --btn: 62px; /* side arrow sizes and spacing, shared with the Boost button above them */
+  --half: 50px;
+  --gap: 8px;
+  --cluster-bottom: max(28px, 9vh, env(safe-area-inset-bottom));
+}
+
+.side-arrows {
+  bottom: var(--cluster-bottom);
+  grid-template-columns: var(--btn) var(--btn);
+  grid-template-rows: var(--half) var(--half);
+  gap: var(--gap);
+  grid-template-areas:
+    'turn up'
+    'turn down';
+}
+
+.side-arrows.left {
+  left: max(20px, env(safe-area-inset-left));
+}
+
+.side-arrows.right {
+  right: max(20px, env(safe-area-inset-right));
+  grid-template-areas:
+    'up turn'
+    'down turn';
+}
+
+.arrow-btn {
+  position: relative;
+  border-radius: 18px;
+}
+
+.arrow-btn.left,
+.arrow-btn.right {
+  grid-area: turn;
+}
+
+.arrow-btn.up {
+  grid-area: up;
+}
+
+.arrow-btn.down {
+  grid-area: down;
+}
+
+.arrow-btn.on {
+  background: rgba(255, 250, 240, 0.32);
+  box-shadow: 0 0 14px rgba(255, 220, 140, 0.55);
+}
+
+/* The chevron's corner is its tip, so nudge it back a little to look centred. */
+.arrow-btn::before {
+  content: '';
+}
+
+.arrow-btn.up::before {
+  transform: translateY(3px) rotate(45deg);
+}
+
+.arrow-btn.right::before {
+  transform: translateX(-3px) rotate(135deg);
+}
+
+.arrow-btn.down::before {
+  transform: translateY(-3px) rotate(225deg);
+}
+
+.arrow-btn.left::before {
+  transform: translateX(3px) rotate(315deg);
+}
+
+.boost-btn {
+  --size: 88px;
+  right: max(28px, env(safe-area-inset-right));
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(60, 40, 80, 0.45);
+}
+
+.boost-btn.on {
+  background: rgba(255, 250, 240, 0.34);
+  box-shadow: 0 0 18px rgba(255, 220, 140, 0.7);
+}
+
+/* With side arrows, Boost sits just above the right cluster, centred over it. */
+body.steer-arrows .boost-btn {
+  --size: 76px;
+  right: calc(
+    max(20px, env(safe-area-inset-right)) + var(--btn) + var(--gap) / 2 - var(--size) / 2
+  );
+  bottom: calc(var(--cluster-bottom) + var(--half) * 2 + var(--gap) + 14px);
+}
+
 /* HUD */
 .hud {
   position: fixed;
@@ -474,6 +673,18 @@ body.touch .controls-list.touch-only {
   display: block;
 }
 
+.controls.touch-dpad,
+.controls.touch-arrows,
+body.steer-dpad .controls.touch-drag,
+body.steer-arrows .controls.touch-drag {
+  display: none;
+}
+
+body.steer-dpad .controls.touch-dpad,
+body.steer-arrows .controls.touch-arrows {
+  display: block;
+}
+
 .controls {
   list-style: none;
   padding: 0;
@@ -526,6 +737,10 @@ body.touch .controls-list.touch-only {
 }
 
 body.touch .settings label.touch-only {
+  display: grid;
+}
+
+body.touch .settings label.touch-only.row {
   display: flex;
 }
 
@@ -659,6 +874,21 @@ body.touch .settings label.touch-only {
 }
 
 @media (max-height: 520px) {
+  .dpad {
+    --arm: 38px;
+    width: 118px;
+    height: 118px;
+  }
+  .boost-btn {
+    --size: 76px;
+  }
+  body {
+    --btn: 56px;
+    --half: 44px;
+  }
+  body.steer-arrows .boost-btn {
+    --size: 68px;
+  }
   .card h1 {
     font-size: 54px;
   }

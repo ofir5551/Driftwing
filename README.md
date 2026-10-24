@@ -102,6 +102,7 @@ npm run dev        # http://localhost:5173
 | ------------ | -------------------------------------------- | --------------------------------------------- | ---------- |
 | Steer        | Pointer offset from centre, or WASD / arrows | Drag anywhere (relative to where you touched) | Left stick |
 | Boost (flap) | Click or hold Space                          | Tap or hold a second finger while steering    | A / RT     |
+| Buttons mode |                                              | Pause menu → Steering: D-pad or Side arrows   |            |
 | Pause        | P or Esc                                     | Pause button (top right)                      | Start      |
 | Mute         | M                                            | Pause menu                                    |            |
 | Pointer lock | L (optional, relative mouse steering)        |                                               |            |

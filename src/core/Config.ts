@@ -103,6 +103,28 @@ export const Config = {
     windows: 1, // brightness of hut windows and the lighthouse after dark
     beamSpeed: 0.5, // rad/s, the lighthouse beam's sweep
   },
+  jerusalem: {
+    // Plan (read when a level is created).
+    plateau: 64, // m, the Old City's ground inside the walls (it tilts a little, see the layout)
+    wallHeight: 13, // m, the walls stand this far above the city's ground
+    towerEvery: 46, // m between wall towers
+    fabricRoof: 9, // m, the Old City's roofscape counts as soft ground this high
+    townRoof: 11, // m, hill-town and new-city roofs count as soft ground this high
+    forestCanopy: 9, // m, pine forest counts as soft ground this high
+    hillScale: 0.0013, // frequency of the rolling Judean hills
+    hills: 46, // m, swell of the hills either way
+    wadiScale: 0.0009, // frequency of the wadi noise: a valley every ~1 km
+    wadiDepth: 34, // m, how deep a wadi cuts below the hills
+    wadiWidth: 150, // m, half width of a wadi from its floor to its rim
+    terraceStep: 3, // m, rise of one olive terrace
+    // Atmosphere and light.
+    mist: 0.35, // morning mist pooled in the valleys (it burns off by day)
+    mistTop: 46, // m, the valley mist lies below this
+    mistFar: 0.2, // distance haze: far hills fade in layers
+    hillsDistance: 3200, // m, how far the painted hills on the horizon pretend to be
+    flood: 1, // floodlight on the walls and landmarks after dark
+    lights: 1, // brightness of windows and lamps after dark
+  },
   world: {
     seed: 1337,
     chunkSize: 160,

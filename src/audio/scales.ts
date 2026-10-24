@@ -17,6 +17,10 @@ export const MODES = {
   jue: [0, 3, 5, 8, 10],
   // Minor third with a major sixth: the dorian colour of Nordic folk tunes, in five notes.
   dorianPenta: [0, 2, 3, 7, 9],
+  // Maqam colours for the City of Gold, in five notes: hijaz's lower jins (the semitone and
+  // the augmented second) and its fifth; nahawand's minor tetrachord and fifth.
+  hijaz: [0, 1, 4, 5, 7],
+  nahawand: [0, 2, 3, 5, 7],
 } as const;
 
 export type ModeName = keyof typeof MODES;
@@ -66,6 +70,18 @@ export const FJORD_KEYS: DayKey[] = [
   { root: 57, mode: 'dorianPenta' }, // A, golden hour
   { root: 62, mode: 'minorPenta' }, // D, dusk
   { root: 59, mode: 'dorianPenta' }, // B, twilight (the aurora)
+];
+
+/**
+ * City of Gold's keys: hijaz in the golden hour it opens on and after dark, the softer
+ * nahawand at dawn and dusk, an open major pentatonic in the bright midday.
+ */
+export const JERUSALEM_KEYS: DayKey[] = [
+  { root: 62, mode: 'nahawand' }, // D, dawn
+  { root: 60, mode: 'majorPenta' }, // C, day
+  { root: 64, mode: 'hijaz' }, // E, golden hour
+  { root: 57, mode: 'nahawand' }, // A, dusk
+  { root: 62, mode: 'hijaz' }, // D, twilight
 ];
 
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

@@ -6,7 +6,7 @@ import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 
-export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord';
+export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord' | 'jerusalem';
 
 /**
  * Everything level-specific about the world the bird flies through: terrain, scenery, what
@@ -66,6 +66,13 @@ export interface LevelDef {
   backdrop: Backdrop;
   /** The level's own palettes per time of day (default: the shared DAY_SKY). */
   sky?: SkyKey[];
+  /**
+   * Radians added to the sun's path round the sky (default 0), so a level can put its light
+   * behind its signature view.
+   */
+  sunTurn?: number;
+  /** Metres the sky's clouds float higher than usual (a level on high ground; default 0). */
+  cloudLift?: number;
   /** Multiplier on the post pass's saturation (an ink-wash level mutes its colour). */
   saturation?: number;
   /** Soft ceiling, m above water (copied into Config.flight.maxAltitude on a level switch). */

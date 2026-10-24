@@ -39,6 +39,7 @@ uniform float uTime;
 uniform float uDomain;
 uniform vec2 uWind;
 uniform float uSquash;
+uniform float uLift;
 varying vec2 vUv;
 varying float vFade;
 varying float vShade;
@@ -48,7 +49,7 @@ void main() {
   float scale = length(instanceMatrix[0].xyz);
   vec2 rel = base.xz + uWind * uTime - uOrigin.xz;
   rel = mod(rel + 0.5 * uDomain, uDomain) - 0.5 * uDomain;
-  vec3 center = vec3(uOrigin.x + rel.x, base.y, uOrigin.z + rel.y);
+  vec3 center = vec3(uOrigin.x + rel.x, base.y + uLift, uOrigin.z + rel.y);
   vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec3 wp = center + (right * position.x + up * position.y * uSquash) * scale;
@@ -84,6 +85,8 @@ void main() {
 
 export class Clouds {
   readonly mesh: THREE.InstancedMesh;
+  /** Metres the whole layer floats higher (a level on high ground lifts the sky's clouds). */
+  lift = 0;
   private readonly u: Record<string, THREE.IUniform>;
   private readonly layer: CloudLayer;
 
@@ -100,6 +103,7 @@ export class Clouds {
       uShadow: { value: new THREE.Color() },
       uOpacity: { value: L.opacity },
       uSquash: { value: L.squash },
+      uLift: { value: 0 },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -135,6 +139,7 @@ export class Clouds {
     const p = day.palette;
     this.u.uOrigin.value.copy(origin);
     this.u.uTime.value = time;
+    this.u.uLift.value = this.lift;
     this.u.uDomain.value = Config.render.drawDistance * 1.9;
     const w = Config.world.cloudDrift;
     this.u.uWind.value.set(w, w * 0.4);

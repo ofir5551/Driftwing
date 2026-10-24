@@ -13,8 +13,8 @@ import { DirectionPad, type SteerHandlers } from './DirectionPad';
  * there is no button to find and nothing covers the view. A fast flick of the steering finger
  * is a trick gesture (see Gestures). The Steering setting can swap all of this for on-screen
  * buttons, a D-pad (DirectionPad), side arrows (ArrowClusters) or split, two D-pads (the left
- * one without a right turn, the right one without a left), plus a Boost button; touches elsewhere
- * then do nothing.
+ * one without a right turn, the right one without a left, one in use at a time), plus a Boost
+ * button; touches elsewhere then do nothing.
  */
 export class TouchControls {
   steerX = 0;
@@ -70,22 +70,22 @@ export class TouchControls {
     };
     this.pad = new DirectionPad(ui, buttons);
     this.arrows = new ArrowClusters(ui, SIDE_ARROWS, buttons);
-    // Split: each pad steers its own share and the two add up, so opposite pushes (up on one,
-    // down on the other) cancel out as opposite keys do.
-    const share = [0, 0, 0, 0];
-    const half = (i: number): SteerHandlers => ({
-      steer: (x, y) => {
-        share[i * 2] = x;
-        share[i * 2 + 1] = y;
-        this.steerX = clamp(share[0] + share[2], -1, 1);
-        this.steerY = clamp(share[1] + share[3], -1, 1);
-      },
-      trick: buttons.trick,
-    });
-    this.split = [
-      new DirectionPad(ui, half(0), { cls: 'split-left', without: 'right' }),
-      new DirectionPad(ui, half(1), { cls: 'split-right', without: 'left' }),
-    ];
+    // Split: one pad at a time. While a thumb holds one, the other ignores touches (and dims), so
+    // the held pad alone steers and turning left and right can never mix.
+    this.split = [];
+    const other = (i: number) => this.split[1 - i];
+    this.split.push(
+      new DirectionPad(ui, buttons, {
+        cls: 'split-left',
+        without: 'right',
+        accept: () => !other(0).held,
+      }),
+      new DirectionPad(ui, buttons, {
+        cls: 'split-right',
+        without: 'left',
+        accept: () => !other(1).held,
+      }),
+    );
     this.boost = new BoostButton(ui, (down) => this.setFlap(down));
 
     surface.addEventListener(

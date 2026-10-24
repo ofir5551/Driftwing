@@ -33,9 +33,9 @@ the edge (left on the left, right on the right) with up and down stacked just in
 a short nudge away. Up and down are on both sides so two thumbs reach every diagonal; a thumb slides
 between its buttons (the nearest one is pressed). Boost sits above the right cluster. Or Split: a
 D-pad under each thumb, the left one without a right arrow and the right one without a left, both
-climbing and diving (the two add up, so opposite pushes cancel); Boost sits above the right pad.
-Either way, double-tap an arrow for a trick, as on the keyboard. Drag stays the default. Gamepad:
-left stick + A.
+climbing and diving. One pad works at a time: while one is held the other ignores touches and fades,
+so the turns never mix. Boost sits above the right pad. Either way, double-tap an arrow for a trick,
+as on the keyboard. Drag stays the default. Gamepad: left stick + A.
 A Controls panel (title and pause screens) lists the controls for the current device.
 
 ## World

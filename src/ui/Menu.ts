@@ -37,7 +37,7 @@ const CONTROLS_HTML = `<h2>Controls</h2>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls touch-split">
-      <li><b>Two pads</b>: the left one turns <b>left</b>, the right one turns <b>right</b>, and both climb and dive. Rest between two arrows for a diagonal, or slide round without lifting</li>
+      <li><b>Two pads</b>: the left one turns <b>left</b>, the right one turns <b>right</b>, and both climb and dive. One works at a time: while you hold one, the other rests. Rest between two arrows for a diagonal, or slide round without lifting</li>
       <li><b>Boost</b> above the right pad to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>

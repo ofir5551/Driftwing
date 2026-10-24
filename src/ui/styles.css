@@ -240,6 +240,19 @@ body {
   right: var(--edge-r);
 }
 
+/* One split pad at a time: the one not in use fades while the other is held. */
+.dpad.split-left,
+.dpad.split-right {
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+
+#ui:has(.dpad.split-left.on) .dpad.split-right,
+#ui:has(.dpad.split-right.on) .dpad.split-left {
+  opacity: 0.35;
+}
+
 .arrow-btn.on {
   background: rgba(255, 250, 240, 0.32);
   box-shadow: 0 0 14px rgba(255, 220, 140, 0.55);

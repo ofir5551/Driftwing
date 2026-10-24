@@ -2,6 +2,8 @@ export interface FingerHandlers {
   down(x: number, y: number, now: number): void;
   move(x: number, y: number, now: number): void;
   up(): void;
+  /** Whether a new finger may take the control now (default: always). */
+  accept?(): boolean;
 }
 
 /**
@@ -22,7 +24,7 @@ export class Finger {
       'touchstart',
       (e) => {
         e.preventDefault();
-        if (this.id !== null) return;
+        if (this.id !== null || h.accept?.() === false) return;
         const t = e.changedTouches[0];
         this.id = t.identifier;
         el.classList.add('on');
@@ -44,6 +46,11 @@ export class Finger {
     };
     el.addEventListener('touchend', end);
     el.addEventListener('touchcancel', end);
+  }
+
+  /** True while a finger holds the control. */
+  get held(): boolean {
+    return this.id !== null;
   }
 
   /** Let go as if the finger lifted (e.g. when the control is hidden). */

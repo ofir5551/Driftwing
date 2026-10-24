@@ -13,6 +13,8 @@ export interface PadOptions {
   cls?: string;
   /** A turn this pad never makes (Split: the left pad has no right, the right pad no left). */
   without?: 'left' | 'right';
+  /** Whether a thumb may take the pad now (Split: not while the other pad is held). */
+  accept?: () => boolean;
 }
 
 /** Arrow order in the DOM. */
@@ -68,6 +70,7 @@ export class DirectionPad {
         this.knob.style.transform = '';
         this.set(0, 0);
       },
+      accept: opts.accept,
     });
   }
 
@@ -104,6 +107,11 @@ export class DirectionPad {
       this.arrows[i].classList.toggle('on', on);
     });
     this.h.steer(x, y);
+  }
+
+  /** True while a thumb holds the pad. */
+  get held(): boolean {
+    return this.finger.held;
   }
 
   /** Hiding lets go of anything held. */

@@ -22,14 +22,22 @@ export interface MenuHandlers {
   change(s: Settings): void;
 }
 
-/** The Controls panel. Both lists are built; `body.touch` picks the one for this device. */
+/** The Controls panel. Every list is built; `body.touch` picks the one for this device and
+ *  `body.steer-buttons` the touch steering scheme. */
 const CONTROLS_HTML = `<h2>Controls</h2>
   <div class="controls-list touch-only">
-    <ul class="controls">
+    <ul class="controls touch-drag">
       <li><b>Drag</b> anywhere to steer, relative to where your finger went down</li>
       <li><b>Tap with a second finger</b> while steering to boost (hold to keep flapping)</li>
       <li><b>Flick</b> the steering finger for a trick: left or right rolls, up loops, down dives. Keep pushing to stretch it</li>
-      <li><b>Pause</b> with the button at the top right</li>
+    </ul>
+    <ul class="controls touch-buttons">
+      <li><b>Arrows</b> at the bottom left to steer; rest between two for a diagonal, or slide round without lifting</li>
+      <li><b>Boost</b> at the bottom right to flap (hold to keep flapping)</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+    </ul>
+    <ul class="controls">
+      <li><b>Pause</b> with the button at the top right. Pick <b>Drag</b> or <b>Buttons</b> steering there</li>
     </ul>
   </div>
   <div class="controls-list desktop-only">
@@ -107,6 +115,11 @@ export class Menu {
            </select>
          </label>
          <label class="row"><input type="checkbox" id="invert"> Invert vertical steering</label>
+         <label class="touch-only">Steering
+           <select id="steer">
+             <option value="drag">Drag anywhere</option><option value="buttons">Buttons</option>
+           </select>
+         </label>
        </div>`,
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
@@ -141,11 +154,13 @@ export class Menu {
     const mute = this.pause.querySelector<HTMLInputElement>('#mute')!;
     const quality = this.pause.querySelector<HTMLSelectElement>('#quality')!;
     const invert = this.pause.querySelector<HTMLInputElement>('#invert')!;
+    const steer = this.pause.querySelector<HTMLSelectElement>('#steer')!;
     const sync = () => {
       vol.value = String(settings.volume);
       mute.checked = settings.muted;
       quality.value = settings.quality;
       invert.checked = settings.invertY;
+      steer.value = settings.touchSteer;
     };
     sync();
     this.syncInputs = sync;
@@ -154,9 +169,10 @@ export class Menu {
       settings.muted = mute.checked;
       settings.quality = quality.value as Settings['quality'];
       settings.invertY = invert.checked;
+      settings.touchSteer = steer.value as Settings['touchSteer'];
       h.change(settings);
     };
-    for (const el of [vol, mute, quality, invert]) el.addEventListener('input', changed);
+    for (const el of [vol, mute, quality, invert, steer]) el.addEventListener('input', changed);
     // Keep keyboard/mouse events on menus from steering or flapping the bird.
     for (const p of [this.start, this.pause, this.help])
       p.addEventListener('pointerdown', (e) => e.stopPropagation());

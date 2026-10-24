@@ -1,8 +1,9 @@
 import { Config } from './Config';
 
 /**
- * Trick gestures, kept free of the DOM so they are unit-tested: a double tap of a direction
- * (keys, gamepad stick) and a flick of the steering finger. Times are in seconds.
+ * Touch and trick gestures, kept free of the DOM so they are unit-tested: a double tap of a
+ * direction (keys, gamepad stick, D-pad), a flick of the steering finger and the D-pad's
+ * eight-way press. Times are in seconds.
  */
 export type Dir = 'left' | 'right' | 'up' | 'down';
 
@@ -65,4 +66,29 @@ export class Flick {
     this.head = (this.head + 1) % SAMPLES;
     this.n = Math.min(this.n + 1, SAMPLES);
   }
+}
+
+/** tan(22.5 deg): splits the D-pad into eight equal 45 degree sectors, four arrows and four diagonals. */
+const DIAGONAL = Math.tan(Math.PI / 8);
+
+/**
+ * D-pad: what a thumb at (dx, dy) px from the pad's centre (screen y down) presses. Nothing inside
+ * the dead zone; otherwise an axis counts while the thumb is within 67.5 degrees of it, so resting
+ * between two arrows presses both. Writes -1, 0 or 1 into out (y up, like steering).
+ */
+export function padPress(
+  dx: number,
+  dy: number,
+  deadZone: number,
+  out: { x: number; y: number },
+): void {
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  if (dx * dx + dy * dy < deadZone * deadZone) {
+    out.x = 0;
+    out.y = 0;
+    return;
+  }
+  out.x = ax > ay * DIAGONAL ? Math.sign(dx) : 0;
+  out.y = ay > ax * DIAGONAL ? -Math.sign(dy) : 0;
 }

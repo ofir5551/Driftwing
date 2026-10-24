@@ -30,6 +30,7 @@ function applySettings(s: Settings): void {
   audio.engine.setVolume(s.volume);
   audio.engine.setMuted(s.muted);
   Config.input.invertY = s.invertY;
+  game.input.touch.setScheme(s.touchSteer);
   if (!params.has('quality')) {
     game.autoQuality = s.quality === 'auto';
     if (s.quality !== 'auto' && s.quality !== game.quality) game.setQuality(s.quality);
@@ -66,6 +67,12 @@ let playTime = 0;
 let hintShown = false;
 let boostHintShown = false;
 const isTouch = () => document.body.classList.contains('touch');
+const flapHint = () =>
+  !isTouch()
+    ? 'Hold Space or click to boost'
+    : settings.touchSteer === 'buttons'
+      ? 'Tap Boost to flap'
+      : 'Tap with a second finger to boost';
 
 const handlers: MenuHandlers = {
   play() {
@@ -130,18 +137,15 @@ game.onFrame((dt) => {
   }
   if (game.mode === 'playing') {
     playTime += dt;
-    // Touch has no boost button, so say how to boost once "Follow the wisps" has faded.
+    // Drag steering has no boost button, so say how to boost once "Follow the wisps" has faded.
     if (!boostHintShown && playTime > 3.4) {
       boostHintShown = true;
-      if (isTouch()) gameplay.hud.toast('Tap with a second finger to boost', 4);
+      if (isTouch() && settings.touchSteer === 'drag') gameplay.hud.toast(flapHint(), 4);
     }
     // One gentle nudge if the player hasn't discovered flapping yet.
     if (!hintShown && !flapped && playTime > 14) {
       hintShown = true;
-      gameplay.hud.toast(
-        isTouch() ? 'Tap with a second finger to boost' : 'Hold Space or click to boost',
-        4,
-      );
+      gameplay.hud.toast(flapHint(), 4);
     }
   }
 });

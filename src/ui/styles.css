@@ -73,6 +73,107 @@ body {
   background: rgba(255, 255, 255, 0.7);
 }
 
+/* Touch "Buttons" steering: D-pad bottom left, boost bottom right, only while playing. */
+.dpad,
+.boost-btn {
+  display: none;
+  position: fixed;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 250, 240, 0.12);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+
+body.touch .dpad.show,
+body.touch .boost-btn.show {
+  display: block;
+}
+
+.dpad {
+  --arm: 44px; /* centre to arrow */
+  left: max(28px, env(safe-area-inset-left));
+  width: 136px;
+  height: 136px;
+}
+
+.dpad.on {
+  background: rgba(255, 250, 240, 0.2);
+}
+
+/* A chevron: two borders of a square, turned to point out from the centre. */
+.dpad-arrow {
+  position: absolute;
+  left: calc(50% - 8px);
+  top: calc(50% - 8px);
+  width: 16px;
+  height: 16px;
+  border-top: 3px solid rgba(255, 255, 255, 0.6);
+  border-left: 3px solid rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  transition:
+    border-color 0.1s,
+    filter 0.1s;
+}
+
+.dpad-arrow.up {
+  transform: translateY(calc(var(--arm) * -1)) rotate(45deg);
+}
+
+.dpad-arrow.right {
+  transform: translateX(var(--arm)) rotate(135deg);
+}
+
+.dpad-arrow.down {
+  transform: translateY(var(--arm)) rotate(225deg);
+}
+
+.dpad-arrow.left {
+  transform: translateX(calc(var(--arm) * -1)) rotate(315deg);
+}
+
+.dpad-arrow.on {
+  border-color: #fff;
+  filter: drop-shadow(0 0 5px rgba(255, 220, 140, 0.95));
+}
+
+.dpad-knob {
+  position: absolute;
+  left: calc(50% - 17px);
+  top: calc(50% - 17px);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.boost-btn {
+  right: max(28px, env(safe-area-inset-right));
+  width: 88px;
+  height: 88px;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(60, 40, 80, 0.45);
+}
+
+.boost-btn.on {
+  background: rgba(255, 250, 240, 0.34);
+  box-shadow: 0 0 18px rgba(255, 220, 140, 0.7);
+}
+
 /* HUD */
 .hud {
   position: fixed;
@@ -474,6 +575,15 @@ body.touch .controls-list.touch-only {
   display: block;
 }
 
+.controls.touch-buttons,
+body.steer-buttons .controls.touch-drag {
+  display: none;
+}
+
+body.steer-buttons .controls.touch-buttons {
+  display: block;
+}
+
 .controls {
   list-style: none;
   padding: 0;
@@ -526,6 +636,10 @@ body.touch .controls-list.touch-only {
 }
 
 body.touch .settings label.touch-only {
+  display: grid;
+}
+
+body.touch .settings label.touch-only.row {
   display: flex;
 }
 
@@ -659,6 +773,15 @@ body.touch .settings label.touch-only {
 }
 
 @media (max-height: 520px) {
+  .dpad {
+    --arm: 38px;
+    width: 118px;
+    height: 118px;
+  }
+  .boost-btn {
+    width: 76px;
+    height: 76px;
+  }
   .card h1 {
     font-size: 54px;
   }

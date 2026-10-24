@@ -36,13 +36,18 @@ const CONTROLS_HTML = `<h2>Controls</h2>
       <li><b>Boost</b> at the bottom right to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
+    <ul class="controls touch-split">
+      <li><b>Left</b> and <b>right</b> under one thumb, <b>up</b> and <b>down</b> under the other; <b>Swap sides</b> in the pause menu switches them. Slide between a pair without lifting</li>
+      <li><b>Boost</b> above up and down to flap (hold to keep flapping)</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+    </ul>
     <ul class="controls touch-arrows">
       <li><b>Left</b> and <b>right</b> under each thumb, with <b>up</b> and <b>down</b> beside both, so one thumb turns while the other climbs or dives. Slide between them without lifting</li>
       <li><b>Boost</b> above the right arrows to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls">
-      <li><b>Pause</b> with the button at the top right. Pick <b>Drag</b>, <b>D-pad</b> or <b>Side arrows</b> steering there</li>
+      <li><b>Pause</b> with the button at the top right. Pick <b>Drag</b>, <b>D-pad</b>, <b>Side arrows</b> or <b>Split</b> steering there</li>
     </ul>
   </div>
   <div class="controls-list desktop-only">
@@ -124,8 +129,10 @@ export class Menu {
            <select id="steer">
              <option value="drag">Drag anywhere</option><option value="dpad">D-pad</option>
              <option value="arrows">Side arrows</option>
+             <option value="split">Split</option>
            </select>
          </label>
+         <label class="row touch-only split-only"><input type="checkbox" id="split-swap"> Swap sides</label>
        </div>`,
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
@@ -161,12 +168,14 @@ export class Menu {
     const quality = this.pause.querySelector<HTMLSelectElement>('#quality')!;
     const invert = this.pause.querySelector<HTMLInputElement>('#invert')!;
     const steer = this.pause.querySelector<HTMLSelectElement>('#steer')!;
+    const swap = this.pause.querySelector<HTMLInputElement>('#split-swap')!;
     const sync = () => {
       vol.value = String(settings.volume);
       mute.checked = settings.muted;
       quality.value = settings.quality;
       invert.checked = settings.invertY;
       steer.value = settings.touchSteer;
+      swap.checked = settings.splitSwap;
     };
     sync();
     this.syncInputs = sync;
@@ -176,9 +185,11 @@ export class Menu {
       settings.quality = quality.value as Settings['quality'];
       settings.invertY = invert.checked;
       settings.touchSteer = steer.value as Settings['touchSteer'];
+      settings.splitSwap = swap.checked;
       h.change(settings);
     };
-    for (const el of [vol, mute, quality, invert, steer]) el.addEventListener('input', changed);
+    for (const el of [vol, mute, quality, invert, steer, swap])
+      el.addEventListener('input', changed);
     // Keep keyboard/mouse events on menus from steering or flapping the bird.
     for (const p of [this.start, this.pause, this.help])
       p.addEventListener('pointerdown', (e) => e.stopPropagation());

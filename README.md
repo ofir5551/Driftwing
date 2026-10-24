@@ -98,14 +98,14 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-| Action       | Mouse / keyboard                             | Touch                                         | Gamepad    |
-| ------------ | -------------------------------------------- | --------------------------------------------- | ---------- |
-| Steer        | Pointer offset from centre, or WASD / arrows | Drag anywhere (relative to where you touched) | Left stick |
-| Boost (flap) | Click or hold Space                          | Tap or hold a second finger while steering    | A / RT     |
-| Buttons mode |                                              | Pause menu → Steering: D-pad or Side arrows   |            |
-| Pause        | P or Esc                                     | Pause button (top right)                      | Start      |
-| Mute         | M                                            | Pause menu                                    |            |
-| Pointer lock | L (optional, relative mouse steering)        |                                               |            |
+| Action       | Mouse / keyboard                             | Touch                                            | Gamepad    |
+| ------------ | -------------------------------------------- | ------------------------------------------------ | ---------- |
+| Steer        | Pointer offset from centre, or WASD / arrows | Drag anywhere (relative to where you touched)    | Left stick |
+| Boost (flap) | Click or hold Space                          | Tap or hold a second finger while steering       | A / RT     |
+| Buttons mode |                                              | Pause menu → Steering: D-pad, Side arrows, Split |            |
+| Pause        | P or Esc                                     | Pause button (top right)                         | Start      |
+| Mute         | M                                            | Pause menu                                       |            |
+| Pointer lock | L (optional, relative mouse steering)        |                                                  |            |
 
 Fly through wisps to score. Quick chains fill the **flow** ring, which multiplies points (up to
 5x) and brings extra layers into the music. Every 24 wisps a lantern ignites ahead of you and

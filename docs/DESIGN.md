@@ -31,9 +31,10 @@ flapping): a D-pad, eight-way at the bottom left (rest between two arrows for a 
 round without lifting), or Side arrows, a compact cluster under each thumb: a tall turn button at
 the edge (left on the left, right on the right) with up and down stacked just inside it, so each is
 a short nudge away. Up and down are on both sides so two thumbs reach every diagonal; a thumb slides
-between its buttons (the nearest one is pressed). Boost sits above the right cluster. Either way,
-double-tap an arrow for a trick, as on the keyboard. Drag stays the default. Gamepad: left stick +
-A.
+between its buttons (the nearest one is pressed). Boost sits above the right cluster. Or Split: left
+and right (two tall buttons) under one thumb, up and down (two wide ones) under the other, turning
+on the left unless Swap sides mirrors them; Boost sits above up and down. Either way, double-tap an
+arrow for a trick, as on the keyboard. Drag stays the default. Gamepad: left stick + A.
 A Controls panel (title and pause screens) lists the controls for the current device.
 
 ## World

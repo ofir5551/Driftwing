@@ -8,6 +8,15 @@ export interface SteerHandlers {
   trick(dir: Dir): void;
 }
 
+export interface PadOptions {
+  /** Extra CSS class, which places the pad. */
+  cls?: string;
+  /** A turn this pad never makes (Split: the left pad has no right, the right pad no left). */
+  without?: 'left' | 'right';
+  /** Whether a thumb may take the pad now (Split: not while the other pad is held). */
+  accept?: () => boolean;
+}
+
 /** Arrow order in the DOM. */
 const ARROWS: readonly Dir[] = ['up', 'right', 'down', 'left'];
 
@@ -15,12 +24,13 @@ const ARROWS: readonly Dir[] = ['up', 'right', 'down', 'left'];
  * Touch "D-pad" steering: an eight-way pad at the bottom left. The pad follows the finger that
  * went down on it, so the thumb can rest between two arrows for a diagonal and slide round (even
  * off the rim) without lifting, like a controller's D-pad. Double-tapping an arrow is a trick, as
- * on the keyboard.
+ * on the keyboard. Split steering uses two of these, each without the other side's turn.
  */
 export class DirectionPad {
   private readonly el: HTMLDivElement;
   private readonly knob: HTMLDivElement;
   private readonly arrows: HTMLSpanElement[];
+  private readonly dirs: readonly Dir[];
   private readonly finger: Finger;
   private readonly taps = new DoubleTap();
   private readonly press = { x: 0, y: 0 };
@@ -34,12 +44,14 @@ export class DirectionPad {
   constructor(
     ui: HTMLElement,
     private readonly h: SteerHandlers,
+    private readonly opts: PadOptions = {},
   ) {
+    this.dirs = ARROWS.filter((d) => d !== opts.without);
     this.el = document.createElement('div');
-    this.el.className = 'dpad';
+    this.el.className = opts.cls ? `dpad ${opts.cls}` : 'dpad';
     this.el.setAttribute('aria-hidden', 'true');
     this.el.innerHTML =
-      ARROWS.map((d) => `<span class="dpad-arrow ${d}"></span>`).join('') +
+      this.dirs.map((d) => `<span class="dpad-arrow ${d}"></span>`).join('') +
       '<div class="dpad-knob"></div>';
     this.arrows = [...this.el.querySelectorAll<HTMLSpanElement>('.dpad-arrow')];
     this.knob = this.el.querySelector<HTMLDivElement>('.dpad-knob')!;
@@ -58,6 +70,7 @@ export class DirectionPad {
         this.knob.style.transform = '';
         this.set(0, 0);
       },
+      accept: opts.accept,
     });
   }
 
@@ -70,6 +83,9 @@ export class DirectionPad {
     this.knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
 
     padPress(dx, dy, this.r * Config.input.padDeadZone, this.press);
+    // The missing turn's side of the pad still climbs and dives, it just never turns that way.
+    const w = this.opts.without;
+    if ((w === 'right' && this.press.x > 0) || (w === 'left' && this.press.x < 0)) this.press.x = 0;
     const { x, y } = this.press;
     if (x === this.x && y === this.y) return;
     // An arrow pressed on its own (touched, or slid onto from a neighbour) counts as one press of
@@ -86,11 +102,16 @@ export class DirectionPad {
   private set(x: number, y: number): void {
     this.x = x;
     this.y = y;
-    this.arrows[0].classList.toggle('on', y > 0);
-    this.arrows[1].classList.toggle('on', x > 0);
-    this.arrows[2].classList.toggle('on', y < 0);
-    this.arrows[3].classList.toggle('on', x < 0);
+    this.dirs.forEach((d, i) => {
+      const on = d === 'up' ? y > 0 : d === 'down' ? y < 0 : d === 'right' ? x > 0 : x < 0;
+      this.arrows[i].classList.toggle('on', on);
+    });
     this.h.steer(x, y);
+  }
+
+  /** True while a thumb holds the pad. */
+  get held(): boolean {
+    return this.finger.held;
   }
 
   /** Hiding lets go of anything held. */

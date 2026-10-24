@@ -19,15 +19,6 @@ export const SIDE_ARROWS: readonly Cluster[] = [
 ];
 
 /**
- * Split: left and right under one thumb, up and down under the other. Which side is which is
- * CSS (`body.split-swap`, the Swap sides setting), so swapping needs no rebuild.
- */
-export const SPLIT_ARROWS: readonly Cluster[] = [
-  { cls: 'split-turn', dirs: ['left', 'right'] },
-  { cls: 'split-climb', dirs: ['up', 'down'] },
-];
-
-/**
  * Touch steering from clusters of arrow buttons, one thumb per cluster. Each thumb presses the
  * button nearest to it, so it slides between its buttons without lifting and keeps the closest
  * one when it drifts off. Double-tapping an arrow is a trick, as on the keyboard.

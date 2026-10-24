@@ -23,7 +23,7 @@ export interface MenuHandlers {
 }
 
 /** The Controls panel. Every list is built; `body.touch` picks the one for this device and
- *  `body.steer-buttons` the touch steering scheme. */
+ *  `body.steer-*` the touch steering scheme. */
 const CONTROLS_HTML = `<h2>Controls</h2>
   <div class="controls-list touch-only">
     <ul class="controls touch-drag">
@@ -31,13 +31,18 @@ const CONTROLS_HTML = `<h2>Controls</h2>
       <li><b>Tap with a second finger</b> while steering to boost (hold to keep flapping)</li>
       <li><b>Flick</b> the steering finger for a trick: left or right rolls, up loops, down dives. Keep pushing to stretch it</li>
     </ul>
-    <ul class="controls touch-buttons">
-      <li><b>Arrows</b> at the bottom left to steer; rest between two for a diagonal, or slide round without lifting</li>
+    <ul class="controls touch-dpad">
+      <li><b>D-pad</b> at the bottom left to steer; rest between two arrows for a diagonal, or slide round without lifting</li>
       <li><b>Boost</b> at the bottom right to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
+    <ul class="controls touch-arrows">
+      <li><b>Left</b> and <b>right</b> on their own sides of the screen; <b>up</b> and <b>down</b> on both, so one thumb turns while the other climbs or dives</li>
+      <li><b>Boost</b> beside the right arrows to flap (hold to keep flapping)</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+    </ul>
     <ul class="controls">
-      <li><b>Pause</b> with the button at the top right. Pick <b>Drag</b> or <b>Buttons</b> steering there</li>
+      <li><b>Pause</b> with the button at the top right. Pick <b>Drag</b>, <b>D-pad</b> or <b>Side arrows</b> steering there</li>
     </ul>
   </div>
   <div class="controls-list desktop-only">
@@ -117,7 +122,8 @@ export class Menu {
          <label class="row"><input type="checkbox" id="invert"> Invert vertical steering</label>
          <label class="touch-only">Steering
            <select id="steer">
-             <option value="drag">Drag anywhere</option><option value="buttons">Buttons</option>
+             <option value="drag">Drag anywhere</option><option value="dpad">D-pad</option>
+             <option value="arrows">Side arrows</option>
            </select>
          </label>
        </div>`,

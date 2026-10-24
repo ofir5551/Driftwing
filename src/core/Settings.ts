@@ -3,8 +3,11 @@ import { isLevelId } from '../levels';
 import type { LevelId } from '../levels/World';
 import { isTimeOfDay, type TimeOfDay } from '../world/DayCycle';
 
-/** Touch steering: drag a floating stick anywhere, or on-screen direction and boost buttons. */
-export type TouchSteer = 'drag' | 'buttons';
+/** Touch steering: drag a floating stick anywhere, or on-screen buttons (a D-pad, or an arrow
+ *  column at each edge) with a Boost button. */
+export type TouchSteer = 'drag' | 'dpad' | 'arrows';
+const isTouchSteer = (v: unknown): v is TouchSteer =>
+  v === 'drag' || v === 'dpad' || v === 'arrows';
 
 export interface Settings {
   volume: number;
@@ -42,7 +45,7 @@ export function loadSettings(): Settings {
       quality:
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',
       invertY: s.invertY === true,
-      touchSteer: s.touchSteer === 'buttons' ? 'buttons' : 'drag',
+      touchSteer: isTouchSteer(s.touchSteer) ? s.touchSteer : DEFAULTS.touchSteer,
       level: isLevelId(s.level) ? s.level : DEFAULTS.level,
       timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : DEFAULTS.timeOfDay,
     };

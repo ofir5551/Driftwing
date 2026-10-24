@@ -70,7 +70,7 @@ const isTouch = () => document.body.classList.contains('touch');
 const flapHint = () =>
   !isTouch()
     ? 'Hold Space or click to boost'
-    : settings.touchSteer === 'buttons'
+    : settings.touchSteer !== 'drag'
       ? 'Tap Boost to flap'
       : 'Tap with a second finger to boost';
 

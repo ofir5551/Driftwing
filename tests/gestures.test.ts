@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
-import { DoubleTap, Flick, padPress } from '../src/core/Gestures';
+import { DoubleTap, Flick, padPress, stackPress } from '../src/core/Gestures';
 
 describe('DoubleTap', () => {
   it('fires on two presses of one direction inside the window', () => {
@@ -88,5 +88,16 @@ describe('padPress', () => {
     expect(at(65)).toEqual([1, 1]);
     expect(at(20)).toEqual([1, 0]);
     expect(at(70)).toEqual([0, 1]);
+  });
+});
+
+describe('stackPress', () => {
+  it('picks the button a thumb is over, by height only (screen y down)', () => {
+    expect(stackPress(0, 72)).toBe(0);
+    expect(stackPress(-30, 72)).toBe(0);
+    expect(stackPress(-40, 72)).toBe(1);
+    expect(stackPress(-200, 72)).toBe(1); // slid past the top keeps up
+    expect(stackPress(40, 72)).toBe(-1);
+    expect(stackPress(30, 72)).toBe(0);
   });
 });

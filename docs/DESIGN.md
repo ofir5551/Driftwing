@@ -26,9 +26,12 @@ Keyboard: WASD/arrows steer, Space flap, M mute, P/Esc pause.
 Touch: drag relative to touch start steers; a second finger tapped (or held) anywhere while one steers
 flaps (boosts); very quick taps are latched so no step misses them. There is no on-screen flap button:
 it covered the view and a second finger works for either hand. A Steering setting (pause menu,
-touch only) swaps that for Buttons: an eight-way D-pad bottom left (rest between two arrows for a
-diagonal, slide round without lifting; double-tap an arrow for a trick, as on the keyboard) and a
-Boost button bottom right. Drag stays the default. Gamepad: left stick + A.
+touch only) swaps that for on-screen buttons plus a Boost button (held = keep flapping): a D-pad,
+eight-way at the bottom left (rest between two arrows for a diagonal, slide round without
+lifting), or Side arrows, a column of up / turn / down at each edge with left on the left and right
+on the right. Up and down are on both sides so two thumbs reach every diagonal; a thumb slides
+along its column. Either way, double-tap an arrow for a trick, as on the keyboard. Drag stays the
+default. Gamepad: left stick + A.
 A Controls panel (title and pause screens) lists the controls for the current device.
 
 ## World

@@ -92,3 +92,14 @@ export function padPress(
   out.x = ax > ay * DIAGONAL ? Math.sign(dx) : 0;
   out.y = ay > ax * DIAGONAL ? -Math.sign(dy) : 0;
 }
+
+/**
+ * A column of three buttons (up, turn, down) a thumb can slide along: which one a thumb dy px
+ * from the middle button's centre presses (screen y down), given the button pitch. 1 up, 0 the
+ * middle, -1 down. Only height counts, so a thumb drifting sideways off the column keeps its button.
+ */
+export function stackPress(dy: number, pitch: number): number {
+  if (dy < -pitch / 2) return 1;
+  if (dy > pitch / 2) return -1;
+  return 0;
+}

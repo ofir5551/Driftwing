@@ -2,15 +2,18 @@ import { Config } from '../core/Config';
 import { Flick, type Dir } from '../core/Gestures';
 import { clamp } from '../core/math';
 import type { TouchSteer } from '../core/Settings';
-import { DirectionPad } from './DirectionPad';
+import { BoostButton } from './BoostButton';
+import { DirectionPad, type SteerHandlers } from './DirectionPad';
+import { SideArrows } from './SideArrows';
 
 /**
  * Touch: drag anywhere to steer, relative to where the finger went down (a floating stick).
  * Works in portrait and landscape because nothing is anchored to a fixed stick position.
  * While one finger steers, a second finger touching anywhere else flaps (held = repeat), so
  * there is no button to find and nothing covers the view. A fast flick of the steering finger
- * is a trick gesture (see Gestures). The Buttons steering setting swaps all of this for an
- * on-screen D-pad and boost button (DirectionPad); touches elsewhere then do nothing.
+ * is a trick gesture (see Gestures). The Steering setting can swap all of this for on-screen
+ * buttons, a D-pad (DirectionPad) or an arrow column at each edge (SideArrows), plus a Boost
+ * button; touches elsewhere then do nothing.
  */
 export class TouchControls {
   steerX = 0;
@@ -25,7 +28,7 @@ export class TouchControls {
   private tap = false;
   private readonly flicker = new Flick();
   private trick: Dir | null = null;
-  /** Direction of a trick gesture (flick or D-pad double tap) since the last call (consumed). */
+  /** Direction of a trick gesture (flick or arrow double tap) since the last call (consumed). */
   takeTrick(): Dir | null {
     const f = this.trick;
     this.trick = null;
@@ -44,6 +47,8 @@ export class TouchControls {
   private readonly ring: HTMLDivElement;
   private readonly knob: HTMLDivElement;
   private readonly pad: DirectionPad;
+  private readonly arrows: SideArrows;
+  private readonly boost: BoostButton;
   private scheme: TouchSteer = 'drag';
   private shown = false;
 
@@ -54,21 +59,23 @@ export class TouchControls {
     this.knob.className = 'touch-knob';
     this.ring.appendChild(this.knob);
     ui.appendChild(this.ring);
-    this.pad = new DirectionPad(ui, {
+    const buttons: SteerHandlers = {
       steer: (x, y) => {
         this.steerX = x;
         this.steerY = y;
       },
-      boost: (down) => this.setFlap(down),
       trick: (dir) => (this.trick = dir),
-    });
+    };
+    this.pad = new DirectionPad(ui, buttons);
+    this.arrows = new SideArrows(ui, buttons);
+    this.boost = new BoostButton(ui, (down) => this.setFlap(down));
 
     surface.addEventListener(
       'touchstart',
       (e) => {
         this.setActive();
         e.preventDefault();
-        if (this.scheme === 'buttons') return;
+        if (this.scheme !== 'drag') return;
         for (const t of Array.from(e.changedTouches)) {
           if (this.steerId !== null && this.flapId === null) {
             // A second finger anywhere flaps for as long as it stays down.
@@ -150,11 +157,12 @@ export class TouchControls {
     document.body.classList.add('touch');
   }
 
-  /** Drag or Buttons steering (the Steering setting). Switching lets go of anything held. */
+  /** Drag, D-pad or side-arrow steering (the Steering setting). Switching lets go of anything held. */
   setScheme(s: TouchSteer): void {
     if (s === this.scheme) return;
     this.scheme = s;
-    document.body.classList.toggle('steer-buttons', s === 'buttons');
+    document.body.classList.toggle('steer-dpad', s === 'dpad');
+    document.body.classList.toggle('steer-arrows', s === 'arrows');
     this.releaseSteer();
     this.releaseFlap();
     this.setVisible(this.shown);
@@ -164,6 +172,8 @@ export class TouchControls {
   setVisible(v: boolean): void {
     this.shown = v;
     if (!v) this.ring.classList.remove('show');
-    this.pad.setShown(v && this.scheme === 'buttons');
+    this.pad.setShown(v && this.scheme === 'dpad');
+    this.arrows.setShown(v && this.scheme === 'arrows');
+    this.boost.setShown(v && this.scheme !== 'drag');
   }
 }

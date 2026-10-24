@@ -37,8 +37,8 @@ const CONTROLS_HTML = `<h2>Controls</h2>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls touch-arrows">
-      <li><b>Left</b> and <b>right</b> on their own sides of the screen; <b>up</b> and <b>down</b> on both, so one thumb turns while the other climbs or dives</li>
-      <li><b>Boost</b> beside the right arrows to flap (hold to keep flapping)</li>
+      <li><b>Left</b> and <b>right</b> under each thumb, with <b>up</b> and <b>down</b> beside both, so one thumb turns while the other climbs or dives. Slide between them without lifting</li>
+      <li><b>Boost</b> above the right arrows to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls">

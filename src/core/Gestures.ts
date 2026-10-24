@@ -94,12 +94,24 @@ export function padPress(
 }
 
 /**
- * A column of three buttons (up, turn, down) a thumb can slide along: which one a thumb dy px
- * from the middle button's centre presses (screen y down), given the button pitch. 1 up, 0 the
- * middle, -1 down. Only height counts, so a thumb drifting sideways off the column keeps its button.
+ * Which of a cluster of buttons (centres xs[i], ys[i]) a thumb at (x, y) presses: the nearest.
+ * A sliding thumb moves between neighbours without gaps, and one that drifts off the cluster
+ * keeps the button it is closest to rather than letting go.
  */
-export function stackPress(dy: number, pitch: number): number {
-  if (dy < -pitch / 2) return 1;
-  if (dy > pitch / 2) return -1;
-  return 0;
+export function nearest(
+  xs: ArrayLike<number>,
+  ys: ArrayLike<number>,
+  x: number,
+  y: number,
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < xs.length; i++) {
+    const d = (xs[i] - x) ** 2 + (ys[i] - y) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
 }

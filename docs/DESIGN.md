@@ -23,15 +23,17 @@ harder (1.35x) and speed above cruise bleeds off slowly, so a full dive reaches 
 
 Mouse: pointer offset from centre steers (optional pointer lock). Click/Space flaps.
 Keyboard: WASD/arrows steer, Space flap, M mute, P/Esc pause.
-Touch: drag relative to touch start steers; a second finger tapped (or held) anywhere while one steers
-flaps (boosts); very quick taps are latched so no step misses them. There is no on-screen flap button:
-it covered the view and a second finger works for either hand. A Steering setting (pause menu,
-touch only) swaps that for on-screen buttons plus a Boost button (held = keep flapping): a D-pad,
-eight-way at the bottom left (rest between two arrows for a diagonal, slide round without
-lifting), or Side arrows, a column of up / turn / down at each edge with left on the left and right
-on the right. Up and down are on both sides so two thumbs reach every diagonal; a thumb slides
-along its column. Either way, double-tap an arrow for a trick, as on the keyboard. Drag stays the
-default. Gamepad: left stick + A.
+Touch: drag relative to touch start steers; a second finger tapped (or held) anywhere while one
+steers flaps (boosts); very quick taps are latched so no step misses them. There is no on-screen
+flap button: it covered the view and a second finger works for either hand. A Steering setting
+(pause menu, touch only) swaps that for on-screen buttons plus a Boost button (held = keep
+flapping): a D-pad, eight-way at the bottom left (rest between two arrows for a diagonal, slide
+round without lifting), or Side arrows, a compact cluster under each thumb: a tall turn button at
+the edge (left on the left, right on the right) with up and down stacked just inside it, so each is
+a short nudge away. Up and down are on both sides so two thumbs reach every diagonal; a thumb slides
+between its buttons (the nearest one is pressed). Boost sits above the right cluster. Either way,
+double-tap an arrow for a trick, as on the keyboard. Drag stays the default. Gamepad: left stick +
+A.
 A Controls panel (title and pause screens) lists the controls for the current device.
 
 ## World

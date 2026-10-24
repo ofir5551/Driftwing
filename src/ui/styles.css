@@ -103,7 +103,7 @@ body.touch .boost-btn.show {
 }
 
 body.touch .side-arrows.show {
-  display: flex;
+  display: grid;
 }
 
 .dpad {
@@ -168,15 +168,23 @@ body.touch .side-arrows.show {
   pointer-events: none;
 }
 
-/* Side arrows: up, turn and down stacked at each edge. */
+/* Side arrows: a cluster under each thumb, a tall turn button on the outside with up and down
+   stacked just inside it, lifted a little off the bottom edge to where thumbs rest. */
 body {
-  --btn: 62px; /* side arrow size and spacing, shared with the Boost button beside them */
-  --gap: 10px;
+  --btn: 62px; /* side arrow sizes and spacing, shared with the Boost button above them */
+  --half: 50px;
+  --gap: 8px;
+  --cluster-bottom: max(28px, 9vh, env(safe-area-inset-bottom));
 }
 
 .side-arrows {
-  flex-direction: column;
+  bottom: var(--cluster-bottom);
+  grid-template-columns: var(--btn) var(--btn);
+  grid-template-rows: var(--half) var(--half);
   gap: var(--gap);
+  grid-template-areas:
+    'turn up'
+    'turn down';
 }
 
 .side-arrows.left {
@@ -185,14 +193,27 @@ body {
 
 .side-arrows.right {
   right: max(20px, env(safe-area-inset-right));
-  align-items: flex-end;
+  grid-template-areas:
+    'up turn'
+    'down turn';
 }
 
 .arrow-btn {
   position: relative;
-  width: var(--btn);
-  height: var(--btn);
   border-radius: 18px;
+}
+
+.arrow-btn.left,
+.arrow-btn.right {
+  grid-area: turn;
+}
+
+.arrow-btn.up {
+  grid-area: up;
+}
+
+.arrow-btn.down {
+  grid-area: down;
 }
 
 .arrow-btn.on {
@@ -242,13 +263,13 @@ body {
   box-shadow: 0 0 18px rgba(255, 220, 140, 0.7);
 }
 
-/* With side arrows, Boost sits just inside the right column, level with its turn button. */
+/* With side arrows, Boost sits just above the right cluster, centred over it. */
 body.steer-arrows .boost-btn {
   --size: 76px;
-  right: calc(max(20px, env(safe-area-inset-right)) + var(--btn) + 16px);
-  bottom: calc(
-    max(28px, env(safe-area-inset-bottom)) + var(--btn) * 1.5 + var(--gap) - var(--size) / 2
+  right: calc(
+    max(20px, env(safe-area-inset-right)) + var(--btn) + var(--gap) / 2 - var(--size) / 2
   );
+  bottom: calc(var(--cluster-bottom) + var(--half) * 2 + var(--gap) + 14px);
 }
 
 /* HUD */
@@ -862,8 +883,8 @@ body.touch .settings label.touch-only.row {
     --size: 76px;
   }
   body {
-    --btn: 54px;
-    --gap: 8px;
+    --btn: 56px;
+    --half: 44px;
   }
   body.steer-arrows .boost-btn {
     --size: 68px;

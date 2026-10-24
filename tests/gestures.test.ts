@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
-import { DoubleTap, Flick, padPress, stackPress } from '../src/core/Gestures';
+import { DoubleTap, Flick, nearest, padPress } from '../src/core/Gestures';
 
 describe('DoubleTap', () => {
   it('fires on two presses of one direction inside the window', () => {
@@ -91,13 +91,15 @@ describe('padPress', () => {
   });
 });
 
-describe('stackPress', () => {
-  it('picks the button a thumb is over, by height only (screen y down)', () => {
-    expect(stackPress(0, 72)).toBe(0);
-    expect(stackPress(-30, 72)).toBe(0);
-    expect(stackPress(-40, 72)).toBe(1);
-    expect(stackPress(-200, 72)).toBe(1); // slid past the top keeps up
-    expect(stackPress(40, 72)).toBe(-1);
-    expect(stackPress(30, 72)).toBe(0);
+describe('nearest', () => {
+  // A side cluster: a tall turn button on the outside, up and down stacked inside it.
+  const xs = [30, 100, 100];
+  const ys = [55, 24, 86];
+  it('picks the button under the thumb, and the closest once it slides off', () => {
+    expect(nearest(xs, ys, 30, 55)).toBe(0);
+    expect(nearest(xs, ys, 100, 30)).toBe(1);
+    expect(nearest(xs, ys, 95, 80)).toBe(2);
+    expect(nearest(xs, ys, 140, -60)).toBe(1); // far above and inside: still up
+    expect(nearest(xs, ys, -40, 55)).toBe(0); // off the outer edge: still the turn
   });
 });

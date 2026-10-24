@@ -4,8 +4,8 @@ import type { LevelId } from '../levels/World';
 import { isTimeOfDay, type TimeOfDay } from '../world/DayCycle';
 
 /** Touch steering: drag a floating stick anywhere, or on-screen buttons (a D-pad, an arrow
- *  cluster under each thumb, or split: turning under one thumb, climbing under the other) with a
- *  Boost button. */
+ *  cluster under each thumb, or split: a D-pad under each thumb, each turning only its own way)
+ *  with a Boost button. */
 export type TouchSteer = 'drag' | 'dpad' | 'arrows' | 'split';
 const isTouchSteer = (v: unknown): v is TouchSteer =>
   v === 'drag' || v === 'dpad' || v === 'arrows' || v === 'split';
@@ -16,8 +16,6 @@ export interface Settings {
   quality: QualityLevel | 'auto';
   invertY: boolean;
   touchSteer: TouchSteer;
-  /** Split steering: turning on the right thumb and climbing on the left, instead of the reverse. */
-  splitSwap: boolean;
   /** Last level picked on the title screen. */
   level: LevelId;
   /** Fixed look chosen on the title screen, or 'auto' for the level's own day cycle. */
@@ -32,7 +30,6 @@ const DEFAULTS: Settings = {
   quality: 'auto',
   invertY: false,
   touchSteer: 'drag',
-  splitSwap: false,
   level: 'highlands',
   timeOfDay: 'auto',
 };
@@ -50,7 +47,6 @@ export function loadSettings(): Settings {
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',
       invertY: s.invertY === true,
       touchSteer: isTouchSteer(s.touchSteer) ? s.touchSteer : DEFAULTS.touchSteer,
-      splitSwap: s.splitSwap === true,
       level: isLevelId(s.level) ? s.level : DEFAULTS.level,
       timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : DEFAULTS.timeOfDay,
     };

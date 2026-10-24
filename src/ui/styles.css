@@ -107,10 +107,10 @@ body.touch .arrow-cluster.show {
 }
 
 .dpad {
-  --arm: 44px; /* centre to arrow */
+  --arm: calc(var(--pad) * 0.32); /* centre to arrow */
   left: max(28px, env(safe-area-inset-left));
-  width: 136px;
-  height: 136px;
+  width: var(--pad);
+  height: var(--pad);
   border-radius: 50%;
 }
 
@@ -174,6 +174,7 @@ body {
   --btn: 62px; /* arrow sizes and spacing, shared with the Boost button above them */
   --half: 50px;
   --gap: 8px;
+  --pad: 136px; /* D-pad diameter */
   --cluster-bottom: max(28px, 9vh, env(safe-area-inset-bottom));
   --edge-l: max(20px, env(safe-area-inset-left));
   --edge-r: max(20px, env(safe-area-inset-right));
@@ -223,28 +224,20 @@ body {
   grid-area: down;
 }
 
-/* Split: two tall turn buttons side by side under one thumb, two wide climb buttons stacked under
-   the other. Turning is on the left unless Swap sides (body.split-swap) mirrors them. */
-.split-turn {
-  grid-template-columns: var(--btn) var(--btn);
-  grid-template-rows: calc(var(--half) * 2 + var(--gap));
+/* Split: a D-pad under each thumb (the left one has no right arrow, the right one no left),
+   lifted to where thumbs rest like the side arrows. */
+.dpad.split-left,
+.dpad.split-right {
+  bottom: var(--cluster-bottom);
+}
+
+.dpad.split-left {
   left: var(--edge-l);
 }
 
-.split-climb {
-  grid-template-columns: calc(var(--btn) * 2 + var(--gap));
-  grid-template-rows: var(--half) var(--half);
-  right: var(--edge-r);
-}
-
-body.split-swap .split-turn {
+.dpad.split-right {
   left: auto;
   right: var(--edge-r);
-}
-
-body.split-swap .split-climb {
-  right: auto;
-  left: var(--edge-l);
 }
 
 .arrow-btn.on {
@@ -294,18 +287,20 @@ body.split-swap .split-climb {
   box-shadow: 0 0 18px rgba(255, 220, 140, 0.7);
 }
 
-/* With arrow clusters, Boost sits just above the right cluster (Split: above up and down,
-   wherever they are), centred over it. */
+/* With side arrows or split pads, Boost sits just above the right cluster or pad, centred. */
 body.steer-arrows .boost-btn,
 body.steer-split .boost-btn {
   --size: 76px;
+}
+
+body.steer-arrows .boost-btn {
   right: calc(var(--edge-r) + var(--btn) + var(--gap) / 2 - var(--size) / 2);
   bottom: calc(var(--cluster-bottom) + var(--half) * 2 + var(--gap) + 14px);
 }
 
-body.steer-split.split-swap .boost-btn {
-  right: auto;
-  left: calc(var(--edge-l) + var(--btn) + var(--gap) / 2 - var(--size) / 2);
+body.steer-split .boost-btn {
+  right: calc(var(--edge-r) + var(--pad) / 2 - var(--size) / 2);
+  bottom: calc(var(--cluster-bottom) + var(--pad) + 14px);
 }
 
 /* HUD */
@@ -783,11 +778,6 @@ body.touch .settings label.touch-only.row {
   display: flex;
 }
 
-/* Swap sides only means something for Split steering. */
-body:not(.steer-split) .settings label.touch-only.split-only {
-  display: none;
-}
-
 .settings input[type='range'] {
   width: 100%;
   accent-color: #ffd98f;
@@ -918,17 +908,13 @@ body:not(.steer-split) .settings label.touch-only.split-only {
 }
 
 @media (max-height: 520px) {
-  .dpad {
-    --arm: 38px;
-    width: 118px;
-    height: 118px;
-  }
   .boost-btn {
     --size: 76px;
   }
   body {
     --btn: 56px;
     --half: 44px;
+    --pad: 118px;
   }
   body.steer-arrows .boost-btn,
   body.steer-split .boost-btn {

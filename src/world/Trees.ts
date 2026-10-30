@@ -82,11 +82,19 @@ export function topLit(g: THREE.BufferGeometry, dark = 0.62, light = 1.12): THRE
 }
 
 /** Ball of foliage: a lumpy icosahedron whose facets go lighter toward its sunlit top. */
-function lobe(r: number, x: number, y: number, z: number, hex: string, seed: number) {
+export function lobe(
+  r: number,
+  x: number,
+  y: number,
+  z: number,
+  hex: string,
+  seed: number,
+  squash = 0.82,
+) {
   const c = new THREE.Color(hex);
   const cool = new THREE.Color(hex).offsetHSL(0.03, 0.02, -0.08);
   const g = jitter(new THREE.IcosahedronGeometry(r, 0), r * 0.32, seed);
-  g.scale(1, 0.82, 1);
+  g.scale(1, squash, 1);
   return painted(
     g,
     (_x, py, _z, out) => out.copy(cool).lerp(c, smoothstep(-r, r * 0.6, py)),
@@ -95,7 +103,7 @@ function lobe(r: number, x: number, y: number, z: number, hex: string, seed: num
 }
 
 /** Tapered limb from (0, y0, 0) out to (x, y1, z): makes the crown sit on a real branch. */
-function limb(x: number, y0: number, y1: number, z: number, r: number, hex: string) {
+export function limb(x: number, y0: number, y1: number, z: number, r: number, hex: string) {
   const dir = new THREE.Vector3(x, y1 - y0, z);
   const g = new THREE.CylinderGeometry(r * 0.5, r, dir.length(), 4).translate(
     0,

@@ -336,14 +336,16 @@ progression, voice (bell, koto, guqin, glass), pad, drone fifth, reverb, arpeggi
   so the curtains close round the sky without a seam.
 - Title-screen level cards are a 2x2 grid: four in a row squeezed the names onto two lines.
 - Painted ground detail (`GroundDetail`): a fragment-shader patch over the terrain's vertex
-  colours (Highlands, Jade River, Aurora Fjords, the floating islands and the karst pillars):
+  colours (Highlands, Jade River, Aurora Fjords, City of Gold, the floating islands and the
+  karst pillars):
   broad warm/cool paint patches, brush strokes on gentle ground, rock strata on steep ground and
   small bumps tilted into the normal so the toon bands break into dabs. All from world position,
   so it costs no vertices and never seams; the near detail fades out by `ground.detailFar`. Neon
   Bay keeps its own street shader.
 - Tree LOD: every tree shape has a cheap far version (now top-lit: darker underside, sunlit
   crown, no extra triangles) and most have a detailed near one (broadleaf ~220 tris of lumpy
-  lobes on a forked trunk, drooping five-tier pine, snow-shouldered spruce, arching bamboo).
+  lobes on a forked trunk, drooping five-tier pine, snow-shouldered spruce, arching bamboo;
+  in City of Gold a lean ~110-tri olive for its dense groves, cypress, Aleppo pine, palm).
   Trees within `render.treeDetail` (0 / 200 / 280 m for low / medium / high) use the near shape,
   chosen when the chunk set changes. High-preset frames grew ~20% in the Highlands (220k ->
   265k triangles) and under 10% elsewhere.

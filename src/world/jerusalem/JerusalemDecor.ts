@@ -4,18 +4,22 @@ import type { ChunkDecor } from '../ChunkManager';
 import { withMist } from '../Mist';
 import { Trees } from '../Trees';
 import {
+  aleppoPineDetailGeometry,
   aleppoPineGeometry,
   archGeometry,
   boxGeometry,
   coneGeometry,
   cylinderGeometry,
+  cypressDetailGeometry,
   cypressGeometry,
   domeGeometry,
   hipGeometry,
   merlonsGeometry,
   octagonGeometry,
+  oliveDetailGeometry,
   oliveGeometry,
   onionGeometry,
+  palmDetailGeometry,
   palmGeometry,
   pointedDomeGeometry,
   pyramidGeometry,
@@ -66,12 +70,16 @@ export class JerusalemDecor implements ChunkDecor<JerusalemChunk> {
   private readonly geometries: THREE.BufferGeometry[];
   private readonly material: THREE.Material;
   private readonly meshes: THREE.InstancedMesh[] = [];
-  readonly trees = new Trees(14000, [
-    oliveGeometry(),
-    cypressGeometry(),
-    aleppoPineGeometry(),
-    palmGeometry(),
-  ]);
+  readonly trees = new Trees(
+    14000,
+    [oliveGeometry(), cypressGeometry(), aleppoPineGeometry(), palmGeometry()],
+    [
+      oliveDetailGeometry(),
+      cypressDetailGeometry(),
+      aleppoPineDetailGeometry(),
+      palmDetailGeometry(),
+    ],
+  );
   private readonly counts = CAPACITY.map(() => 0);
   private readonly colors = new Map<number, THREE.Color>();
   private readonly treeLists: number[][] = [];

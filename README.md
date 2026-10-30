@@ -1,9 +1,9 @@
 # Driftwing
 
 A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
-through a neon-lit Japanese bay city, among misty karst peaks on a jade river or down deep fjords
-under the northern lights, follow ribbons of glowing wisps and build a melody as you
-gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
+through a neon-lit Japanese bay city, among misty karst peaks on a jade river, down deep fjords
+under the northern lights or over the golden stone of Jerusalem, follow ribbons of glowing wisps
+and build a melody as you gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
 music, sound) is generated procedurally: the repository contains no art or audio assets.
 
 ![Title screen at dawn](docs/screenshots/title.jpg)
@@ -73,6 +73,24 @@ you back to choose again).
 | **Dawn over the plateau**                    | **A hamlet at night**                        |
 | ![Dawn](docs/screenshots/fjord-dawn.jpg)     | ![Hamlet](docs/screenshots/fjord-hamlet.jpg) |
 
+- **City of Gold**: Jerusalem, opening in a long golden hour on the Mount of Olives with the Old
+  City across the Kidron: crenellated walls and gates round a roofscape of stone houses and small
+  domes, the Temple Mount with the gilded Dome of the Rock, Al-Aqsa and their minarets, the Holy
+  Sepulchre, the Tower of David; Gethsemane's olives and the onion domes of Mary Magdalene below
+  the bird; the new city's red roofs and the Montefiore windmill beyond the Hinnom. Past them,
+  endless Judean hills of terraced olive orchards, pine forest and stone hill towns with rooftop
+  water heaters. After dark the walls are floodlit amber and the dome glows. An oud plays in hijaz
+  and nahawand over a frame drum. Wisps glide down across the Kidron, swing round the golden dome
+  and run low along David Street; low roofs are skimmed, walls and towers are steered round.
+
+![City of Gold title screen](docs/screenshots/jerusalem-title.jpg)
+
+| From the Mount of Olives                         | Over the roofs                                 |
+| ------------------------------------------------ | ---------------------------------------------- |
+| ![Olives](docs/screenshots/jerusalem-olives.jpg) | ![Roofs](docs/screenshots/jerusalem-roofs.jpg) |
+| **The golden dome**                              | **Floodlit at night**                          |
+| ![Dome](docs/screenshots/jerusalem-dome.jpg)     | ![Night](docs/screenshots/jerusalem-night.jpg) |
+
 ## Play
 
 ```bash
@@ -80,17 +98,19 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-| Action       | Mouse / keyboard                             | Touch                                         | Gamepad    |
-| ------------ | -------------------------------------------- | --------------------------------------------- | ---------- |
-| Steer        | Pointer offset from centre, or WASD / arrows | Drag anywhere (relative to where you touched) | Left stick |
-| Flap         | Click or hold Space                          | Hold the wing button, or tap a second finger  | A / RT     |
-| Pause        | P or Esc                                     | Pause button (top right)                      | Start      |
-| Mute         | M                                            | Pause menu                                    |            |
-| Pointer lock | L (optional, relative mouse steering)        |                                               |            |
+| Action       | Mouse / keyboard                             | Touch                                            | Gamepad    |
+| ------------ | -------------------------------------------- | ------------------------------------------------ | ---------- |
+| Steer        | Pointer offset from centre, or WASD / arrows | Drag anywhere (relative to where you touched)    | Left stick |
+| Boost (flap) | Click or hold Space                          | Tap or hold a second finger while steering       | A / RT     |
+| Buttons mode |                                              | Pause menu → Steering: D-pad, Side arrows, Split |            |
+| Pause        | P or Esc                                     | Pause button (top right)                         | Start      |
+| Mute         | M                                            | Pause menu                                       |            |
+| Pointer lock | L (optional, relative mouse steering)        |                                                  |            |
 
 Fly through wisps to score. Quick chains fill the **flow** ring, which multiplies points (up to
 5x) and brings extra layers into the music. Every 24 wisps a lantern ignites ahead of you and
-the music modulates. Rising **thermals** (sparkling columns) lift you for free. Brushing the
+the music modulates. Fly through its column of light to reach it: flow refills, you get a bonus
+and a surge of speed. It never fades, so it's yours to chase or ignore. Rising **thermals** (sparkling columns) lift you for free. Brushing the
 ground or water is only ever a soft skim.
 
 ## Develop
@@ -106,7 +126,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst|fjord`.
+`?level=highlands|city|karst|fjord|jerusalem`.
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -134,6 +154,10 @@ Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (ena
 - **Aurora Fjords**: fjords on the zero contours of a noise again (`src/world/fjord/`), with
   glacial walls as plain terrain that the city's look-ahead treats as solid, and the aurora
   painted into the sky dome.
+- **City of Gold**: designed land round the Old City blending into endless hills
+  (`src/world/jerusalem/`): a pure layout of walls, landmarks, houses and hill towns, with low
+  roofs as a soft canopy and stone as solids, drawn by one instanced stone shader (ashlar,
+  windows, floodlight, gold leaf).
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

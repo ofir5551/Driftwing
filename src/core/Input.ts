@@ -10,8 +10,9 @@ type Device = 'mouse' | 'keys' | 'touch' | 'pad';
 /**
  * Merges mouse, keyboard, touch and gamepad into one FlightInput. Steering comes from the most
  * recently used device (so a resting mouse pointer doesn't fight the keyboard); flap is the OR
- * of every source. Trick gestures: double-tap a direction (keys, stick), flick the steering
- * finger (touch) or right-click toward a direction (mouse); keeping it held extends the trick.
+ * of every source. Trick gestures: double-tap a direction (keys, stick, touch D-pad), flick the
+ * steering finger (touch drag) or right-click toward a direction (mouse); keeping it held extends
+ * the trick.
  */
 export class Input {
   readonly state: FlightInput = {
@@ -160,9 +161,9 @@ export class Input {
         y = this.padY;
         break;
     }
-    const flick = this.touch.takeFlick();
-    if (flick) {
-      this.pending = flick;
+    const gesture = this.touch.takeTrick();
+    if (gesture) {
+      this.pending = gesture;
       this.device = 'touch';
     }
     // The hold: still pushing the way the gesture went (right button for the mouse).

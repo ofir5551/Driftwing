@@ -11,11 +11,11 @@ Triggered by gestures (keyboard and touch are the primary devices):
 - Touch: a fast flick of the steering finger; keeping the finger down extends it.
 - Pad: stick snapped to the edge twice. Mouse: right-click + pointer direction.
 
-| Trick       | Motion                                                    | Hybrid extension                  |
-| ----------- | --------------------------------------------------------- | --------------------------------- |
-| Barrel roll | 360 deg spin in ~0.6 s with a ~5 m sideways hop           | Keep holding: double/triple roll  |
-| Loop        | Vertical circle (pitch sweeps 2 pi), same heading on exit | Radius grows with speed (8-26 m)  |
-| Dive-bomb   | Nose ~70 deg down, tucked, extra pull, strong pull-out    | Lasts while down is held (<2.5 s) |
+| Trick       | Motion                                                    | Hybrid extension                                           |
+| ----------- | --------------------------------------------------------- | ---------------------------------------------------------- |
+| Barrel roll | 360 deg spin in ~0.6 s with a ~5 m sideways hop           | Keep holding: double/triple roll                           |
+| Loop        | Vertical circle (pitch sweeps 2 pi), same heading on exit | Radius grows with speed (8-26 m)                           |
+| Dive-bomb   | Nose ~70 deg down, tucked, extra pull, strong pull-out    | Lasts while down is held, no cap; multiplier grows with it |
 
 Authored, parameterised curves in a pure `player/Tricks.ts`, layered on `stepFlight` (speed and
 integration still run). Never a failure: the loop's speed follows a scripted dip (no stall), the

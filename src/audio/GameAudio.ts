@@ -29,6 +29,7 @@ export class GameAudio {
     game.events.on('wingbeat', () => this.sfx.wingbeat());
     game.events.on('wisp', (e) => this.music.playWispNote(e.flow));
     game.events.on('lantern', () => this.music.lantern());
+    game.events.on('lanternReached', () => this.music.lanternReached());
     game.events.on('trickStart', (e) => {
       this.music.trick(e.kind);
       if (e.kind === 'dive') this.sfx.dive();

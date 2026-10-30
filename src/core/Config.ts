@@ -51,7 +51,7 @@ export const Config = {
     loopDrift: 0.18, // forward drift round the loop as a fraction of speed: exits ~1.1 r ahead
     divePitch: 1.2, // rad nose-down in a dive-bomb (~70 deg)
     diveMin: 0.6, // s, shortest stoop (a quick double tap)
-    diveMax: 2.5, // s, longest stoop while held
+    diveScalePerSec: 0.4, // score multiplier gained per second of stoop past diveMin (uncapped while held)
     diveBoost: 5, // m/s added as the wings tuck
     diveGravity: 1.8, // extra pull on top of the usual dive gravity
     diveExtraSpeed: 14, // m/s the dive-bomb may run past maxSpeed
@@ -79,6 +79,7 @@ export const Config = {
     doubleTap: 0.26, // s between two presses of a direction that make a trick gesture
     flickDistance: 110, // px the steering finger must travel within flickTime to flick a trick
     flickTime: 0.12, // s
+    padDeadZone: 0.22, // fraction of the D-pad's radius round its centre that presses nothing
     invertY: false,
   },
   fjord: {
@@ -111,6 +112,28 @@ export const Config = {
     bump: 0.6, // strength of the small surface bumps the light catches
     warmth: 0.13, // warm/cool hue drift across the patches
     detailFar: 520, // m, beyond this the near detail (strokes, bumps) has faded out
+  },
+  jerusalem: {
+    // Plan (read when a level is created).
+    plateau: 64, // m, the Old City's ground inside the walls (it tilts a little, see the layout)
+    wallHeight: 13, // m, the walls stand this far above the city's ground
+    towerEvery: 46, // m between wall towers
+    fabricRoof: 9, // m, the Old City's roofscape counts as soft ground this high
+    townRoof: 11, // m, hill-town and new-city roofs count as soft ground this high
+    forestCanopy: 9, // m, pine forest counts as soft ground this high
+    hillScale: 0.0013, // frequency of the rolling Judean hills
+    hills: 46, // m, swell of the hills either way
+    wadiScale: 0.0009, // frequency of the wadi noise: a valley every ~1 km
+    wadiDepth: 34, // m, how deep a wadi cuts below the hills
+    wadiWidth: 150, // m, half width of a wadi from its floor to its rim
+    terraceStep: 3, // m, rise of one olive terrace
+    // Atmosphere and light.
+    mist: 0.35, // morning mist pooled in the valleys (it burns off by day)
+    mistTop: 46, // m, the valley mist lies below this
+    mistFar: 0.2, // distance haze: far hills fade in layers
+    hillsDistance: 3200, // m, how far the painted hills on the horizon pretend to be
+    flood: 1, // floodlight on the walls and landmarks after dark
+    lights: 1, // brightness of windows and lamps after dark
   },
   world: {
     seed: 1337,
@@ -175,6 +198,15 @@ export const Config = {
     trickPoints: 4, // points per trick, in basePoints
     trickRepeat: 0.5, // multiplier for repeating the last trick (rolls either way count as one)
     trickVariety: 1.3, // multiplier for a trick unlike the last two
+  },
+  lantern: {
+    // A lit lantern is a destination: fly through its column of light to reach it.
+    reachRadius: 16, // m from the column's axis that counts (generous: the beam itself is narrower)
+    reachBelow: 12, // m below the orb that still counts, so skimming its foot works too
+    points: 20, // bonus for reaching one, in basePoints, at the full flow it refills
+    boost: 9, // m/s forward surge on reaching one
+    lift: 6, // m/s upward lift on reaching one
+    guide: 400, // m within which the autopilot heads for a lantern still to reach
   },
   wisps: {
     max: 56,

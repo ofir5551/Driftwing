@@ -1,7 +1,7 @@
-import { CITY_KEYS, DAY_KEYS, type DayKey, FJORD_KEYS, KARST_KEYS } from './scales';
+import { CITY_KEYS, DAY_KEYS, type DayKey, FJORD_KEYS, JERUSALEM_KEYS, KARST_KEYS } from './scales';
 
 /** Instrument for ambient notes, wisp notes and the lantern flourish. */
-export type Voice = 'bell' | 'koto' | 'guqin' | 'glass';
+export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud';
 
 /**
  * A level's musical identity. The generative engine is shared; this is what it plays and how,
@@ -31,8 +31,10 @@ export interface MusicStyle {
   reverb: number;
   /** Arpeggio faded in with flow: degrees over the chord root, notes per eighth, octave offset. */
   arp: { pattern: number[]; perStep: 1 | 2; octave: number } | null;
-  /** Level of the soft lo-fi beat (kick, rim, hats); 0 = none. */
+  /** Level of the soft beat; 0 = none. */
   pulse: number;
+  /** The beat's pattern: a swung lo-fi kit (default) or maqsum on a frame drum. */
+  beat?: 'lofi' | 'maqsum';
 }
 
 /** Highlands: the original pastoral score, airy saw pads and FM bells. */
@@ -93,4 +95,23 @@ export const FJORD_MUSIC: MusicStyle = {
   reverb: 1.5,
   arp: { pattern: [0, 2, 4, 7, 4, 2], perStep: 1, octave: 12 },
   pulse: 0,
+};
+
+/**
+ * City of Gold: warm stone and old songs. A plucked oud with ornaments over a soft sine pad
+ * and an open-fifth drone, qanun-like ripples with flow, and maqsum on a frame drum.
+ */
+export const JERUSALEM_MUSIC: MusicStyle = {
+  keys: JERUSALEM_KEYS,
+  bpm: 66,
+  progression: [0, 1, 0, 3, 0, 1, 3, 0],
+  voice: 'oud',
+  density: 0.8,
+  grace: 0.25,
+  pad: { wave: 'sine', detune: 7, attack: 2.6, release: 4.5, level: 0.05 },
+  droneFifth: 0.6,
+  reverb: 1.15,
+  arp: { pattern: [0, 1, 2, 1, 0, 2, 3, 2], perStep: 2, octave: 12 },
+  pulse: 0.7,
+  beat: 'maqsum',
 };

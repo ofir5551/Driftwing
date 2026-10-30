@@ -194,9 +194,10 @@ export class Game {
     world.prime(spawn.x, spawn.z);
     this.copyPrev();
     this.chase.snap();
-    this.day.setKeys(this.level.sky ?? DAY_SKY);
+    this.day.setKeys(this.level.sky ?? DAY_SKY, this.level.sunTurn);
     this.setTimeOfDay(this.timeOfDay);
     this.sky.backdrop = this.level.backdrop;
+    this.clouds.lift = this.level.cloudLift ?? 0;
     this.events.emit('level', { id });
   }
 

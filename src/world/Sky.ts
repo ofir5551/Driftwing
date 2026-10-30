@@ -28,6 +28,8 @@ uniform float uRidges;
 uniform float uRidgeBase;
 uniform vec3 uInk;
 uniform float uAurora;
+uniform float uHills;
+uniform float uHillsBase;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -127,6 +129,28 @@ void main() {
     col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
   }
 
+  // City of Gold: the Judean hills rolling away in three washes, low and long and rounded
+  // (whole-number azimuth waves, so they close round the sky), paler toward the east (-x),
+  // where the land falls to the desert.
+  if (uHills > 0.5) {
+    float az = atan(d.x, d.z);
+    float hm = h - uHillsBase;
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i);
+      float w = 1.0 + 0.55 * sin(az * (3.0 + fi) + fi * 1.7) + 0.35 * sin(az * (7.0 + 2.0 * fi) - fi * 0.9)
+        + 0.18 * sin(az * (17.0 + 3.0 * fi) + fi * 2.3);
+      float east = 0.5 + 0.5 * sin(az);
+      float top = max(w, 0.08) * (0.011 + 0.007 * fi) * (1.0 - 0.35 * east);
+      float m = smoothstep(top + 0.0015, top - 0.0015, hm);
+      if (m <= 0.0) continue;
+      vec3 ink = mix(uFog, uInk, (0.09 + 0.1 * fi) * (1.0 - 0.4 * east));
+      ink = mix(ink, uFog, (1.0 - smoothstep(-0.004, top * 0.8, hm)) * 0.7);
+      col = mix(col, ink, m);
+      peak = max(peak, m);
+    }
+    col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
+  }
+
   // Aurora Fjords: three curtains of light hung across the sky. Each has a sharp, wandering
   // lower hem and fades upward from green to violet, is combed into fine vertical rays that
   // shimmer, and swells and thins along its length. Drifts slowly; bloom halos the brightest.
@@ -176,8 +200,11 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
-/** What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, or the aurora. */
-export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora';
+/**
+ * What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, the aurora,
+ * or rolling hills.
+ */
+export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora' | 'hills';
 
 export class Sky {
   readonly mesh: THREE.Mesh;
@@ -203,6 +230,8 @@ export class Sky {
       uRidgeBase: { value: 0 },
       uInk: { value: new THREE.Color() },
       uAurora: { value: 0 },
+      uHills: { value: 0 },
+      uHillsBase: { value: 0 },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -231,6 +260,7 @@ export class Sky {
     this.u.uTime.value = time;
     this.u.uMountain.value = this.backdrop === 'fuji' ? 1 : 0;
     this.u.uRidges.value = this.backdrop === 'karst' ? 1 : 0;
+    this.u.uHills.value = this.backdrop === 'hills' ? 1 : 0;
     // The aurora comes out with the stars.
     this.u.uAurora.value =
       this.backdrop === 'aurora' ? Math.max(0, (p.stars - 0.25) / 0.75) * Config.fjord.aurora : 0;
@@ -238,6 +268,7 @@ export class Sky {
     const drop = Config.world.waterLevel - camera.position.y;
     this.u.uMountainBase.value = drop / Math.hypot(drop, Config.city.mountainDistance);
     this.u.uRidgeBase.value = drop / Math.hypot(drop, Config.karst.ridgeDistance);
+    this.u.uHillsBase.value = drop / Math.hypot(drop, Config.jerusalem.hillsDistance);
     // Ink: the upper sky deepened toward the ground light, so ridges darken with the day.
     this.u.uInk.value.copy(p.skyTop).lerp(p.hemiGround, 0.55).multiplyScalar(0.8);
     this.u.uMountainFade.value = Config.city.mountainFootFade;

@@ -4,7 +4,7 @@ const R = 26;
 const CIRC = 2 * Math.PI * R;
 
 /**
- * Minimal HUD: a flow ring around the wisp count, the score beneath, lantern count beside.
+ * Minimal HUD: a flow ring around the wisp count, the score beneath, lanterns reached beside.
  * It fades away when nothing is happening so the landscape gets the screen.
  */
 export class Hud {
@@ -17,6 +17,7 @@ export class Hud {
   private toastTimer = 0;
   private readonly trickEl: HTMLDivElement;
   private trickTimer = 0;
+  private stoopTenths = -1;
   private opacity = 0;
   private lastCount = -1;
   private lastScore = -1;
@@ -36,7 +37,7 @@ export class Hud {
       </div>
       <div class="hud-side">
         <span class="hud-score">0</span>
-        <span class="hud-lanterns" title="Lanterns lit"></span>
+        <span class="hud-lanterns" title="Lanterns reached"></span>
       </div>`;
     this.toastEl = document.createElement('div');
     this.toastEl.className = 'toast';
@@ -55,13 +56,28 @@ export class Hud {
     this.toastTimer = seconds;
   }
 
-  /** A landed trick's name and points: smaller and quicker than a toast, never covering one. */
+  /** A landed trick's (or reached lantern's) name and points: smaller and quicker than a toast, never covering one. */
   trick(name: string, points: number): void {
+    this.stoopTenths = -1; // the live readout's text was just replaced
     this.trickEl.textContent = points > 0 ? `${name}  +${points.toLocaleString()}` : name;
     this.trickEl.classList.remove('show');
     void this.trickEl.offsetWidth; // restart the CSS transition for back-to-back tricks
     this.trickEl.classList.add('show');
     this.trickTimer = 1.4;
+  }
+
+  /**
+   * The running dive-bomb multiplier. Called every step, so the text is only rebuilt when the
+   * displayed tenth changes; it fades on its own shortly after the calls stop.
+   */
+  stoop(scale: number): void {
+    const tenths = Math.round(scale * 10);
+    if (tenths !== this.stoopTenths) {
+      this.stoopTenths = tenths;
+      this.trickEl.textContent = `Dive-bomb  ×${(tenths / 10).toFixed(1)}`;
+    }
+    this.trickEl.classList.add('show');
+    this.trickTimer = 0.3;
   }
 
   pulse(): void {
@@ -84,9 +100,9 @@ export class Hud {
       this.lastScore = p.score;
       this.score.textContent = p.score.toLocaleString();
     }
-    if (p.lanterns !== this.lastLanterns) {
-      this.lastLanterns = p.lanterns;
-      this.lanterns.textContent = p.lanterns > 0 ? `✦ ${p.lanterns}` : '';
+    if (p.reached !== this.lastLanterns) {
+      this.lastLanterns = p.reached;
+      this.lanterns.textContent = p.reached > 0 ? `✦ ${p.reached}` : '';
     }
     this.arc.style.strokeDashoffset = (CIRC * (1 - p.flow)).toFixed(1);
     this.el.classList.toggle('flowing', p.flow > 0.6);

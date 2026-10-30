@@ -22,12 +22,62 @@ export interface MenuHandlers {
   change(s: Settings): void;
 }
 
-const isTouch = () => matchMedia('(pointer: coarse)').matches;
+/** The Controls panel. Every list is built; `body.touch` picks the one for this device and
+ *  `body.steer-*` the touch steering scheme. */
+const CONTROLS_HTML = `<h2>Controls</h2>
+  <div class="controls-list touch-only">
+    <ul class="controls touch-drag">
+      <li><b>Drag</b> anywhere to steer, relative to where your finger went down</li>
+      <li><b>Tap with a second finger</b> while steering to boost (hold to keep flapping)</li>
+      <li><b>Flick</b> the steering finger for a trick: left or right rolls, up loops, down dives. Keep pushing to stretch it</li>
+    </ul>
+    <ul class="controls touch-dpad">
+      <li><b>D-pad</b> at the bottom left to steer; rest between two arrows for a diagonal, or slide round without lifting</li>
+      <li><b>Boost</b> at the bottom right to flap (hold to keep flapping)</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+    </ul>
+    <ul class="controls touch-split">
+      <li><b>Two pads</b>: the left one turns <b>left</b>, the right one turns <b>right</b>, and both climb and dive. One works at a time: while you hold one, the other rests. Rest between two arrows for a diagonal, or slide round without lifting</li>
+      <li><b>Boost</b> above the right pad to flap (hold to keep flapping)</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+    </ul>
+    <ul class="controls touch-arrows">
+      <li><b>Left</b> and <b>right</b> under each thumb, with <b>up</b> and <b>down</b> beside both, so one thumb turns while the other climbs or dives. Slide between them without lifting</li>
+      <li><b>Boost</b> above the right arrows to flap (hold to keep flapping)</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+    </ul>
+    <ul class="controls">
+      <li><b>Pause</b> with the button at the top right. Pick <b>Drag</b>, <b>D-pad</b>, <b>Side arrows</b> or <b>Split</b> steering there</li>
+    </ul>
+  </div>
+  <div class="controls-list desktop-only">
+    <h3>Mouse</h3>
+    <ul class="controls">
+      <li><b>Move</b> the pointer away from the centre to steer</li>
+      <li><b>Click</b> to boost (hold to keep flapping)</li>
+      <li><b>Right-click</b> toward a direction for a trick; hold it to stretch the trick</li>
+    </ul>
+    <h3>Keyboard</h3>
+    <ul class="controls">
+      <li><b>WASD</b> or <b>arrows</b> to steer, <b>Space</b> to boost</li>
+      <li><b>Double-tap</b> a direction for a trick: left or right rolls, up loops, down dives</li>
+      <li><b>P</b> or <b>Esc</b> pause · <b>M</b> mute · <b>L</b> lock the pointer</li>
+    </ul>
+    <h3>Gamepad</h3>
+    <ul class="controls">
+      <li><b>Left stick</b> to steer, <b>A</b> or <b>RT</b> to boost, <b>Start</b> to pause</li>
+      <li><b>Push the stick</b> to the edge twice for a trick</li>
+    </ul>
+  </div>
+  <button class="btn primary" id="controls-back">Back</button>`;
 
 /** Start screen and pause menu, plain DOM. The world keeps flying behind both. */
 export class Menu {
   private readonly start: HTMLDivElement;
   private readonly pause: HTMLDivElement;
+  private readonly help: HTMLDivElement;
+  /** The screen the Controls panel returns to. */
+  private helpFrom: HTMLDivElement | null = null;
   private readonly pauseBtn: HTMLButtonElement;
   private readonly best: HTMLElement;
   private readonly pauseStats: HTMLElement;
@@ -37,9 +87,6 @@ export class Menu {
   private fsBtn?: HTMLButtonElement;
 
   constructor(ui: HTMLElement, settings: Settings, h: MenuHandlers) {
-    const controls = isTouch()
-      ? `<li><b>Drag</b> anywhere to steer</li><li><b>Hold the wing button</b> (or tap with a second finger) to flap</li>`
-      : `<li><b>Mouse</b> or <b>WASD</b> to steer</li><li><b>Click</b> or <b>Space</b> to flap</li><li><b>P</b> pause · <b>M</b> mute · <b>L</b> lock pointer</li>`;
     this.start = this.panel(
       'start',
       `<h1>Driftwing</h1>
@@ -55,9 +102,9 @@ export class Menu {
            `<button class="time" role="radio" aria-checked="false" data-time="${t.id}">${t.label}</button>`,
        ).join('')}</div>
        <button class="btn primary" id="play-btn">Play</button>
+       <button class="btn ghost controls-btn">Controls</button>
        <button class="fs-nudge" hidden>⤢ Best played fullscreen</button>
        <p class="fs-tip" hidden>For fullscreen, tap Share, then <b>Add to Home Screen</b>, and open Driftwing from there.</p>
-       <ul class="controls">${controls}</ul>
        <p class="best" hidden></p>`,
     );
     this.best = this.start.querySelector('.best')!;
@@ -67,6 +114,7 @@ export class Menu {
        <p class="pause-stats"></p>
        <button class="btn primary" id="resume-btn">Resume</button>
        <button class="btn ghost" id="title-btn">Change level</button>
+       <button class="btn ghost controls-btn">Controls</button>
        <div class="settings">
          <label>Volume <input type="range" id="vol" min="0" max="1" step="0.01"></label>
          <label class="row"><input type="checkbox" id="mute"> Mute</label>
@@ -77,15 +125,22 @@ export class Menu {
            </select>
          </label>
          <label class="row"><input type="checkbox" id="invert"> Invert vertical steering</label>
-         <label class="row touch-only"><input type="checkbox" id="lefty"> Left-handed (flap button on the left)</label>
+         <label class="touch-only">Steering
+           <select id="steer">
+             <option value="drag">Drag anywhere</option><option value="dpad">D-pad</option>
+             <option value="arrows">Side arrows</option>
+             <option value="split">Split</option>
+           </select>
+         </label>
        </div>`,
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
+    this.help = this.panel('help', CONTROLS_HTML);
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.className = 'pause-btn';
     this.pauseBtn.setAttribute('aria-label', 'Pause');
     this.pauseBtn.innerHTML = '<span></span><span></span>';
-    ui.append(this.start, this.pause, this.pauseBtn);
+    ui.append(this.start, this.pause, this.help, this.pauseBtn);
     this.setupFullscreen(ui);
 
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
@@ -104,17 +159,20 @@ export class Menu {
     this.pause.querySelector('#resume-btn')!.addEventListener('click', () => h.resume());
     this.pause.querySelector('#title-btn')!.addEventListener('click', () => h.toTitle());
     this.pauseBtn.addEventListener('click', () => h.pause());
+    for (const from of [this.start, this.pause])
+      from.querySelector('.controls-btn')!.addEventListener('click', () => this.showHelp(from));
+    this.help.querySelector('#controls-back')!.addEventListener('click', () => this.hideHelp());
     const vol = this.pause.querySelector<HTMLInputElement>('#vol')!;
     const mute = this.pause.querySelector<HTMLInputElement>('#mute')!;
     const quality = this.pause.querySelector<HTMLSelectElement>('#quality')!;
     const invert = this.pause.querySelector<HTMLInputElement>('#invert')!;
-    const lefty = this.pause.querySelector<HTMLInputElement>('#lefty')!;
+    const steer = this.pause.querySelector<HTMLSelectElement>('#steer')!;
     const sync = () => {
       vol.value = String(settings.volume);
       mute.checked = settings.muted;
       quality.value = settings.quality;
       invert.checked = settings.invertY;
-      lefty.checked = settings.leftHanded;
+      steer.value = settings.touchSteer;
     };
     sync();
     this.syncInputs = sync;
@@ -123,12 +181,12 @@ export class Menu {
       settings.muted = mute.checked;
       settings.quality = quality.value as Settings['quality'];
       settings.invertY = invert.checked;
-      settings.leftHanded = lefty.checked;
+      settings.touchSteer = steer.value as Settings['touchSteer'];
       h.change(settings);
     };
-    for (const el of [vol, mute, quality, invert, lefty]) el.addEventListener('input', changed);
+    for (const el of [vol, mute, quality, invert, steer]) el.addEventListener('input', changed);
     // Keep keyboard/mouse events on menus from steering or flapping the bird.
-    for (const p of [this.start, this.pause])
+    for (const p of [this.start, this.pause, this.help])
       p.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
@@ -169,6 +227,19 @@ export class Menu {
     }
   }
 
+  /** Swap the title or pause card for the Controls panel; Back returns to it. */
+  private showHelp(from: HTMLDivElement): void {
+    this.helpFrom = from;
+    from.classList.remove('show');
+    this.help.classList.add('show');
+  }
+
+  private hideHelp(): void {
+    this.help.classList.remove('show');
+    this.helpFrom?.classList.add('show');
+    this.helpFrom = null;
+  }
+
   private markTime(t: TimeOfDay): void {
     for (const chip of this.timeChips) {
       const on = chip.dataset.time === t;
@@ -187,6 +258,7 @@ export class Menu {
     }
     this.start.classList.add('show');
     this.pause.classList.remove('show');
+    this.help.classList.remove('show');
     this.pauseBtn.classList.remove('show');
     this.fsBtn?.classList.add('show');
   }
@@ -194,6 +266,7 @@ export class Menu {
   showPlaying(): void {
     this.start.classList.remove('show');
     this.pause.classList.remove('show');
+    this.help.classList.remove('show');
     this.pauseBtn.classList.add('show');
     this.fsBtn?.classList.remove('show');
   }

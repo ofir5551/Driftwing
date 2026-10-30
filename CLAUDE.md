@@ -13,7 +13,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city|karst|fjord`.
+  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city|karst|fjord|jerusalem`.
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio).
 - Headless Chromium: on Windows `--use-angle=d3d11` uses the real GPU; elsewhere SwiftShader works but is slow.
@@ -37,7 +37,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   current level's `World` (`setLevel` swaps it in place). Modes: `menu` (bot flies the attract backdrop),
   `playing`, `paused`. `onStep`/`onFrame` hooks.
 - `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`, `Karst`
-  (Jade River, with its own palettes), `Fjord` (Aurora Fjords); `index` registry.
+  (Jade River, with its own palettes), `Fjord` (Aurora Fjords), `Jerusalem` (City of Gold);
+  `index` registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics. `Bird.ts` visuals only. `ChaseCamera.ts` polar springs.
@@ -54,6 +55,11 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain, icebergs, lighthouse;
   walls are terrain that `solidTop` reports for the look-ahead), `FjordWisps`, `FjordDecor`,
   `geometry`, `FjordWorld`. The aurora is the `aurora` backdrop in `Sky`.
+- `world/jerusalem/`: `JerusalemLayout` (pure: designed Old City, valleys and landmarks round the
+  origin blending into endless hills, wadis, terraces and towns; per-block parts, trees and
+  solids (oriented boxes, domed drums); low roofs are canopy), `JerusalemWisps` (opening ribbon,
+  land-hugging swoops, valley runs, landmark swings), `JerusalemDecor` (instanced unit shapes),
+  `materials` (the stone shader), `geometry`, `JerusalemWorld`. Hills are the `hills` backdrop.
 - `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),

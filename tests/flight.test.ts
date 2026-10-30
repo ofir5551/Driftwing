@@ -3,6 +3,7 @@ import { Config } from '../src/core/Config';
 import { springStep } from '../src/core/math';
 import {
   createFlightState,
+  gust,
   stepFlight,
   type FlightEnv,
   type FlightInput,
@@ -173,5 +174,25 @@ describe('FlightModel', () => {
     const a = run(createFlightState(), 5, input(0.3, -0.2, true)).s;
     const b = run(createFlightState(), 5, input(0.3, -0.2, true)).s;
     expect(a).toEqual(b);
+  });
+
+  it('a lantern gust surges forward and up, then bleeds back toward cruise', () => {
+    const s = createFlightState(0, 120, 0);
+    run(s, 3, input());
+    const speed = s.speed;
+    gust(s, Config.lantern.boost, Config.lantern.lift);
+    expect(s.speed).toBeCloseTo(speed + Config.lantern.boost);
+    expect(s.liftVy).toBeGreaterThan(0);
+    const y = s.y;
+    run(s, 1, input());
+    expect(s.y).toBeGreaterThan(y);
+    run(s, 20, input());
+    expect(Math.abs(s.speed - Config.flight.cruiseSpeed)).toBeLessThan(3);
+  });
+
+  it('gust lift shares the flap cap', () => {
+    const s = createFlightState(0, 120, 0);
+    for (let i = 0; i < 5; i++) gust(s, 0, Config.lantern.lift);
+    expect(s.liftVy).toBeLessThanOrEqual(Config.flight.flapLift * 1.6);
   });
 });

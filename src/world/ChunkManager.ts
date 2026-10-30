@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
+import { withGroundDetail } from './GroundDetail';
 import {
   createChunkGeometry,
   fillChunkGeometry,
@@ -69,10 +70,12 @@ export class ChunkManager<T> {
     this.color = opts.color ?? groundColor;
     this.material =
       opts.material ??
-      new THREE.MeshToonMaterial({
-        vertexColors: true,
-        gradientMap: getToonGradient(),
-      });
+      withGroundDetail(
+        new THREE.MeshToonMaterial({
+          vertexColors: true,
+          gradientMap: getToonGradient(),
+        }),
+      );
     this.group.add(this.decor.group);
   }
 

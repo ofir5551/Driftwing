@@ -22,10 +22,14 @@ export interface Pose {
 
 // Palette (sRGB). A pale tern-like seabird: warm-grey mantle, dark cap, warm-to-dusky primaries.
 const BELLY = '#f7f1e8';
-const BACK = '#cdbfb3';
+const BACK = '#aea6ae';
 const CAP = '#4b4253';
-const WING_LEAD = '#ebdfd0';
-const WING_TRAIL = '#cdbdb0';
+const WING_LEAD = '#f3ebe1';
+const WING_TRAIL = '#ada4ab';
+const COVERT = '#c6bec2';
+const DUSKY = '#776a73'; // trailing edge of the secondaries
+const UNDERWING = '#fbf6ef';
+const BILL_TIP = '#3f2f33';
 const PRIMARY_BASE = '#d9c9b9';
 const PRIMARY_MID = '#e7a37c';
 const PRIMARY_TIP = '#4e4458';
@@ -81,6 +85,8 @@ function panel(points: [number, number][]): THREE.BufferGeometry {
 /**
  * One feather as a strip along +x in the XZ plane: rounded base, broad vane, pointed tip.
  * Built station by station (not earcut) so the base-to-tip colour gradient interpolates cleanly.
+ * Three vertices across: the shaft is a raised, paler ridge, so each vane catches the light on
+ * its own; the narrow leading vane is a shade darker, as on a real flight feather.
  */
 function feather(length: number, width: number, colorAt: (t: number, out: THREE.Color) => void) {
   const stations: [number, number][] = [
@@ -96,16 +102,22 @@ function feather(length: number, width: number, colorAt: (t: number, out: THREE.
   const idx: number[] = [];
   for (const [t, hw] of stations) {
     colorAt(t, scratch);
-    for (const s of [1, -1]) {
+    for (const s of [1, 0, -1]) {
       // Slightly asymmetric vane (narrow leading edge), like a real flight feather.
-      pos.push(t * length, 0, s * hw * width * (s > 0 ? 0.8 : 1.2));
-      col.push(scratch.r, scratch.g, scratch.b);
+      pos.push(
+        t * length,
+        s === 0 ? 0.012 * width * (1 - t) * 4 : 0,
+        s * hw * width * (s > 0 ? 0.8 : 1.2),
+      );
+      const f = s === 0 ? 1.1 : s > 0 ? 0.86 : 0.97;
+      col.push(scratch.r * f, scratch.g * f, scratch.b * f);
     }
   }
-  for (let i = 0; i < stations.length - 1; i++) {
-    const a = i * 2;
-    idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-  }
+  for (let i = 0; i < stations.length - 1; i++)
+    for (let j = 0; j < 2; j++) {
+      const a = i * 3 + j;
+      idx.push(a, a + 1, a + 3, a + 1, a + 4, a + 3);
+    }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -147,7 +159,18 @@ export class Bird {
     // White base colour: vertex colours carry the plumage.
     const plumage = toon('#ffffff', { vertexColors: true });
     const feathers = toon('#ffffff', { vertexColors: true, side: THREE.DoubleSide });
-    const beakMat = toon('#ef8a4a');
+    // Pale underwing and undertail: seen from below the bird is white against the sky, as a
+    // seabird is; the patterned upper side faces the chase camera.
+    const under = new THREE.Color(UNDERWING);
+    feathers.onBeforeCompile = (shader) => {
+      shader.uniforms.uUnder = { value: under };
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uUnder;')
+        .replace(
+          '#include <color_fragment>',
+          '#include <color_fragment>\nif (gl_FrontFacing) diffuseColor.rgb = mix(diffuseColor.rgb, uUnder, 0.55);',
+        );
+    };
     const feetMat = toon('#e2804f');
     const eyeMat = new THREE.MeshBasicMaterial({ color: '#221d29' });
     const glintMat = new THREE.MeshBasicMaterial({ color: '#fff8ec' });
@@ -168,7 +191,7 @@ export class Bird {
       [0.095, 0.42],
       [0.04, 0.47],
     ].map(([r, y]) => new THREE.Vector2(r, y));
-    const torsoGeo = new THREE.LatheGeometry(profile, 16).rotateX(Math.PI / 2); // axis -> +z
+    const torsoGeo = new THREE.LatheGeometry(profile, 24).rotateX(Math.PI / 2); // axis -> +z
     const tp = torsoGeo.getAttribute('position');
     for (let i = 0; i < tp.count; i++) {
       const y = tp.getY(i);
@@ -178,8 +201,12 @@ export class Bird {
       tp.setX(i, tp.getX(i) * 1.06);
     }
     torsoGeo.computeVertexNormals();
-    paint(torsoGeo, (_x, y, _z, out) =>
-      out.set(BELLY).lerp(scratch2.set(BACK), smoothstep(-0.01, 0.09, y)),
+    // Grey mantle over the back and shoulders, fading to a pale rump; a warm flush on the breast.
+    paint(torsoGeo, (_x, y, z, out) =>
+      out
+        .set(BELLY)
+        .lerp(scratch2.set('#f6e6d6'), smoothstep(0.1, 0.3, z) * smoothstep(0.02, -0.12, y) * 0.6)
+        .lerp(scratch2.set(BACK), smoothstep(-0.01, 0.09, y) * smoothstep(-0.55, -0.3, z)),
     );
     const torso = new THREE.Mesh(torsoGeo, plumage);
 
@@ -194,7 +221,12 @@ export class Bird {
     });
     const skull = new THREE.Mesh(skullGeo, plumage);
     skull.position.z = 0.14;
-    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.036, 0.26, 8).scale(0.85, 1, 1), beakMat);
+    const beak = new THREE.Mesh(
+      paint(new THREE.ConeGeometry(0.036, 0.26, 10, 3).scale(0.85, 1, 1), (_x, y, _z, out) =>
+        out.set('#ef8a4a').lerp(scratch2.set(BILL_TIP), smoothstep(0.03, 0.09, y)),
+      ),
+      plumage,
+    );
     beak.rotation.x = Math.PI / 2 + 0.08; // tip forward, dipping a touch
     beak.position.set(0, -0.012, 0.39);
     this.head.add(skull, beak);
@@ -233,8 +265,12 @@ export class Bird {
 
     const primaryColor = (t: number, out: THREE.Color) =>
       gradient(t, PRIMARY_BASE, PRIMARY_MID, PRIMARY_TIP, out);
+    // Front to back: a pale leading edge, the grey mantle, then a dusky trailing band.
     const wingShade = (_x: number, _y: number, z: number, out: THREE.Color) =>
-      out.set(WING_TRAIL).lerp(scratch2.set(WING_LEAD), smoothstep(-0.2, 0.12, z));
+      out
+        .set(DUSKY)
+        .lerp(scratch2.set(WING_TRAIL), smoothstep(-0.25, -0.15, z))
+        .lerp(scratch2.set(WING_LEAD), smoothstep(0.04, 0.15, z));
     for (const side of [1, -1]) {
       // Arm: broad inner wing with a scalloped trailing edge of secondaries. (span, chord) points.
       const arm = new THREE.Mesh(
@@ -255,6 +291,29 @@ export class Bird {
         ),
         feathers,
       );
+      // Coverts: a lighter layer over the front of the arm with its own scalloped edge, so the
+      // wing reads as overlapping rows of feathers.
+      const armCoverts = new THREE.Mesh(
+        paint(
+          panel([
+            [0, 0.15],
+            [0.6, 0.12],
+            [0.6, -0.04],
+            [0.52, -0.08],
+            [0.45, -0.05],
+            [0.37, -0.1],
+            [0.29, -0.06],
+            [0.21, -0.11],
+            [0.13, -0.07],
+            [0.05, -0.12],
+            [0, -0.1],
+          ]),
+          (_x, _y, z, out) =>
+            out.set(COVERT).lerp(scratch2.set(WING_LEAD), smoothstep(0.02, 0.13, z)),
+        ),
+        feathers,
+      );
+      armCoverts.position.y = 0.008;
       // Leading edge starts inside the body so no rod end shows at the shoulder.
       const armEdge = new THREE.Mesh(paint(rod(0.6, 0.045, 0.03), solid(WING_LEAD)), plumage);
       armEdge.position.set(0.04, 0, 0.12);
@@ -304,7 +363,7 @@ export class Bird {
         elbow.add(g);
         this.primaries.push(g);
       }
-      shoulder.add(arm, armEdge, elbow);
+      shoulder.add(arm, armCoverts, armEdge, elbow);
       this.shoulders.push(shoulder);
       this.elbows.push(elbow);
       this.body.add(shoulder);

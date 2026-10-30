@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { gableGeometry } from '../city/geometry';
 import { mulberry32 } from '../noise';
-import { colored } from '../Trees';
+import { smoothstep } from '../../core/math';
+import { colored, painted, topLit } from '../Trees';
 
 /**
  * Aurora Fjords' shapes, in metres, built from primitives and painted with vertex colours.
@@ -17,6 +18,50 @@ export function spruceGeometry(): THREE.BufferGeometry {
     colored(new THREE.ConeGeometry(1.4, 4.4, 5), '#3d6a5c', 7.4),
     colored(new THREE.ConeGeometry(0.75, 2, 5), '#e8eef6', 9.2),
   ])!;
+}
+
+/**
+ * Near spruce (~190 triangles): six narrow tiers with drooping, ragged skirts, each carrying
+ * snow on its shoulders (white at the top of the tier, patchy round its middle, none on the dark
+ * underside) so the tree reads as layered branches under a fresh fall.
+ */
+export function spruceDetailGeometry(): THREE.BufferGeometry {
+  const parts = [colored(new THREE.CylinderGeometry(0.18, 0.34, 2.6, 5), '#54443e', 1.3)];
+  const snow = new THREE.Color('#eef3f9');
+  const tiers = 6;
+  for (let i = 0; i < tiers; i++) {
+    const u = i / (tiers - 1);
+    const r = 2.4 - u * 1.75;
+    const h = 2.6 - u * 0.8;
+    const g = new THREE.ConeGeometry(r, h, 7, 2);
+    const pos = g.getAttribute('position');
+    for (let k = 0; k < pos.count; k++) {
+      if (pos.getY(k) > -h / 2 + 0.01) continue;
+      const a = Math.atan2(pos.getZ(k), pos.getX(k));
+      const fray = 1 + 0.12 * Math.sin(a * 7 + i * 1.7);
+      pos.setXYZ(k, pos.getX(k) * fray, pos.getY(k) - 0.4 * fray, pos.getZ(k) * fray);
+    }
+    g.rotateY(i * 0.9);
+    const green = new THREE.Color(i % 2 ? '#34604f' : '#2e594a');
+    const under = green.clone().offsetHSL(0, 0, -0.07);
+    // The top tier is all snow cap; lower tiers hold it on their upper half in patches.
+    const cover = i === tiers - 1 ? 1 : 0.55 + 0.1 * u;
+    parts.push(
+      painted(
+        g,
+        (x, y, z, out) => {
+          const patch = 0.6 + 0.4 * Math.sin(Math.atan2(z, x) * 3 + i * 2.3);
+          const s = smoothstep(-h * 0.1, h * 0.45, y) * cover * (y > h * 0.3 ? 1 : patch);
+          out
+            .copy(under)
+            .lerp(green, smoothstep(-h / 2, 0, y))
+            .lerp(snow, s);
+        },
+        2.6 + u * 6.4,
+      ),
+    );
+  }
+  return topLit(mergeGeometries(parts)!, 0.8, 1.06);
 }
 
 /**

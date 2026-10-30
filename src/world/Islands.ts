@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Config } from '../core/Config';
+import { withGroundDetail } from './GroundDetail';
 import { getToonGradient, type HeightField } from './Terrain';
 import { hash2, mulberry32 } from './noise';
-import { pineGeometry, roundTreeGeometry } from './Trees';
+import { smoothstep } from '../core/math';
+import { colored, jitter, painted, pineDetailGeometry, roundTreeDetailGeometry } from './Trees';
 
 export interface Island {
   x: number;
@@ -16,47 +18,79 @@ export interface Island {
 
 const CELL = 560;
 
-/** One island shape: a grassy cap on a jagged hanging rock, with a couple of trees. */
+const ROCK_LIGHT = new THREE.Color('#c2abbf');
+const ROCK_DARK = new THREE.Color('#7a6a8b');
+const ROCK_WARM = new THREE.Color('#c9a99a');
+const GRASS = new THREE.Color('#a8d17d');
+const GRASS_EDGE = new THREE.Color('#86b866');
+const VINE = new THREE.Color('#5f8f5c');
+
+/**
+ * One island shape (unit top radius): a grassy cap whose turf spills over the lip, on a jagged
+ * hanging rock banded in warm and cool strata that darken toward the tip, with vines trailing
+ * from the rim, a few boulders and two or three trees on top. Islands are few, so they can
+ * afford the detailed tree shapes.
+ */
 function islandGeometry(seed: number): THREE.BufferGeometry {
   const rand = mulberry32(seed);
-  const paint = (g: THREE.BufferGeometry, top: string, bottom: string, split: number) => {
-    const ng = g.index ? g.toNonIndexed() : g;
-    const pos = ng.getAttribute('position');
-    const col = new Float32Array(pos.count * 3);
-    const a = new THREE.Color(top);
-    const b = new THREE.Color(bottom);
-    const c = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) {
-      c.lerpColors(b, a, THREE.MathUtils.smoothstep(pos.getY(i), split - 0.6, split + 0.1));
-      col.set([c.r, c.g, c.b], i * 3);
-    }
-    ng.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    ng.deleteAttribute('uv');
-    ng.computeVertexNormals();
-    return ng;
-  };
+  const phase = rand() * 10;
   // Rock: an inverted cone with jittered vertices for a hand-carved look.
-  const rock = new THREE.ConeGeometry(1, 1.6, 11, 4, false);
+  const rock = new THREE.ConeGeometry(1, 1.6, 16, 7, false);
   rock.rotateX(Math.PI);
   rock.translate(0, -0.8, 0);
   const rp = rock.getAttribute('position');
   for (let i = 0; i < rp.count; i++) {
     const y = rp.getY(i);
     if (y > -0.01) continue; // keep the rim flat so the cap sits cleanly
-    const j = 0.32 * (1 + y * 0.25);
+    const j = 0.26 * (1 + y * 0.25);
     rp.setXYZ(
       i,
       rp.getX(i) * (1 + (rand() - 0.5) * j * 2),
-      y * (1 + (rand() - 0.5) * 0.25),
+      y * (1 + (rand() - 0.5) * 0.12),
       rp.getZ(i) * (1 + (rand() - 0.5) * j * 2),
     );
   }
-  const cap = new THREE.CylinderGeometry(1.06, 1.0, 0.18, 9, 1);
-  cap.translate(0, 0.06, 0);
-  const parts = [paint(rock, '#b9a2b8', '#7f6f8f', -0.1), paint(cap, '#a8d17d', '#a8d17d', 0)];
-  const trees = 1 + Math.floor(rand() * 3);
+  const rockPainted = painted(rock, (x, y, z, out) => {
+    // Strata: wavy horizontal layers alternating warm and cool, the turf dripping over the lip.
+    const band = Math.sin(y * 6.5 + Math.sin(Math.atan2(z, x) * 3 + phase) * 1.2);
+    out.copy(ROCK_DARK).lerp(ROCK_LIGHT, smoothstep(-1.5, -0.1, y));
+    out.lerp(ROCK_WARM, smoothstep(0.1, 0.8, band) * 0.7);
+    out.multiplyScalar(1 - smoothstep(0.4, 1, -band) * 0.2);
+    const drip = -0.12 - 0.1 * (0.5 + 0.5 * Math.sin(Math.atan2(z, x) * 5 + phase));
+    out.lerp(GRASS_EDGE, smoothstep(drip - 0.05, drip + 0.05, y));
+  });
+  const cap = painted(
+    new THREE.CylinderGeometry(1.06, 1.0, 0.18, 16, 1),
+    (x, y, z, out) =>
+      out
+        .copy(GRASS_EDGE)
+        .lerp(GRASS, smoothstep(0.85, 0.6, Math.hypot(x, z)) * 0.6 + smoothstep(0, 0.09, y) * 0.4),
+    0.06,
+  );
+  const parts = [rockPainted, cap];
+  // Vines: thin tapering strands hanging from the rim, longer where the rock overhangs most.
+  const vines = 5 + Math.floor(rand() * 4);
+  for (let v = 0; v < vines; v++) {
+    const a = rand() * Math.PI * 2;
+    const len = 0.25 + rand() * 0.45;
+    const g = new THREE.ConeGeometry(0.035, len, 3).rotateX(Math.PI).translate(0, -len / 2, 0);
+    parts.push(
+      colored(g, VINE.getStyle(), -0.04).translate(Math.cos(a) * 0.97, 0, Math.sin(a) * 0.97),
+    );
+  }
+  // Boulders on the turf.
+  for (let b = 0; b < 2 + Math.floor(rand() * 3); b++) {
+    const a = rand() * Math.PI * 2;
+    const r = rand() * 0.7;
+    const s = 0.05 + rand() * 0.06;
+    const g = jitter(new THREE.IcosahedronGeometry(s, 0), s * 0.5, seed + b).scale(1, 0.7, 1);
+    parts.push(
+      colored(g, '#b4a4b5', 0.15 + s * 0.3).translate(Math.cos(a) * r, 0, Math.sin(a) * r),
+    );
+  }
+  const trees = 2 + Math.floor(rand() * 2);
   for (let t = 0; t < trees; t++) {
-    const g = (rand() < 0.5 ? pineGeometry() : roundTreeGeometry()).clone();
+    const g = rand() < 0.5 ? pineDetailGeometry() : roundTreeDetailGeometry();
     const s = 0.035 + rand() * 0.02;
     g.scale(s, s, s);
     const ang = rand() * Math.PI * 2;
@@ -81,10 +115,13 @@ export class Islands {
   private lastCz = NaN;
 
   constructor(private readonly field: HeightField) {
-    this.material = new THREE.MeshToonMaterial({
-      vertexColors: true,
-      gradientMap: getToonGradient(),
-    });
+    // The terrain's painted detail gives the rock its strata and dabs of light too.
+    this.material = withGroundDetail(
+      new THREE.MeshToonMaterial({
+        vertexColors: true,
+        gradientMap: getToonGradient(),
+      }),
+    );
     for (let i = 0; i < 4; i++) this.geometries.push(islandGeometry(Config.world.seed + i * 7));
   }
 

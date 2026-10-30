@@ -166,6 +166,7 @@ export class Game {
     const q = QUALITY[level];
     Config.render.drawDistance = q.drawDistance;
     Config.render.treeDistance = q.treeDistance;
+    Config.render.treeDetail = q.treeDetail;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
     this.pixelRatio = Math.min(devicePixelRatio, q.maxPixelRatio);

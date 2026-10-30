@@ -30,9 +30,15 @@ float mistAmount(vec3 wp) {
   return clamp(m, 0.0, 0.94);
 }`;
 
-/** Add the mist to a built-in material (toon, basic). Returns the same material. */
+/**
+ * Add the mist to a built-in material (toon, basic). Composes with an existing onBeforeCompile.
+ * Returns the same material.
+ */
 export function withMist<T extends THREE.Material>(m: T): T {
-  m.onBeforeCompile = (shader) => {
+  const prev = m.onBeforeCompile.bind(m);
+  const prevKey = m.customProgramCacheKey.bind(m);
+  m.onBeforeCompile = (shader, renderer) => {
+    prev(shader, renderer);
     Object.assign(shader.uniforms, mistUniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vMistPos;')
@@ -52,6 +58,6 @@ export function withMist<T extends THREE.Material>(m: T): T {
         '#include <fog_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, uMistColor, mistAmount(vMistPos));',
       );
   };
-  m.customProgramCacheKey = () => 'mist';
+  m.customProgramCacheKey = () => `${prevKey()}|mist`;
   return m;
 }

@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { smoothstep } from '../../core/math';
 import { gableGeometry, hipGeometry } from '../city/geometry';
 import { mulberry32 } from '../noise';
-import { colored } from '../Trees';
+import { colored, jitter, painted, topLit } from '../Trees';
 import { profile, type PillarShape } from './KarstLayout';
 
 /**
@@ -111,7 +111,43 @@ export function bambooGeometry(): THREE.BufferGeometry {
     plume.translate(Math.cos(a) * 1.3, 8.2 + rand() * 1.5, -Math.sin(a) * 1.3);
     parts.push(colored(plume, k % 2 ? '#7eae5b' : '#93c068'));
   }
-  return mergeGeometries(parts)!;
+  return topLit(mergeGeometries(parts)!, 0.7, 1.1);
+}
+
+/**
+ * Near bamboo (~170 triangles): five culms fanning out of one
+ * root, under seven lumpy leaf sprays that arch outward from the culm tops and droop at the
+ * tips, cool and shaded inside the clump, catching the light on the outside.
+ */
+export function bambooDetailGeometry(): THREE.BufferGeometry {
+  const rand = mulberry32(9);
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 5; i++) {
+    const h = 9 + rand() * 4.5;
+    const a = (i / 5) * Math.PI * 2 + rand() * 0.8;
+    const lean = 0.08 + rand() * 0.2;
+    const culm = new THREE.CylinderGeometry(0.09, 0.15, h, 3, 1, true).translate(0, h / 2, 0);
+    culm.rotateZ(-lean).rotateY(a);
+    parts.push(colored(culm, i % 2 ? '#9aae62' : '#869d55'));
+  }
+  const inner = new THREE.Color('#5f8f4c');
+  for (let k = 0; k < 7; k++) {
+    const a = (k / 7) * Math.PI * 2 + rand() * 0.5;
+    const high = k % 2 === 0;
+    const len = 3.2 + rand() * 1.4;
+    const spray = jitter(new THREE.IcosahedronGeometry(1, 0), 0.35, 30 + k).scale(0.85, len, 1.5);
+    const outer = new THREE.Color(k % 3 ? '#8cbc63' : '#a0c972');
+    const g = painted(spray, (x, y, _z, out) =>
+      out.copy(inner).lerp(outer, smoothstep(-0.6, 0.8, x + y * 0.15)),
+    );
+    // Arch outward: lower sprays lean further and hang lower, the crown ones stand taller.
+    g.translate(0.6, 0, 0)
+      .rotateZ(-(high ? 0.35 : 0.75) - rand() * 0.2)
+      .rotateY(a)
+      .translate(Math.cos(a) * 1.1, (high ? 9.4 : 7.4) + rand() * 1.2, -Math.sin(a) * 1.1);
+    parts.push(g);
+  }
+  return topLit(mergeGeometries(parts)!, 0.7, 1.1);
 }
 
 /** A village house: whitewashed walls on a stone plinth under a dark tiled gable roof. */

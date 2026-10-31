@@ -7,7 +7,14 @@ import {
   PhraseGenerator,
   StepScheduler,
 } from '../src/audio/scales';
-import { CITY_MUSIC, FJORD_MUSIC, HIGHLANDS_MUSIC, KARST_MUSIC } from '../src/audio/styles';
+import {
+  CANYON_MUSIC,
+  CITY_MUSIC,
+  FJORD_MUSIC,
+  HIGHLANDS_MUSIC,
+  JERUSALEM_MUSIC,
+  KARST_MUSIC,
+} from '../src/audio/styles';
 import { mulberry32 } from '../src/world/noise';
 
 describe('scales', () => {
@@ -93,7 +100,14 @@ describe('StepScheduler', () => {
 });
 
 describe('level music styles', () => {
-  const styles = { HIGHLANDS_MUSIC, CITY_MUSIC, KARST_MUSIC, FJORD_MUSIC };
+  const styles = {
+    HIGHLANDS_MUSIC,
+    CITY_MUSIC,
+    KARST_MUSIC,
+    FJORD_MUSIC,
+    JERUSALEM_MUSIC,
+    CANYON_MUSIC,
+  };
 
   it.each(Object.entries(styles))('%s is a playable style', (_, st) => {
     expect(st.keys).toHaveLength(5);

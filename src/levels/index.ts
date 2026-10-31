@@ -1,3 +1,4 @@
+import { Canyon } from './Canyon';
 import { City } from './City';
 import { Fjord } from './Fjord';
 import { Highlands } from './Highlands';
@@ -6,7 +7,7 @@ import { Karst } from './Karst';
 import type { LevelDef, LevelId } from './World';
 
 /** Every level, in title-screen order. The first is the default. */
-export const LEVEL_LIST: LevelDef[] = [Highlands, City, Karst, Fjord, Jerusalem];
+export const LEVEL_LIST: LevelDef[] = [Highlands, City, Karst, Fjord, Jerusalem, Canyon];
 
 export const LEVELS = Object.fromEntries(LEVEL_LIST.map((l) => [l.id, l])) as Record<
   LevelId,

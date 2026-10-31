@@ -104,6 +104,30 @@ export const Config = {
     windows: 1, // brightness of hut windows and the lighthouse after dark
     beamSpeed: 0.5, // rad/s, the lighthouse beam's sweep
   },
+  canyon: {
+    // Plan (read when a level is created).
+    canyonScale: 0.0006, // frequency of the canyon noise: a canyon every ~800 m
+    floorMin: 38, // m, half width of the canyon floor in its narrowest reaches
+    floorMax: 82, // m, half width of the floor where it opens out
+    riverMin: 9, // m, half width of the river down the middle of the floor
+    riverMax: 16,
+    wall: 120, // m, horizontal run of a wall from the floor to the rim
+    bands: 4, // rock bands in a wall: each a cliff over a bench
+    cliff: 0.42, // share of a band's run taken by its cliff (the rest is the bench)
+    plateau: 125, // m, mean height of the rim and the desert above it
+    plateauVar: 16, // m, rim and plateau swell either way
+    mesa: 70, // m, flat-topped mesas and buttes rising off the plateau
+    archCell: 420, // m, grid cell that may hold one arch (in the canyon or out on the plateau)
+    greatAhead: 330, // m along the canyon from the spawn to the Great Arch
+    greatSpan: 46, // m, half span of the Great Arch's opening
+    greatRise: 62, // m, height of its opening
+    hoodooCell: 24, // m, grid cell that may hold one hoodoo near the rim
+    // Atmosphere and light.
+    mist: 0.3, // dawn mist in the canyons (it burns off by day)
+    mistTop: 30, // m, the dawn mist lies below this
+    mistFar: 0.24, // dust haze: far mesas fade in layers
+    mesasDistance: 3000, // m, how far the painted mesas on the horizon pretend to be
+  },
   ground: {
     // Painted detail over the terrain's vertex colours (GroundDetail), all fading with distance.
     mottle: 0.24, // brightness swing of the broad paint patches

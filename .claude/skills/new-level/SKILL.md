@@ -20,17 +20,17 @@ fail state, every collision is a soft glance.
 
 ## 2. Where a level plugs in
 
-| File                                       | What to add                                                                                                                                                                                                                          |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/levels/World.ts`                      | id in `LevelId`. `World` (the interface to implement) and `LevelDef` live here.                                                                                                                                                      |
-| `src/levels/<Name>.ts`                     | `LevelDef`: `name`, `blurb` (short, fits a card on a phone), `startPhase`, `dayScale`, `music`, `backdrop` (`none`/`fuji`/`karst`, or add one in `Sky.ts`), optional `sky` palettes and `saturation`, `maxAltitude`, `create(seed)`. |
-| `src/levels/index.ts`                      | append to `LEVEL_LIST` (title cards, URL flag and settings follow).                                                                                                                                                                  |
-| `src/world/<name>/`                        | `<Name>Layout` (pure), `<Name>World`, `<Name>Decor`, `<Name>Wisps`, `geometry`.                                                                                                                                                      |
-| `src/core/Config.ts`                       | a section for every tunable number (shown in `?debug`).                                                                                                                                                                              |
-| `src/audio/scales.ts`, `styles.ts`         | `<NAME>_KEYS` (5 keys: dawn, day, golden, dusk, twilight; add modes to `MODES` if needed) and a `<NAME>_MUSIC` style with its own tempo, voice, pad, reverb (no two levels share tempo+voice).                                       |
-| `tests/<name>.test.ts`                     | layout + flight + music tests (step 5).                                                                                                                                                                                              |
-| `scripts/shots.mjs`                        | a title shot and 3-4 placed viewpoints for the README.                                                                                                                                                                               |
-| `README.md`, `docs/DESIGN.md`, `CLAUDE.md` | level bullet + screenshots; a design section and decisions-log lines; architecture line and `?level=` flag.                                                                                                                          |
+| File                                       | What to add                                                                                                                                                                                                                                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/levels/World.ts`                      | id in `LevelId`. `World` (the interface to implement) and `LevelDef` live here.                                                                                                                                                                               |
+| `src/levels/<Name>.ts`                     | `LevelDef`: `name`, `blurb` (short, fits a card on a phone), `startPhase`, `dayScale`, `music`, `backdrop` (`none`/`fuji`/`karst`/`aurora`/`hills`/`mesas`, or add one in `Sky.ts`), optional `sky` palettes and `saturation`, `maxAltitude`, `create(seed)`. |
+| `src/levels/index.ts`                      | append to `LEVEL_LIST` (title cards, URL flag and settings follow).                                                                                                                                                                                           |
+| `src/world/<name>/`                        | `<Name>Layout` (pure), `<Name>World`, `<Name>Decor`, `<Name>Wisps`, `geometry`.                                                                                                                                                                               |
+| `src/core/Config.ts`                       | a section for every tunable number (shown in `?debug`).                                                                                                                                                                                                       |
+| `src/audio/scales.ts`, `styles.ts`         | `<NAME>_KEYS` (5 keys: dawn, day, golden, dusk, twilight; add modes to `MODES` if needed) and a `<NAME>_MUSIC` style with its own tempo, voice, pad, reverb (no two levels share tempo+voice).                                                                |
+| `tests/<name>.test.ts`                     | layout + flight + music tests (step 5).                                                                                                                                                                                                                       |
+| `scripts/shots.mjs`                        | a title shot and 3-4 placed viewpoints for the README.                                                                                                                                                                                                        |
+| `README.md`, `docs/DESIGN.md`, `CLAUDE.md` | level bullet + screenshots; a design section and decisions-log lines; architecture line and `?level=` flag.                                                                                                                                                   |
 
 `Settings`, `Menu` and `main.ts` need nothing: they read `LEVEL_LIST`. `Game.setLevel` applies
 palettes, backdrop, ceiling and saturation; `Gameplay` reads the `World` hooks.
@@ -44,6 +44,10 @@ palettes, backdrop, ceiling and saturation; `Gameplay` reads the `World` hooks.
   queries; terrain from the same layout; chunk decor; a planner.
 - **Constructed grid of boxes** (towns, ruins, docks): `src/world/city/` (boxes bucketed per
   superblock, analytic ground shader).
+- **Channels walled by terrain** (fjords, canyons, gorges): `src/world/fjord/` or
+  `src/world/canyon/`. Walls are plain terrain that `solidTop` reports as solid above the floor;
+  the planner runs ribbons down the channel. Canyon adds props with an underside (arches) the
+  look-ahead eases under.
 
 ## 4. Shared building blocks (reuse, don't rewrite)
 
@@ -101,6 +105,9 @@ Check a runtime switch to another level: nothing (mist, palette) may leak.
   spawn) but a trap if a feature assumes otherwise.
 - **Painted horizons**: evenly sized round humps read as an aqueduct; vary heights strongly
   and keep peaks taller than wide.
+- **Mirrored cells**: `hash2(-x, -z) === hash2(x, z)` when both are odd, so props in cells
+  mirrored through the origin come out identical. Offset cell coordinates (`CanyonLayout`'s
+  `cellHash`) for anything a player could notice twice.
 
 ## Done means
 

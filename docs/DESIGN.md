@@ -61,6 +61,8 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
   one: vast walls, black water, the sky moving overhead.
 - **City of Gold**: Jerusalem's walled Old City on its hills, opening in the golden hour. The warm
   one: ancient stone that glows, a sense of arrival, swooping over roofs and down valleys.
+- **Red Canyons**: red sandstone canyons, arches and mesas (the Colorado Plateau), opening in the
+  midday glare. The free one: wide open sky, speed down a canyon, threading stone arches.
 
 ## Neon Bay
 
@@ -204,6 +206,50 @@ that hug the land (12 m over roofs, 16 m elsewhere), weaving gently either side 
 turning trend; runs along the Kidron, the Hinnom and the wadis; climbing swings round a minaret,
 a tower or a dome.
 
+## Red Canyons
+
+Mood: free, fast, sunlit. The first level to open in the middle of the day: a hot white sun high
+in a deep blue sky, with the red rock bouncing warm light into every shadow (the palette's ground
+light is rust by day). The day runs at 1.2x toward a blazing orange sunset, a violet dusk and a
+clear, starry desert night under a cool moon. Warm palette with two cool accents: the green river
+with its cottonwoods, and the sky.
+
+Plan: canyons run along the zero contour of a low-frequency noise (as the fjords), a canyon every
+~800 m; spawn is mid-canyon through the origin, facing along it. From the middle: a green river
+9-16 m either side of the centre line, a sandy floor rising gently to the wall's foot (38-82 m
+from the centre), then a wall of four rock bands, each a cliff over a bench, at uneven heights,
+up to a rim ~125 m above the river, over a 120 m run. The band profile is read at a distance
+shifted by noise, so the ledges meander while the strata stay level. Beyond the rim the plateau
+swells gently and throws up flat-topped mesas (a talus skirt, sheer walls, now and then a butte
+stepped on top) away from the canyons. The ground is painted in level bands of deep red, rust,
+orange and pale sandstone with desert varnish streaking the steepest faces and cream caprock on
+the mesa tops. Cottonwoods line the river, sagebrush and juniper scatter the floors and plateau,
+and banded hoodoos with darker cap stones crowd the rims and the wider benches.
+
+Arches: one shape for all of them, a band between two half ellipses (the opening, and the back
+1.3x as wide and 1.24x as high) with legs running into the ground, scaled per arch. The Great
+Arch (46 m half span, 62 m rise) stands across the floor ~330 m down the canyon from the spawn,
+where the floor opens out to hold its legs; smaller ones stand across straight reaches of the
+canyons (one in a 420 m grid cell at most, snapped to the centre line), and fins with a window
+through them stand on level ground out on the plateau. Painted mesas and buttes ring the horizon
+in three washes of the rock's shade.
+
+Atmosphere: a dust haze layers the far rims and mesas all day; a little mist lies in the canyons
+at first light and burns off by mid-morning. Music: a desert guitar (a saw and a square an octave
+apart through a slowly closing lowpass, picked up into pitch from a quarter tone flat, a slow
+vibrato blooming on long notes) at 84 BPM over a triangle pad and an open-fifth drone, a galloping
+arpeggio with flow and a long canyon echo; suspended at dawn, a wide major by day, a mixolydian
+twang at sunset, minor at dusk and under the stars.
+
+Flight: the walls and mesas are terrain, not props (as in the fjords): the look-ahead veers along
+the canyon before a wall and a steep slope glances the bird off downhill. Arches and hoodoos are
+solid: under a span the look-ahead eases the nose down through the opening, over the back it
+climbs, and a touch pushes the bird the shortest way out (over the back, under the span, off a
+leg or a face). Wisps: the canyon is the spine (low ribbons following its bends and swinging
+across the floor); near an arch a ribbon pulls to the middle and to 0.42 of the opening's height
+so it threads it, the Great Arch first. Glides carry on over the rims and the plateau, and
+generic patterns run only far out in the desert.
+
 ## Gameplay
 
 Wisps in arcs/ribbons ahead of the player. Quick chains fill a flow meter (score multiplier,
@@ -218,7 +264,7 @@ Generative ambient on Web Audio: detuned pads -> lowpass -> synthesized convolut
 sub drone, sparse pentatonic bells on a slow grid. Wisp pickups play the next note of a phrase,
 quantized to the grid. Speed opens the filter, altitude shifts voicing, flow adds arp/shimmer.
 Key drifts with the day cycle. Each level has a `MusicStyle` (`audio/styles.ts`): keys, tempo,
-progression, voice (bell, koto, guqin, glass), pad, drone fifth, reverb, arpeggio, beat. SFX: flap whoosh, speed-scaled wind, splash. Lookahead scheduler.
+progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, reverb, arpeggio, beat. SFX: flap whoosh, speed-scaled wind, splash. Lookahead scheduler.
 
 ## Decisions log
 
@@ -366,3 +412,13 @@ progression, voice (bell, koto, guqin, glass), pad, drone fifth, reverb, arpeggi
   penalised for a sharp corner where they join the last pattern.
 - `withMist` runs a material's own `onBeforeCompile` patch first, so the stone shader carries the
   valley mist too.
+- Red Canyons' arches are one instanced unit shape (an extruded half-elliptical band) scaled per
+  arch, and the layout's collision is the same band analytically, so what the bird sees is what
+  it hits. `solidTop` reports the opening's roof as the underside, which the shared look-ahead
+  already reads as "ease under it" (it was written for the city's gates and decks).
+- Canyon walls are stepped by reading a band profile at a noise-shifted distance, not by adding
+  noise to heights: the ledges meander while every stratum stays level, as real rock does.
+- `hash2(-x, -z)` equals `hash2(x, z)` when x and z are both odd (the multiplies are odd and
+  negation flips them alike), which stood identical arches in cells mirrored through the spawn.
+  The canyon offsets its cell coordinates far from the origin rather than change the shared hash,
+  which would reshuffle every other level.

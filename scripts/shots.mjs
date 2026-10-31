@@ -130,6 +130,32 @@ const shots = [
     wait: 3000,
     place: { x: -540, y: 128, z: -95, yaw: Math.PI / 2, phase: 0.86 },
   },
+  // Red Canyons (default seed).
+  { name: 'canyon-title', query: '?level=canyon', wait: 4500 },
+  {
+    name: 'canyon-arch',
+    query: '?level=canyon&autopilot',
+    wait: 3000,
+    place: { x: -282, y: 22, z: -863, yaw: 0.08, phase: 0.24 },
+  },
+  {
+    name: 'canyon-sunset',
+    query: '?level=canyon&autopilot',
+    wait: 3000,
+    place: { x: 150, y: 60, z: 0, yaw: 2.37, phase: 0.5 },
+  },
+  {
+    name: 'canyon-hoodoos',
+    query: '?level=canyon&autopilot',
+    wait: 3000,
+    place: { x: -336, y: 150, z: 850, yaw: 0, pitch: -0.2, phase: 0.5 },
+  },
+  {
+    name: 'canyon-night',
+    query: '?level=canyon&autopilot',
+    wait: 3000,
+    place: { x: 100, y: 26, z: 0, yaw: Math.PI / 2, phase: 0.86 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */

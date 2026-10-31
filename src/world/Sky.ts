@@ -30,6 +30,9 @@ uniform vec3 uInk;
 uniform float uAurora;
 uniform float uHills;
 uniform float uHillsBase;
+uniform float uMesas;
+uniform float uMesasBase;
+uniform vec3 uMesaInk;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -56,6 +59,30 @@ float ridge(float az, float n, float seed) {
     float dome = sqrt(max(1.0 - q * q, 0.0));
     float tall = hash1(id + 3.1);
     h = max(h, dome * (0.2 + 0.8 * tall * tall));
+  }
+  return h;
+}
+
+// A ring of mesas and buttes around the horizon: n cells of azimuth, most holding one
+// flat-topped table on sheer walls over a talus skirt (a narrow butte or a long mesa), some
+// left empty as open desert. Periodic in azimuth.
+float mesa(float az, float n, float seed) {
+  float x = (az / 6.2831853 + 0.5) * n;
+  float c = floor(x);
+  float h = 0.0;
+  for (int k = -1; k <= 1; k++) {
+    float cc = c + float(k);
+    float id = mod(cc, n) + seed;
+    if (hash1(id + 5.7) < 0.3) continue;
+    float centre = cc + 0.5 + (hash1(id) - 0.5) * 0.4;
+    float wide = hash1(id + 7.3);
+    float w = 0.08 + 0.34 * wide * wide;
+    float q = abs(x - centre) / w;
+    // Narrow buttes stand taller than the long tables, so the skyline never reads as a wall.
+    float top = (0.3 + 0.5 * hash1(id + 3.1)) * (1.0 + 0.7 * (1.0 - wide));
+    float wall = 1.0 - smoothstep(0.75, 1.0, q);
+    float skirt = 1.0 - smoothstep(0.85, 1.7 + wide, q);
+    h = max(h, max(wall * top, skirt * top * 0.5));
   }
   return h;
 }
@@ -151,6 +178,26 @@ void main() {
     col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
   }
 
+  // Red Canyons: mesas and buttes on the horizon in three washes, far to near, each a deeper
+  // wash of the red rock's shade with faint level strata, dissolving into the dust at the foot.
+  if (uMesas > 0.5) {
+    float az = atan(d.x, d.z);
+    float hm = h - uMesasBase;
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i);
+      float amp = 0.024 + 0.012 * fi;
+      float top = mesa(az + fi * 2.3, 30.0 - fi * 7.0, fi * 13.0) * amp;
+      float m = smoothstep(top + 0.0012, top - 0.0012, hm);
+      if (m <= 0.0) continue;
+      vec3 ink = mix(uFog, uMesaInk, 0.2 + 0.17 * fi);
+      ink *= 0.97 + 0.05 * step(0.5, fract(hm * 160.0 + fi * 0.3));
+      ink = mix(ink, uFog, (1.0 - smoothstep(-0.004, amp * 0.6, hm)) * 0.6);
+      col = mix(col, ink, m);
+      peak = max(peak, m);
+    }
+    col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
+  }
+
   // Aurora Fjords: three curtains of light hung across the sky. Each has a sharp, wandering
   // lower hem and fades upward from green to violet, is combed into fine vertical rays that
   // shimmer, and swells and thins along its length. Drifts slowly; bloom halos the brightest.
@@ -202,9 +249,9 @@ void main() {
 
 /**
  * What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, the aurora,
- * or rolling hills.
+ * rolling hills, or desert mesas.
  */
-export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora' | 'hills';
+export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas';
 
 export class Sky {
   readonly mesh: THREE.Mesh;
@@ -232,6 +279,9 @@ export class Sky {
       uAurora: { value: 0 },
       uHills: { value: 0 },
       uHillsBase: { value: 0 },
+      uMesas: { value: 0 },
+      uMesasBase: { value: 0 },
+      uMesaInk: { value: new THREE.Color() },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -261,6 +311,7 @@ export class Sky {
     this.u.uMountain.value = this.backdrop === 'fuji' ? 1 : 0;
     this.u.uRidges.value = this.backdrop === 'karst' ? 1 : 0;
     this.u.uHills.value = this.backdrop === 'hills' ? 1 : 0;
+    this.u.uMesas.value = this.backdrop === 'mesas' ? 1 : 0;
     // The aurora comes out with the stars.
     this.u.uAurora.value =
       this.backdrop === 'aurora' ? Math.max(0, (p.stars - 0.25) / 0.75) * Config.fjord.aurora : 0;
@@ -269,8 +320,11 @@ export class Sky {
     this.u.uMountainBase.value = drop / Math.hypot(drop, Config.city.mountainDistance);
     this.u.uRidgeBase.value = drop / Math.hypot(drop, Config.karst.ridgeDistance);
     this.u.uHillsBase.value = drop / Math.hypot(drop, Config.jerusalem.hillsDistance);
+    this.u.uMesasBase.value = drop / Math.hypot(drop, Config.canyon.mesasDistance);
     // Ink: the upper sky deepened toward the ground light, so ridges darken with the day.
     this.u.uInk.value.copy(p.skyTop).lerp(p.hemiGround, 0.55).multiplyScalar(0.8);
+    // Mesa shade: the ground light (red rock bounce by day) deepened toward the sky's top.
+    this.u.uMesaInk.value.copy(p.hemiGround).lerp(p.skyTop, 0.25).multiplyScalar(0.85);
     this.u.uMountainFade.value = Config.city.mountainFootFade;
     this.mesh.position.copy(camera.position);
   }

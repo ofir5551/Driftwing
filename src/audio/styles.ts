@@ -1,7 +1,15 @@
-import { CITY_KEYS, DAY_KEYS, type DayKey, FJORD_KEYS, JERUSALEM_KEYS, KARST_KEYS } from './scales';
+import {
+  CANYON_KEYS,
+  CITY_KEYS,
+  DAY_KEYS,
+  type DayKey,
+  FJORD_KEYS,
+  JERUSALEM_KEYS,
+  KARST_KEYS,
+} from './scales';
 
 /** Instrument for ambient notes, wisp notes and the lantern flourish. */
-export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud';
+export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar';
 
 /**
  * A level's musical identity. The generative engine is shared; this is what it plays and how,
@@ -114,4 +122,23 @@ export const JERUSALEM_MUSIC: MusicStyle = {
   arp: { pattern: [0, 1, 2, 1, 0, 2, 3, 2], perStep: 2, octave: 12 },
   pulse: 0.7,
   beat: 'maqsum',
+};
+
+/**
+ * Red Canyons: wide open and on the move. A twangy desert guitar (with a shimmer of vibrato on
+ * long notes) over open fifths, a galloping arpeggio with flow, a long canyon echo, and the
+ * quickest tempo of any level.
+ */
+export const CANYON_MUSIC: MusicStyle = {
+  keys: CANYON_KEYS,
+  bpm: 84,
+  progression: [0, 3, 4, 0, 0, 3, 1, 4],
+  voice: 'guitar',
+  density: 0.75,
+  grace: 0.12,
+  pad: { wave: 'triangle', detune: 6, attack: 2, release: 4, level: 0.042 },
+  droneFifth: 0.75,
+  reverb: 1.3,
+  arp: { pattern: [0, 4, 2, 4, 0, 4, 2, 4], perStep: 2, octave: 0 },
+  pulse: 0,
 };

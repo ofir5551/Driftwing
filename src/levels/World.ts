@@ -6,7 +6,7 @@ import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 
-export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord' | 'jerusalem';
+export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord' | 'jerusalem' | 'canyon';
 
 /**
  * Everything level-specific about the world the bird flies through: terrain, scenery, what

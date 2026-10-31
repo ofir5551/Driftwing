@@ -2,7 +2,8 @@
 
 A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
 through a neon-lit Japanese bay city, among misty karst peaks on a jade river, down deep fjords
-under the northern lights or over the golden stone of Jerusalem, follow ribbons of glowing wisps
+under the northern lights, over the golden stone of Jerusalem or through the stone arches of red
+desert canyons, follow ribbons of glowing wisps
 and build a melody as you gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
 music, sound) is generated procedurally: the repository contains no art or audio assets.
 
@@ -91,6 +92,23 @@ you back to choose again).
 | **The golden dome**                              | **Floodlit at night**                          |
 | ![Dome](docs/screenshots/jerusalem-dome.jpg)     | ![Night](docs/screenshots/jerusalem-night.jpg) |
 
+- **Red Canyons**: endless red sandstone canyons after the Colorado Plateau, opening in the
+  midday glare. A green river winds down each sandy floor between cottonwoods, under walls of
+  level rock bands (a cliff over a bench, four times) that rise to a desert plateau of sagebrush,
+  juniper and flat-topped mesas; hoodoos crowd the rims and painted mesas ring the horizon.
+  Stone arches stand across the canyon floors, the Great Arch just ahead of the start, and out
+  on the plateau. The light runs from white midday through a blazing sunset to a violet dusk and
+  a clear starry night, and the music is a twangy desert guitar over open fifths, the quickest
+  tempo of any level. Wisps run down the canyons and line up to thread every arch they come to.
+
+![Red Canyons title screen](docs/screenshots/canyon-title.jpg)
+
+| Through an arch at midday                       | Sunset down the canyon                        |
+| ----------------------------------------------- | --------------------------------------------- |
+| ![Arch](docs/screenshots/canyon-arch.jpg)       | ![Sunset](docs/screenshots/canyon-sunset.jpg) |
+| **Hoodoos on the rim**                          | **Night**                                     |
+| ![Hoodoos](docs/screenshots/canyon-hoodoos.jpg) | ![Night](docs/screenshots/canyon-night.jpg)   |
+
 ## Play
 
 ```bash
@@ -126,7 +144,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst|fjord|jerusalem`.
+`?level=highlands|city|karst|fjord|jerusalem|canyon`.
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -158,6 +176,10 @@ Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (ena
   (`src/world/jerusalem/`): a pure layout of walls, landmarks, houses and hill towns, with low
   roofs as a soft canopy and stone as solids, drawn by one instanced stone shader (ashlar,
   windows, floodlight, gold leaf).
+- **Red Canyons**: canyons on the zero contours of a noise once more (`src/world/canyon/`),
+  their walls stepped terrain read at a meandering distance so the strata stay level; arches
+  are one instanced unit shape whose half-elliptical band is also the collision shape, so the
+  look-ahead eases the bird under a span, and mesas are painted round the sky dome.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

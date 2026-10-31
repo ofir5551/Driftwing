@@ -396,6 +396,9 @@ export class Music {
           const q = this.sched!.stepDur / 4;
           for (let k = 1; k <= 3; k++) this.oud(t + k * q, midi, vel * 0.45, pan, 0.8, level);
         }
+        return;
+      case 'guitar':
+        return this.guitar(t, midi, vel, pan, dur, level);
     }
   }
 
@@ -583,6 +586,60 @@ export class Music {
     }
     flt.connect(env);
     this.out(env, pan);
+  }
+
+  /**
+   * Desert guitar: a saw and a square an octave apart (the hollow twang of a wound string)
+   * through a lowpass that closes slowly, so the note stays bright longer than a koto's. The
+   * pick bends it up into pitch from a quarter tone flat, and a long note blooms a wide, slow
+   * vibrato, like a hand on the tremolo bar ringing out over a canyon.
+   */
+  private guitar(
+    t: number,
+    midi: number,
+    vel: number,
+    pan: number,
+    dur: number,
+    level: number,
+  ): void {
+    const ctx = this.engine.ctx!;
+    const f = midiToFreq(midi);
+    const end = t + Math.min(dur * 0.8, 2.8);
+    const flt = ctx.createBiquadFilter();
+    flt.type = 'lowpass';
+    flt.Q.value = 1.4;
+    flt.frequency.setValueAtTime(Math.min(f * 7, 9000), t);
+    flt.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.9);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(level * vel * 0.5, t + 0.003);
+    env.gain.exponentialRampToValueAtTime(0.0001, end);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 4.6;
+    const depth = ctx.createGain();
+    depth.gain.setValueAtTime(0, t);
+    depth.gain.linearRampToValueAtTime(dur > 1.5 ? 16 : 4, t + 0.8); // cents
+    vib.connect(depth);
+    for (const [type, mul, gain] of [
+      ['sawtooth', 1, 1],
+      ['square', 0.5, 0.35],
+    ] as const) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = f * mul;
+      o.detune.setValueAtTime(-50, t);
+      o.detune.setTargetAtTime(0, t, 0.02);
+      depth.connect(o.detune);
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      o.connect(g).connect(flt);
+      o.start(t);
+      o.stop(end + 0.05);
+    }
+    flt.connect(env);
+    this.out(env, pan);
+    vib.start(t);
+    vib.stop(end + 0.05);
   }
 
   /** Frame drum "dum": a deep, short boom from the skin's centre. */

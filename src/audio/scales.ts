@@ -21,6 +21,9 @@ export const MODES = {
   // the augmented second) and its fifth; nahawand's minor tetrachord and fifth.
   hijaz: [0, 1, 4, 5, 7],
   nahawand: [0, 2, 3, 5, 7],
+  // Major pentatonic with the flat seventh for the major sixth: the mixolydian twang of a
+  // desert guitar, bright but never sweet.
+  dominantPenta: [0, 2, 4, 7, 10],
 } as const;
 
 export type ModeName = keyof typeof MODES;
@@ -82,6 +85,18 @@ export const JERUSALEM_KEYS: DayKey[] = [
   { root: 64, mode: 'hijaz' }, // E, golden hour
   { root: 57, mode: 'nahawand' }, // A, dusk
   { root: 62, mode: 'hijaz' }, // D, twilight
+];
+
+/**
+ * Red Canyons' keys: open and suspended at dawn, a wide major in the midday glare, the
+ * mixolydian twang at sunset, minor at dusk and a bluesy minor under the desert stars.
+ */
+export const CANYON_KEYS: DayKey[] = [
+  { root: 62, mode: 'susPenta' }, // D, dawn
+  { root: 57, mode: 'majorPenta' }, // A, day
+  { root: 64, mode: 'dominantPenta' }, // E, golden hour
+  { root: 62, mode: 'minorPenta' }, // D, dusk
+  { root: 59, mode: 'minorPenta' }, // B, twilight
 ];
 
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

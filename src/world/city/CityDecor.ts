@@ -1,7 +1,15 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
 import type { ChunkDecor } from '../ChunkManager';
-import { cherryGeometry, pineGeometry, roundTreeGeometry, Trees } from '../Trees';
+import {
+  cherryDetailGeometry,
+  cherryGeometry,
+  pineDetailGeometry,
+  pineGeometry,
+  roundTreeDetailGeometry,
+  roundTreeGeometry,
+  Trees,
+} from '../Trees';
 import { CITY_TREE_STRIDE, MESH, PART_STRIDE, STYLE, type CityLayout } from './CityLayout';
 import {
   boxGeometry,
@@ -32,11 +40,11 @@ export class CityDecor implements ChunkDecor<CityChunk> {
   private readonly material: THREE.Material;
   private readonly latticeMaterial: THREE.Material;
   private readonly meshes: THREE.InstancedMesh[] = [];
-  private readonly trees = new Trees(12000, [
-    roundTreeGeometry(),
-    pineGeometry(),
-    cherryGeometry(),
-  ]);
+  private readonly trees = new Trees(
+    12000,
+    [roundTreeGeometry(), pineGeometry(), cherryGeometry()],
+    [roundTreeDetailGeometry(), pineDetailGeometry(), cherryDetailGeometry()],
+  );
   private readonly counts = CAPACITY.map(() => 0);
   private readonly colors = new Map<number, THREE.Color>();
   private readonly treeLists: number[][] = [];

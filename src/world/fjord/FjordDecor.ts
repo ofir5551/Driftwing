@@ -12,6 +12,7 @@ import {
   floeGeometry,
   hutGeometry,
   hutWindowGeometry,
+  spruceDetailGeometry,
   spruceGeometry,
 } from './geometry';
 import type { Berg, FjordLayout } from './FjordLayout';
@@ -48,7 +49,7 @@ export class FjordDecor implements ChunkDecor<FjordChunk> {
   private readonly windows: THREE.InstancedMesh;
   private readonly floes: THREE.InstancedMesh;
   private readonly bergs: THREE.InstancedMesh[];
-  readonly trees = new Trees(9000, [spruceGeometry()]);
+  readonly trees = new Trees(9000, [spruceGeometry()], [spruceDetailGeometry()]);
   private readonly treeLists: number[][] = [];
 
   constructor(private readonly layout: FjordLayout) {

@@ -45,6 +45,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
   decor), `Trees` (instanced), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
+  `GroundDetail`: painted terrain detail (patches, strokes, strata, bumps) patched into toon materials.
 - `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; queries), `collide`
   (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
   `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.

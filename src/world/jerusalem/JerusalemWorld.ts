@@ -5,6 +5,7 @@ import type { World } from '../../levels/World';
 import type { FlightInput, FlightState } from '../../player/FlightModel';
 import { avoidSolids, glanceOffWall } from '../city/collide';
 import { ChunkManager } from '../ChunkManager';
+import { withGroundDetail } from '../GroundDetail';
 import type { DayCycle } from '../DayCycle';
 import { mistUniforms, withMist } from '../Mist';
 import { hash2 } from '../noise';
@@ -65,8 +66,10 @@ export class JerusalemWorld implements World {
     this.decor = new JerusalemDecor(L, this.uniforms);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withMist(
-        new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      material: withGroundDetail(
+        withMist(
+          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+        ),
       ),
       color: (_f, x, z, _y, slope, out) => this.groundColor(x, z, slope, out),
     });

@@ -3,11 +3,19 @@ import { Config } from '../../core/Config';
 import { smoothstep } from '../../core/math';
 import type { ChunkDecor } from '../ChunkManager';
 import type { DayCycle } from '../DayCycle';
+import { withGroundDetail } from '../GroundDetail';
 import { withMist } from '../Mist';
 import { getToonGradient } from '../Terrain';
 import { hash2, mulberry32 } from '../noise';
-import { pineGeometry, roundTreeGeometry, Trees } from '../Trees';
 import {
+  pineDetailGeometry,
+  pineGeometry,
+  roundTreeDetailGeometry,
+  roundTreeGeometry,
+  Trees,
+} from '../Trees';
+import {
+  bambooDetailGeometry,
   bambooGeometry,
   houseGeometry,
   HOUSE_LANTERN,
@@ -74,6 +82,7 @@ function place(
 export class KarstDecor implements ChunkDecor<KarstChunk> {
   readonly group = new THREE.Group();
   private readonly material: THREE.MeshToonMaterial;
+  private readonly rockMaterial: THREE.MeshToonMaterial;
   private readonly lanternMaterial: THREE.MeshBasicMaterial;
   /** Pillar meshes: per shape, a detailed one near the bird and a coarse one in the haze. */
   private readonly pillars: THREE.InstancedMesh[];
@@ -82,7 +91,11 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
   private readonly rafts: THREE.InstancedMesh;
   private readonly pavilions: THREE.InstancedMesh;
   private readonly lanterns: THREE.InstancedMesh;
-  readonly trees = new Trees(12000, [roundTreeGeometry(), bambooGeometry(), pineGeometry()]);
+  readonly trees = new Trees(
+    12000,
+    [roundTreeGeometry(), bambooGeometry(), pineGeometry()],
+    [roundTreeDetailGeometry(), bambooDetailGeometry(), pineDetailGeometry()],
+  );
   private readonly treeLists: number[][] = [];
 
   constructor(private readonly layout: KarstLayout) {
@@ -91,8 +104,15 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
     );
     withMist(this.trees.material);
     this.lanternMaterial = new THREE.MeshBasicMaterial({ color: DAY_LANTERN.clone() });
-    this.pillars = SHAPES.map((sh, i) => this.make(pillarGeometry(sh, 70 + i), 600));
-    this.farPillars = SHAPES.map((sh, i) => this.make(pillarGeometry(sh, 70 + i, 9, 11), 1600));
+    // The rock carries the terrain's painted detail (strata, dabs of light); houses stay clean.
+    this.rockMaterial = withGroundDetail(
+      withMist(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() })),
+    );
+    const rock = this.rockMaterial;
+    this.pillars = SHAPES.map((sh, i) => this.make(pillarGeometry(sh, 70 + i), 600, rock));
+    this.farPillars = SHAPES.map((sh, i) =>
+      this.make(pillarGeometry(sh, 70 + i, 9, 11), 1600, rock),
+    );
     this.houses = [this.make(houseGeometry(1), 2500), this.make(houseGeometry(2), 1200)];
     this.rafts = this.make(raftGeometry(), 500);
     this.pavilions = this.make(pavilionGeometry(), 300);
@@ -340,6 +360,7 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
       mesh.dispose();
     }
     this.material.dispose();
+    this.rockMaterial.dispose();
     this.lanternMaterial.dispose();
     this.trees.dispose();
   }

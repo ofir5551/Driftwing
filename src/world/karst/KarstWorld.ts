@@ -5,6 +5,7 @@ import type { World } from '../../levels/World';
 import type { FlightInput, FlightState } from '../../player/FlightModel';
 import { avoidSolids, glanceOffWall } from '../city/collide';
 import { ChunkManager } from '../ChunkManager';
+import { withGroundDetail } from '../GroundDetail';
 import { Clouds } from '../Clouds';
 import type { DayCycle } from '../DayCycle';
 import { mistUniforms, withMist } from '../Mist';
@@ -58,8 +59,10 @@ export class KarstWorld implements World {
     this.decor = new KarstDecor(L);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withMist(
-        new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      material: withGroundDetail(
+        withMist(
+          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+        ),
       ),
       color: (f, x, z, y, _slope, out) => this.groundColor(f, x, z, y, out),
     });

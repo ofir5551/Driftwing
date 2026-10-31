@@ -104,6 +104,15 @@ export const Config = {
     windows: 1, // brightness of hut windows and the lighthouse after dark
     beamSpeed: 0.5, // rad/s, the lighthouse beam's sweep
   },
+  ground: {
+    // Painted detail over the terrain's vertex colours (GroundDetail), all fading with distance.
+    mottle: 0.24, // brightness swing of the broad paint patches
+    strokes: 0.11, // brightness swing of the fine brush strokes on gentle ground
+    strata: 0.12, // darkening of the rock bands on steep ground
+    bump: 0.6, // strength of the small surface bumps the light catches
+    warmth: 0.13, // warm/cool hue drift across the patches
+    detailFar: 520, // m, beyond this the near detail (strokes, bumps) has faded out
+  },
   jerusalem: {
     // Plan (read when a level is created).
     plateau: 64, // m, the Old City's ground inside the walls (it tilts a little, see the layout)
@@ -135,6 +144,7 @@ export const Config = {
     waterLevel: 0,
     dayLength: 420, // seconds for a full dawn -> dusk -> twilight cycle
     treeCell: 11, // m, scatter grid for trees
+    treeSway: 0.0025, // wind sway of tree crowns (m of push per m^2 of height up the tree)
     canopyHeight: 9, // m, dense forest counts as "ground" this high for soft skimming
     buildBudgetMs: 4, // max chunk-building time per frame
     cloudDrift: 3, // m/s
@@ -237,6 +247,7 @@ export const Config = {
     // Overwritten by the quality preset (see Quality.ts); exposed here for live tuning.
     drawDistance: 1100,
     treeDistance: 800,
+    treeDetail: 280, // m, trees nearer than this use their detailed shapes
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -258,6 +269,7 @@ export const QUALITY: Record<
   {
     drawDistance: number;
     treeDistance: number;
+    treeDetail: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -267,6 +279,7 @@ export const QUALITY: Record<
   low: {
     drawDistance: 650,
     treeDistance: 420,
+    treeDetail: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -275,6 +288,7 @@ export const QUALITY: Record<
   medium: {
     drawDistance: 900,
     treeDistance: 620,
+    treeDetail: 200,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -283,6 +297,7 @@ export const QUALITY: Record<
   high: {
     drawDistance: 1150,
     treeDistance: 820,
+    treeDetail: 280,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

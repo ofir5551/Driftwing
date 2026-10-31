@@ -415,17 +415,18 @@ export class Bird {
         plumage,
       );
       wrist.position.set(0, 0.028, 0.11);
-      // Hand: coverts over the bases of the primaries, plus a thin leading edge.
+      // Hand: coverts over the bases of the primaries, plus a thin leading edge. They start a
+      // little inside the arm so no wedge opens at the wrist when the hand bends.
       const coverts = new THREE.Mesh(
         paint(
           wingSurface(
             [
-              [0, 0.13],
+              [-0.06, 0.13],
               [0.3, 0.08],
               [0.38, 0.02],
             ],
             [
-              [0, -0.17],
+              [-0.06, -0.16],
               [0.14, -0.13],
               [0.3, -0.07],
               [0.38, 0.02],
@@ -462,7 +463,18 @@ export class Bird {
         elbow.add(g);
         this.primaries.push(g);
       }
-      shoulder.add(arm, armCoverts, armEdge, elbow);
+      // Shoulder fairing: a flattened mound that rides with the wing and sinks into the body,
+      // filling the notch a bare wing sheet leaves against the round torso. Grey mantle on top,
+      // pale belly below, matching the body either side of the joint.
+      const fairing = new THREE.Mesh(
+        paint(
+          new THREE.SphereGeometry(1, 14, 8).scale(0.16, 0.05, 0.21),
+          (_x, y, _z, out) => out.set(BELLY).lerp(scratch2.set(BACK), smoothstep(-0.03, 0.03, y)),
+        ),
+        plumage,
+      );
+      fairing.position.set(0.05, -0.008, -0.04);
+      shoulder.add(fairing, arm, armCoverts, armEdge, elbow);
       this.shoulders.push(shoulder);
       this.elbows.push(elbow);
       this.body.add(shoulder);

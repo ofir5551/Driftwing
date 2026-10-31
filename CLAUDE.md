@@ -13,9 +13,10 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?level=highlands|city|karst|fjord|jerusalem|canyon`.
+  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon`.
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
-- Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio).
+- Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
+  `__journey` (Journey: lifetime light and unlocks).
 - Headless Chromium: on Windows `--use-angle=d3d11` uses the real GPU; elsewhere SwiftShader works but is slow.
 
 ## Conventions
@@ -40,7 +41,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   (Jade River, with its own palettes), `Fjord` (Aurora Fjords), `Jerusalem` (City of Gold),
   `Canyon` (Red Canyons); `index` registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
-- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal) so audio/fx/ui stay decoupled.
+- `core/Journey.ts`: lifetime light and the unlock track (pure; saved by `Settings`). See DESIGN's
+  Progression.
+- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, unlock) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics. `Bird.ts` visuals only. `ChaseCamera.ts` polar springs.
 - `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
   decor), `Trees` (instanced), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`

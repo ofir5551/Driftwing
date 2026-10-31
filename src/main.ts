@@ -2,9 +2,18 @@ import './ui/styles.css';
 import { Game } from './core/Game';
 import { Gameplay } from './core/Gameplay';
 import { Config } from './core/Config';
-import { loadBest, loadSettings, saveBest, saveSettings, type Settings } from './core/Settings';
+import { Journey, type Unlock } from './core/Journey';
+import {
+  loadBest,
+  loadJourney,
+  loadSettings,
+  saveBest,
+  saveJourney,
+  saveSettings,
+  type Settings,
+} from './core/Settings';
 import { GameAudio } from './audio/GameAudio';
-import { isLevelId } from './levels';
+import { isLevelId, LEVEL_LIST } from './levels';
 import type { LevelId } from './levels/World';
 import type { TimeOfDay } from './world/DayCycle';
 import { Menu, type MenuHandlers } from './ui/Menu';
@@ -22,6 +31,40 @@ const gameplay = new Gameplay(game, ui);
 const audio = new GameAudio(game, gameplay.progress);
 gameplay.progress.best = loadBest(game.level.id);
 audio.setStyle(game.level.music);
+
+// The journey (lifetime light). `?autopilot` never earns (the bot would fill it), and
+// `?journey=N` starts a throwaway journey at N light that is never saved.
+const earns = !params.has('autopilot');
+const testLight = params.get('journey');
+const keepsJourney = earns && testLight === null;
+const journey =
+  testLight === null
+    ? new Journey(loadJourney())
+    : new Journey({ v: 1, light: Math.max(0, Math.floor(Number(testLight)) || 0), granted: [] });
+// Levels flown before the journey existed stay open whatever the light.
+if (testLight === null) for (const l of LEVEL_LIST) if (loadBest(l.id) > 0) journey.grant(l.id);
+let bankTimer = 0;
+
+function bankJourney(): void {
+  bankTimer = 0;
+  if (!keepsJourney || !journey.dirty) return;
+  saveJourney(journey.toData());
+  journey.dirty = false;
+}
+
+function earn(amount: number): void {
+  if (!earns) return;
+  const opened = journey.earn(amount);
+  if (opened.length > 0) announce(opened);
+}
+
+function announce(opened: readonly Unlock[]): void {
+  const names = opened.map((u) => u.name);
+  gameplay.hud.notice(`✧ ${names.join(' · ')} unlocked`);
+  game.events.emit('unlock', { names });
+  bankJourney(); // an unlock is worth saving at once
+}
+
 const veil = document.createElement('div');
 veil.className = 'veil';
 ui.appendChild(veil);
@@ -38,9 +81,11 @@ function applySettings(s: Settings): void {
   saveSettings(s);
 }
 
-function persistBest(): void {
+/** Saves the best score and the journey. */
+function persist(): void {
   const id = game.level.id;
   if (gameplay.progress.best > loadBest(id)) saveBest(id, gameplay.progress.best);
+  bankJourney();
 }
 
 let switching = false;
@@ -48,7 +93,7 @@ let switching = false;
 function switchLevel(id: LevelId): void {
   if (switching || id === game.level.id) return;
   switching = true;
-  persistBest();
+  persist();
   veil.classList.add('show');
   setTimeout(() => {
     game.setLevel(id);
@@ -79,6 +124,7 @@ const handlers: MenuHandlers = {
     audio.unlock(); // Play is the user gesture that lets the browser start audio
     applySettings(settings);
     gameplay.progress.reset();
+    journey.newFlight();
     game.setMode('playing');
     gameplay.hud.visible = true;
     menu.showPlaying();
@@ -93,7 +139,7 @@ const handlers: MenuHandlers = {
     document.body.classList.add('paused');
     const p = gameplay.progress;
     menu.showPause(p.score, p.best, p.count);
-    persistBest();
+    persist();
   },
   resume() {
     if (game.mode !== 'paused') return;
@@ -111,17 +157,21 @@ const handlers: MenuHandlers = {
   },
   toTitle() {
     if (game.mode !== 'paused') return;
-    persistBest();
+    persist();
     game.setMode('menu');
     document.body.classList.remove('paused');
     gameplay.hud.visible = false;
     menu.showStart(gameplay.progress.best, game.level.id);
   },
 };
-const menu = new Menu(ui, settings, handlers);
+const menu = new Menu(ui, settings, journey, handlers);
 
 game.events.on('flap', () => (flapped = true));
-game.events.on('lantern', persistBest);
+// These only fire while playing (the attract flight doesn't score).
+game.events.on('wisp', () => earn(Config.journey.wisp));
+game.events.on('lanternReached', () => earn(Config.journey.lantern));
+game.events.on('trick', () => earn(Config.journey.trick));
+game.events.on('lantern', persist);
 game.onFrame((dt) => {
   const input = game.input;
   if (input.mutePressed) {
@@ -137,6 +187,8 @@ game.onFrame((dt) => {
   }
   if (game.mode === 'playing') {
     playTime += dt;
+    bankTimer += dt;
+    if (bankTimer >= Config.journey.bankEvery) bankJourney();
     // Drag steering has no boost button, so say how to boost once "Follow the wisps" has faded.
     if (!boostHintShown && playTime > 3.4) {
       boostHintShown = true;
@@ -153,7 +205,7 @@ game.onFrame((dt) => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) handlers.pause();
 });
-addEventListener('pagehide', persistBest);
+addEventListener('pagehide', persist);
 // Leaving pointer lock (usually via Esc, which the browser swallows) pauses the game.
 let wasLocked = false;
 document.addEventListener('pointerlockchange', () => {
@@ -169,4 +221,4 @@ menu.showStart(gameplay.progress.best, game.level.id);
 game.start();
 if (params.has('autopilot')) handlers.play(); // screenshots / demos: skip the title
 
-Object.assign(window, { __dw: game, __gp: gameplay, __audio: audio });
+Object.assign(window, { __dw: game, __gp: gameplay, __audio: audio, __journey: journey });

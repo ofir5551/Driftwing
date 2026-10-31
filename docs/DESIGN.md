@@ -260,7 +260,8 @@ invert-Y), settings and best score in localStorage.
 
 ## Progression (proposed)
 
-Status: design only, nothing built yet. Goal: every short flight (2-10 min) moves something
+Status: step 1 of the build order is built (light, the track, saving, journey bars, unlock
+notices); the rest is design. Goal: every short flight (2-10 min) moves something
 forward and lasts beyond the session, while staying strictly calm: nothing decays, nothing can
 be lost or missed, there are no streaks, timers or daily rewards, and the score stays as it is.
 
@@ -305,8 +306,8 @@ always close.
 Beyond 3000, light keeps counting on the title screen (an open question: maybe a rare plumage
 every 1000).
 
-- The track is data in `Config.journey` (threshold + item id), so it can be retuned in the debug
-  panel. Unlocks are worked out from light, plus a `granted` list written whenever something
+- The track's thresholds are `Config.unlocks` (one number per milestone id, so the debug panel
+  retunes them); the light per event is `Config.journey`; names and kinds live in `Journey.ts`. Unlocks are worked out from light, plus a `granted` list written whenever something
   unlocks, so a later retune can grant things but never take them back.
 - Existing players: any level with a saved best score above 0 counts as unlocked from the first
   run, so nobody loses a world they already fly.
@@ -315,8 +316,10 @@ every 1000).
 
 ### In flight and the Rest card
 
-- Crossing a milestone mid-flight shows a quiet HUD toast ("✧ Ember trail unlocked") with a soft
-  bell. Nothing pauses and nothing has to be acknowledged.
+- Crossing a milestone mid-flight shows a quiet HUD notice ("✧ Ember trail unlocked", a cooler
+  glow than hints) and three soft high notes a bar later (so they never land on a lantern's
+  chord). Notices queue behind any toast on screen instead of replacing it, wait out a pause,
+  and never show on the title. Nothing pauses and nothing has to be acknowledged.
 - The pause menu gets a journey bar (✧ total, a fill toward the next milestone, its name) and a
   **Rest** button. Rest ends the flight with a tally card: wisps, lanterns reached, tricks,
   score / best, and light earned. The journey bar fills from its value before the flight to after

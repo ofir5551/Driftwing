@@ -228,6 +228,23 @@ export class Music {
    * Lantern reached: a bright chord rolled upward on the grid, in the key the lantern
    * modulated to, so arriving answers the lighting's flourish.
    */
+  /**
+   * A journey milestone: three soft notes rising high above the mix. It waits a bar so it never
+   * lands on a lantern's chord (a lantern reached can be what crossed the milestone).
+   */
+  unlocked(): void {
+    const ctx = this.engine.ctx;
+    const sched = this.sched;
+    if (!ctx || !sched) return;
+    const t0 = sched.quantize(ctx.currentTime + sched.stepDur * 8, 2, 0.01);
+    const key = this.root + this.shift;
+    const degs = [0, 4, 7];
+    degs.forEach((deg, i) => {
+      const m = degreeToMidi(key, this.mode, this.chordRoot + deg) + 24;
+      this.note(t0 + i * sched.stepDur, m, 0.4, (i - 1) * 0.5, 4, 0.1, true);
+    });
+  }
+
   lanternReached(): void {
     const ctx = this.engine.ctx;
     if (!ctx || !this.sched) return;

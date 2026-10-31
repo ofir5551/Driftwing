@@ -1,3 +1,4 @@
+import { unlockAt, type Journey } from '../core/Journey';
 import type { Settings } from '../core/Settings';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
@@ -71,6 +72,12 @@ const CONTROLS_HTML = `<h2>Controls</h2>
   </div>
   <button class="btn primary" id="controls-back">Back</button>`;
 
+/** The journey bar: lifetime light, the next milestone and how close it is. Title and pause. */
+const JOURNEY_HTML = `<div class="journey" title="Light: gathered from wisps, lanterns and tricks. It opens new places and birds.">
+    <div class="journey-head"><span class="journey-light"></span><span class="journey-next"></span></div>
+    <div class="journey-track"><div class="journey-fill"></div></div>
+  </div>`;
+
 /** Start screen and pause menu, plain DOM. The world keeps flying behind both. */
 export class Menu {
   private readonly start: HTMLDivElement;
@@ -82,11 +89,17 @@ export class Menu {
   private readonly best: HTMLElement;
   private readonly pauseStats: HTMLElement;
   private readonly levelCards: HTMLButtonElement[];
+  private readonly journeyBars: HTMLElement[];
   private readonly timeChips: HTMLButtonElement[];
   /** Only exists where the Fullscreen API does. */
   private fsBtn?: HTMLButtonElement;
 
-  constructor(ui: HTMLElement, settings: Settings, h: MenuHandlers) {
+  constructor(
+    ui: HTMLElement,
+    settings: Settings,
+    private readonly journey: Journey,
+    h: MenuHandlers,
+  ) {
     this.start = this.panel(
       'start',
       `<h1>Driftwing</h1>
@@ -101,6 +114,7 @@ export class Menu {
          (t) =>
            `<button class="time" role="radio" aria-checked="false" data-time="${t.id}">${t.label}</button>`,
        ).join('')}</div>
+       ${JOURNEY_HTML}
        <button class="btn primary" id="play-btn">Play</button>
        <button class="btn ghost controls-btn">Controls</button>
        <button class="fs-nudge" hidden>⤢ Best played fullscreen</button>
@@ -112,6 +126,7 @@ export class Menu {
       'pause',
       `<h2>Paused</h2>
        <p class="pause-stats"></p>
+       ${JOURNEY_HTML}
        <button class="btn primary" id="resume-btn">Resume</button>
        <button class="btn ghost" id="title-btn">Change level</button>
        <button class="btn ghost controls-btn">Controls</button>
@@ -136,6 +151,9 @@ export class Menu {
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
     this.help = this.panel('help', CONTROLS_HTML);
+    this.journeyBars = [this.start, this.pause].map((p) =>
+      p.querySelector<HTMLElement>('.journey')!,
+    );
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.className = 'pause-btn';
     this.pauseBtn.setAttribute('aria-label', 'Pause');
@@ -248,7 +266,22 @@ export class Menu {
     }
   }
 
+  /** Redraws the journey bars; `flight` adds what this flight has earned (the pause screen). */
+  private showJourney(bar: HTMLElement, flight: boolean): void {
+    const j = this.journey;
+    const next = j.next();
+    const gained =
+      flight && j.flightLight > 0 ? `  +${j.flightLight.toLocaleString()} this flight` : '';
+    bar.querySelector('.journey-light')!.textContent = `✧ ${j.light.toLocaleString()}${gained}`;
+    bar.querySelector('.journey-next')!.textContent = next
+      ? `Next: ${next.name} at ${unlockAt(next.id).toLocaleString()}`
+      : 'Journey complete';
+    bar.querySelector<HTMLElement>('.journey-fill')!.style.transform =
+      `scaleX(${j.fraction().toFixed(3)})`;
+  }
+
   showStart(best: number, level: LevelId): void {
+    this.showJourney(this.journeyBars[0], false);
     this.best.hidden = best <= 0;
     this.best.textContent = `Best: ${best.toLocaleString()}`;
     for (const card of this.levelCards) {
@@ -273,6 +306,7 @@ export class Menu {
 
   showPause(score: number, best: number, wisps: number): void {
     this.syncInputs();
+    this.showJourney(this.journeyBars[1], true);
     this.pauseStats.textContent = `${wisps} wisps · ${score.toLocaleString()} points · best ${best.toLocaleString()}`;
     this.pause.classList.add('show');
     this.pauseBtn.classList.remove('show');

@@ -223,6 +223,30 @@ export const Config = {
     trickRepeat: 0.5, // multiplier for repeating the last trick (rolls either way count as one)
     trickVariety: 1.3, // multiplier for a trick unlike the last two
   },
+  journey: {
+    // Light: the lifetime total that opens the journey's unlocks. It ignores flow on purpose:
+    // the score is the skill number, light is time well spent, so a relaxed flight earns its wisps.
+    wisp: 1, // light per wisp
+    lantern: 10, // light per lantern reached (a lantern lighting by itself gives none)
+    trick: 2, // light per landed trick
+    bankEvery: 10, // s between saves in flight (pausing and leaving the page save too)
+  },
+  unlocks: {
+    // Light at which each journey milestone opens (~180 light for a 6-minute flight).
+    emberTrail: 120,
+    city: 300,
+    duskRosePlumage: 480,
+    karst: 750,
+    jadeMistTrail: 950,
+    swallow: 1150,
+    fjord: 1250,
+    frostPlumage: 1500,
+    jerusalem: 1800,
+    auroraTrail: 2050,
+    canyon: 2400,
+    gildedPlumage: 2700,
+    crane: 3000,
+  },
   lantern: {
     // A lit lantern is a destination: fly through its column of light to reach it.
     reachRadius: 16, // m from the column's axis that counts (generous: the beam itself is narrower)

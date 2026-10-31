@@ -421,6 +421,12 @@ body.steer-split .boost-btn {
   transform: translate(-50%, 0);
 }
 
+/* Journey unlocks: quieter than a hint, a cooler glow so they read as news, not instructions. */
+.toast.notice {
+  font-size: clamp(17px, 3.2vw, 27px);
+  text-shadow: 0 2px 16px rgba(170, 215, 255, 0.85);
+}
+
 .trick-toast {
   position: fixed;
   top: 31%;
@@ -757,6 +763,47 @@ body.steer-split .controls.touch-split {
 
 .pause-stats {
   margin: 0 0 18px;
+}
+
+/* Journey bar: lifetime light, the next milestone, and a thin fill toward it. */
+.journey {
+  margin: 0 auto 22px;
+  max-width: 340px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+.journey-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin-bottom: 6px;
+}
+
+.journey-light {
+  font-weight: 600;
+  white-space: pre;
+}
+
+.journey-next {
+  opacity: 0.85;
+}
+
+.journey-track {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.journey-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffe9b0, var(--glow));
+  box-shadow: 0 0 8px rgba(255, 220, 150, 0.8);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.9s ease;
 }
 
 .settings {

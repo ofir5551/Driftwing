@@ -47,6 +47,8 @@ const PRIMARIES: [number, number, number, number][] = [
 const PRIMARY_FOLD = 0.35; // fan angle the primaries collapse toward when tucked
 const TAIL_FEATHERS = 6;
 const DOWNSTROKE = 0.3; // how far the downstroke goes, relative to the upstroke
+const WING_ARCH = 0.045; // airfoil camber height of the inner wing
+const SKY_LIFT = 0.35; // glow of downward-facing plumage (see skyLift)
 
 const scratch = new THREE.Color();
 const scratch2 = new THREE.Color();
@@ -74,12 +76,6 @@ function gradient(t: number, a: string, b: string, c: string, out: THREE.Color):
   return t < 0.5
     ? out.set(a).lerp(scratch2.set(b), t * 2)
     : out.set(b).lerp(scratch2.set(c), (t - 0.5) * 2);
-}
-
-/** Flat polygon in the XZ plane from (span, chord) points. Earcut handles concave outlines. */
-function panel(points: [number, number][]): THREE.BufferGeometry {
-  const shape = new THREE.Shape(points.map(([x, z]) => new THREE.Vector2(x, z)));
-  return new THREE.ShapeGeometry(shape).rotateX(Math.PI / 2); // (x, y) -> (x, 0, y)
 }
 
 /**
@@ -126,6 +122,77 @@ function feather(length: number, width: number, colorAt: (t: number, out: THREE.
   return g;
 }
 
+/** Piecewise-linear z of an x-sorted (x, z) polyline at `x`. */
+function polyZ(line: [number, number][], x: number): number {
+  for (let i = 1; i < line.length; i++)
+    if (x <= line[i][0]) {
+      const [x0, z0] = line[i - 1];
+      const [x1, z1] = line[i];
+      return z0 + ((z1 - z0) * (x - x0)) / (x1 - x0 || 1);
+    }
+  return line[line.length - 1][1];
+}
+
+/**
+ * Wing surface lofted between a leading and a trailing (x, z) outline, both sorted by x, with
+ * rows across the chord so `yAt` can arch it into an airfoil. A flat panel lights as one flat
+ * tone; the arch gives each wing a highlight along the front and a shaded fall to the trailing
+ * edge, which is most of what makes it read as a solid wing. Front faces point down, like
+ * `panel`'s, so the underwing tint still finds them.
+ */
+function wingSurface(
+  lead: [number, number][],
+  trail: [number, number][],
+  yAt: (x: number, z: number) => number,
+): THREE.BufferGeometry {
+  const xs = [...new Set([...lead, ...trail].map(([x]) => x))].sort((a, b) => a - b);
+  const ROWS = 5;
+  const pos: number[] = [];
+  const idx: number[] = [];
+  for (const x of xs) {
+    const z0 = polyZ(lead, x);
+    const z1 = polyZ(trail, x);
+    for (let r = 0; r < ROWS; r++) {
+      const z = z0 + ((z1 - z0) * r) / (ROWS - 1);
+      pos.push(x, yAt(x, z), z);
+    }
+  }
+  for (let i = 0; i < xs.length - 1; i++)
+    for (let r = 0; r < ROWS - 1; r++) {
+      const a = i * ROWS + r;
+      const b = a + ROWS;
+      idx.push(a, a + 1, b, b, a + 1, b + 1);
+    }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Airfoil arch of the arm: highest a quarter of the way back, falling to the trailing edge. */
+function armArch(x: number, z: number): number {
+  const u = clamp((0.17 - 0.065 * x - z) / 0.42, 0, 1);
+  return WING_ARCH * Math.sin(Math.PI * Math.sqrt(u));
+}
+
+/** The hand carries on the arm's arch at the wrist and flattens out toward the tip. */
+const handArch = (x: number, z: number) => armArch(0.62, z) * (1 - x / 0.38);
+
+/**
+ * Surfaces facing the ground glow faintly with their own colour: sky light bouncing off the
+ * land and shining through thin feathers. Without it the belly and underwing fall into the
+ * toon shadow tone and read as dull khaki against a bright sky.
+ */
+function skyLift(shader: THREE.WebGLProgramParametersWithUniforms): void {
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <emissivemap_fragment>',
+    `#include <emissivemap_fragment>
+    float down = smoothstep(0.1, -0.8, inverseTransformDirection(normal, viewMatrix).y);
+    totalEmissiveRadiance += diffuseColor.rgb * ${SKY_LIFT.toFixed(2)} * down;`,
+  );
+}
+
 /** Tapered, flattened rod along +x from 0 to `length`: gives the wing's leading edge some body. */
 function rod(length: number, r0: number, r1: number): THREE.BufferGeometry {
   return new THREE.CylinderGeometry(r1, r0, length, 10)
@@ -170,7 +237,9 @@ export class Bird {
           '#include <color_fragment>',
           '#include <color_fragment>\nif (gl_FrontFacing) diffuseColor.rgb = mix(diffuseColor.rgb, uUnder, 0.55);',
         );
+      skyLift(shader);
     };
+    plumage.onBeforeCompile = skyLift;
     const feetMat = toon('#e2804f');
     const eyeMat = new THREE.MeshBasicMaterial({ color: '#221d29' });
     const glintMat = new THREE.MeshBasicMaterial({ color: '#fff8ec' });
@@ -181,8 +250,8 @@ export class Bird {
     const profile = [
       [0.015, -0.6],
       [0.06, -0.5],
-      [0.11, -0.36],
-      [0.155, -0.2],
+      [0.1, -0.36],
+      [0.148, -0.2],
       [0.185, -0.04],
       [0.19, 0.08],
       [0.17, 0.2],
@@ -229,7 +298,18 @@ export class Bird {
     );
     beak.rotation.x = Math.PI / 2 + 0.08; // tip forward, dipping a touch
     beak.position.set(0, -0.012, 0.39);
-    this.head.add(skull, beak);
+    // A shaggy crest swept back off the nape, a tern's signature, so the head has a profile
+    // rather than reading as a dark ball from behind.
+    const crest = new THREE.Mesh(
+      paint(
+        new THREE.ConeGeometry(0.075, 0.2, 7, 2).rotateX(-Math.PI / 2).scale(1, 0.45, 1),
+        solid(CAP),
+      ),
+      plumage,
+    );
+    crest.position.set(0, 0.05, -0.02);
+    crest.rotation.x = 0.25; // tip lifts a little off the nape
+    this.head.add(skull, beak, crest);
     for (const s of [-1, 1]) {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 6), eyeMat);
       eye.position.set(s * 0.093, 0.004, 0.21);
@@ -244,14 +324,16 @@ export class Bird {
       this.body.add(foot);
     }
 
-    // Tail: a fan of feathers pointing back, outer ones longer for a shallow fork.
+    // Tail: a fan of feathers pointing back, forked, the outer pair drawn out into a tern's
+    // long slim streamers.
     const tail = new THREE.Group();
     tail.position.set(0, 0.02, -0.5);
     for (let i = 0; i < TAIL_FEATHERS; i++) {
       const u = Math.abs((i - (TAIL_FEATHERS - 1) / 2) / ((TAIL_FEATHERS - 1) / 2));
+      const streamer = u ** 4;
       const f = new THREE.Group();
       const m = new THREE.Mesh(
-        feather(0.34 + u * 0.14, 0.11, (t, out) =>
+        feather(0.32 + u * 0.12 + streamer * 0.18, 0.11 * (1 - streamer * 0.4), (t, out) =>
           gradient(t, TAIL_BASE, TAIL_BASE, TAIL_TIP, out),
         ),
         feathers,
@@ -275,18 +357,23 @@ export class Bird {
       // Arm: broad inner wing with a scalloped trailing edge of secondaries. (span, chord) points.
       const arm = new THREE.Mesh(
         paint(
-          panel([
-            [0, 0.17],
-            [0.62, 0.13],
-            [0.62, -0.15],
-            [0.53, -0.22],
-            [0.45, -0.18],
-            [0.36, -0.25],
-            [0.27, -0.21],
-            [0.18, -0.27],
-            [0.09, -0.23],
-            [0, -0.26],
-          ]),
+          wingSurface(
+            [
+              [0, 0.17],
+              [0.62, 0.13],
+            ],
+            [
+              [0, -0.26],
+              [0.09, -0.23],
+              [0.18, -0.27],
+              [0.27, -0.21],
+              [0.36, -0.25],
+              [0.45, -0.18],
+              [0.53, -0.22],
+              [0.62, -0.15],
+            ],
+            armArch,
+          ),
           wingShade,
         ),
         feathers,
@@ -295,52 +382,63 @@ export class Bird {
       // wing reads as overlapping rows of feathers.
       const armCoverts = new THREE.Mesh(
         paint(
-          panel([
-            [0, 0.15],
-            [0.6, 0.12],
-            [0.6, -0.04],
-            [0.52, -0.08],
-            [0.45, -0.05],
-            [0.37, -0.1],
-            [0.29, -0.06],
-            [0.21, -0.11],
-            [0.13, -0.07],
-            [0.05, -0.12],
-            [0, -0.1],
-          ]),
+          wingSurface(
+            [
+              [0, 0.15],
+              [0.6, 0.12],
+            ],
+            [
+              [0, -0.1],
+              [0.05, -0.12],
+              [0.13, -0.07],
+              [0.21, -0.11],
+              [0.29, -0.06],
+              [0.37, -0.1],
+              [0.45, -0.05],
+              [0.52, -0.08],
+              [0.6, -0.04],
+            ],
+            (x, z) => armArch(x, z) + 0.008,
+          ),
           (_x, _y, z, out) =>
             out.set(COVERT).lerp(scratch2.set(WING_LEAD), smoothstep(0.02, 0.13, z)),
         ),
         feathers,
       );
-      armCoverts.position.y = 0.008;
-      // Leading edge starts inside the body so no rod end shows at the shoulder.
+      // Leading edge starts inside the body so no rod end shows at the shoulder. It rides on
+      // the front of the arch.
       const armEdge = new THREE.Mesh(paint(rod(0.6, 0.045, 0.03), solid(WING_LEAD)), plumage);
-      armEdge.position.set(0.04, 0, 0.12);
+      armEdge.position.set(0.04, 0.028, 0.12);
       // Rounded wrist so the joint stays closed when the hand bends.
       const wrist = new THREE.Mesh(
         paint(new THREE.SphereGeometry(0.032, 10, 6).scale(1, 0.5, 1), solid(WING_LEAD)),
         plumage,
       );
-      wrist.position.z = 0.11;
+      wrist.position.set(0, 0.028, 0.11);
       // Hand: coverts over the bases of the primaries, plus a thin leading edge.
       const coverts = new THREE.Mesh(
         paint(
-          panel([
-            [0, 0.13],
-            [0.3, 0.08],
-            [0.38, 0.02],
-            [0.3, -0.07],
-            [0.14, -0.13],
-            [0, -0.17],
-          ]),
+          wingSurface(
+            [
+              [0, 0.13],
+              [0.3, 0.08],
+              [0.38, 0.02],
+            ],
+            [
+              [0, -0.17],
+              [0.14, -0.13],
+              [0.3, -0.07],
+              [0.38, 0.02],
+            ],
+            (x, z) => handArch(x, z) + 0.006,
+          ),
           wingShade,
         ),
         feathers,
       );
-      coverts.position.y = 0.006;
       const handEdge = new THREE.Mesh(paint(rod(0.36, 0.03, 0.01), solid(WING_LEAD)), plumage);
-      handEdge.position.z = 0.1;
+      handEdge.position.set(0, 0.026, 0.1);
+      handEdge.rotation.z = -0.07; // follows the hand's arch down to the tip
 
       const shoulder = new THREE.Group();
       const elbow = new THREE.Group();
@@ -351,7 +449,8 @@ export class Bird {
       for (let i = 0; i < PRIMARIES.length; i++) {
         const [px, pz, , len] = PRIMARIES[i];
         const g = new THREE.Group();
-        g.position.set(px, -0.002 * i, pz);
+        // Bases tuck just under the arched coverts.
+        g.position.set(px, handArch(px, pz) - 0.004 - 0.002 * i, pz);
         const m = new THREE.Mesh(feather(len, 0.15, primaryColor), feathers);
         m.rotation.z = 0.05 * (PRIMARIES.length - i); // outer feathers curl up a little
         g.add(m);

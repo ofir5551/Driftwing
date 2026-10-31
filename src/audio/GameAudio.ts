@@ -36,6 +36,7 @@ export class GameAudio {
       else if (e.kind !== 'loop') this.sfx.roll();
     });
     game.events.on('trick', (e) => this.music.land(e.kind));
+    game.events.on('unlock', () => this.music.unlocked());
     game.events.on('contact', (e) => this.sfx.contact(e.kind, e.strength));
     game.events.on('thermal', (e) => this.sfx.thermal(e.inside));
     // Audio params are smoothed with setTargetAtTime, so ~10 updates/s is plenty and keeps

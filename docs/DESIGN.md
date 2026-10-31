@@ -258,6 +258,160 @@ music modulates. A lit lantern is an optional destination: flying through its li
 flow, pays a bonus and gives a surge of speed and lift. Minimal HUD that fades when idle. Start screen, pause menu (volume, quality,
 invert-Y), settings and best score in localStorage.
 
+## Progression (proposed)
+
+Status: steps 1-3 of the build order are built (light, the track, saving, journey bars, unlock
+notices, the Rest card, level locks); the rest is design. Goal: every short flight (2-10 min) moves something
+forward and lasts beyond the session, while staying strictly calm: nothing decays, nothing can
+be lost or missed, there are no streaks, timers or daily rewards, and the score stays as it is.
+
+### Light
+
+One lifetime total, shown with its own glyph ✧ (the lantern ✦ stays the HUD's lantern count).
+It only grows.
+
+- A wisp gives 1, a reached lantern 10, a landed trick 2. A lantern lighting by itself (every 24
+  wisps) gives nothing: flying to it is the choice being rewarded.
+- Light ignores flow. Score (with its 5x multiplier) stays the skill number; light is the
+  "time well spent" number, so a relaxed flight never earns less than its wisps.
+- Earned only in `playing` mode: never by the attract flight or `?autopilot`.
+- Banked to storage on pause, Rest, level change, `visibilitychange` (hidden), `pagehide` and
+  every 10 s in flight, so closing the tab loses at most a few seconds.
+- Pacing ("moderate"): a human gathers ~24 wisps/min and reaches a lantern most minutes, so
+  ~30 light/min, ~180 for a 6-minute flight. A new level about every 2-3 flights, and the whole
+  track in about a week of casual play (two or three flights a day).
+
+### The journey track
+
+Milestones on one path. Levels, plumages, trails and species are spaced out so the next thing is
+always close.
+
+|    ✧ | Unlock                                         | Flight (~180 ✧ each) |
+| ---: | ---------------------------------------------- | -------------------: |
+|    0 | Highlands, the Tern, Sea plumage, Breeze trail |                start |
+|  120 | Ember trail                                    |                    1 |
+|  300 | **Neon Bay**                                   |                    2 |
+|  480 | Dusk Rose plumage                              |                    3 |
+|  750 | **Jade River**                                 |                  4-5 |
+|  950 | Jade Mist trail                                |                  5-6 |
+| 1150 | **Swallow**                                    |                  6-7 |
+| 1250 | **Aurora Fjords**                              |                    7 |
+| 1500 | Frost plumage                                  |                  8-9 |
+| 1800 | **City of Gold**                               |                   10 |
+| 2050 | Aurora trail                                   |                11-12 |
+| 2400 | **Red Canyons**                                |                13-14 |
+| 2700 | Gilded plumage                                 |                   15 |
+| 3000 | **Crane**                                      |                16-17 |
+
+Beyond 3000, light keeps counting on the title screen (an open question: maybe a rare plumage
+every 1000).
+
+- The track's thresholds are `Config.unlocks` (one number per milestone id, so the debug panel
+  retunes them); the light per event is `Config.journey`; names and kinds live in `Journey.ts`. Unlocks are worked out from light, plus a `granted` list written whenever something
+  unlocks, so a later retune can grant things but never take them back.
+- Existing players: any level with a saved best score above 0 counts as unlocked from the first
+  run, so nobody loses a world they already fly.
+- `?level=` still opens any level (for development) but does not unlock it. `?journey=N` sets
+  light for testing.
+
+### In flight and the Rest card
+
+- Crossing a milestone mid-flight shows a quiet HUD notice ("✧ Ember trail unlocked", a cooler
+  glow than hints) and three soft high notes a bar later (so they never land on a lantern's
+  chord). Notices queue behind any toast on screen instead of replacing it, wait out a pause,
+  and never show on the title. Nothing pauses and nothing has to be acknowledged.
+- The pause menu gets a journey bar (✧ total, "+N this flight", the next milestone, a fill toward
+  it) and a **Rest** button. Rest ends the flight: the game drops back to the menu mode, so the
+  bot takes the bird on and it keeps gliding behind the card. The card names the level and the
+  flight's length, tallies wisps, lanterns reached, tricks and points ("A new best" or the best),
+  then fills the journey bar from where the flight began, counting the light up. Each milestone
+  this flight crossed fills the bar to the end, raises its card (kind, name, and the level's
+  blurb or a line for feathers, trails and birds) and starts the next segment. Unlocks from
+  earlier flights that never had a card (the tab closed, or back to the title) appear at once:
+  the save keeps a `revealed` list, so each card is shown once. Granted levels and quiet retunes
+  never get one, nor do saves from before cards existed. Buttons: **Keep flying** (a new flight
+  from where the bird is) and **Title**. Any toast or waiting notice is cleared (the card says
+  it). The card is optional: pausing and closing the tab still bank everything.
+- Hints ("Follow the wisps", how to boost) are once per visit: a second flight needs none.
+- The title screen shows the same journey bar under the level cards.
+
+### Level locks
+
+Locked level cards stay visible, dashed and dimmed, with their name and "Opens at 750 ✧" in
+place of the blurb, so the next world is something to look forward to, not hidden. Tapping one
+does nothing but glow the journey bar below (that is where the answer is). An open level not
+flown yet (no best score) wears a small "New" mark until it is flown. A saved pick that is
+still locked (picked but never flown before locks existed) falls back to the Highlands, so the
+attract flight behind the title only ever flies open levels. `?level=` still loads any level.
+
+### Aviary (bird cosmetics)
+
+A title-screen panel (like Controls) with three rows: **Species**, **Plumage**, **Trail**. Locked
+items show as soft silhouettes with their threshold. Picking one dresses the attract-flight bird
+behind the menu at once: that bird is the live preview, so no second renderer is needed. Choices
+persist.
+
+- **Plumage** is a palette of colour roles (belly, back, cap, wing lead / trail, covert, dusky
+  edge, underwing, bill, primary base / mid / tip, tail base / tip): today's constants at the top
+  of `Bird.ts`, gathered into a `Plumage` record. Vertex colours are baked when the bird is
+  built, so changing plumage rebuilds the colour attributes (menu-time, not a hot path). Every
+  species has its own signature plumage, plus the shared set (Sea, Dusk Rose, Frost, Gilded),
+  which reads through the same roles. Plumages are checked against all six levels at dawn,
+  midday and night, so the bird never vanishes into a palette.
+- **Trails** set the wingtip ribbon colour and opacity curve (`Trails` already takes a colour
+  per update): Breeze (today's white), Ember, Jade Mist, Aurora (hue drifting along the ribbon).
+  Wisps, lanterns and pickup particles never change colour: they are gameplay and must read the
+  same everywhere.
+
+### Species
+
+Three birds: the **Tern** (today's bird, the all-rounder), the **Swallow** and the **Crane**.
+Each flies slightly differently. Each is a trade-off, none is strictly better, and every
+change stays within ±15 % so the wisp planner's assumptions (15 m spacing, ≤6 m rise per wisp)
+hold for all of them.
+
+- **Swallow**: quick and darting. Small and compact, long swept-back pointed wings, a deep
+  forked tail with streamers; glossy blue-black back, rust throat, cream belly. Flight: turn
+  response ×1.2, flap cooldown ×0.85, flap lift ×0.9, speed above cruise bleeds ×1.15 faster
+  (agile, but a dive doesn't carry as far). Camera a little closer.
+- **Crane**: slow and stately. Long neck held straight out, legs trailing past a short tail,
+  long broad wings whose five primaries spread like fingers (the existing primary fan suits
+  this); pale grey with a black neck and wingtips and a red crown. Flight: turn response ×0.85,
+  flap lift ×1.15, flap cooldown ×1.2, speed above cruise bleeds ×0.8 (long glides, dives carry
+  far). Wingbeats slower and deeper. Camera farther back.
+- A species is a `SpeciesDef`: a geometry spec (body, neck, head, wing arm / hand, primaries,
+  tail, legs), a default plumage, `WingBeat` timing, flight multipliers applied over
+  `Config.flight`, and camera distance. All species share one rig (body, arm, hand, primaries,
+  tail, head joints), so the existing pose and wingbeat code drives every bird. The first step
+  of this work is turning `Bird.ts` into that rig with the Tern as its first spec, kept
+  identical to today (screenshot compare) before any new bird is added.
+
+### Save format
+
+`driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], species, plumage,
+trail }`, loaded with the same guards as settings (bad or missing fields fall back to defaults;
+storage errors mean no progress is saved, never a crash). `revealed` makes each unlock card show
+once.
+
+### Code shape
+
+- `core/Journey.ts` (pure, Vitest): the track, light for events, `bank(state, delta)` returning
+  newly unlocked items, `nextMilestone(light)`, `isUnlocked(state, id)`.
+- `main.ts` wires the events (`wisp`, `lanternReached`, `trick`) into the journey while
+  `playing`, and banks at the points listed above.
+- `ui/Menu.ts`: journey bar, locked cards, Rest card, Aviary panel. `ui/Hud.ts`: unlock toast.
+- `player/species/` (`tern`, `swallow`, `crane`) + the shared rig in `Bird.ts`;
+  `player/Plumage.ts` for the palettes.
+
+### Build order
+
+1. Light + journey core + banking + journey bar (title, pause) + unlock toast.
+2. Rest card.
+3. Level locks.
+4. Plumage roles + trails + Aviary panel (Tern only).
+5. Bird rig refactor (Tern unchanged), then the Swallow with its flight multipliers.
+6. The Crane.
+
 ## Audio
 
 Generative ambient on Web Audio: detuned pads -> lowpass -> synthesized convolution reverb,

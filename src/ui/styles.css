@@ -421,6 +421,12 @@ body.steer-split .boost-btn {
   transform: translate(-50%, 0);
 }
 
+/* Journey unlocks: quieter than a hint, a cooler glow so they read as news, not instructions. */
+.toast.notice {
+  font-size: clamp(17px, 3.2vw, 27px);
+  text-shadow: 0 2px 16px rgba(170, 215, 255, 0.85);
+}
+
 .trick-toast {
   position: fixed;
   top: 31%;
@@ -465,6 +471,7 @@ body.steer-split .boost-btn {
 }
 
 .menu.pause,
+.menu.rest,
 .menu.help {
   background: rgba(60, 45, 80, 0.25);
   backdrop-filter: blur(3px);
@@ -596,6 +603,61 @@ body.steer-split .boost-btn {
   box-shadow:
     0 0 0 4px rgba(255, 255, 255, 0.14),
     0 0 26px rgba(255, 210, 150, 0.6);
+}
+
+/* Locked: the name stays readable, the card says when it opens; tapping it glows the journey bar. */
+.level.locked {
+  cursor: default;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(60, 45, 80, 0.14);
+}
+
+.level.locked .level-name {
+  opacity: 0.6;
+}
+
+.level.locked .level-blurb {
+  opacity: 0.8;
+}
+
+.level.locked:hover,
+.level.locked:focus-visible {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Open but not flown yet. */
+.level {
+  position: relative;
+}
+
+.level.new::after {
+  content: 'New';
+  position: absolute;
+  top: -7px;
+  right: 10px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4a3a2a;
+  text-shadow: none;
+  background: var(--glow);
+  box-shadow: 0 0 10px rgba(255, 220, 150, 0.8);
+}
+
+.journey.nudge .journey-track {
+  animation: journey-nudge 1.2s ease;
+}
+
+@keyframes journey-nudge {
+  30% {
+    box-shadow:
+      0 0 0 3px rgba(255, 236, 190, 0.45),
+      0 0 18px rgba(255, 214, 140, 0.9);
+  }
 }
 
 .level-name {
@@ -757,6 +819,145 @@ body.steer-split .controls.touch-split {
 
 .pause-stats {
   margin: 0 0 18px;
+}
+
+/* Rest card: the flight's tally, the journey bar filling, a card per unlock. */
+.rest-sub {
+  margin: -4px 0 18px;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.tally {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.tally div {
+  display: grid;
+  gap: 2px;
+}
+
+.tally b {
+  font-size: clamp(20px, 5vw, 26px);
+  font-weight: 600;
+}
+
+.tally span {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.rest-best {
+  margin: 0 0 20px;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.rest-best.new {
+  opacity: 1;
+  color: var(--glow);
+  text-shadow: 0 0 12px rgba(255, 210, 130, 0.9);
+}
+
+.unlock-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: -6px 0 22px;
+}
+
+.unlock-cards:empty {
+  display: none;
+}
+
+.unlock-card {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 236, 190, 0.7);
+  background: rgba(255, 244, 220, 0.16);
+  box-shadow: 0 0 22px rgba(255, 214, 140, 0.35);
+  animation: unlock-rise 0.7s ease both;
+}
+
+.unlock-kind {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.unlock-card b {
+  font-family: Georgia, 'Palatino Linotype', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 20px;
+}
+
+.unlock-detail {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+@keyframes unlock-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unlock-card {
+    animation: none;
+  }
+}
+
+/* Journey bar: lifetime light, the next milestone, and a thin fill toward it. */
+.journey {
+  margin: 0 auto 22px;
+  max-width: 340px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+.journey-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin-bottom: 6px;
+}
+
+.journey-light {
+  font-weight: 600;
+  white-space: pre;
+}
+
+.journey-next {
+  opacity: 0.85;
+}
+
+.journey-track {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.journey-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffe9b0, var(--glow));
+  box-shadow: 0 0 8px rgba(255, 220, 150, 0.8);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.9s ease;
 }
 
 .settings {

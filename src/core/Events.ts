@@ -16,6 +16,8 @@ export interface GameEvents {
   /** A trick landed (scored only while playing). */
   trick: { kind: TrickKind; size: number; points: number };
   level: { id: LevelId };
+  /** Journey milestones just opened (names, lowest first). */
+  unlock: { names: readonly string[] };
 }
 
 type Handler<T> = (payload: T) => void;

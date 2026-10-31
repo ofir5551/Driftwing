@@ -1,4 +1,5 @@
 import type { QualityLevel } from './Config';
+import { parseJourney, type JourneyData } from './Journey';
 import { isLevelId } from '../levels';
 import type { LevelId } from '../levels/World';
 import { isTimeOfDay, type TimeOfDay } from '../world/DayCycle';
@@ -77,6 +78,25 @@ export function loadBest(level: LevelId): number {
 export function saveBest(level: LevelId, score: number): void {
   try {
     localStorage.setItem(bestKey(level), String(score));
+  } catch {
+    /* not persisted */
+  }
+}
+
+const JOURNEY = 'driftwing:journey';
+
+export function loadJourney(): JourneyData {
+  try {
+    const raw = localStorage.getItem(JOURNEY);
+    return parseJourney(raw ? JSON.parse(raw) : null);
+  } catch {
+    return parseJourney(null);
+  }
+}
+
+export function saveJourney(data: JourneyData): void {
+  try {
+    localStorage.setItem(JOURNEY, JSON.stringify(data));
   } catch {
     /* not persisted */
   }

@@ -2,6 +2,8 @@ import type { Progress } from '../core/Progress';
 
 const R = 26;
 const CIRC = 2 * Math.PI * R;
+const NOTICE_SECONDS = 3.5;
+const NOTICE_GAP = 0.9; // s after a toast fades before a waiting notice shows
 
 /**
  * Minimal HUD: a flow ring around the wisp count, the score beneath, lanterns reached beside.
@@ -15,6 +17,11 @@ export class Hud {
   private readonly lanterns: HTMLSpanElement;
   private readonly toastEl: HTMLDivElement;
   private toastTimer = 0;
+  /** Notices waiting for the toast (journey unlocks), so they never cut a hint or lantern short. */
+  private readonly notices: string[] = [];
+  private noticeGap = 0;
+  /** The toast on screen came from the notice queue. */
+  private showingNotice = false;
   private readonly trickEl: HTMLDivElement;
   private trickTimer = 0;
   private stoopTenths = -1;
@@ -51,7 +58,32 @@ export class Hud {
   }
 
   toast(text: string, seconds = 3): void {
+    // A notice cut short goes back to the front of the queue.
+    if (this.showingNotice && this.toastTimer > 1) this.notices.unshift(this.toastEl.textContent);
+    this.show(text, seconds, false);
+  }
+
+  /**
+   * A quiet message that waits for the toast to be free. It is shown from `update` (a frame),
+   * so a toast raised later in the same step (a lantern awakening) still goes first.
+   */
+  notice(text: string): void {
+    this.notices.push(text);
+  }
+
+  /** The flight is over: drop any toast, trick readout and waiting notice. */
+  clearMessages(): void {
+    this.notices.length = 0;
+    this.toastTimer = this.trickTimer = 0;
+    this.showingNotice = false;
+    this.toastEl.classList.remove('show');
+    this.trickEl.classList.remove('show');
+  }
+
+  private show(text: string, seconds: number, notice: boolean): void {
+    this.showingNotice = notice;
     this.toastEl.textContent = text;
+    this.toastEl.classList.toggle('notice', notice);
     this.toastEl.classList.add('show');
     this.toastTimer = seconds;
   }
@@ -110,9 +142,18 @@ export class Hud {
       this.trickTimer -= dt;
       if (this.trickTimer <= 0) this.trickEl.classList.remove('show');
     }
-    if (this.toastTimer > 0) {
+    // Paused, the toast is hidden: a notice keeps its time for when play resumes.
+    if (this.toastTimer > 0 && !(forceShow && this.showingNotice)) {
       this.toastTimer -= dt;
-      if (this.toastTimer <= 0) this.toastEl.classList.remove('show');
+      if (this.toastTimer <= 0) {
+        this.toastEl.classList.remove('show');
+        this.noticeGap = NOTICE_GAP;
+      }
+    }
+    // Notices wait for play (not the title screen, not paused) and for the toast to be free.
+    if (this.notices.length > 0 && this.visible && !forceShow && this.toastTimer <= 0) {
+      this.noticeGap -= dt;
+      if (this.noticeGap <= 0) this.show(this.notices.shift()!, NOTICE_SECONDS, true);
     }
   }
 }

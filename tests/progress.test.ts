@@ -91,6 +91,15 @@ describe('Progress / lanterns', () => {
 });
 
 describe('Progress / tricks', () => {
+  it('counts landed tricks for the flight', () => {
+    const p = new Progress();
+    p.trick('loop', 1);
+    p.trick('roll', 1);
+    expect(p.tricks).toBe(2);
+    p.reset();
+    expect(p.tricks).toBe(0);
+  });
+
   it('a trick builds flow and points but no lantern progress', () => {
     const p = new Progress();
     const { points } = p.trick('loop', 1);

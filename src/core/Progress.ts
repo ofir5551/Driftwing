@@ -16,6 +16,8 @@ export class Progress {
   lanterns = 0;
   /** Lit lanterns the bird has flown through. */
   reached = 0;
+  /** Tricks landed. */
+  tricks = 0;
   best = 0;
   private sincePickup = 99;
   /** The last two tricks, newest first (variety scoring). */
@@ -47,6 +49,7 @@ export class Progress {
     const variety = kind === last ? t.trickRepeat : kind !== before ? t.trickVariety : 1;
     this.recent[1] = last;
     this.recent[0] = kind;
+    this.tricks++;
     const m = variety * scale;
     this.sincePickup = 0;
     this.flow = Math.min(1, this.flow + t.trickGain * m);
@@ -87,6 +90,7 @@ export class Progress {
 
   reset(): void {
     this.count = this.score = this.flow = this.chain = this.lanterns = this.reached = 0;
+    this.tricks = 0;
     this.recent[0] = this.recent[1] = '';
     this.sincePickup = 99;
   }

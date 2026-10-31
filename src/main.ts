@@ -25,13 +25,6 @@ ui.id = 'ui';
 document.body.appendChild(ui);
 
 const settings = loadSettings();
-const urlLevel = params.get('level');
-const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level, settings.timeOfDay);
-const gameplay = new Gameplay(game, ui);
-const audio = new GameAudio(game, gameplay.progress);
-gameplay.progress.best = loadBest(game.level.id);
-audio.setStyle(game.level.music);
-
 // The journey (lifetime light). `?autopilot` never earns (the bot would fill it), and
 // `?journey=N` starts a throwaway journey at N light that is never saved.
 const earns = !params.has('autopilot');
@@ -43,6 +36,16 @@ const journey =
     : new Journey(parseJourney({ light: Number(testLight) }));
 // Levels flown before the journey existed stay open whatever the light.
 if (testLight === null) for (const l of LEVEL_LIST) if (loadBest(l.id) > 0) journey.grant(l.id);
+// The last level picked, unless it is still locked (picked, never flown, before levels had
+// locks). `?level=` opens any level for development without unlocking it.
+if (!journey.isLevelOpen(settings.level)) settings.level = 'highlands';
+const urlLevel = params.get('level');
+const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level, settings.timeOfDay);
+const gameplay = new Gameplay(game, ui);
+const audio = new GameAudio(game, gameplay.progress);
+gameplay.progress.best = loadBest(game.level.id);
+audio.setStyle(game.level.music);
+
 let bankTimer = 0;
 
 function bankJourney(): void {
@@ -91,7 +94,7 @@ function persist(): void {
 let switching = false;
 /** Fade to a veil, rebuild the world for the new level behind it, fade back in. */
 function switchLevel(id: LevelId): void {
-  if (switching || id === game.level.id) return;
+  if (switching || id === game.level.id || !journey.isLevelOpen(id)) return;
   switching = true;
   persist();
   veil.classList.add('show');
@@ -182,6 +185,7 @@ const handlers: MenuHandlers = {
   },
   change: applySettings,
   selectLevel: switchLevel,
+  isNewLevel: (id) => id !== 'highlands' && loadBest(id) <= 0,
   selectTime(t: TimeOfDay) {
     settings.timeOfDay = t;
     game.setTimeOfDay(t);

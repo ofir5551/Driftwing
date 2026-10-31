@@ -260,8 +260,8 @@ invert-Y), settings and best score in localStorage.
 
 ## Progression (proposed)
 
-Status: steps 1-2 of the build order are built (light, the track, saving, journey bars, unlock
-notices, the Rest card); the rest is design. Goal: every short flight (2-10 min) moves something
+Status: steps 1-3 of the build order are built (light, the track, saving, journey bars, unlock
+notices, the Rest card, level locks); the rest is design. Goal: every short flight (2-10 min) moves something
 forward and lasts beyond the session, while staying strictly calm: nothing decays, nothing can
 be lost or missed, there are no streaks, timers or daily rewards, and the score stays as it is.
 
@@ -337,9 +337,12 @@ every 1000).
 
 ### Level locks
 
-Locked level cards stay visible but dimmed, with their name and "Opens at 750 ✧" in place of the
-blurb, so the next world is something to look forward to, not hidden. They can't be selected.
-The attract flight behind the title only flies unlocked levels.
+Locked level cards stay visible, dashed and dimmed, with their name and "Opens at 750 ✧" in
+place of the blurb, so the next world is something to look forward to, not hidden. Tapping one
+does nothing but glow the journey bar below (that is where the answer is). An open level not
+flown yet (no best score) wears a small "New" mark until it is flown. A saved pick that is
+still locked (picked but never flown before locks existed) falls back to the Highlands, so the
+attract flight behind the title only ever flies open levels. `?level=` still loads any level.
 
 ### Aviary (bird cosmetics)
 

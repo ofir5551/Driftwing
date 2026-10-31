@@ -1,4 +1,5 @@
 import { Config } from './Config';
+import type { LevelId } from '../levels/World';
 
 /**
  * The journey: light earned across every flight, and the milestones it opens (levels, species,
@@ -36,7 +37,7 @@ export const UNLOCKS: readonly Unlock[] = [
 ];
 
 const BY_ID = new Map<string, Unlock>(UNLOCKS.map((u) => [u.id, u]));
-const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' && BY_ID.has(v);
+export const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' && BY_ID.has(v);
 
 /** Light at which a milestone opens (read live, so the debug panel can retune the track). */
 export const unlockAt = (id: UnlockId): number => Config.unlocks[id];
@@ -120,6 +121,11 @@ export class Journey {
 
   isUnlocked(id: UnlockId): boolean {
     return this.granted.has(id);
+  }
+
+  /** A level can be picked once its milestone is passed; one off the track (the Highlands) always. */
+  isLevelOpen(id: LevelId): boolean {
+    return !isUnlockId(id) || this.granted.has(id);
   }
 
   /** The next milestone still locked, lowest threshold first; null once the track is done. */

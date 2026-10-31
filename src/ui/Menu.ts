@@ -1,4 +1,4 @@
-import { unlockAt, type Journey, type Unlock, type UnlockKind } from '../core/Journey';
+import { isUnlockId, unlockAt, type Journey, type Unlock, type UnlockKind } from '../core/Journey';
 import type { Settings } from '../core/Settings';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
@@ -12,8 +12,10 @@ import {
 
 export interface MenuHandlers {
   play(): void;
-  /** A level card was picked on the title screen. */
+  /** A level card was picked on the title screen (only open levels can be). */
   selectLevel(id: LevelId): void;
+  /** An open level not flown yet: its card wears a "New" mark. */
+  isNewLevel(id: LevelId): boolean;
   /** A time-of-day chip was picked on the title screen. */
   selectTime(t: TimeOfDay): void;
   /** Pause menu or Rest card -> back to the title screen to pick another level. */
@@ -210,7 +212,12 @@ export class Menu {
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
     this.levelCards = [...this.start.querySelectorAll<HTMLButtonElement>('.level')];
     for (const card of this.levelCards)
-      card.addEventListener('click', () => h.selectLevel(card.dataset.level as LevelId));
+      card.addEventListener('click', () => {
+        const id = card.dataset.level as LevelId;
+        if (this.journey.isLevelOpen(id)) h.selectLevel(id);
+        else this.nudgeJourney(); // the bar says how close it is
+      });
+    this.isNewLevel = (id) => h.isNewLevel(id);
     this.timeChips = [...this.start.querySelectorAll<HTMLButtonElement>('.time')];
     for (const chip of this.timeChips)
       chip.addEventListener('click', () => {
@@ -259,6 +266,7 @@ export class Menu {
 
   /** Re-read settings into the form (e.g. after M toggles mute). */
   syncInputs: () => void;
+  private readonly isNewLevel: (id: LevelId) => boolean;
 
   private panel(cls: string, html: string): HTMLDivElement {
     const el = document.createElement('div');
@@ -423,8 +431,34 @@ export class Menu {
     return el;
   }
 
+  /** A gentle glow on the title's journey bar (a locked card was tapped). */
+  private nudgeJourney(): void {
+    const bar = this.journeyBars[0];
+    bar.classList.remove('nudge');
+    void bar.offsetWidth; // restart the animation
+    bar.classList.add('nudge');
+  }
+
+  /** Locked cards keep their name but say when they open; open ones not flown yet say "New". */
+  private markLevels(): void {
+    for (const card of this.levelCards) {
+      const id = card.dataset.level as LevelId;
+      const level = LEVEL_LIST.find((l) => l.id === id);
+      const open = this.journey.isLevelOpen(id);
+      const isNew = open && this.isNewLevel(id);
+      card.classList.toggle('locked', !open);
+      card.classList.toggle('new', isNew);
+      card.setAttribute('aria-disabled', String(!open));
+      card.querySelector('.level-blurb')!.textContent =
+        open || !isUnlockId(id)
+          ? (level?.blurb ?? '')
+          : `Opens at ${unlockAt(id).toLocaleString()} ✧`;
+    }
+  }
+
   showStart(best: number, level: LevelId): void {
     this.showJourney(this.journeyBars[0], false);
+    this.markLevels();
     this.best.hidden = best <= 0;
     this.best.textContent = `Best: ${best.toLocaleString()}`;
     for (const card of this.levelCards) {

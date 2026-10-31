@@ -96,6 +96,32 @@ describe('Journey', () => {
   });
 });
 
+describe('Journey / level locks', () => {
+  it('opens only the Highlands at first', () => {
+    const j = new Journey();
+    expect(LEVEL_LIST.filter((l) => j.isLevelOpen(l.id)).map((l) => l.id)).toEqual([
+      'highlands',
+    ]);
+  });
+
+  it('opens each level at its milestone, in order', () => {
+    const j = new Journey();
+    j.earn(unlockAt('karst'));
+    expect(LEVEL_LIST.filter((l) => j.isLevelOpen(l.id)).map((l) => l.id)).toEqual([
+      'highlands',
+      'city',
+      'karst',
+    ]);
+  });
+
+  it('keeps a granted level open below its milestone', () => {
+    const j = new Journey();
+    j.grant('canyon');
+    expect(j.isLevelOpen('canyon')).toBe(true);
+    expect(j.isLevelOpen('jerusalem')).toBe(false);
+  });
+});
+
 describe('Journey / Rest cards', () => {
   it('shows each unlock once, lowest first, until revealed', () => {
     const j = new Journey();

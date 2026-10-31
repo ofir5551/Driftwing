@@ -471,6 +471,7 @@ body.steer-split .boost-btn {
 }
 
 .menu.pause,
+.menu.rest,
 .menu.help {
   background: rgba(60, 45, 80, 0.25);
   backdrop-filter: blur(3px);
@@ -763,6 +764,104 @@ body.steer-split .controls.touch-split {
 
 .pause-stats {
   margin: 0 0 18px;
+}
+
+/* Rest card: the flight's tally, the journey bar filling, a card per unlock. */
+.rest-sub {
+  margin: -4px 0 18px;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.tally {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.tally div {
+  display: grid;
+  gap: 2px;
+}
+
+.tally b {
+  font-size: clamp(20px, 5vw, 26px);
+  font-weight: 600;
+}
+
+.tally span {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.rest-best {
+  margin: 0 0 20px;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.rest-best.new {
+  opacity: 1;
+  color: var(--glow);
+  text-shadow: 0 0 12px rgba(255, 210, 130, 0.9);
+}
+
+.unlock-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: -6px 0 22px;
+}
+
+.unlock-cards:empty {
+  display: none;
+}
+
+.unlock-card {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 236, 190, 0.7);
+  background: rgba(255, 244, 220, 0.16);
+  box-shadow: 0 0 22px rgba(255, 214, 140, 0.35);
+  animation: unlock-rise 0.7s ease both;
+}
+
+.unlock-kind {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.unlock-card b {
+  font-family: Georgia, 'Palatino Linotype', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 20px;
+}
+
+.unlock-detail {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+@keyframes unlock-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unlock-card {
+    animation: none;
+  }
 }
 
 /* Journey bar: lifetime light, the next milestone, and a thin fill toward it. */

@@ -1,4 +1,4 @@
-import { unlockAt, type Journey } from '../core/Journey';
+import { unlockAt, type Journey, type Unlock, type UnlockKind } from '../core/Journey';
 import type { Settings } from '../core/Settings';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
@@ -16,8 +16,12 @@ export interface MenuHandlers {
   selectLevel(id: LevelId): void;
   /** A time-of-day chip was picked on the title screen. */
   selectTime(t: TimeOfDay): void;
-  /** Pause menu -> back to the title screen to pick another level. */
+  /** Pause menu or Rest card -> back to the title screen to pick another level. */
   toTitle(): void;
+  /** Pause menu -> end the flight with the Rest card. */
+  rest(): void;
+  /** Rest card -> a new flight from where the bird is. */
+  keepFlying(): void;
   resume(): void;
   pause(): void;
   change(s: Settings): void;
@@ -78,10 +82,40 @@ const JOURNEY_HTML = `<div class="journey" title="Light: gathered from wisps, la
     <div class="journey-track"><div class="journey-fill"></div></div>
   </div>`;
 
+/** What the Rest card tallies for the flight just ended. */
+export interface RestTally {
+  /** The level's name. */
+  level: string;
+  wisps: number;
+  lanterns: number;
+  tricks: number;
+  score: number;
+  best: number;
+  newBest: boolean;
+  seconds: number;
+}
+
+const KIND_LABEL: Record<UnlockKind, string> = {
+  level: 'New place',
+  species: 'New bird',
+  plumage: 'New plumage',
+  trail: 'New trail',
+};
+const KIND_DETAIL: Record<Exclude<UnlockKind, 'level'>, string> = {
+  species: 'A new bird to fly',
+  plumage: 'New feathers for your bird',
+  trail: 'New colours for your wingtip trails',
+};
+const FILL_MS = 900; // matches .journey-fill's transition
+const STEP_MS = 1150; // one fill plus a breath before the next
+
 /** Start screen and pause menu, plain DOM. The world keeps flying behind both. */
 export class Menu {
   private readonly start: HTMLDivElement;
   private readonly pause: HTMLDivElement;
+  private readonly rest: HTMLDivElement;
+  /** Bumped whenever the Rest card's animation should stop (it is shown again or left). */
+  private restToken = 0;
   private readonly help: HTMLDivElement;
   /** The screen the Controls panel returns to. */
   private helpFrom: HTMLDivElement | null = null;
@@ -128,6 +162,7 @@ export class Menu {
        <p class="pause-stats"></p>
        ${JOURNEY_HTML}
        <button class="btn primary" id="resume-btn">Resume</button>
+       <button class="btn ghost" id="rest-btn" title="End this flight and see how it went">Rest</button>
        <button class="btn ghost" id="title-btn">Change level</button>
        <button class="btn ghost controls-btn">Controls</button>
        <div class="settings">
@@ -151,14 +186,25 @@ export class Menu {
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
     this.help = this.panel('help', CONTROLS_HTML);
-    this.journeyBars = [this.start, this.pause].map((p) =>
+    this.rest = this.panel(
+      'rest',
+      `<h2>Rest</h2>
+       <p class="rest-sub"></p>
+       <div class="tally"></div>
+       <p class="rest-best"></p>
+       ${JOURNEY_HTML}
+       <div class="unlock-cards"></div>
+       <button class="btn primary" id="fly-btn">Keep flying</button>
+       <button class="btn ghost" id="rest-title-btn">Title</button>`,
+    );
+    this.journeyBars = [this.start, this.pause, this.rest].map((p) =>
       p.querySelector<HTMLElement>('.journey')!,
     );
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.className = 'pause-btn';
     this.pauseBtn.setAttribute('aria-label', 'Pause');
     this.pauseBtn.innerHTML = '<span></span><span></span>';
-    ui.append(this.start, this.pause, this.help, this.pauseBtn);
+    ui.append(this.start, this.pause, this.rest, this.help, this.pauseBtn);
     this.setupFullscreen(ui);
 
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
@@ -176,6 +222,9 @@ export class Menu {
     this.markTime(settings.timeOfDay);
     this.pause.querySelector('#resume-btn')!.addEventListener('click', () => h.resume());
     this.pause.querySelector('#title-btn')!.addEventListener('click', () => h.toTitle());
+    this.pause.querySelector('#rest-btn')!.addEventListener('click', () => h.rest());
+    this.rest.querySelector('#fly-btn')!.addEventListener('click', () => h.keepFlying());
+    this.rest.querySelector('#rest-title-btn')!.addEventListener('click', () => h.toTitle());
     this.pauseBtn.addEventListener('click', () => h.pause());
     for (const from of [this.start, this.pause])
       from.querySelector('.controls-btn')!.addEventListener('click', () => this.showHelp(from));
@@ -204,7 +253,7 @@ export class Menu {
     };
     for (const el of [vol, mute, quality, invert, steer]) el.addEventListener('input', changed);
     // Keep keyboard/mouse events on menus from steering or flapping the bird.
-    for (const p of [this.start, this.pause, this.help])
+    for (const p of [this.start, this.pause, this.rest, this.help])
       p.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
@@ -280,6 +329,100 @@ export class Menu {
       `scaleX(${j.fraction().toFixed(3)})`;
   }
 
+  /** Shows only `panel` (or none), with the pause button only while flying. */
+  private only(panel: HTMLDivElement | null): void {
+    this.restToken++;
+    for (const p of [this.start, this.pause, this.rest, this.help])
+      p.classList.toggle('show', p === panel);
+    this.pauseBtn.classList.toggle('show', panel === null);
+    this.fsBtn?.classList.toggle('show', panel !== null);
+  }
+
+  /**
+   * The end of a flight: the tally, then the journey bar filling from where the flight began to
+   * where it ended, a card rising for each unlock as the bar reaches it. Unlocks from earlier
+   * flights that never had a card appear at once.
+   */
+  showRest(t: RestTally, unlocks: readonly Unlock[]): void {
+    this.only(this.rest);
+    const token = this.restToken;
+    const j = this.journey;
+    const r = this.rest;
+    const min = Math.floor(t.seconds / 60);
+    r.querySelector('.rest-sub')!.textContent =
+      min > 0 ? `${t.level} · ${min} min` : `${t.level} · under a minute`;
+    const stat = (n: number, label: string) =>
+      `<div><b>${n.toLocaleString()}</b><span>${label}</span></div>`;
+    r.querySelector('.tally')!.innerHTML =
+      stat(t.wisps, t.wisps === 1 ? 'wisp' : 'wisps') +
+      stat(t.lanterns, t.lanterns === 1 ? 'lantern' : 'lanterns') +
+      stat(t.tricks, t.tricks === 1 ? 'trick' : 'tricks') +
+      stat(t.score, 'points');
+    const best = r.querySelector<HTMLElement>('.rest-best')!;
+    best.textContent = t.newBest ? 'A new best' : `Best ${t.best.toLocaleString()}`;
+    best.classList.toggle('new', t.newBest);
+    const cards = r.querySelector<HTMLElement>('.unlock-cards')!;
+    cards.replaceChildren();
+
+    // The bar starts where the flight began; the light counts up as it fills.
+    const bar = this.journeyBars[2];
+    this.showJourney(bar, false);
+    const fill = bar.querySelector<HTMLElement>('.journey-fill')!;
+    const lightEl = bar.querySelector<HTMLElement>('.journey-light')!;
+    const setFill = (f: number, instant: boolean) => {
+      if (instant) fill.style.transition = 'none';
+      fill.style.transform = `scaleX(${f.toFixed(3)})`;
+      if (instant) {
+        void fill.offsetWidth; // apply the jump before the transition comes back
+        fill.style.transition = '';
+      }
+    };
+    setFill(j.startFraction, true);
+    const fills = Math.min(j.flightOpened, unlocks.length);
+    const early = unlocks.length - fills;
+    for (let i = 0; i < early; i++) cards.appendChild(this.unlockCard(unlocks[i]));
+    const later = (ms: number, fn: () => void) =>
+      setTimeout(() => token === this.restToken && fn(), ms);
+    let at = 450;
+    for (let i = 0; i < fills; i++) {
+      later(at, () => setFill(1, false));
+      later(at + FILL_MS, () => {
+        cards.appendChild(this.unlockCard(unlocks[early + i]));
+        setFill(0, true);
+      });
+      at += STEP_MS;
+    }
+    later(at, () => setFill(j.fraction(), false));
+
+    const from = j.startLight;
+    const to = j.light;
+    const t0 = performance.now() + 450;
+    const span = Math.max(FILL_MS, at + FILL_MS - 450);
+    lightEl.textContent = `✧ ${from.toLocaleString()}`;
+    const count = (now: number) => {
+      if (token !== this.restToken) return;
+      const k = Math.min(1, Math.max(0, (now - t0) / span));
+      const eased = 1 - (1 - k) * (1 - k);
+      const v = Math.round(from + (to - from) * eased);
+      lightEl.textContent = `✧ ${v.toLocaleString()}  +${(v - from).toLocaleString()}`;
+      if (k < 1) requestAnimationFrame(count);
+    };
+    if (to > from) requestAnimationFrame(count);
+  }
+
+  private unlockCard(u: Unlock): HTMLElement {
+    const el = document.createElement('div');
+    el.className = `unlock-card ${u.kind}`;
+    const detail =
+      u.kind === 'level'
+        ? (LEVEL_LIST.find((l) => l.id === u.id)?.blurb ?? '')
+        : KIND_DETAIL[u.kind];
+    el.innerHTML = `<span class="unlock-kind">${KIND_LABEL[u.kind]}</span><b></b><span class="unlock-detail"></span>`;
+    el.querySelector('b')!.textContent = u.name;
+    el.querySelector('.unlock-detail')!.textContent = detail;
+    return el;
+  }
+
   showStart(best: number, level: LevelId): void {
     this.showJourney(this.journeyBars[0], false);
     this.best.hidden = best <= 0;
@@ -289,27 +432,17 @@ export class Menu {
       card.classList.toggle('selected', on);
       card.setAttribute('aria-checked', String(on));
     }
-    this.start.classList.add('show');
-    this.pause.classList.remove('show');
-    this.help.classList.remove('show');
-    this.pauseBtn.classList.remove('show');
-    this.fsBtn?.classList.add('show');
+    this.only(this.start);
   }
 
   showPlaying(): void {
-    this.start.classList.remove('show');
-    this.pause.classList.remove('show');
-    this.help.classList.remove('show');
-    this.pauseBtn.classList.add('show');
-    this.fsBtn?.classList.remove('show');
+    this.only(null);
   }
 
   showPause(score: number, best: number, wisps: number): void {
     this.syncInputs();
     this.showJourney(this.journeyBars[1], true);
     this.pauseStats.textContent = `${wisps} wisps · ${score.toLocaleString()} points · best ${best.toLocaleString()}`;
-    this.pause.classList.add('show');
-    this.pauseBtn.classList.remove('show');
-    this.fsBtn?.classList.add('show');
+    this.only(this.pause);
   }
 }

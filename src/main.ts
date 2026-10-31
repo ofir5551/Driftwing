@@ -2,7 +2,7 @@ import './ui/styles.css';
 import { Game } from './core/Game';
 import { Gameplay } from './core/Gameplay';
 import { Config } from './core/Config';
-import { Journey, type Unlock } from './core/Journey';
+import { Journey, parseJourney, type Unlock } from './core/Journey';
 import {
   loadBest,
   loadJourney,
@@ -40,7 +40,7 @@ const keepsJourney = earns && testLight === null;
 const journey =
   testLight === null
     ? new Journey(loadJourney())
-    : new Journey({ v: 1, light: Math.max(0, Math.floor(Number(testLight)) || 0), granted: [] });
+    : new Journey(parseJourney({ light: Number(testLight) }));
 // Levels flown before the journey existed stay open whatever the light.
 if (testLight === null) for (const l of LEVEL_LIST) if (loadBest(l.id) > 0) journey.grant(l.id);
 let bankTimer = 0;
@@ -109,6 +109,9 @@ function switchLevel(id: LevelId): void {
 
 let flapped = false;
 let playTime = 0;
+/** The level's saved best when the flight began (so the Rest card can say "a new best"). */
+let bestBefore = 0;
+let welcomed = false;
 let hintShown = false;
 let boostHintShown = false;
 const isTouch = () => document.body.classList.contains('touch');
@@ -125,13 +128,42 @@ const handlers: MenuHandlers = {
     applySettings(settings);
     gameplay.progress.reset();
     journey.newFlight();
+    bestBefore = loadBest(game.level.id);
     game.setMode('playing');
     gameplay.hud.visible = true;
     menu.showPlaying();
     playTime = 0;
-    hintShown = false;
-    boostHintShown = false;
-    gameplay.hud.toast('Follow the wisps', 3);
+    // Hints are once per visit: a second flight (Keep flying, or Play again) needs none.
+    if (!welcomed) gameplay.hud.toast('Follow the wisps', 3);
+    welcomed = true;
+  },
+  rest() {
+    if (game.mode !== 'paused') return;
+    persist();
+    const p = gameplay.progress;
+    // The bot takes the bird on, so it keeps gliding behind the card (the title's backdrop flight).
+    game.setMode('menu');
+    document.body.classList.remove('paused');
+    gameplay.hud.visible = false;
+    gameplay.hud.clearMessages(); // unlock notices still waiting are on the card instead
+    menu.showRest(
+      {
+        level: game.level.name,
+        wisps: p.count,
+        lanterns: p.reached,
+        tricks: p.tricks,
+        score: p.score,
+        best: p.best,
+        newBest: p.score > bestBefore,
+        seconds: playTime,
+      },
+      journey.unrevealed(),
+    );
+    journey.reveal();
+    bankJourney();
+  },
+  keepFlying() {
+    handlers.play();
   },
   pause() {
     if (game.mode !== 'playing') return;
@@ -156,7 +188,7 @@ const handlers: MenuHandlers = {
     saveSettings(settings);
   },
   toTitle() {
-    if (game.mode !== 'paused') return;
+    if (game.mode === 'playing') return; // from the pause menu or the Rest card
     persist();
     game.setMode('menu');
     document.body.classList.remove('paused');

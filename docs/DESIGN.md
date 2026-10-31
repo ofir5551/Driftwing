@@ -260,8 +260,8 @@ invert-Y), settings and best score in localStorage.
 
 ## Progression (proposed)
 
-Status: step 1 of the build order is built (light, the track, saving, journey bars, unlock
-notices); the rest is design. Goal: every short flight (2-10 min) moves something
+Status: steps 1-2 of the build order are built (light, the track, saving, journey bars, unlock
+notices, the Rest card); the rest is design. Goal: every short flight (2-10 min) moves something
 forward and lasts beyond the session, while staying strictly calm: nothing decays, nothing can
 be lost or missed, there are no streaks, timers or daily rewards, and the score stays as it is.
 
@@ -320,12 +320,19 @@ every 1000).
   glow than hints) and three soft high notes a bar later (so they never land on a lantern's
   chord). Notices queue behind any toast on screen instead of replacing it, wait out a pause,
   and never show on the title. Nothing pauses and nothing has to be acknowledged.
-- The pause menu gets a journey bar (✧ total, a fill toward the next milestone, its name) and a
-  **Rest** button. Rest ends the flight with a tally card: wisps, lanterns reached, tricks,
-  score / best, and light earned. The journey bar fills from its value before the flight to after
-  it, and any unlocks from this flight appear as cards (a level shows its name and blurb, a
-  plumage or species shows the bird). Buttons: **Keep flying** (a new flight from here) and
-  **Title**. The card is optional: pausing and closing the tab still bank everything.
+- The pause menu gets a journey bar (✧ total, "+N this flight", the next milestone, a fill toward
+  it) and a **Rest** button. Rest ends the flight: the game drops back to the menu mode, so the
+  bot takes the bird on and it keeps gliding behind the card. The card names the level and the
+  flight's length, tallies wisps, lanterns reached, tricks and points ("A new best" or the best),
+  then fills the journey bar from where the flight began, counting the light up. Each milestone
+  this flight crossed fills the bar to the end, raises its card (kind, name, and the level's
+  blurb or a line for feathers, trails and birds) and starts the next segment. Unlocks from
+  earlier flights that never had a card (the tab closed, or back to the title) appear at once:
+  the save keeps a `revealed` list, so each card is shown once. Granted levels and quiet retunes
+  never get one, nor do saves from before cards existed. Buttons: **Keep flying** (a new flight
+  from where the bird is) and **Title**. Any toast or waiting notice is cleared (the card says
+  it). The card is optional: pausing and closing the tab still bank everything.
+- Hints ("Follow the wisps", how to boost) are once per visit: a second flight needs none.
 - The title screen shows the same journey bar under the level cards.
 
 ### Level locks

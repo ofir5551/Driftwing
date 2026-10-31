@@ -46,6 +46,8 @@ export interface JourneyData {
   v: 1;
   light: number;
   granted: UnlockId[];
+  /** Unlocks already shown on a Rest card (each is shown once). */
+  revealed: UnlockId[];
 }
 
 /** Reads saved data defensively: anything missing or malformed falls back to a fresh start. */
@@ -56,7 +58,11 @@ export function parseJourney(raw: unknown): JourneyData {
   const light =
     typeof o.light === 'number' && Number.isFinite(o.light) ? Math.max(0, Math.floor(o.light)) : 0;
   const granted = Array.isArray(o.granted) ? [...new Set(o.granted.filter(isUnlockId))] : [];
-  return { v: 1, light, granted };
+  // Saves from before Rest cards existed have no list: their unlocks were already announced.
+  const revealed = Array.isArray(o.revealed)
+    ? [...new Set(o.revealed.filter(isUnlockId))]
+    : [...granted];
+  return { v: 1, light, granted, revealed };
 }
 
 const NONE: readonly Unlock[] = [];
@@ -66,17 +72,27 @@ export class Journey {
   light = 0;
   /** Light earned since the current flight began. */
   flightLight = 0;
+  /** Milestones opened by light during the current flight. */
+  flightOpened = 0;
+  /** Light and journey-bar fill when the current flight began (the Rest card fills on from there). */
+  startLight = 0;
+  startFraction = 0;
   /** Changed since the last save. */
   dirty = false;
   private readonly granted = new Set<UnlockId>();
+  private readonly revealed = new Set<UnlockId>();
 
   constructor(data?: JourneyData) {
     if (data) {
       this.light = data.light;
       for (const id of data.granted) this.granted.add(id);
+      for (const id of data.revealed) this.revealed.add(id);
     }
     // Milestones already passed but not recorded (a retune lowered one) open quietly.
-    if (this.settle().length > 0) this.dirty = true;
+    const quiet = this.settle();
+    for (const u of quiet) this.revealed.add(u.id);
+    if (quiet.length > 0) this.dirty = true;
+    this.newFlight();
   }
 
   /**
@@ -88,13 +104,16 @@ export class Journey {
     this.light += amount;
     this.flightLight += amount;
     this.dirty = true;
-    return this.settle();
+    const opened = this.settle();
+    this.flightOpened += opened.length;
+    return opened;
   }
 
   /** Opens a milestone regardless of light (levels already flown before the journey existed). */
   grant(id: string): boolean {
     if (!isUnlockId(id) || this.granted.has(id)) return false;
     this.granted.add(id);
+    this.revealed.add(id); // already the player's: nothing to announce
     this.dirty = true;
     return true;
   }
@@ -124,16 +143,33 @@ export class Journey {
     return to > prev ? Math.min(1, Math.max(0, (this.light - prev) / (to - prev))) : 1;
   }
 
+  /** Unlocks not yet shown on a Rest card, lowest first: this flight's, and any from flights that
+   *  ended without a rest (the tab closed, or back to the title). */
+  unrevealed(): Unlock[] {
+    return UNLOCKS.filter((u) => this.granted.has(u.id) && !this.revealed.has(u.id)).sort(
+      (a, b) => unlockAt(a.id) - unlockAt(b.id),
+    );
+  }
+
+  /** Marks every unlock as shown. */
+  reveal(): void {
+    for (const id of this.granted) {
+      if (this.revealed.has(id)) continue;
+      this.revealed.add(id);
+      this.dirty = true;
+    }
+  }
+
   newFlight(): void {
     this.flightLight = 0;
+    this.flightOpened = 0;
+    this.startLight = this.light;
+    this.startFraction = this.fraction();
   }
 
   toData(): JourneyData {
-    return {
-      v: 1,
-      light: this.light,
-      granted: UNLOCKS.filter((u) => this.granted.has(u.id)).map((u) => u.id),
-    };
+    const ids = (set: Set<UnlockId>) => UNLOCKS.filter((u) => set.has(u.id)).map((u) => u.id);
+    return { v: 1, light: this.light, granted: ids(this.granted), revealed: ids(this.revealed) };
   }
 
   /** Grants every milestone the light has reached; returns the new ones (sorted by threshold). */

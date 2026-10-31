@@ -71,6 +71,15 @@ export class Hud {
     this.notices.push(text);
   }
 
+  /** The flight is over: drop any toast, trick readout and waiting notice. */
+  clearMessages(): void {
+    this.notices.length = 0;
+    this.toastTimer = this.trickTimer = 0;
+    this.showingNotice = false;
+    this.toastEl.classList.remove('show');
+    this.trickEl.classList.remove('show');
+  }
+
   private show(text: string, seconds: number, notice: boolean): void {
     this.showingNotice = notice;
     this.toastEl.textContent = text;

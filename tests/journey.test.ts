@@ -120,6 +120,14 @@ describe('Journey / level locks', () => {
     expect(j.isLevelOpen('canyon')).toBe(true);
     expect(j.isLevelOpen('jerusalem')).toBe(false);
   });
+
+  it('opens every level with allLevelsOpen, without granting or saving it', () => {
+    const j = new Journey();
+    j.allLevelsOpen = true;
+    expect(LEVEL_LIST.every((l) => j.isLevelOpen(l.id))).toBe(true);
+    expect(j.toData().granted).toEqual([]);
+    expect(j.dirty).toBe(false);
+  });
 });
 
 describe('Journey / Rest cards', () => {

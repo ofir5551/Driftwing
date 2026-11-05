@@ -312,7 +312,8 @@ every 1000).
 - Existing players: any level with a saved best score above 0 counts as unlocked from the first
   run, so nobody loses a world they already fly.
 - `?level=` still opens any level (for development) but does not unlock it. `?journey=N` sets
-  light for testing.
+  light for testing. `?unlocked` opens every level on the picker for that session without
+  granting or saving anything.
 
 ### In flight and the Rest card
 

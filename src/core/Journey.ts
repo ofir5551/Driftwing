@@ -80,6 +80,9 @@ export class Journey {
   startFraction = 0;
   /** Changed since the last save. */
   dirty = false;
+  /** Every level can be picked whatever the light (`?unlocked`, for testing). Never saved:
+   *  nothing is granted, so the real journey is untouched. */
+  allLevelsOpen = false;
   private readonly granted = new Set<UnlockId>();
   private readonly revealed = new Set<UnlockId>();
 
@@ -125,7 +128,7 @@ export class Journey {
 
   /** A level can be picked once its milestone is passed; one off the track (the Highlands) always. */
   isLevelOpen(id: LevelId): boolean {
-    return !isUnlockId(id) || this.granted.has(id);
+    return this.allLevelsOpen || !isUnlockId(id) || this.granted.has(id);
   }
 
   /** The next milestone still locked, lowest threshold first; null once the track is done. */

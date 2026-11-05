@@ -34,6 +34,8 @@ const journey =
   testLight === null
     ? new Journey(loadJourney())
     : new Journey(parseJourney({ light: Number(testLight) }));
+// `?unlocked` opens every level for this session without granting (or saving) anything.
+journey.allLevelsOpen = params.has('unlocked');
 // Levels flown before the journey existed stay open whatever the light.
 if (testLight === null) for (const l of LEVEL_LIST) if (loadBest(l.id) > 0) journey.grant(l.id);
 // The last level picked, unless it is still locked (picked, never flown, before levels had

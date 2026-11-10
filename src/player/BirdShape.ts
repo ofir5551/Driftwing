@@ -412,3 +412,110 @@ export const CRANE_SHAPE: BirdShape = {
     glideSweep: 0,
   },
 };
+
+/**
+ * The Phoenix: the last bird, a creature of fire. A slim body under a tall crest swept back off
+ * the head, a short hooked bill, long wings whose primaries fan out like flames, and a long fan of
+ * eight tail plumes, every one a streamer. Its glow is in its plumage (`PlumageDef.glow`).
+ */
+export const PHOENIX_SHAPE: BirdShape = {
+  scale: 1.45,
+  torso: {
+    profile: [
+      [0.015, -0.58],
+      [0.06, -0.48],
+      [0.1, -0.34],
+      [0.14, -0.19],
+      [0.172, -0.04],
+      [0.176, 0.08],
+      [0.155, 0.2],
+      [0.12, 0.29],
+      [0.094, 0.36],
+      [0.088, 0.42],
+      [0.038, 0.47],
+    ],
+    flatBack: 0.7,
+    rump: 0.04,
+    widen: 1.04,
+    neck: null,
+  },
+  head: {
+    pos: [0, 0.07, 0.36],
+    skull: { r: 0.12, scale: [0.86, 0.88, 1.2], z: 0.13 },
+    cap: { edge: 0.012, nape: 0.35 },
+    eye: { r: 0.024, pos: [0.086, 0.01, 0.19] },
+    bill: { r: 0.034, length: 0.16, pos: [0, -0.02, 0.33], droop: 0.3 },
+    crest: { r: 0.1, length: 0.46, pos: [0, 0.07, -0.08], tilt: 0.2 },
+  },
+  feet: { r: 0.014, length: 0.1, pos: [0.04, -0.09, -0.36] },
+  tail: {
+    pos: [0, 0.02, -0.5],
+    count: 8,
+    length: 0.72,
+    spread: 0.3,
+    streamer: 0.5,
+    width: 0.13,
+    streamerNarrow: 0.45,
+  },
+  wing: {
+    shoulder: [0.1, 0.07, 0.08],
+    arm: 0.68,
+    armLead: [
+      [0, 0.18],
+      [0.68, 0.13],
+    ],
+    armTrail: [
+      [0, -0.28],
+      [0.1, -0.24],
+      [0.2, -0.3],
+      [0.3, -0.23],
+      [0.4, -0.29],
+      [0.5, -0.21],
+      [0.6, -0.26],
+      [0.68, -0.17],
+    ],
+    covertLead: [
+      [0, 0.16],
+      [0.66, 0.12],
+    ],
+    covertTrail: [
+      [0, -0.11],
+      [0.06, -0.13],
+      [0.15, -0.07],
+      [0.24, -0.12],
+      [0.33, -0.06],
+      [0.42, -0.11],
+      [0.51, -0.05],
+      [0.59, -0.09],
+      [0.66, -0.04],
+    ],
+    arch: { lead: 0.18, slope: 0.07, chord: 0.46, height: 0.05 },
+    armEdge: { length: 0.66, r0: 0.046, r1: 0.03, pos: [0.04, 0.03, 0.13] },
+    wrist: { r: 0.033, pos: [0, 0.03, 0.12] },
+    hand: 0.4,
+    handLead: [
+      [-0.06, 0.13],
+      [0.31, 0.08],
+      [0.4, 0.02],
+    ],
+    handTrail: [
+      [-0.06, -0.17],
+      [0.15, -0.14],
+      [0.31, -0.07],
+      [0.4, 0.02],
+    ],
+    handEdge: { length: 0.38, r0: 0.03, r1: 0.01, pos: [0, 0.027, 0.1], tilt: -0.07 },
+    // Long and fanned like tongues of flame.
+    primaries: [
+      [0.34, 0.05, 0.12, 0.9],
+      [0.27, 0.01, 0.24, 0.84],
+      [0.2, -0.03, 0.36, 0.76],
+      [0.13, -0.07, 0.48, 0.67],
+      [0.06, -0.11, 0.6, 0.58],
+    ],
+    primaryWidth: 0.16,
+    fold: 0.4,
+    fairing: { scale: [0.16, 0.05, 0.21], pos: [0.05, -0.008, -0.04] },
+    glideSweep: 0.08,
+  },
+};

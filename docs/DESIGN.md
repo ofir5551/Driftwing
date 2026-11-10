@@ -266,7 +266,7 @@ invert-Y), settings and best score in localStorage.
 
 Status: steps 1-7 of the build order are built (light, the track, saving, journey bars, unlock
 notices, the Rest card, level locks, the Aviary with plumages and trails, the shared bird rig,
-the Swallow and the Crane); the rest is design.
+the Swallow and the Crane), and the Phoenix, the final bird; the rest is design.
 Direction (revised): players should work toward a mix of things, led by **new birds that fly
 differently**, then **discoveries** in the levels and **bird mastery**; plumages and trails stay
 as a cheap cosmetic extra. Goal: every short flight (2-10 min) moves something
@@ -312,9 +312,10 @@ earlier than first planned, since new birds are the heart of it.
 | 2050 | Aurora trail                                   |                11-12 |
 | 2400 | **Red Canyons**                                |                13-14 |
 | 2700 | Gilded plumage                                 |                   15 |
+| 3300 | **Phoenix** (and its own plumage): the end     |                   18 |
 
-The Falcon and the Albatross will fill the later stretch (somewhere past 2400). Beyond the last
-milestone, light keeps counting on the title screen (an open question: maybe a rare plumage
+The Phoenix is the last milestone of the track, whatever comes later: the Falcon and the
+Albatross will fill the stretch between Red Canyons and it. Beyond it, light keeps counting on the title screen (an open question: maybe a rare plumage
 every 1000).
 
 - The track's thresholds are `Config.unlocks` (one number per milestone id, so the debug panel
@@ -405,6 +406,7 @@ already does) or a bird's own version of an **existing trick** (same gesture, di
 | Crane     | Slow, stately    | **Thermal rider**: thermals lift it 1.8×; dive speed carries further (built)                                                              | Highlands, City of Gold    |
 | Falcon    | Fast, heavy      | **Stoop master**: its dive-bomb (the dive gesture) builds speed faster and deeper; weaker climbs                                          | Red Canyons, Aurora Fjords |
 | Albatross | Long, lazy wings | **Updraft rider**: lift along cliff faces and over waves, rarely needs to flap; turns poorly                                              | Aurora Fjords, coasts      |
+| Phoenix   | Blazing fast     | **Speed**: cruises at 1.6× everyone's speed; glows and sheds embers (built; the final bird)                                               | Open country, night        |
 
 - The first new bird comes early: the Swallow is at 480 ✧ (about flight 3), with Dusk Rose and
   Jade Mist moved on to 950 and 1100. Players who already had them keep them.
@@ -434,6 +436,22 @@ already does) or a bird's own version of an **existing trick** (same gesture, di
   flap cooldown ×1.2, speed above cruise bleeds ×0.8 (after a dive it keeps ~2 m/s more than the
   Tern 3 s later), wingbeats ×1.35 slower, camera ×1.12. **Thermal rider** (passive): thermals
   lift it 1.8× as hard (`FlightTuning.thermal`), so a column it finds carries it high.
+- **Phoenix** (built, 3300 ✧, the final bird): a creature of fire, our own design (a fiery
+  phoenix in general, not any game's character). A slim body under a tall crest, a short hooked
+  bill, long wings whose primaries fan like flames and a fan of eight long tail plumes. Its
+  plumage runs gold, flame orange and crimson to rose tips and is self-lit (`PlumageDef.glow`,
+  a shader uniform 0 for every other plumage; it flickers gently), so it blooms and reads at
+  night. It sheds embers (`species.embers` per second) that leave with 90 % of its velocity and
+  light drag: first they were left standing in the world, and the camera (6 m back at 40 m/s)
+  flew through them, so they ballooned into blurs at the lens. Flight: `speed` ×1.6 (cruise and
+  minimum, ~42 m/s), `topSpeed` ×1.3 (~88 m/s), and turn ×1.45 so its turning circle (speed /
+  turn) stays near the Tern's: the rule for every bird is now that circle, not the factors
+  alone. Its roll hops ×1.5. In 90 s of the bot it gathers ~50 % more wisps than the Tern in
+  Neon Bay and the canyons (it covers more ground) and never glances a wall there.
+- Jade River's pillar slaloms are the hard case for the slow-turning and the very fast: the bot
+  gets 72 % (Crane) and 79 % (Phoenix, three soft glances) of the Tern's wisps there. That is
+  each bird's trade-off, as designed; if players find it frustrating, the Crane's turn is the
+  first number to raise.
 - **Falcon** and **Albatross**: shapes and numbers to design on the rig.
 - A species is a `SpeciesDef` (`player/Species.ts`): a `BirdShape` (`player/BirdShape.ts`: torso
   profile, head, bill, crest, feet, tail, wing arm / hand outlines, arch, primaries, glide
@@ -448,6 +466,10 @@ already does) or a bird's own version of an **existing trick** (same gesture, di
   against its own 153): every bird must gather at least 90 % of the Tern's wisps.
 - Saves from before `seen` existed count as having seen everything but the birds added since
   (`ADDED_LATER` in `Journey.ts`), so a bird new to the track always gets its card.
+- The Aviary's picks are `border-box` and, on a phone, 59 px: four to a row on an iPhone SE
+  (its row is 254 px), so four birds or seven plumages stay within two rows and the card ends
+  well above the bird. The portrait card rule is `.menu.aviary .card`: the general rule comes
+  later in the sheet and silently won with `.aviary .card`.
 
 ### Discoveries and bird mastery (proposed)
 

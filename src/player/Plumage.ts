@@ -30,7 +30,7 @@ export interface PlumageColors {
   feet: string;
 }
 
-export type PlumageId = 'sea' | 'duskRose' | 'frost' | 'gilded' | 'swallow' | 'crane';
+export type PlumageId = 'sea' | 'duskRose' | 'frost' | 'gilded' | 'swallow' | 'crane' | 'phoenix';
 
 export interface PlumageDef {
   readonly id: PlumageId;
@@ -39,6 +39,9 @@ export interface PlumageDef {
    *  the starting plumage. */
   readonly unlock: UnlockId | null;
   readonly colors: PlumageColors;
+  /** Self-lit glow (0 for none): the feathers shine with their own colour, enough for the
+   *  brightest to bloom. Only the Phoenix's burns. */
+  readonly glow?: number;
 }
 
 /**
@@ -201,6 +204,34 @@ export const PLUMAGES: readonly PlumageDef[] = [
       tailBase: '#a2a6ad',
       tailTip: '#3b3c43',
       feet: '#3d3c42',
+    },
+  },
+  {
+    // The Phoenix's own, burning: a gold breast, a flame-orange mantle, a crimson crest, and
+    // wings and plumes that run gold to orange to a rose-crimson tip. It glows, and blooms.
+    id: 'phoenix',
+    name: 'Phoenix',
+    unlock: 'phoenix',
+    glow: 0.45,
+    colors: {
+      belly: '#ffd36b',
+      breast: '#ffb347',
+      throat: '#ffcf5a',
+      back: '#ff7a2e',
+      cap: '#e8322c',
+      wingLead: '#ffe08a',
+      wingTrail: '#ff8a3a',
+      covert: '#ffb54d',
+      dusky: '#d8452f',
+      underwing: '#ffe7a0',
+      bill: '#ffe9b0',
+      billTip: '#b8432a',
+      primaryBase: '#ffc24a',
+      primaryMid: '#ff6a2a',
+      primaryTip: '#c2265a',
+      tailBase: '#ffb13d',
+      tailTip: '#c2306a',
+      feet: '#ffb347',
     },
   },
 ];

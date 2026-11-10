@@ -21,6 +21,8 @@ const SPLASH = new THREE.Color('#eaf6ff');
 const DUST = new THREE.Color('#e3cfa8');
 const LEAF = new THREE.Color('#a6d17e');
 const WHITE = new THREE.Color('#ffffff');
+const EMBER = new THREE.Color('#ff8a33');
+const EMBER_HOT = new THREE.Color('#ffd27a');
 
 /**
  * Gameplay layer on top of the flight sandbox: wisps, flow, thermals, lanterns and the
@@ -42,6 +44,8 @@ export class Gameplay {
   private readonly lanternTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
   private contactFx = 0;
+  /** Embers owed but not yet shed (a fractional count carried between frames). */
+  private emberDebt = 0;
   /** Lowest trail opacity, so the Aviary can show the trail on a lazy glide (0 in play). */
   trailPreview = 0;
   /** Rising sparks round a lantern still to reach (bound once: no per-frame closure). */
@@ -83,6 +87,48 @@ export class Gameplay {
     game.onFrame((dt, time) => this.frame(dt, time));
     game.events.on('contact', (e) => this.onContact(e.kind, e.x, e.y, e.z, e.strength));
     game.events.on('level', () => this.onLevel());
+  }
+
+  /**
+   * A burning bird (the Phoenix) sheds embers from behind its body. Each leaves with most of the
+   * bird's velocity and light drag, so the embers fall back gently into a glowing wake and burn
+   * out before they reach the camera; left standing in the world, the camera (6 m back, at 40
+   * m/s) flew through them and they ballooned into blurs at the lens.
+   */
+  private shedEmbers(
+    dt: number,
+    x: number,
+    y: number,
+    z: number,
+    yaw: number,
+    density: number,
+  ): void {
+    const rate = this.game.species.tuning.embers;
+    if (rate <= 0 || this.game.mode === 'paused') return;
+    this.emberDebt += rate * density * dt;
+    const bx = -Math.sin(yaw);
+    const bz = -Math.cos(yaw);
+    while (this.emberDebt >= 1) {
+      this.emberDebt -= 1;
+      const back = 0.8 + Math.random() * 1.6;
+      const side = (Math.random() - 0.5) * 1.6;
+      this.tmp.copy(EMBER).lerp(EMBER_HOT, Math.random());
+      const v = this.vel;
+      const carry = Config.species.phoenix.emberCarry;
+      this.glow.emit(
+        x + bx * back - bz * side,
+        y + (Math.random() - 0.5) * 0.6,
+        z + bz * back + bx * side,
+        v.x * carry + (Math.random() - 0.5) * 1.5,
+        v.y * carry + 0.8 + Math.random() * 1.2,
+        v.z * carry + (Math.random() - 0.5) * 1.5,
+        0.5 + Math.random() * 0.4,
+        0.45 + Math.random() * 0.35,
+        this.tmp,
+        -1.2,
+        0.25,
+      );
+    }
   }
 
   /** The wingtip trail's style (the Aviary). */
@@ -298,6 +344,7 @@ export class Gameplay {
     this.vel
       .set(Math.sin(pose.yaw) * cp, Math.sin(pitch), Math.cos(pose.yaw) * cp)
       .multiplyScalar(pose.speed);
+    this.shedEmbers(dt, pose.x, pose.y, pose.z, pose.yaw, density);
     this.wind.update(
       cam,
       this.vel,

@@ -248,6 +248,7 @@ export const Config = {
     auroraTrail: 2050,
     canyon: 2400,
     gildedPlumage: 2700,
+    phoenix: 3300, // the final bird, the end of the track (later birds go before it)
   },
   aviary: {
     trailPreview: 0.6, // lowest wingtip-trail opacity while the Aviary is open (the bot glides lazily)
@@ -309,6 +310,9 @@ export const Config = {
       rollBoost: 0,
       waterSkim: 0,
       thermal: 1,
+      speed: 1, // cruise and minimum speed
+      topSpeed: 1,
+      embers: 0, // embers shed per second
       camera: 1, // chase distance
       beat: 1, // wingbeat period
     },
@@ -323,6 +327,9 @@ export const Config = {
       rollBoost: 4, // m/s as it darts
       waterSkim: 8, // m/s^2 low over water (settles near 50 m/s on a long skim)
       thermal: 1,
+      speed: 1,
+      topSpeed: 1,
+      embers: 0,
       camera: 0.9, // a smaller bird: the camera sits a little closer
       beat: 0.78, // quicker, shallower-feeling strokes
     },
@@ -337,8 +344,30 @@ export const Config = {
       rollBoost: 0,
       waterSkim: 0,
       thermal: 1.8,
+      speed: 1,
+      topSpeed: 1,
+      embers: 0,
       camera: 1.12, // a big bird: the camera sits a little farther back
       beat: 1.35, // slow, deep strokes
+    },
+    phoenix: {
+      // The last bird: blazing fast. It cruises at 1.6x everyone's speed; it turns 1.45x as fast
+      // so its turning circle stays near the Tern's and the wisp ribbons stay in reach. It sheds
+      // embers as it flies.
+      turn: 1.45,
+      flapLift: 1.1,
+      flapCooldown: 1,
+      bleed: 1,
+      rollHop: 1.5,
+      rollBoost: 0,
+      waterSkim: 0,
+      thermal: 1,
+      speed: 1.6, // cruise ~42 m/s against 26
+      topSpeed: 1.3, // ~88 m/s flat out
+      embers: 40,
+      emberCarry: 0.9, // share of the bird's velocity an ember leaves with (its wake trails gently)
+      camera: 1.05,
+      beat: 0.9,
     },
   },
   render: {

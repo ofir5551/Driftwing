@@ -58,6 +58,10 @@ export interface FlightTuning {
   waterSkim: number;
   /** How strongly thermals lift it (the Crane rides them). */
   thermal: number;
+  /** Cruise and minimum speed (the Phoenix is far faster than the rest). */
+  speed: number;
+  /** Top speed. */
+  topSpeed: number;
 }
 
 /** No change to the model: the Tern. */
@@ -70,6 +74,8 @@ export const NEUTRAL_TUNING: Readonly<FlightTuning> = Object.freeze({
   rollBoost: 0,
   waterSkim: 0,
   thermal: 1,
+  speed: 1,
+  topSpeed: 1,
 });
 
 export interface FlightState {
@@ -121,7 +127,7 @@ export function createFlightState(
     yaw,
     pitch: 0,
     bank: 0,
-    speed: Config.flight.cruiseSpeed,
+    speed: Config.flight.cruiseSpeed * tune.speed,
     liftVy: 0,
     pitchSpring: { x: 0, v: 0 },
     turnSpring: { x: 0, v: 0 },
@@ -152,6 +158,10 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // The bird's own flap, shared by flaps, climb beats and their cap.
   const flapLift = c.flapLift * m.flapLift;
   const flapCooldown = c.flapCooldown * m.flapCooldown;
+  // The bird's own speed envelope (the Tern's is the model's).
+  const cruise = c.cruiseSpeed * m.speed;
+  const minSpeed = c.minSpeed * m.speed;
+  const maxSpeed = c.maxSpeed * m.topSpeed;
   s.flapped = false;
   s.climbBeat = false;
   s.contact = 'none';
@@ -167,10 +177,10 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // --- Pitch -------------------------------------------------------------------------------
   // Climb authority fades out as speed approaches minSpeed, so holding "up" can never stall the
   // bird: it simply levels off and the nose drifts down until speed recovers.
-  const climbAuthority = smoothstep(c.minSpeed, c.minSpeed + 7, s.speed);
+  const climbAuthority = smoothstep(minSpeed, minSpeed + 7, s.speed);
   const steerY = clamp(input.steerY, -1, 1);
   let targetPitch = steerY > 0 ? steerY * c.maxClimb * climbAuthority : steerY * c.maxDive;
-  if (s.speed < c.minSpeed) targetPitch -= (c.minSpeed - s.speed) * 0.04;
+  if (s.speed < minSpeed) targetPitch -= (minSpeed - s.speed) * 0.04;
   // A loop carries the nose round in trickPitch; the gliding pitch eases level underneath it.
   // A dive-bomb holds the nose down, then pulls out firmly (terrain assist still applies).
   if (looping) targetPitch = 0;
@@ -224,19 +234,19 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const g =
     c.gravityAlongPath *
     (s.pitch < 0 ? c.diveGravity * (diving ? Config.tricks.diveGravity : 1) : 1);
-  const top = c.maxSpeed + (diving ? Config.tricks.diveExtraSpeed : 0);
-  const relax = s.speed > c.cruiseSpeed ? c.speedRelaxFast * m.bleed : c.speedRelax;
-  let accel = -g * Math.sin(s.pitch) + (c.cruiseSpeed - s.speed) * relax;
+  const top = maxSpeed + (diving ? Config.tricks.diveExtraSpeed : 0);
+  const relax = s.speed > cruise ? c.speedRelaxFast * m.bleed : c.speedRelax;
+  let accel = -g * Math.sin(s.pitch) + (cruise - s.speed) * relax;
   if (s.speed > top) accel -= (s.speed - top) * 1.5;
-  if (s.speed < c.minSpeed) accel += (c.minSpeed - s.speed) * 2;
+  if (s.speed < minSpeed) accel += (minSpeed - s.speed) * 2;
   // A skimming bird (the Swallow) draws speed from the air cushion low over water, more the
   // lower it flies. The relaxation above balances it near twice cruise, so a long skim settles
   // rather than runs away; it never pushes past the usual top speed.
-  if (m.waterSkim > 0 && s.speed < c.maxSpeed && env.groundAt(s.x, s.z) < water) {
+  if (m.waterSkim > 0 && s.speed < maxSpeed && env.groundAt(s.x, s.z) < water) {
     const h = s.y - water - c.clearance;
     if (h < c.skimHeight) accel += m.waterSkim * (1 - Math.max(0, h) / c.skimHeight);
   }
-  s.speed = looping ? loopSpeed(tr) : Math.max(c.minSpeed * 0.6, s.speed + accel * dt);
+  s.speed = looping ? loopSpeed(tr) : Math.max(minSpeed * 0.6, s.speed + accel * dt);
 
   // --- Flap ----------------------------------------------------------------------------------
   // Taper the lift near the ceiling so mashing flap cannot punch through it.
@@ -247,7 +257,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     s.sinceFlap = 0;
     s.flapped = true;
     s.liftVy = Math.min(s.liftVy + flapLift * ceilingFade, flapLift * 1.6);
-    s.speed = Math.min(s.speed + c.flapBoost, c.maxSpeed + 4);
+    s.speed = Math.min(s.speed + c.flapBoost, maxSpeed + 4);
   }
 
   // --- Climb wingbeats -----------------------------------------------------------------------
@@ -337,6 +347,7 @@ export function forwardOf(s: FlightState, out: { x: number; y: number; z: number
  */
 export function gust(s: FlightState, boost: number, lift: number): void {
   const c = Config.flight;
-  s.speed = Math.min(s.speed + boost, c.maxSpeed + boost);
+  const top = c.maxSpeed * s.tune.topSpeed;
+  s.speed = Math.min(s.speed + boost, top + boost);
   s.liftVy = Math.min(s.liftVy + lift, c.flapLift * s.tune.flapLift * 1.6);
 }

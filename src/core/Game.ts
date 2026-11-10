@@ -7,7 +7,7 @@ import { angleDelta, clamp, lerp } from './math';
 import { createDebugPanel } from './DebugPanel';
 import { Bird, type Pose } from '../player/Bird';
 import { ChaseCamera } from '../player/ChaseCamera';
-import type { SpeciesDef } from '../player/Species';
+import { DEFAULT_SPECIES, speciesDef, type SpeciesDef } from '../player/Species';
 import {
   createFlightState,
   stepFlight,
@@ -53,6 +53,8 @@ export class Game {
   };
   readonly chase: ChaseCamera;
   readonly bird = new Bird();
+  /** The bird being flown (Gameplay reads its embers). */
+  species: SpeciesDef = speciesDef(DEFAULT_SPECIES);
   readonly composer: Composer;
   private readonly prev = {
     x: 0,
@@ -178,6 +180,7 @@ export class Game {
   /** Turns the bird into another species: its body, its way of flying, its camera and its
    *  wingbeat tempo. Menu time (the bird is rebuilt), never mid-step. */
   setSpecies(def: SpeciesDef): void {
+    this.species = def;
     this.bird.setShape(def.shape);
     this.flight.tune = def.tuning;
     this.chase.distanceScale = def.tuning.camera;

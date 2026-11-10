@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
+import { UNLOCKS, unlockAt } from '../src/core/Journey';
 import {
   createFlightState,
   NEUTRAL_TUNING,
@@ -19,6 +20,7 @@ const flat = (h: number): FlightEnv => ({ groundAt: () => h, thermalAt: () => 0 
 const TERN = Config.species.tern;
 const SWALLOW = Config.species.swallow;
 const CRANE = Config.species.crane;
+const PHOENIX = Config.species.phoenix;
 
 function fly(tune: FlightTuning, seconds: number, inp: FlightInput, y = 60, env = flat(-50)) {
   const s = createFlightState(0, y, 0, 0, tune);
@@ -39,11 +41,30 @@ describe('Species', () => {
   });
 
   it('keeps every bird within reach of the wisp planner', () => {
-    for (const b of SPECIES)
-      for (const k of ['turn', 'flapLift', 'flapCooldown', 'bleed'] as const) {
-        expect(b.tuning[k]).toBeGreaterThanOrEqual(0.75);
-        expect(b.tuning[k]).toBeLessThanOrEqual(1.25);
+    for (const b of SPECIES) {
+      // What reaches a wisp is the turning circle (speed / turn rate), not either alone: the
+      // Phoenix's speed is matched by its turn.
+      const circle = b.tuning.speed / b.tuning.turn;
+      expect(circle, b.id).toBeGreaterThanOrEqual(0.8);
+      expect(circle, b.id).toBeLessThanOrEqual(1.25);
+      for (const k of ['flapLift', 'flapCooldown', 'bleed'] as const) {
+        expect(b.tuning[k], `${b.id}.${k}`).toBeGreaterThanOrEqual(0.75);
+        expect(b.tuning[k], `${b.id}.${k}`).toBeLessThanOrEqual(1.25);
       }
+    }
+  });
+
+  it('cruises the Phoenix far faster than every other bird', () => {
+    const inp: FlightInput = { steerX: 0, steerY: 0, flap: false };
+    const cruise = (tune: FlightTuning) => fly(tune, 10, inp).s.speed;
+    const others = SPECIES.filter((b) => b.id !== 'phoenix').map((b) => cruise(b.tuning));
+    for (const v of others) expect(v).toBeCloseTo(Config.flight.cruiseSpeed, 0);
+    expect(cruise(PHOENIX)).toBeGreaterThan(Math.max(...others) * 1.5);
+    // It starts at its own cruise, not the others'.
+    expect(createFlightState(0, 60, 0, 0, PHOENIX).speed).toBeCloseTo(
+      Config.flight.cruiseSpeed * PHOENIX.speed,
+      5,
+    );
   });
 
   it('turns the Swallow sharper than the Tern', () => {
@@ -122,9 +143,18 @@ describe('Species', () => {
     }
   });
 
+  it('makes the Phoenix the last thing on the journey', () => {
+    const last = [...UNLOCKS].sort((a, b) => unlockAt(a.id) - unlockAt(b.id)).at(-1);
+    expect(last?.id).toBe('phoenix');
+    for (const b of SPECIES)
+      if (b.unlock && b.id !== 'phoenix')
+        expect(unlockAt(b.unlock)).toBeLessThan(unlockAt('phoenix'));
+  });
+
   it('dresses each bird in its own plumage by default', () => {
     expect(speciesDef('tern').plumage).toBe('sea');
     expect(speciesDef('swallow').plumage).toBe('swallow');
     expect(speciesDef('crane').plumage).toBe('crane');
+    expect(speciesDef('phoenix').plumage).toBe('phoenix');
   });
 });

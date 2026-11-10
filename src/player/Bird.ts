@@ -171,13 +171,18 @@ function wingSurface(
  * land and shining through thin feathers. Without it the belly and underwing fall into the
  * toon shadow tone and read as dull khaki against a bright sky.
  */
-function skyLift(shader: THREE.WebGLProgramParametersWithUniforms): void {
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <emissivemap_fragment>',
-    `#include <emissivemap_fragment>
+function skyLift(shader: THREE.WebGLProgramParametersWithUniforms, glow: { value: number }): void {
+  // A burning plumage (the Phoenix's) also lights itself: uGlow is 0 for every other.
+  shader.uniforms.uGlow = glow;
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', '#include <common>\nuniform float uGlow;')
+    .replace(
+      '#include <emissivemap_fragment>',
+      `#include <emissivemap_fragment>
     float down = smoothstep(0.1, -0.8, inverseTransformDirection(normal, viewMatrix).y);
-    totalEmissiveRadiance += diffuseColor.rgb * ${SKY_LIFT.toFixed(2)} * down;`,
-  );
+    totalEmissiveRadiance += diffuseColor.rgb * ${SKY_LIFT.toFixed(2)} * down;
+    totalEmissiveRadiance += diffuseColor.rgb * uGlow;`,
+    );
 }
 
 /** Tapered, flattened rod along +x from 0 to `length`: gives the wing's leading edge some body. */
@@ -216,6 +221,10 @@ export class Bird {
   private c: PlumageColors = plumageDef(DEFAULT_PLUMAGE).colors;
   private readonly repaints: (() => void)[] = [];
   private readonly under = new THREE.Color();
+  /** The plumage's self-lit glow (a shader uniform, shared by both feather materials), which
+   *  flickers a little around `glowBase` like a flame. */
+  private readonly glow = { value: 0 };
+  private glowBase = 0;
   private feetMat!: THREE.MeshToonMaterial;
   /** Materials made by the last build, disposed with it. */
   private materials: THREE.Material[] = [];
@@ -251,7 +260,9 @@ export class Bird {
   }
 
   /** Dresses the bird in a plumage (the Aviary: menu time, not a hot path). */
-  setPlumage(colors: PlumageColors): void {
+  setPlumage(colors: PlumageColors, glow = 0): void {
+    this.glowBase = glow;
+    this.glow.value = glow;
     this.c = colors;
     for (const r of this.repaints) r();
     this.under.set(colors.underwing);
@@ -299,6 +310,7 @@ export class Bird {
     // Pale underwing and undertail: seen from below the bird is pale against the sky, as a
     // seabird is; the patterned upper side faces the chase camera.
     const under = this.under.set(this.c.underwing);
+    const glowU = this.glow;
     feathers.onBeforeCompile = (shader) => {
       shader.uniforms.uUnder = { value: under };
       shader.fragmentShader = shader.fragmentShader
@@ -307,9 +319,9 @@ export class Bird {
           '#include <color_fragment>',
           '#include <color_fragment>\nif (gl_FrontFacing) diffuseColor.rgb = mix(diffuseColor.rgb, uUnder, 0.55);',
         );
-      skyLift(shader);
+      skyLift(shader, glowU);
     };
-    plumage.onBeforeCompile = skyLift;
+    plumage.onBeforeCompile = (shader) => skyLift(shader, glowU);
     const feetMat = toon(this.c.feet);
     this.feetMat = feetMat;
     const eyeMat = new THREE.MeshBasicMaterial({ color: '#221d29' });
@@ -525,6 +537,9 @@ export class Bird {
   }
 
   update(p: Pose, sinceFlap: number, sinceClimbBeat: number, time: number, dt: number): void {
+    if (this.glowBase > 0)
+      this.glow.value =
+        this.glowBase * (0.86 + 0.09 * Math.sin(time * 7.3) + 0.05 * Math.sin(time * 17.1));
     this.root.position.set(p.x, p.y, p.z);
     this.root.rotation.set(-(p.pitch + p.trickPitch), p.yaw, p.bank + p.spin, 'YXZ');
 

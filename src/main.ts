@@ -59,7 +59,8 @@ function dress(): void {
   game.setSpecies(journey.isOpen(b.unlock) ? b : speciesDef(DEFAULT_SPECIES));
   const p = plumageDef(settings.plumage);
   const t = trailDef(settings.trail);
-  game.bird.setPlumage((journey.isOpen(p.unlock) ? p : plumageDef(DEFAULT_PLUMAGE)).colors);
+  const worn = journey.isOpen(p.unlock) ? p : plumageDef(DEFAULT_PLUMAGE);
+  game.bird.setPlumage(worn.colors, worn.glow ?? 0);
   gameplay.setTrail(journey.isOpen(t.unlock) ? t : trailDef(DEFAULT_TRAIL));
 }
 dress();

@@ -1,6 +1,6 @@
 import { Config } from '../core/Config';
 import type { UnlockId } from '../core/Journey';
-import { CRANE_SHAPE, SWALLOW_SHAPE, TERN_SHAPE, type BirdShape } from './BirdShape';
+import { CRANE_SHAPE, PHOENIX_SHAPE, SWALLOW_SHAPE, TERN_SHAPE, type BirdShape } from './BirdShape';
 import type { PlumageId } from './Plumage';
 
 /**
@@ -9,7 +9,7 @@ import type { PlumageId } from './Plumage';
  * when the bird is picked. A bird's signature is passive or its own version of an existing
  * trick, never a new gesture (phone first: see DESIGN's Species).
  */
-export type SpeciesId = 'tern' | 'swallow' | 'crane';
+export type SpeciesId = 'tern' | 'swallow' | 'crane' | 'phoenix';
 
 export interface SpeciesDef {
   readonly id: SpeciesId;
@@ -51,6 +51,15 @@ export const SPECIES: readonly SpeciesDef[] = [
     plumage: 'crane',
     shape: CRANE_SHAPE,
     tuning: Config.species.crane,
+  },
+  {
+    id: 'phoenix',
+    name: 'Phoenix',
+    blurb: 'The last bird. Blazing fast, trailing embers, aglow even at night.',
+    unlock: 'phoenix',
+    plumage: 'phoenix',
+    shape: PHOENIX_SHAPE,
+    tuning: Config.species.phoenix,
   },
 ];
 

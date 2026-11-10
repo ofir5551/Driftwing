@@ -5,9 +5,10 @@ import type { CityLayout, Tower } from './CityLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
 
-/** Radius of the quarter turn at an avenue crossing. With the open corner plazas the arc (and
- * the chord a bird cuts across it) stays clear of buildings, and it needs only 0.65 rad/s of
- * turn at cruise, so even a bird still fast from a dive (~45 m/s) makes it. */
+/** Radius of the wide quarter turn at an avenue crossing, the fallback when the tight one
+ * (`Config.city.turnRadius`) does not fit. With the open corner plazas the arc (and the chord a
+ * bird cuts across it) stays clear of buildings, and it needs only 0.65 rad/s of turn at
+ * cruise, so even a bird still fast from a dive (~45 m/s) makes it. */
 const TURN_R = 40;
 /** How far a planned path keeps from walls, decks and beams. */
 const PATH_MARGIN = 3.5;
@@ -42,6 +43,8 @@ export class CityPlanner implements WispPlanner {
   private readonly tower: Tower = { x: 0, z: 0, half: 0, top: 0 };
   private readonly pts: number[] = [];
   private free = 0;
+  /** Clearance the path check keeps from the scenery (wider for lane changes). */
+  private margin = PATH_MARGIN;
   /**
    * The ribbon's overall heading (a slow average of its travel). Turns go to whichever side
    * keeps making progress along it, alternating when both are level, so the ribbon staircases
@@ -83,37 +86,64 @@ export class CityPlanner implements WispPlanner {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
     }
+    const C = Config.city;
     const r = rand();
     this.sinceSpiral++;
-    if (r < 0.25 && this.sinceSpiral > 3 && this.spiral(c, rand) && this.commit(c, spawn, true)) {
+    if (
+      r < C.spiralChance &&
+      this.sinceSpiral > 2 &&
+      this.spiral(c, rand) &&
+      this.commit(c, spawn, true)
+    ) {
       this.sinceSpiral = 0;
       this.lastTower.x = this.tower.x;
       this.lastTower.z = this.tower.z;
       return true;
     }
     // Avenue runs: the nearest axis first, then the other; at canyon height, then low (under
-    // any expressway, beside its pillars), then high over everything. First clear plan wins.
+    // any expressway, beside its pillars), then high over everything. Each first weaving with a
+    // tight turn, then (if that clips something) straight with the wide turn. First clear plan
+    // wins.
     const q = c.heading / (Math.PI / 2);
     const near = Math.round(q);
     const axes = [near, q > near ? near + 1 : near - 1];
-    const turn = rand() < 0.55;
+    const turn = rand() < C.turnChance;
     const canyon = 12 + rand() * 12;
-    const len = 6 + Math.floor(rand() * 6);
+    const len = C.runMin + Math.floor(rand() * (C.runMax - C.runMin + 1));
+    const phase = rand() < 0.5 ? 1 : -1; // which way the slalom swings first
     // Turning toward +lateral or -lateral: lateral is x when the run is along z.
     const alongZnow = Math.abs(Math.cos(near * (Math.PI / 2))) > 0.5;
     const lean = alongZnow ? this.trendX : this.trendZ;
     const side = Math.abs(lean) > 0.25 ? Math.sign(lean) : -this.lastSide;
     const low = rand() < 0.35;
     for (const axis of axes)
-      for (let k = 0; k < ALTITUDES.length; k++) {
-        const [alt, off] = ALTITUDES[low ? (k + 1) % ALTITUDES.length : k];
-        this.pts.length = 0;
-        this.avenue(c, axis, alt < 0 ? canyon : alt, alt < 0, off, turn, len, side);
-        if (this.commit(c, spawn, true)) {
-          if (this.turned) this.lastSide = side;
-          return true;
+      for (let k = 0; k < ALTITUDES.length; k++)
+        for (const weave of [phase, 0]) {
+          const [alt, off] = ALTITUDES[low ? (k + 1) % ALTITUDES.length : k];
+          this.pts.length = 0;
+          const radius = weave !== 0 ? C.turnRadius : TURN_R;
+          this.avenue(
+            c,
+            axis,
+            alt < 0 ? canyon : alt,
+            alt < 0,
+            off,
+            turn,
+            len,
+            side,
+            weave,
+            radius,
+          );
+          // A bird cuts the corner of a swerve: plan lane changes only with room to spare from
+          // walls, pillars and decks.
+          this.margin = weave !== 0 ? C.weaveMargin : PATH_MARGIN;
+          const ok = this.commit(c, spawn, true);
+          this.margin = PATH_MARGIN;
+          if (ok) {
+            if (this.turned) this.lastSide = side;
+            return true;
+          }
         }
-      }
     // No clear way onto an avenue: glide over the rooftops, as straight on as possible; last,
     // from above the local roofs (a cursor re-anchored right beside a building).
     const y0 = c.y;
@@ -197,7 +227,7 @@ export class CityPlanner implements WispPlanner {
       const x = x0 + (x1 - x0) * t;
       const y = y0 + (y1 - y0) * t;
       const z = z0 + (z1 - z0) * t;
-      if (this.city.solidTop(x, y, z, PATH_MARGIN) !== -Infinity) return false;
+      if (this.city.solidTop(x, y, z, this.margin) !== -Infinity) return false;
     }
     return true;
   }
@@ -219,7 +249,10 @@ export class CityPlanner implements WispPlanner {
   /**
    * Onto an avenue along cardinal `axis` (0 = +z, 1 = +x, ...) with a shallow merge, down it
    * at `alt` (metres above the street if `relative`, else absolute) offset `off` from the
-   * centre line, and optionally a quarter turn toward `side` at the next crossing.
+   * centre line, and optionally a quarter turn of radius `turnR` toward `side` at the next
+   * crossing. `weave` (+-1, or 0 for a straight lane) moves the run from lane to lane across
+   * the avenue, easing in after the merge and out before the turn, so the arc still starts on
+   * the lane.
    */
   private avenue(
     c: WispCursor,
@@ -230,6 +263,8 @@ export class CityPlanner implements WispPlanner {
     turnWanted: boolean,
     len: number,
     side: number,
+    weave: number,
+    turnR: number,
   ): void {
     const L = this.city;
     const S = L.S;
@@ -263,39 +298,49 @@ export class CityPlanner implements WispPlanner {
       emit(xz[0], xz[1]);
     }
     lat = line;
-    const n = len;
     const cross = sgn > 0 ? Math.ceil((along + 60) / S) * S : Math.floor((along - 60) / S) * S;
-    const arcStart = cross - sgn * TURN_R;
+    const arcStart = cross - sgn * turnR;
     // Keep patterns short (about 20 wisps): only turn if the crossing is near.
     if (turn && (arcStart - along) * sgn > 11 * sp) turn = false;
-    for (let i = 0; i < (turn ? 40 : n); i++) {
-      const next = along + sgn * sp;
-      if (turn && (next - arcStart) * sgn > 0) break;
-      along = next;
-      at(along, lat, xz);
+    // Wisps straight down the avenue: up to the turn, or the run's length.
+    const n = turn ? Math.max(0, Math.floor(((arcStart - along) * sgn) / sp)) : len;
+    const C = Config.city;
+    const TAU = Math.PI * 2;
+    for (let i = 1; i <= n; i++) {
+      along += sgn * sp;
+      // Ease the lane changes in and out over a wisp and a half at each end, so they join the
+      // merge and the turn on the lane.
+      const env = weave === 0 ? 0 : Math.min(1, i / 1.5, (n + 1 - i) / 1.5);
+      // A flattened sine: the run holds a lane, swerves across, holds the other. Lanes past the
+      // magnet's reach make the swerve count; a steady zigzag was harder to follow than to
+      // ignore (flying its centre line caught every crossing). Height stays put: a bob dipped
+      // runs under decks and tripled the wall glances for no extra challenge.
+      const lane = clamp(C.weaveSharp * Math.sin((TAU * i) / C.weavePeriod), -1, 1);
+      const sway = weave * C.weaveLateral * lane * env;
+      at(along, lat + sway, xz);
       emit(xz[0], xz[1]);
     }
     this.turned = turn;
     if (!turn) return;
     // Quarter arc from (arcStart, line) onto the cross avenue, toward `side`.
     at(arcStart, lat, xz);
-    const cx = xz[0] + (alongZ ? side * TURN_R : 0);
-    const cz = xz[1] + (alongZ ? 0 : side * TURN_R);
+    const cx = xz[0] + (alongZ ? side * turnR : 0);
+    const cz = xz[1] + (alongZ ? 0 : side * turnR);
     const a0 = Math.atan2(xz[0] - cx, xz[1] - cz);
     // Sweep the radius so the path starts out moving along the travel direction.
     const fx = alongZ ? 0 : sgn;
     const fz = alongZ ? sgn : 0;
     const sweep = Math.sign(Math.sin(a0) * fz - Math.cos(a0) * fx) || 1;
-    const steps = Math.round(((Math.PI / 2) * TURN_R) / sp);
+    const steps = Math.round(((Math.PI / 2) * turnR) / sp);
     for (let i = 1; i <= steps; i++) {
       const a = a0 - sweep * (i / steps) * (Math.PI / 2);
-      emit(cx + Math.sin(a) * TURN_R, cz + Math.cos(a) * TURN_R);
+      emit(cx + Math.sin(a) * turnR, cz + Math.cos(a) * turnR);
     }
     // Then a few wisps straight on along the cross avenue.
     sgn = side;
     const a1 = a0 - sweep * (Math.PI / 2);
-    let px = cx + Math.sin(a1) * TURN_R;
-    let pz = cz + Math.cos(a1) * TURN_R;
+    let px = cx + Math.sin(a1) * turnR;
+    let pz = cz + Math.cos(a1) * turnR;
     for (let i = 0; i < 3; i++) {
       px += (alongZ ? sgn : 0) * sp;
       pz += (alongZ ? 0 : sgn) * sp;

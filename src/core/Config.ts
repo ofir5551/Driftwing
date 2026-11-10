@@ -187,6 +187,20 @@ export const Config = {
     glance: 0.9, // fraction of the angle into a wall turned away on contact
     glanceSlow: 0.25, // speed lost against a wall, scaled by how head-on (about 0.04 per step head-on)
     lights: 1, // brightness of windows, neon and lamps after dark
+    // Wisp ribbons (CityWisps). Long straight avenue runs in one lane let a player line up once
+    // and hold (over half the wisps with no turning at all), so runs change lanes and turn more:
+    // the city should ask for steering about half the time. Every line is still checked clear
+    // of the scenery, and a run falls back to a straight lane with the wide turn where a lane
+    // change would clip something. See DESIGN's decisions log for the measurements.
+    weaveLateral: 12, // m either side of the centre a run's lanes sit (past the 11 m magnet)
+    weaveSharp: 1.6, // >1 flattens the sway into hold, swerve, hold (lane changes, not a zigzag)
+    weavePeriod: 12, // wisps per there-and-back across the avenue (180 m, ~7 s at cruise)
+    weaveMargin: 8, // m a lane-change line keeps from walls, pillars and decks (straight lanes 3.5)
+    runMin: 4, // wisps straight down an avenue before the next turn
+    runMax: 8,
+    turnChance: 0.75, // runs that turn at the next crossing
+    turnRadius: 30, // m, a tight quarter turn (~0.9 rad/s at cruise); the fallback arc is 40 m
+    spiralChance: 0.35, // patterns that circle a tower (when one is near)
     // The volcano painted into the sky: how far away it pretends to be. Its foot sits on the
     // sea at this distance, so climbing sinks it a little below the horizon (400 m -> ~3.5 deg).
     mountainDistance: 6500, // m

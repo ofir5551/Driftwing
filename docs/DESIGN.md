@@ -89,8 +89,19 @@ keys pad and a soft swung beat, in a drier room; yo pentatonic by day, hirajoshi
 Flight among buildings: walls are solid but soft. A look-ahead (about a second) climbs over a
 roof within reach, dips under a deck or beam, or veers to the more open side of a tall wall; on
 contact the bird glances off, turning along the wall and losing a little speed. Wisps run down
-the avenues at street-canyon height, turning a quarter at crossings, circle towers, or glide
-over the roofs; the opening ribbon goes through the torii and up the spawn avenue.
+the avenues at street-canyon height, changing lanes and turning a quarter at crossings, circle
+towers, or glide over the roofs; the opening ribbon goes through the torii and up the spawn
+avenue.
+
+Neon Bay is the skill level (playtest feedback: "flying straight and occasionally turning"
+collected nearly everything). Runs are 4-8 wisps (were 6-11) and turn at 75 % of crossings
+(55 %), on a tight 30 m arc where it fits (the 40 m arc is the fallback); towers are circled more
+often (35 %, after 2 patterns rather than 3). Along a run the ribbon changes lanes: a flattened
+sine (`weaveSharp`) holds one lane 12 m off the centre line, swerves across, holds the other,
+easing in after the merge and out before the turn. The lanes sit past the magnet's 11 m reach,
+so flying the centre line misses them; lane-change lines are planned 8 m clear of walls,
+pillars and decks (straight lanes 3.5 m) and fall back to a straight lane where they would not
+fit. All of it is `Config.city` (`weave*`, `run*`, `turnChance`, `turnRadius`, `spiralChance`).
 
 ## Jade River
 
@@ -677,6 +688,19 @@ progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, re
   the title; the subtitle and journey bar show on wide screens only. The title card scrolls
   instead of cutting off its last buttons, and on short upright phones it tightens and drops
   the open levels' blurbs.
+- Neon Bay difficulty, measured with bots over the same seeds. Before: the precise bot gathered
+  ~1.6 wisps/s while steering a third of the time, and one that never turned (matching height
+  only) still gathered 54 % of that; no other level was above 22 %. After: no-turning flight
+  gathers 39 % (62 against 86 wisps per two minutes), the precise bot steers half the time and
+  keeps its rate (1.33/s over 25 min). What was tried and dropped: a steady zigzag (±8 m, every
+  6 wisps) was harder to follow than to ignore, since flying its centre line caught every
+  crossing through the magnet, and it cut the precise bot by 30 %; a height bob dipped runs
+  under the decks and tripled the wall glances for no extra challenge; a smaller magnet for the
+  city alone did no better than lanes past the usual one. Costs: wall glances rose to about one
+  a minute for the bot (about half while chasing a wisp it missed mid-swerve, which a person
+  would let go), and slow turners pay: over 90 s the Crane gathers ~45 % of the Tern's wisps
+  (the Swallow 129 %, the Phoenix 191 %). If the Crane feels punished there, raising its turn
+  or the city's `turnRadius` is the first lever.
 - Milestones that open nothing are taken off the track rather than shown: the Swallow and
   Crane were there before birds could be flown, and a player told "Swallow unlocked" had no
   Swallow. A test now checks every milestone opens a level, plumage or trail that exists.

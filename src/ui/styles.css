@@ -740,6 +740,55 @@ body.steer-split .boost-btn {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
 }
 
+/* The title card scrolls rather than cut off its last buttons on a short screen. */
+.start .card {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+/* Upright phones with little height: tighter title, level names without blurbs (a locked
+   card still says when it opens). */
+@media (max-aspect-ratio: 1/1) and (max-height: 720px) {
+  .start .card h1 {
+    font-size: 46px;
+  }
+  .start .tag {
+    margin: 0 0 14px;
+    font-size: 13.5px;
+  }
+  .levels {
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+  .level {
+    padding: 9px 6px;
+  }
+  .times {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .time {
+    padding: 5px 11px;
+    font-size: 12.5px;
+  }
+  .start .journey {
+    margin-bottom: 14px;
+  }
+  .title-row {
+    margin-top: 10px;
+  }
+  .fs-nudge {
+    margin-top: 10px;
+  }
+}
+
+@media (max-aspect-ratio: 1/1) and (max-height: 620px) {
+  .level:not(.locked) .level-blurb {
+    display: none;
+  }
+}
+
 /* Aviary and Controls side by side under Play. */
 .title-row {
   display: flex;
@@ -753,9 +802,41 @@ body.steer-split .boost-btn {
 }
 
 /* Aviary: the card stands aside and lets the world through, so the bird gliding behind it (the
-   live preview of what it wears) stays in view: to the left on wide screens, low on tall ones. */
+   live preview of what it wears) stays in view. On a phone held upright (the main way to play)
+   the bird flies at mid-screen, so the card takes the top, compact; on wide screens, the left. */
 .menu.aviary {
-  place-items: end center;
+  place-items: start center;
+}
+
+.aviary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aviary-head .btn {
+  font-size: 16px;
+  padding: 9px 26px;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .aviary .card {
+    width: 100%;
+    padding: 12px 16px 14px;
+  }
+  .aviary-sub,
+  .aviary .journey {
+    display: none;
+  }
+  .aviary h3 {
+    margin: 8px 0 6px;
+    text-align: left;
+  }
+}
+
+.pick.nudge {
+  animation: journey-nudge 1.2s ease;
 }
 
 @media (min-aspect-ratio: 1/1) {

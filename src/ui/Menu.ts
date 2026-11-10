@@ -153,12 +153,13 @@ const picksHtml = (row: string, label: string, picks: Pick[]) =>
      .join('')}</div>`;
 
 /** The Aviary: what the bird wears. The bird gliding behind the card is the live preview. */
-const AVIARY_HTML = `<h2>Aviary</h2>
+const AVIARY_HTML = `<div class="aviary-head">
+    <h2>Aviary</h2><button class="btn primary" id="aviary-done">Done</button>
+  </div>
   <p class="aviary-sub">Your bird wears its choice behind this card.</p>
   ${picksHtml('plumage', 'Plumage', PLUMAGE_PICKS)}
   ${picksHtml('trail', 'Trail', TRAIL_PICKS)}
-  ${JOURNEY_HTML}
-  <button class="btn primary" id="aviary-done">Done</button>`;
+  ${JOURNEY_HTML}`;
 const FILL_MS = 900; // matches .journey-fill's transition
 const STEP_MS = 1150; // one fill plus a breath before the next
 
@@ -310,6 +311,8 @@ export class Menu {
           ? plumageDef(id as PlumageId).unlock
           : trailDef(id as TrailId).unlock;
         if (!this.journey.isOpen(unlock)) {
+          // The pick says when it opens; the bar (wide screens only) says how close that is.
+          this.nudge(pick);
           this.nudgeJourney(this.journeyBars[3]);
           return;
         }
@@ -458,7 +461,8 @@ export class Menu {
     for (const p of [this.start, this.pause, this.rest, this.help, this.aviary])
       p.classList.toggle('show', p === panel);
     this.pauseBtn.classList.toggle('show', panel === null);
-    this.fsBtn?.classList.toggle('show', panel !== null);
+    // Not over the Aviary: on a phone its card takes the top of the screen.
+    this.fsBtn?.classList.toggle('show', panel !== null && panel !== this.aviary);
   }
 
   /**
@@ -548,9 +552,14 @@ export class Menu {
 
   /** A gentle glow on a journey bar (something locked was tapped). */
   private nudgeJourney(bar: HTMLElement): void {
-    bar.classList.remove('nudge');
-    void bar.offsetWidth; // restart the animation
-    bar.classList.add('nudge');
+    this.nudge(bar);
+  }
+
+  /** Restarts an element's `nudge` animation. */
+  private nudge(el: HTMLElement): void {
+    el.classList.remove('nudge');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('nudge');
   }
 
   /** Locked cards keep their name but say when they open; open ones not flown yet say "New". */

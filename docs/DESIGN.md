@@ -5,6 +5,10 @@
 - Flow, not challenge: no fail state, timer or enemies. Every collision is a soft bounce.
 - 30 seconds to delight: the first arc of wisps is in view within seconds of pressing Play.
 - Painterly calm: soft palettes, fog, gentle bloom, paper grain. No hard outlines or realism.
+- Phone first: the main way to play is a phone held upright. Every screen is laid out for a
+  320-430 px wide portrait viewport first (an iPhone SE at 320x568 must fit), then widened for
+  landscape and desktop. New features add no buttons or gestures: a phone has drag to steer, a
+  tap (or Boost) to flap and flicks for tricks, and that is the whole vocabulary.
 
 ## Flight
 
@@ -385,15 +389,17 @@ bird, the all-rounder), the **Swallow**, the **Crane**, then the **Falcon** and 
 
 Revised: stat multipliers alone read as "a little different", so each bird also gets one
 **signature move** that changes how a level is played. No move is ever required: every wisp
-path still works for every bird; a move only makes some lines easier or more fun.
+path still works for every bird; a move only makes some lines easier or more fun. Phone first
+means no new input: a signature is either **passive** (it happens when the bird does something it
+already does) or a bird's own version of an **existing trick** (same gesture, different move).
 
-| Bird      | Feel             | Signature                                                                                             | Shines in                  |
-| --------- | ---------------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |
-| Tern      | All-rounder      | The dive-bomb stoop (already in)                                                                      | Everywhere                 |
-| Swallow   | Quick, darting   | **Flick**: a sharp sideways dart with a little speed; skimming water gains speed instead of losing it | Neon Bay, Jade River       |
-| Crane     | Slow, stately    | **Thermal rider**: climbs much faster in thermals, holds glide speed longer                           | Highlands, City of Gold    |
-| Falcon    | Fast, heavy      | **Stoop master**: dives build speed faster and deeper; weaker climbs                                  | Red Canyons, Aurora Fjords |
-| Albatross | Long, lazy wings | **Updraft rider**: lift along cliff faces and over waves, rarely needs to flap; turns poorly          | Aurora Fjords, coasts      |
+| Bird      | Feel             | Signature                                                                                                                            | Shines in                  |
+| --------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| Tern      | All-rounder      | The dive-bomb stoop (already in)                                                                                                     | Everywhere                 |
+| Swallow   | Quick, darting   | **Flick**: its roll is a sharp sideways dart with a little speed (the roll gesture); skimming water gains speed instead of losing it | Neon Bay, Jade River       |
+| Crane     | Slow, stately    | **Thermal rider**: climbs much faster in thermals, holds glide speed longer                                                          | Highlands, City of Gold    |
+| Falcon    | Fast, heavy      | **Stoop master**: its dive-bomb (the dive gesture) builds speed faster and deeper; weaker climbs                                     | Red Canyons, Aurora Fjords |
+| Albatross | Long, lazy wings | **Updraft rider**: lift along cliff faces and over waves, rarely needs to flap; turns poorly                                         | Aurora Fjords, coasts      |
 
 - The first new bird should come early: the Swallow moves to about flight 3 (~480 ✧) when it
   joins the track, with the plumages and trails reshuffled round it.
@@ -618,6 +624,11 @@ progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, re
   already reads as "ease under it" (it was written for the city's gates and decks).
 - Canyon walls are stepped by reading a band profile at a noise-shifted distance, not by adding
   noise to heights: the ledges meander while every stratum stays level, as real rock does.
+- The Aviary card sits at the top on an upright phone (the chase camera holds the bird at about
+  mid-screen, measured at 60-62 % of the height on SE, 14 and Pixel 7), compact, with Done beside
+  the title; the subtitle and journey bar show on wide screens only. The title card scrolls
+  instead of cutting off its last buttons, and on short upright phones it tightens and drops
+  the open levels' blurbs.
 - Milestones that open nothing are taken off the track rather than shown: the Swallow and
   Crane were there before birds could be flown, and a player told "Swallow unlocked" had no
   Swallow. A test now checks every milestone opens a level, plumage or trail that exists.

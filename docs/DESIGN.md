@@ -264,9 +264,9 @@ invert-Y), settings and best score in localStorage.
 
 ## Progression (proposed)
 
-Status: steps 1-6 of the build order are built (light, the track, saving, journey bars, unlock
-notices, the Rest card, level locks, the Aviary with plumages and trails, the shared bird rig and
-the Swallow); the rest is design.
+Status: steps 1-7 of the build order are built (light, the track, saving, journey bars, unlock
+notices, the Rest card, level locks, the Aviary with plumages and trails, the shared bird rig,
+the Swallow and the Crane); the rest is design.
 Direction (revised): players should work toward a mix of things, led by **new birds that fly
 differently**, then **discoveries** in the levels and **bird mastery**; plumages and trails stay
 as a cheap cosmetic extra. Goal: every short flight (2-10 min) moves something
@@ -293,8 +293,8 @@ It only grows.
 
 Milestones on one path. Levels, plumages, trails and species are spaced out so the next thing is
 always close. Only what can be used is on the track: the Swallow and the Crane were taken off it
-until they can be flown (a milestone that opens nothing is a broken promise). The table is the
-intended track; today's is the same without the Crane.
+until they could be flown (a milestone that opens nothing is a broken promise), then came back
+earlier than first planned, since new birds are the heart of it.
 
 |    ✧ | Unlock                                         | Flight (~180 ✧ each) |
 | ---: | ---------------------------------------------- | -------------------: |
@@ -307,13 +307,14 @@ intended track; today's is the same without the Crane.
 | 1100 | Jade Mist trail                                |                    6 |
 | 1250 | **Aurora Fjords**                              |                    7 |
 | 1500 | Frost plumage                                  |                  8-9 |
+| 1650 | **Crane** (and its own plumage)                |                    9 |
 | 1800 | **City of Gold**                               |                   10 |
 | 2050 | Aurora trail                                   |                11-12 |
 | 2400 | **Red Canyons**                                |                13-14 |
 | 2700 | Gilded plumage                                 |                   15 |
-| 3000 | **Crane**                                      |                16-17 |
 
-Beyond 3000, light keeps counting on the title screen (an open question: maybe a rare plumage
+The Falcon and the Albatross will fill the later stretch (somewhere past 2400). Beyond the last
+milestone, light keeps counting on the title screen (an open question: maybe a rare plumage
 every 1000).
 
 - The track's thresholds are `Config.unlocks` (one number per milestone id, so the debug panel
@@ -401,7 +402,7 @@ already does) or a bird's own version of an **existing trick** (same gesture, di
 | --------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | Tern      | All-rounder      | The dive-bomb stoop (already in)                                                                                                          | Everywhere                 |
 | Swallow   | Quick, darting   | **Flick**: its roll is a sharp sideways dart with a little speed (the roll gesture); **skim**: flying low over water speeds it up (built) | Neon Bay, Jade River       |
-| Crane     | Slow, stately    | **Thermal rider**: climbs much faster in thermals, holds glide speed longer                                                               | Highlands, City of Gold    |
+| Crane     | Slow, stately    | **Thermal rider**: thermals lift it 1.8×; dive speed carries further (built)                                                              | Highlands, City of Gold    |
 | Falcon    | Fast, heavy      | **Stoop master**: its dive-bomb (the dive gesture) builds speed faster and deeper; weaker climbs                                          | Red Canyons, Aurora Fjords |
 | Albatross | Long, lazy wings | **Updraft rider**: lift along cliff faces and over waves, rarely needs to flap; turns poorly                                              | Aurora Fjords, coasts      |
 
@@ -423,11 +424,16 @@ already does) or a bird's own version of an **existing trick** (same gesture, di
   first idea, a gain only on contact, did nothing: the soft altitude floor and terrain assist
   keep any bird off the water but for a few frames a bounce, so the cushion is a height band
   instead. Cruise relaxation balances it: a long skim settles near 50 m/s, never runs away.
-- **Crane**: slow and stately. Long neck held straight out, legs trailing past a short tail,
-  long broad wings whose five primaries spread like fingers (the existing primary fan suits
-  this); pale grey with a black neck and wingtips and a red crown. Flight: turn response ×0.85,
-  flap lift ×1.15, flap cooldown ×1.2, speed above cruise bleeds ×0.8 (long glides, dives carry
-  far). Wingbeats slower and deeper. Camera farther back.
+- **Crane** (built, 1650 ✧): slow and stately. A long neck held straight out (the torso lathe
+  drawn out, painted from `torso.neck` in the throat colour, so it flows from the breast without
+  a seam), a small head with a long horn bill, long legs trailing past a short square tail, long
+  broad wings whose five primaries spread like fingers. Its plumage is pale ash grey with a
+  black neck and face, black fingertips and a red crown patch: the cap edge is part of the
+  shape (`head.cap`), since the Tern's dark cap runs down the nape and the Crane's red must not
+  (from behind it read as a red ball). Flight: turn rate and response ×0.85, flap lift ×1.15,
+  flap cooldown ×1.2, speed above cruise bleeds ×0.8 (after a dive it keeps ~2 m/s more than the
+  Tern 3 s later), wingbeats ×1.35 slower, camera ×1.12. **Thermal rider** (passive): thermals
+  lift it 1.8× as hard (`FlightTuning.thermal`), so a column it finds carries it high.
 - **Falcon** and **Albatross**: shapes and numbers to design on the rig.
 - A species is a `SpeciesDef` (`player/Species.ts`): a `BirdShape` (`player/BirdShape.ts`: torso
   profile, head, bill, crest, feet, tail, wing arm / hand outlines, arch, primaries, glide
@@ -437,8 +443,11 @@ already does) or a bird's own version of an **existing trick** (same gesture, di
   wingbeat code drives every bird; `Bird.setShape` rebuilds in place, so the scene node and
   wingtip anchors stay the same objects. The Tern on the rig was checked identical to the bird
   before it: every mesh's geometry, colours and transform match exactly.
-- Tests fly each bird's tuning through the bot over Neon Bay and the canyons: every bird must
-  gather at least 90 % of the Tern's wisps.
+- Tests fly each bird's tuning through the bot over Neon Bay and the canyons, each on a fresh
+  world (a world's wisp planner keeps state between flights, which once made the Tern score 116
+  against its own 153): every bird must gather at least 90 % of the Tern's wisps.
+- Saves from before `seen` existed count as having seen everything but the birds added since
+  (`ADDED_LATER` in `Journey.ts`), so a bird new to the track always gets its card.
 
 ### Discoveries and bird mastery (proposed)
 
@@ -477,7 +486,7 @@ errors mean no progress is saved, never a crash). `revealed` makes each unlock c
 5. Bird rig refactor (Tern unchanged, checked part by part). (built)
 6. The Swallow: shape, multipliers, the dart and the skim; the Aviary's Bird tab; back on the
    track, earlier. (built)
-7. The Crane and thermal riding.
+7. The Crane and thermal riding. (built)
 8. Discoveries: the journal and one or two levels first.
 9. The Falcon and the Albatross, then bird mastery.
 

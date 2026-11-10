@@ -56,6 +56,8 @@ export interface FlightTuning {
   /** m/s^2 gained flying low over water (full at the surface, none at `flight.skimHeight`);
    *  such a bird also loses no speed touching water. 0: neither. */
   waterSkim: number;
+  /** How strongly thermals lift it (the Crane rides them). */
+  thermal: number;
 }
 
 /** No change to the model: the Tern. */
@@ -67,6 +69,7 @@ export const NEUTRAL_TUNING: Readonly<FlightTuning> = Object.freeze({
   rollHop: 1,
   rollBoost: 0,
   waterSkim: 0,
+  thermal: 1,
 });
 
 export interface FlightState {
@@ -273,7 +276,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // --- Vertical extras: thermals and soft bounds ---------------------------------------------
   // Round a loop the circle is the whole motion (its room was checked on entry).
   if (!looping) {
-    s.liftVy += env.thermalAt(s.x, s.y, s.z) * dt;
+    s.liftVy += env.thermalAt(s.x, s.y, s.z) * m.thermal * dt;
     const minY = water + c.minAltitude;
     if (s.y < minY) s.liftVy += (minY - s.y) * c.boundsPush * 20 * dt;
     if (over > 0) s.liftVy -= over * c.boundsPush * 20 * dt;

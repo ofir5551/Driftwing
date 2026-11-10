@@ -28,10 +28,15 @@ export interface BirdShape {
     /** Rump lift toward the tail. */
     readonly rump: number;
     readonly widen: number;
+    /** Where a long neck begins (it takes the throat colour), or null for none. */
+    readonly neck: number | null;
   };
   readonly head: {
     readonly pos: Vec3;
     readonly skull: { readonly r: number; readonly scale: Vec3; readonly z: number };
+    /** The cap's lower edge: its height over the eye, and how far it falls down the nape (the
+     *  Tern's dark cap runs down the back of the head; the Crane's red is a crown patch). */
+    readonly cap: { readonly edge: number; readonly nape: number };
     readonly eye: { readonly r: number; readonly pos: Vec3 };
     readonly bill: {
       readonly r: number;
@@ -112,10 +117,12 @@ export const TERN_SHAPE: BirdShape = {
     flatBack: 0.7,
     rump: 0.04,
     widen: 1.06,
+    neck: null,
   },
   head: {
     pos: [0, 0.06, 0.36],
     skull: { r: 0.13, scale: [0.86, 0.86, 1.25], z: 0.14 },
+    cap: { edge: 0.012, nape: 0.35 },
     eye: { r: 0.024, pos: [0.093, 0.004, 0.21] },
     bill: { r: 0.036, length: 0.26, pos: [0, -0.012, 0.39], droop: 0.08 },
     crest: { r: 0.075, length: 0.2, pos: [0, 0.05, -0.02], tilt: 0.25 },
@@ -216,10 +223,12 @@ export const SWALLOW_SHAPE: BirdShape = {
     flatBack: 0.72,
     rump: 0.03,
     widen: 1.08,
+    neck: null,
   },
   head: {
     pos: [0, 0.05, 0.29],
     skull: { r: 0.115, scale: [0.95, 0.9, 1.05], z: 0.1 },
+    cap: { edge: 0.012, nape: 0.35 },
     eye: { r: 0.022, pos: [0.088, 0.012, 0.16] },
     bill: { r: 0.028, length: 0.09, pos: [0, -0.01, 0.24], droop: 0.05 },
     crest: null,
@@ -289,5 +298,117 @@ export const SWALLOW_SHAPE: BirdShape = {
     fold: 0.6,
     fairing: { scale: [0.12, 0.045, 0.16], pos: [0.04, -0.008, -0.03] },
     glideSweep: 0.18,
+  },
+};
+
+/**
+ * The Crane: a big, stately bird. A long neck held straight out to a small head and a long
+ * bill, long legs trailing past a short square tail, and long broad wings whose five primaries
+ * spread wide like fingers. The neck is the torso drawn out (one lathe), so it flows from the
+ * breast without a seam.
+ */
+export const CRANE_SHAPE: BirdShape = {
+  scale: 1.4,
+  torso: {
+    profile: [
+      [0.015, -0.55],
+      [0.07, -0.45],
+      [0.12, -0.3],
+      [0.16, -0.15],
+      [0.18, 0],
+      [0.175, 0.12],
+      [0.14, 0.24],
+      [0.09, 0.34],
+      [0.062, 0.44],
+      [0.052, 0.6],
+      [0.048, 0.78],
+      [0.05, 0.9],
+      [0.02, 0.97],
+    ],
+    flatBack: 0.75,
+    rump: 0.03,
+    widen: 1.04,
+    neck: 0.36,
+  },
+  head: {
+    pos: [0, 0.035, 0.9],
+    skull: { r: 0.085, scale: [0.85, 0.85, 1.2], z: 0.05 },
+    cap: { edge: 0.045, nape: -0.25 },
+    eye: { r: 0.018, pos: [0.065, 0.012, 0.08] },
+    bill: { r: 0.026, length: 0.32, pos: [0, -0.008, 0.29], droop: 0.06 },
+    crest: null,
+  },
+  // Long legs trailing straight back past the tail, as a crane flies.
+  feet: { r: 0.02, length: 0.78, pos: [0.04, -0.07, -0.78] },
+  tail: {
+    pos: [0, 0.02, -0.45],
+    count: 6,
+    length: 0.24,
+    spread: 0.03,
+    streamer: 0,
+    width: 0.14,
+    streamerNarrow: 0,
+  },
+  wing: {
+    shoulder: [0.11, 0.07, 0.1],
+    arm: 0.78,
+    armLead: [
+      [0, 0.2],
+      [0.78, 0.15],
+    ],
+    armTrail: [
+      [0, -0.34],
+      [0.1, -0.3],
+      [0.2, -0.35],
+      [0.3, -0.29],
+      [0.4, -0.34],
+      [0.5, -0.27],
+      [0.6, -0.31],
+      [0.7, -0.23],
+      [0.78, -0.2],
+    ],
+    covertLead: [
+      [0, 0.18],
+      [0.76, 0.14],
+    ],
+    covertTrail: [
+      [0, -0.13],
+      [0.06, -0.15],
+      [0.16, -0.09],
+      [0.26, -0.14],
+      [0.36, -0.08],
+      [0.46, -0.13],
+      [0.56, -0.07],
+      [0.66, -0.11],
+      [0.76, -0.05],
+    ],
+    arch: { lead: 0.2, slope: 0.064, chord: 0.54, height: 0.055 },
+    armEdge: { length: 0.76, r0: 0.05, r1: 0.034, pos: [0.04, 0.034, 0.15] },
+    wrist: { r: 0.036, pos: [0, 0.034, 0.14] },
+    hand: 0.42,
+    handLead: [
+      [-0.06, 0.15],
+      [0.32, 0.1],
+      [0.42, 0.03],
+    ],
+    handTrail: [
+      [-0.06, -0.22],
+      [0.16, -0.18],
+      [0.32, -0.1],
+      [0.42, 0.03],
+    ],
+    handEdge: { length: 0.4, r0: 0.034, r1: 0.012, pos: [0, 0.03, 0.12], tilt: -0.07 },
+    // Spread wide, like fingers: the crane's soaring wingtip.
+    primaries: [
+      [0.36, 0.07, 0.02, 0.62],
+      [0.29, 0.02, 0.16, 0.62],
+      [0.22, -0.04, 0.3, 0.6],
+      [0.15, -0.1, 0.44, 0.56],
+      [0.08, -0.15, 0.58, 0.5],
+    ],
+    primaryWidth: 0.15,
+    fold: 0.35,
+    fairing: { scale: [0.18, 0.055, 0.24], pos: [0.05, -0.008, -0.04] },
+    glideSweep: 0,
   },
 };

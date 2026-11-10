@@ -32,6 +32,7 @@ export const UNLOCKS: readonly Unlock[] = [
   { id: 'jadeMistTrail', kind: 'trail', name: 'Jade Mist trail' },
   { id: 'fjord', kind: 'level', name: 'Aurora Fjords' },
   { id: 'frostPlumage', kind: 'plumage', name: 'Frost plumage' },
+  { id: 'crane', kind: 'species', name: 'Crane' },
   { id: 'jerusalem', kind: 'level', name: 'City of Gold' },
   { id: 'auroraTrail', kind: 'trail', name: 'Aurora trail' },
   { id: 'canyon', kind: 'level', name: 'Red Canyons' },
@@ -40,9 +41,12 @@ export const UNLOCKS: readonly Unlock[] = [
 
 const BY_ID = new Map<string, Unlock>(UNLOCKS.map((u) => [u.id, u]));
 
-/** The track as it stood before saves recorded what they had seen (everything but the
- *  Swallow, which joined later). */
-const LEGACY_SEEN: readonly UnlockId[] = UNLOCKS.map((u) => u.id).filter((id) => id !== 'swallow');
+/** Milestones added to the track after saves began recording what they had seen. */
+const ADDED_LATER: ReadonlySet<string> = new Set(['swallow', 'crane']);
+/** The track as it stood before saves recorded what they had seen. */
+const LEGACY_SEEN: readonly UnlockId[] = UNLOCKS.map((u) => u.id).filter(
+  (id) => !ADDED_LATER.has(id),
+);
 export const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' && BY_ID.has(v);
 
 /** Light at which a milestone opens (read live, so the debug panel can retune the track). */

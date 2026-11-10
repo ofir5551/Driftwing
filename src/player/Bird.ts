@@ -333,16 +333,19 @@ export class Bird {
       tp.setX(i, tp.getX(i) * shape.torso.widen);
     }
     torsoGeo.computeVertexNormals();
-    // Mantle over the back and shoulders, fading to a pale rump; a warm flush on the breast.
-    this.paint(torsoGeo, (_x, y, z, out) =>
+    // Mantle over the back and shoulders, fading to a pale rump; a warm flush on the breast; a
+    // long neck (the Crane's) in the throat colour.
+    const neck = shape.torso.neck;
+    this.paint(torsoGeo, (_x, y, z, out) => {
       out
         .set(this.c.belly)
         .lerp(
           scratch2.set(this.c.breast),
           smoothstep(0.1, 0.3, z) * smoothstep(0.02, -0.12, y) * 0.6,
         )
-        .lerp(scratch2.set(this.c.back), smoothstep(-0.01, 0.09, y) * smoothstep(-0.55, -0.3, z)),
-    );
+        .lerp(scratch2.set(this.c.back), smoothstep(-0.01, 0.09, y) * smoothstep(-0.55, -0.3, z));
+      if (neck !== null) out.lerp(scratch2.set(this.c.throat), smoothstep(neck, neck + 0.1, z));
+    });
     const torso = new THREE.Mesh(torsoGeo, plumage);
 
     // Head on a neck pivot so it can stay level through banks, like a real bird's: a face (the
@@ -351,7 +354,7 @@ export class Bird {
     const skullGeo = new THREE.SphereGeometry(H.skull.r, 18, 12).scale(...H.skull.scale);
     // Cap edge slopes: high at the bill, through the top of the eye, low down the nape.
     this.paint(skullGeo, (_x, y, z, out) => {
-      const edge = 0.012 + Math.max(0, z) * 0.1 - Math.max(0, -z) * 0.35;
+      const edge = H.cap.edge + Math.max(0, z) * 0.1 - Math.max(0, -z) * H.cap.nape;
       out
         .set(this.c.throat)
         .lerp(scratch2.set(this.c.cap), smoothstep(edge - 0.015, edge + 0.015, y));

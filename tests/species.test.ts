@@ -18,6 +18,7 @@ const DT = 1 / 60;
 const flat = (h: number): FlightEnv => ({ groundAt: () => h, thermalAt: () => 0 });
 const TERN = Config.species.tern;
 const SWALLOW = Config.species.swallow;
+const CRANE = Config.species.crane;
 
 function fly(tune: FlightTuning, seconds: number, inp: FlightInput, y = 60, env = flat(-50)) {
   const s = createFlightState(0, y, 0, 0, tune);
@@ -86,19 +87,44 @@ describe('Species', () => {
     expect(fly(SWALLOW, 6, inp, 12, flat(land)).s.speed).toBeLessThan(swallow.s.speed - 8);
   });
 
-  it('lets the Swallow fly the ribbons of Neon Bay and the canyons as well as the Tern', () => {
-    const city = new CityWorld(42);
-    const canyon = new CanyonWorld(42);
-    for (const w of [city, canyon]) {
+  it('lifts the Crane far higher than the Tern in the same thermal', () => {
+    const column: FlightEnv = { groundAt: () => -50, thermalAt: () => 6 };
+    const inp: FlightInput = { steerX: 0, steerY: 0, flap: false };
+    const climb = (tune: FlightTuning) => fly(tune, 3, inp, 60, column).s.y - 60;
+    expect(climb(TERN)).toBeGreaterThan(2);
+    expect(climb(CRANE)).toBeGreaterThan(climb(TERN) * 1.5);
+    // Out of a thermal it climbs like any bird.
+    expect(fly(CRANE, 3, inp).s.y).toBeCloseTo(fly(TERN, 3, inp).s.y, 0);
+  });
+
+  it('carries dive speed further on the Crane, less far on the Swallow', () => {
+    const after = (tune: FlightTuning) => {
+      const s = createFlightState(0, 60, 0, 0, tune);
+      s.speed = 55;
+      for (let t = 0; t < 3; t += DT)
+        stepFlight(s, { steerX: 0, steerY: 0, flap: false }, flat(-50), DT);
+      return s.speed;
+    };
+    expect(after(CRANE)).toBeGreaterThan(after(TERN) + 1.5);
+    expect(after(SWALLOW)).toBeLessThan(after(TERN) - 1);
+  });
+
+  it('lets every bird fly the ribbons of Neon Bay and the canyons as well as the Tern', () => {
+    // A fresh world for every flight: a world's wisp planner keeps state between flights.
+    for (const make of [() => new CityWorld(42), () => new CanyonWorld(42)]) {
       const solid = () => false;
-      const tern = flyBot(w, w.layout.spawn, 42, 90, solid, TERN).got;
-      const swallow = flyBot(w, w.layout.spawn, 42, 90, solid, SWALLOW).got;
-      expect(swallow).toBeGreaterThan(tern * 0.9);
+      const run = (tune: FlightTuning) => {
+        const w = make();
+        return flyBot(w, w.layout.spawn, 42, 90, solid, tune).got;
+      };
+      const tern = run(TERN);
+      for (const b of SPECIES) expect(run(b.tuning), b.id).toBeGreaterThan(tern * 0.9);
     }
   });
 
   it('dresses each bird in its own plumage by default', () => {
     expect(speciesDef('tern').plumage).toBe('sea');
     expect(speciesDef('swallow').plumage).toBe('swallow');
+    expect(speciesDef('crane').plumage).toBe('crane');
   });
 });

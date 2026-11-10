@@ -30,7 +30,7 @@ export interface PlumageColors {
   feet: string;
 }
 
-export type PlumageId = 'sea' | 'duskRose' | 'frost' | 'gilded' | 'swallow';
+export type PlumageId = 'sea' | 'duskRose' | 'frost' | 'gilded' | 'swallow' | 'crane';
 
 export interface PlumageDef {
   readonly id: PlumageId;
@@ -175,6 +175,32 @@ export const PLUMAGES: readonly PlumageDef[] = [
       tailBase: '#41568f',
       tailTip: '#29355f',
       feet: '#4a3c40',
+    },
+  },
+  {
+    // The Crane's own: pale ash grey, a black neck and face, a red crown, black fingertips.
+    id: 'crane',
+    name: 'Crane',
+    unlock: 'crane',
+    colors: {
+      belly: '#eceef0',
+      breast: '#e3e5e8',
+      throat: '#2b2b31',
+      back: '#b7bcc3',
+      cap: '#c8352e',
+      wingLead: '#e7e9eb',
+      wingTrail: '#adb2b9',
+      covert: '#cfd3d7',
+      dusky: '#4b4c54',
+      underwing: '#f2f3f4',
+      bill: '#cbc4ae',
+      billTip: '#6f6957',
+      primaryBase: '#9a9fa7',
+      primaryMid: '#4d4e57',
+      primaryTip: '#232329',
+      tailBase: '#a2a6ad',
+      tailTip: '#3b3c43',
+      feet: '#3d3c42',
     },
   },
 ];

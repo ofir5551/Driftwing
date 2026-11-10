@@ -243,6 +243,7 @@ export const Config = {
     jadeMistTrail: 1100,
     fjord: 1250,
     frostPlumage: 1500,
+    crane: 1650, // the second new bird, about flight 9
     jerusalem: 1800,
     auroraTrail: 2050,
     canyon: 2400,
@@ -307,6 +308,7 @@ export const Config = {
       rollHop: 1,
       rollBoost: 0,
       waterSkim: 0,
+      thermal: 1,
       camera: 1, // chase distance
       beat: 1, // wingbeat period
     },
@@ -320,8 +322,23 @@ export const Config = {
       rollHop: 2.4, // a dart covers ~12 m sideways per turn (the Tern's roll ~5 m)
       rollBoost: 4, // m/s as it darts
       waterSkim: 8, // m/s^2 low over water (settles near 50 m/s on a long skim)
+      thermal: 1,
       camera: 0.9, // a smaller bird: the camera sits a little closer
       beat: 0.78, // quicker, shallower-feeling strokes
+    },
+    crane: {
+      // Slow and stately: wide, lazy turns and fewer, stronger flaps; dive speed carries far.
+      // It rides thermals: a column lifts it far faster than the others.
+      turn: 0.85,
+      flapLift: 1.15,
+      flapCooldown: 1.2,
+      bleed: 0.8,
+      rollHop: 1,
+      rollBoost: 0,
+      waterSkim: 0,
+      thermal: 1.8,
+      camera: 1.12, // a big bird: the camera sits a little farther back
+      beat: 1.35, // slow, deep strokes
     },
   },
   render: {

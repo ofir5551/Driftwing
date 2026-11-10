@@ -10,10 +10,8 @@ export async function createDebugPanel(
   const { default: GUI } = await import('lil-gui');
   const gui = new GUI({ title: 'Driftwing tuning' });
   gui.close();
-  for (const [groupName, group] of Object.entries(Config)) {
-    const folder = gui.addFolder(groupName);
-    folder.close();
-    const g = group as Record<string, number | boolean>;
+  type Group = Record<string, unknown>;
+  const addGroup = (folder: import('lil-gui').default, g: Group): void => {
     for (const [key, value] of Object.entries(g)) {
       if (typeof value === 'boolean') {
         folder.add(g, key);
@@ -22,8 +20,18 @@ export async function createDebugPanel(
         const lo = value < 0 ? -mag * 3 : 0;
         const hi = value <= 1 && value >= 0 ? Math.max(1, value * 4) : mag * 3;
         folder.add(g, key, lo, hi, Number.isInteger(value) && mag >= 10 ? 1 : 0.01);
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // One level of nesting (e.g. species.swallow) gets its own folder.
+        const sub = folder.addFolder(key);
+        sub.close();
+        addGroup(sub, value as Group);
       }
     }
+  };
+  for (const [groupName, group] of Object.entries(Config)) {
+    const folder = gui.addFolder(groupName);
+    folder.close();
+    addGroup(folder, group as Group);
   }
   extra(gui);
 }

@@ -26,6 +26,8 @@ export class WingBeat {
   arm = 0;
   hand = 0;
   fold = 0;
+  /** Stroke period multiplier, a species' tempo (below 1: quicker strokes). */
+  tempo = 1;
   private period = Config.bird.flapPeriod;
   private ampTarget = 0;
   private glideLeft: number;
@@ -40,7 +42,7 @@ export class WingBeat {
   private trigger(period: number, amp: number): void {
     // Finish a stroke that is already past its downstroke, then give one full beat.
     this.beatsLeft = this.beatsLeft > 0 && this.phase > 0.5 ? 2 : 1;
-    this.period = period;
+    this.period = period * this.tempo;
     this.ampTarget = amp;
     if (this.weight < 0.3) {
       // From a glide: start a fresh stroke. The envelope still eases it in, so no snap.
@@ -96,7 +98,7 @@ export class WingBeat {
         if (tuck < 0.4) {
           const t = clamp(need * 0.6 + this.rand() * 0.5, 0, 1);
           this.beatsLeft = Math.round(lerp(B.idleBeatsMin, B.idleBeatsMax, t));
-          this.period = B.idleBeatPeriod;
+          this.period = B.idleBeatPeriod * this.tempo;
           this.ampTarget = B.idleAmplitude * (0.85 + need * 0.3);
           this.phase = 0;
           this.glideLeft = lerp(B.idleGapMax, B.idleGapMin, need) * (0.7 + this.rand() * 0.6);

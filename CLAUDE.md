@@ -49,8 +49,10 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `core/Journey.ts`: lifetime light and the unlock track (pure; saved by `Settings`). See DESIGN's
   Progression.
 - `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, unlock) so audio/fx/ui stay decoupled.
-- `player/FlightModel.ts`: pure arcade glide physics. `Bird.ts` visuals only (repainted from a
-  `Plumage.ts` palette). `ChaseCamera.ts` polar springs. `fx/TrailStyle.ts`: wingtip trail colours.
+- `player/FlightModel.ts`: pure arcade glide physics; a bird's `FlightTuning` (its
+  `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built
+  from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
+  plumage, tuning). `ChaseCamera.ts` polar springs. `fx/TrailStyle.ts`: wingtip trail colours.
 - `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
   decor), `Trees` (instanced), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.

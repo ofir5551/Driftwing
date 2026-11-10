@@ -19,6 +19,7 @@ import type { TimeOfDay } from './world/DayCycle';
 import { Menu, type MenuHandlers } from './ui/Menu';
 import { DEFAULT_PLUMAGE, plumageDef } from './player/Plumage';
 import { DEFAULT_TRAIL, trailDef } from './fx/TrailStyle';
+import { DEFAULT_SPECIES, speciesDef } from './player/Species';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -54,6 +55,8 @@ audio.setStyle(game.level.music);
 /** Dresses the bird from the Aviary picks; a pick whose milestone is not open (a `?journey=`
  *  or `?unlocked` session picked it) falls back to the default without forgetting it. */
 function dress(): void {
+  const b = speciesDef(settings.species);
+  game.setSpecies(journey.isOpen(b.unlock) ? b : speciesDef(DEFAULT_SPECIES));
   const p = plumageDef(settings.plumage);
   const t = trailDef(settings.trail);
   game.bird.setPlumage((journey.isOpen(p.unlock) ? p : plumageDef(DEFAULT_PLUMAGE)).colors);
@@ -205,6 +208,14 @@ const handlers: MenuHandlers = {
     settings.timeOfDay = t;
     game.setTimeOfDay(t);
     saveSettings(settings);
+  },
+  selectSpecies(id) {
+    const b = speciesDef(id);
+    if (!journey.isOpen(b.unlock)) return;
+    settings.species = id;
+    settings.plumage = b.plumage; // a new bird arrives in its own feathers
+    saveSettings(settings);
+    dress();
   },
   selectPlumage(id) {
     if (!journey.isOpen(plumageDef(id).unlock)) return;

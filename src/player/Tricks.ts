@@ -108,6 +108,8 @@ export function startTrick(s: FlightState, kind: TrickKind, env: FlightEnv): boo
   } else {
     tr.turns = 1;
     tr.rate = 0;
+    // The Swallow's roll is a dart: it kicks off with a burst (the Tern's adds nothing).
+    s.speed += s.tune.rollBoost;
   }
   tr.kind = kind;
   tr.t = 0;

@@ -37,6 +37,7 @@ export const Config = {
     terrainAssist: 1.6, // how strongly the nose lifts to clear terrain ahead
     bounce: 0.55, // fraction of downward speed returned as upward speed on contact
     skimSlowdown: 0.18, // fraction of speed lost per second while skimming
+    skimHeight: 5, // m above the water within which a skimming bird (species.waterSkim) gains speed
   },
   tricks: {
     cooldown: 0.25, // s after a trick before the next can start
@@ -232,13 +233,14 @@ export const Config = {
     bankEvery: 10, // s between saves in flight (pausing and leaving the page save too)
   },
   unlocks: {
-    // Light at which each journey milestone opens (~180 light for a 6-minute flight). The birds
-    // (Swallow, Crane) join the track when they can be flown: see DESIGN's Progression.
+    // Light at which each journey milestone opens (~180 light for a 6-minute flight). A bird
+    // joins the track only once it can be flown (the Crane is still to come): see DESIGN.
     emberTrail: 120,
     city: 300,
-    duskRosePlumage: 480,
+    swallow: 480, // the first new way to fly comes early, about flight 3
     karst: 750,
-    jadeMistTrail: 950,
+    duskRosePlumage: 950,
+    jadeMistTrail: 1100,
     fjord: 1250,
     frostPlumage: 1500,
     jerusalem: 1800,
@@ -292,6 +294,35 @@ export const Config = {
     idleGapMin: 1.4, // s of glide between bursts when slow or climbing
     idleGapMax: 6, // s of glide between bursts in fast level flight
     blendRate: 10, // 1/s, how fast the wings ease into and out of a beat
+  },
+  species: {
+    // Each bird's flight as multipliers on `flight` and `tricks` (see FlightTuning), plus its
+    // chase distance and wingbeat tempo. The Tern is the model itself: every factor 1, every
+    // addition 0. Keep factors near 1 (about +-20 %) so every bird can fly the wisp ribbons.
+    tern: {
+      turn: 1,
+      flapLift: 1,
+      flapCooldown: 1,
+      bleed: 1,
+      rollHop: 1,
+      rollBoost: 0,
+      waterSkim: 0,
+      camera: 1, // chase distance
+      beat: 1, // wingbeat period
+    },
+    swallow: {
+      // Quick and darting: turns sharper and flaps more often, but each flap lifts less and dive
+      // speed bleeds away sooner. Its roll is a dart, and skimming water speeds it up.
+      turn: 1.2,
+      flapLift: 0.9,
+      flapCooldown: 0.85,
+      bleed: 1.15,
+      rollHop: 2.4, // a dart covers ~12 m sideways per turn (the Tern's roll ~5 m)
+      rollBoost: 4, // m/s as it darts
+      waterSkim: 8, // m/s^2 low over water (settles near 50 m/s on a long skim)
+      camera: 0.9, // a smaller bird: the camera sits a little closer
+      beat: 0.78, // quicker, shallower-feeling strokes
+    },
   },
   render: {
     // Overwritten by the quality preset (see Quality.ts); exposed here for live tuning.

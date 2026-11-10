@@ -26,8 +26,9 @@ export interface Unlock {
 export const UNLOCKS: readonly Unlock[] = [
   { id: 'emberTrail', kind: 'trail', name: 'Ember trail' },
   { id: 'city', kind: 'level', name: 'Neon Bay' },
-  { id: 'duskRosePlumage', kind: 'plumage', name: 'Dusk Rose plumage' },
+  { id: 'swallow', kind: 'species', name: 'Swallow' },
   { id: 'karst', kind: 'level', name: 'Jade River' },
+  { id: 'duskRosePlumage', kind: 'plumage', name: 'Dusk Rose plumage' },
   { id: 'jadeMistTrail', kind: 'trail', name: 'Jade Mist trail' },
   { id: 'fjord', kind: 'level', name: 'Aurora Fjords' },
   { id: 'frostPlumage', kind: 'plumage', name: 'Frost plumage' },
@@ -38,6 +39,10 @@ export const UNLOCKS: readonly Unlock[] = [
 ];
 
 const BY_ID = new Map<string, Unlock>(UNLOCKS.map((u) => [u.id, u]));
+
+/** The track as it stood before saves recorded what they had seen (everything but the
+ *  Swallow, which joined later). */
+const LEGACY_SEEN: readonly UnlockId[] = UNLOCKS.map((u) => u.id).filter((id) => id !== 'swallow');
 export const isUnlockId = (v: unknown): v is UnlockId => typeof v === 'string' && BY_ID.has(v);
 
 /** Light at which a milestone opens (read live, so the debug panel can retune the track). */
@@ -50,6 +55,9 @@ export interface JourneyData {
   granted: UnlockId[];
   /** Unlocks already shown on a Rest card (each is shown once). */
   revealed: UnlockId[];
+  /** Every milestone on the track when this was saved. One added since (a new bird) that the
+   *  light has already passed still gets its card; one a retune lowered opens quietly. */
+  seen: UnlockId[];
 }
 
 /** Reads saved data defensively: anything missing or malformed falls back to a fresh start. */
@@ -64,7 +72,8 @@ export function parseJourney(raw: unknown): JourneyData {
   const revealed = Array.isArray(o.revealed)
     ? [...new Set(o.revealed.filter(isUnlockId))]
     : [...granted];
-  return { v: 1, light, granted, revealed };
+  const seen = Array.isArray(o.seen) ? [...new Set(o.seen.filter(isUnlockId))] : [...LEGACY_SEEN];
+  return { v: 1, light, granted, revealed, seen };
 }
 
 const NONE: readonly Unlock[] = [];
@@ -88,15 +97,17 @@ export class Journey {
   private readonly revealed = new Set<UnlockId>();
 
   constructor(data?: JourneyData) {
+    const seen = new Set<UnlockId>(data ? data.seen : UNLOCKS.map((u) => u.id));
     if (data) {
       this.light = data.light;
       for (const id of data.granted) this.granted.add(id);
       for (const id of data.revealed) this.revealed.add(id);
     }
-    // Milestones already passed but not recorded (a retune lowered one) open quietly.
+    // Milestones already passed but not recorded open now: quietly if a retune lowered one,
+    // with a card still to come if it is new to the track (a bird added since the save).
     const quiet = this.settle();
-    for (const u of quiet) this.revealed.add(u.id);
-    if (quiet.length > 0) this.dirty = true;
+    for (const u of quiet) if (seen.has(u.id)) this.revealed.add(u.id);
+    if (quiet.length > 0 || UNLOCKS.some((u) => !seen.has(u.id))) this.dirty = true;
     this.newFlight();
   }
 
@@ -184,7 +195,13 @@ export class Journey {
 
   toData(): JourneyData {
     const ids = (set: Set<UnlockId>) => UNLOCKS.filter((u) => set.has(u.id)).map((u) => u.id);
-    return { v: 1, light: this.light, granted: ids(this.granted), revealed: ids(this.revealed) };
+    return {
+      v: 1,
+      light: this.light,
+      granted: ids(this.granted),
+      revealed: ids(this.revealed),
+      seen: UNLOCKS.map((u) => u.id),
+    };
   }
 
   /** Grants every milestone the light has reached; returns the new ones (sorted by threshold). */

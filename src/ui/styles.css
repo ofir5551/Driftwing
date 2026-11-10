@@ -829,14 +829,35 @@ body.steer-split .boost-btn {
   .aviary .journey {
     display: none;
   }
-  .aviary h3 {
-    margin: 8px 0 6px;
-    text-align: left;
-  }
 }
 
 .pick.nudge {
   animation: journey-nudge 1.2s ease;
+}
+
+/* One row at a time: Bird, Plumage, Trail (time-chip styling). */
+.aviary-tabs {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 8px 0 10px;
+}
+
+.aviary-row[hidden] {
+  display: none;
+}
+
+.pick {
+  flex: 0 1 68px;
+  min-width: 60px;
+}
+
+.bird-blurb {
+  margin: 10px 0 0;
+  min-height: 2.6em;
+  font-size: 13px;
+  line-height: 1.3;
+  opacity: 0.9;
 }
 
 @media (min-aspect-ratio: 1/1) {
@@ -869,19 +890,11 @@ body.steer-split .boost-btn {
   opacity: 0.85;
 }
 
-.aviary h3 {
-  margin: 12px 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.8;
-}
-
 .picks {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
 }
 
 .pick {

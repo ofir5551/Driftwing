@@ -36,6 +36,39 @@ export interface FlightEnv {
 
 export type Contact = 'none' | 'ground' | 'water';
 
+/**
+ * How one bird flies, as multipliers on `Config.flight` and `Config.tricks` (a species' entry in
+ * `Config.species`). The Tern is neutral: 1 for every factor, 0 for every addition, so its
+ * arithmetic is exactly the model's. Every factor stays near 1 so the wisp planner's spacing and
+ * climb assumptions hold for every bird.
+ */
+export interface FlightTuning {
+  /** Turn rate and how quickly the turn answers the stick. */
+  turn: number;
+  flapLift: number;
+  flapCooldown: number;
+  /** How fast speed above cruise bleeds off (above 1: a dive doesn't carry as far). */
+  bleed: number;
+  /** Sideways distance a roll covers per turn (the Swallow's roll is a dart). */
+  rollHop: number;
+  /** m/s added as a roll starts. */
+  rollBoost: number;
+  /** m/s^2 gained flying low over water (full at the surface, none at `flight.skimHeight`);
+   *  such a bird also loses no speed touching water. 0: neither. */
+  waterSkim: number;
+}
+
+/** No change to the model: the Tern. */
+export const NEUTRAL_TUNING: Readonly<FlightTuning> = Object.freeze({
+  turn: 1,
+  flapLift: 1,
+  flapCooldown: 1,
+  bleed: 1,
+  rollHop: 1,
+  rollBoost: 0,
+  waterSkim: 0,
+});
+
 export interface FlightState {
   x: number;
   y: number;
@@ -67,9 +100,17 @@ export interface FlightState {
   trickPitch: number;
   /** Extra roll from a barrel roll, on top of `bank` (so the camera doesn't follow it). */
   spin: number;
+  /** The bird's own flight (read every step, so the debug panel retunes it live). */
+  tune: Readonly<FlightTuning>;
 }
 
-export function createFlightState(x = 0, y = 60, z = 0, yaw = 0): FlightState {
+export function createFlightState(
+  x = 0,
+  y = 60,
+  z = 0,
+  yaw = 0,
+  tune: Readonly<FlightTuning> = NEUTRAL_TUNING,
+): FlightState {
   return {
     x,
     y,
@@ -93,6 +134,7 @@ export function createFlightState(x = 0, y = 60, z = 0, yaw = 0): FlightState {
     trick: createTrickState(),
     trickPitch: 0,
     spin: 0,
+    tune,
   };
 }
 
@@ -102,7 +144,11 @@ export function surfaceAt(env: FlightEnv, x: number, z: number): number {
 
 export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, dt: number): void {
   const c = Config.flight;
+  const m = s.tune;
   const water = Config.world.waterLevel;
+  // The bird's own flap, shared by flaps, climb beats and their cap.
+  const flapLift = c.flapLift * m.flapLift;
+  const flapCooldown = c.flapCooldown * m.flapCooldown;
   s.flapped = false;
   s.climbBeat = false;
   s.contact = 'none';
@@ -161,7 +207,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // from the current turn rate.
   // No turning round a loop: yawing while inverted would scramble the circle.
   const steerX = looping ? 0 : clamp(input.steerX, -1, 1);
-  springStep(s.turnSpring, -steerX * c.maxTurnRate, c.turnOmega, dt);
+  springStep(s.turnSpring, -steerX * c.maxTurnRate * m.turn, c.turnOmega * m.turn, dt);
   s.yaw += s.turnSpring.x * dt;
   const targetBank = clamp(-s.turnSpring.x * c.bankPerTurn, -c.maxBank, c.maxBank);
   springStep(s.bankSpring, targetBank, c.bankOmega, dt);
@@ -176,10 +222,17 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     c.gravityAlongPath *
     (s.pitch < 0 ? c.diveGravity * (diving ? Config.tricks.diveGravity : 1) : 1);
   const top = c.maxSpeed + (diving ? Config.tricks.diveExtraSpeed : 0);
-  const relax = s.speed > c.cruiseSpeed ? c.speedRelaxFast : c.speedRelax;
+  const relax = s.speed > c.cruiseSpeed ? c.speedRelaxFast * m.bleed : c.speedRelax;
   let accel = -g * Math.sin(s.pitch) + (c.cruiseSpeed - s.speed) * relax;
   if (s.speed > top) accel -= (s.speed - top) * 1.5;
   if (s.speed < c.minSpeed) accel += (c.minSpeed - s.speed) * 2;
+  // A skimming bird (the Swallow) draws speed from the air cushion low over water, more the
+  // lower it flies. The relaxation above balances it near twice cruise, so a long skim settles
+  // rather than runs away; it never pushes past the usual top speed.
+  if (m.waterSkim > 0 && s.speed < c.maxSpeed && env.groundAt(s.x, s.z) < water) {
+    const h = s.y - water - c.clearance;
+    if (h < c.skimHeight) accel += m.waterSkim * (1 - Math.max(0, h) / c.skimHeight);
+  }
   s.speed = looping ? loopSpeed(tr) : Math.max(c.minSpeed * 0.6, s.speed + accel * dt);
 
   // --- Flap ----------------------------------------------------------------------------------
@@ -187,10 +240,10 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const ceilingFade = 1 - smoothstep(c.maxAltitude - 30, c.maxAltitude, s.y - water);
   s.flapTimer = Math.max(0, s.flapTimer - dt);
   if (input.flap && s.flapTimer <= 0 && !looping) {
-    s.flapTimer = c.flapCooldown;
+    s.flapTimer = flapCooldown;
     s.sinceFlap = 0;
     s.flapped = true;
-    s.liftVy = Math.min(s.liftVy + c.flapLift * ceilingFade, c.flapLift * 1.6);
+    s.liftVy = Math.min(s.liftVy + flapLift * ceilingFade, flapLift * 1.6);
     s.speed = Math.min(s.speed + c.flapBoost, c.maxSpeed + 4);
   }
 
@@ -204,7 +257,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     tr.kind === null &&
     s.pitch > c.climbBeatPitch &&
     s.climbBeatTimer <= 0 &&
-    s.sinceFlap > c.flapCooldown
+    s.sinceFlap > flapCooldown
   ) {
     s.climbBeatTimer = c.climbBeatInterval;
     s.sinceClimbBeat = 0;
@@ -212,7 +265,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     const steep = smoothstep(c.climbBeatPitch, c.maxClimb, s.pitch);
     s.liftVy = Math.min(
       s.liftVy + c.climbBeatLift * (0.5 + 0.5 * steep) * ceilingFade,
-      c.flapLift * 1.6,
+      flapLift * 1.6,
     );
     s.speed += c.climbBeatBoost;
   }
@@ -237,7 +290,9 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   let side = 0;
   if (looping) along += Config.tricks.loopDrift * s.speed;
   else if (tr.kind === 'rollL' || tr.kind === 'rollR')
-    side = ((tr.kind === 'rollR' ? 1 : -1) * Config.tricks.rollHop * tr.rate) / (Math.PI * 2);
+    side =
+      ((tr.kind === 'rollR' ? 1 : -1) * Config.tricks.rollHop * m.rollHop * tr.rate) /
+      (Math.PI * 2);
   // Right of the heading is (-cos yaw, 0, sin yaw).
   s.x += (fx * along - fz * side) * dt;
   s.z += (fz * along + fx * side) * dt;
@@ -257,7 +312,9 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
       s.pitchSpring.x *= 0.5;
       s.pitchSpring.v = Math.max(s.pitchSpring.v, 0.8);
     }
-    s.speed -= s.speed * c.skimSlowdown * dt * (s.contact === 'ground' ? 1.5 : 1);
+    // A skimming bird touches water without losing speed.
+    if (s.contact !== 'water' || m.waterSkim <= 0)
+      s.speed -= s.speed * c.skimSlowdown * dt * (s.contact === 'ground' ? 1.5 : 1);
   }
 }
 
@@ -278,5 +335,5 @@ export function forwardOf(s: FlightState, out: { x: number; y: number; z: number
 export function gust(s: FlightState, boost: number, lift: number): void {
   const c = Config.flight;
   s.speed = Math.min(s.speed + boost, c.maxSpeed + boost);
-  s.liftVy = Math.min(s.liftVy + lift, c.flapLift * 1.6);
+  s.liftVy = Math.min(s.liftVy + lift, c.flapLift * s.tune.flapLift * 1.6);
 }

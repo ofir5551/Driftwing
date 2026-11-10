@@ -7,6 +7,7 @@ import { angleDelta, clamp, lerp } from './math';
 import { createDebugPanel } from './DebugPanel';
 import { Bird, type Pose } from '../player/Bird';
 import { ChaseCamera } from '../player/ChaseCamera';
+import type { SpeciesDef } from '../player/Species';
 import {
   createFlightState,
   stepFlight,
@@ -174,6 +175,15 @@ export class Game {
     this.resize();
   }
 
+  /** Turns the bird into another species: its body, its way of flying, its camera and its
+   *  wingbeat tempo. Menu time (the bird is rebuilt), never mid-step. */
+  setSpecies(def: SpeciesDef): void {
+    this.bird.setShape(def.shape);
+    this.flight.tune = def.tuning;
+    this.chase.distanceScale = def.tuning.camera;
+    this.bird.beatTempo = def.tuning.beat;
+  }
+
   /**
    * Swap the world for another level: dispose the old scenery, build the new one around its
    * spawn point, put the bird there and reset time of day. Gameplay and audio follow the
@@ -190,7 +200,11 @@ export class Game {
     this.world = world;
     this.spawn = spawn;
     this.scene.add(world.group);
-    Object.assign(this.flight, createFlightState(spawn.x, spawn.y, spawn.z, spawn.yaw));
+    // The bird flies on as the same species.
+    Object.assign(
+      this.flight,
+      createFlightState(spawn.x, spawn.y, spawn.z, spawn.yaw, this.flight.tune),
+    );
     world.prime(spawn.x, spawn.z);
     this.copyPrev();
     this.chase.snap();

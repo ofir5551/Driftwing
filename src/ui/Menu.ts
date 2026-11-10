@@ -12,6 +12,13 @@ import {
 } from '../player/Plumage';
 import { DEFAULT_TRAIL, TRAILS, trailDef, type TrailDef, type TrailId } from '../fx/TrailStyle';
 import {
+  DEFAULT_SPECIES,
+  SPECIES,
+  speciesDef,
+  type SpeciesDef,
+  type SpeciesId,
+} from '../player/Species';
+import {
   fullscreenSupport,
   isFullscreen,
   onFullscreenChange,
@@ -26,7 +33,8 @@ export interface MenuHandlers {
   isNewLevel(id: LevelId): boolean;
   /** A time-of-day chip was picked on the title screen. */
   selectTime(t: TimeOfDay): void;
-  /** An open plumage or trail was picked in the Aviary. */
+  /** An open bird, plumage or trail was picked in the Aviary. */
+  selectSpecies(id: SpeciesId): void;
   selectPlumage(id: PlumageId): void;
   selectTrail(id: TrailId): void;
   /** The Aviary opened or closed (the trail shows on a lazy glide while it is open). */
@@ -116,13 +124,12 @@ const KIND_LABEL: Record<UnlockKind, string> = {
   plumage: 'New plumage',
   trail: 'New trail',
 };
-const KIND_DETAIL: Record<Exclude<UnlockKind, 'level'>, string> = {
-  species: 'A new bird to fly',
+const KIND_DETAIL: Record<Exclude<UnlockKind, 'level' | 'species'>, string> = {
   plumage: 'New feathers: wear them from the Aviary',
   trail: 'New wingtip colours: pick them in the Aviary',
 };
 
-/** One Aviary row's item: what the menu needs from a plumage or a trail. */
+/** One Aviary row's item: what the menu needs from a bird, a plumage or a trail. */
 interface Pick {
   id: string;
   name: string;
@@ -131,17 +138,40 @@ interface Pick {
   swatch: string;
 }
 
+type Row = 'species' | 'plumage' | 'trail';
+
 const plumageSwatch = ({ colors: c }: PlumageDef) =>
   `linear-gradient(135deg, ${c.cap} 0 24%, ${c.back} 24% 50%, ${c.belly} 50% 76%, ${c.primaryMid} 76%)`;
 const trailSwatch = (t: TrailDef) =>
   t.drift > 0
     ? `linear-gradient(90deg, ${t.tip}, ${t.tail}, ${t.tip})`
     : `linear-gradient(90deg, ${t.tip}, ${t.tail})`;
-const PLUMAGE_PICKS: Pick[] = PLUMAGES.map((p) => ({ ...p, swatch: plumageSwatch(p) }));
-const TRAIL_PICKS: Pick[] = TRAILS.map((t) => ({ ...t, swatch: trailSwatch(t) }));
+const speciesSwatch = (b: SpeciesDef) => plumageSwatch(plumageDef(b.plumage));
 
-const picksHtml = (row: string, label: string, picks: Pick[]) =>
-  `<h3>${label}</h3>
+/** The Aviary's rows, one tab each: birds first, the heart of it. */
+const ROWS: readonly { row: Row; label: string; picks: Pick[] }[] = [
+  {
+    row: 'species',
+    label: 'Bird',
+    picks: SPECIES.map((b) => ({ ...b, swatch: speciesSwatch(b) })),
+  },
+  {
+    row: 'plumage',
+    label: 'Plumage',
+    picks: PLUMAGES.map((p) => ({ ...p, swatch: plumageSwatch(p) })),
+  },
+  { row: 'trail', label: 'Trail', picks: TRAILS.map((t) => ({ ...t, swatch: trailSwatch(t) })) },
+];
+
+const pickUnlock = (row: Row, id: string): Pick['unlock'] =>
+  row === 'species'
+    ? speciesDef(id as SpeciesId).unlock
+    : row === 'plumage'
+      ? plumageDef(id as PlumageId).unlock
+      : trailDef(id as TrailId).unlock;
+
+const picksHtml = (row: Row, label: string, picks: Pick[]) =>
+  `<div class="aviary-row" data-row="${row}" role="tabpanel" aria-label="${label}"${row === 'species' ? '' : ' hidden'}>
    <div class="picks" role="radiogroup" aria-label="${label}">${picks
      .map(
        (p) =>
@@ -150,15 +180,22 @@ const picksHtml = (row: string, label: string, picks: Pick[]) =>
             <span class="pick-name">${p.name}</span><span class="pick-lock"></span>
           </button>`,
      )
-     .join('')}</div>`;
+     .join('')}</div>${row === 'species' ? '<p class="bird-blurb"></p>' : ''}
+   </div>`;
 
-/** The Aviary: what the bird wears. The bird gliding behind the card is the live preview. */
+/**
+ * The Aviary: which bird, and what it wears. One row at a time behind tabs, so the card stays
+ * short on a phone; the bird gliding behind it is the live preview.
+ */
 const AVIARY_HTML = `<div class="aviary-head">
     <h2>Aviary</h2><button class="btn primary" id="aviary-done">Done</button>
   </div>
-  <p class="aviary-sub">Your bird wears its choice behind this card.</p>
-  ${picksHtml('plumage', 'Plumage', PLUMAGE_PICKS)}
-  ${picksHtml('trail', 'Trail', TRAIL_PICKS)}
+  <p class="aviary-sub">Your bird flies your choice behind this card.</p>
+  <div class="aviary-tabs" role="tablist">${ROWS.map(
+    (r) =>
+      `<button class="time aviary-tab" role="tab" data-tab="${r.row}" aria-selected="false">${r.label}</button>`,
+  ).join('')}</div>
+  ${ROWS.map((r) => picksHtml(r.row, r.label, r.picks)).join('')}
   ${JOURNEY_HTML}`;
 const FILL_MS = 900; // matches .journey-fill's transition
 const STEP_MS = 1150; // one fill plus a breath before the next
@@ -173,6 +210,10 @@ export class Menu {
   private readonly help: HTMLDivElement;
   private readonly aviary: HTMLDivElement;
   private readonly picks: HTMLButtonElement[];
+  private readonly tabs: HTMLButtonElement[];
+  private readonly birdBlurb: HTMLElement;
+  /** The Aviary tab showing (kept between visits). */
+  private tab: Row = 'species';
   /** The screen the Controls panel returns to. */
   private helpFrom: HTMLDivElement | null = null;
   private readonly pauseBtn: HTMLButtonElement;
@@ -302,21 +343,28 @@ export class Menu {
       h.aviary(false);
       this.only(this.start);
     });
+    this.birdBlurb = this.aviary.querySelector<HTMLElement>('.bird-blurb')!;
+    this.tabs = [...this.aviary.querySelectorAll<HTMLButtonElement>('.aviary-tab')];
+    for (const tab of this.tabs)
+      tab.addEventListener('click', () => {
+        this.tab = tab.dataset.tab as Row;
+        this.markTabs();
+      });
     this.picks = [...this.aviary.querySelectorAll<HTMLButtonElement>('.pick')];
     for (const pick of this.picks)
       pick.addEventListener('click', () => {
         const id = pick.dataset.id!;
-        const plumage = pick.dataset.row === 'plumage';
-        const unlock = plumage
-          ? plumageDef(id as PlumageId).unlock
-          : trailDef(id as TrailId).unlock;
-        if (!this.journey.isOpen(unlock)) {
+        const row = pick.dataset.row as Row;
+        // A bird says what it does whether or not it is open yet.
+        if (row === 'species') this.birdBlurb.textContent = speciesDef(id as SpeciesId).blurb;
+        if (!this.journey.isOpen(pickUnlock(row, id))) {
           // The pick says when it opens; the bar (wide screens only) says how close that is.
           this.nudge(pick);
           this.nudgeJourney(this.journeyBars[3]);
           return;
         }
-        if (plumage) h.selectPlumage(id as PlumageId);
+        if (row === 'species') h.selectSpecies(id as SpeciesId);
+        else if (row === 'plumage') h.selectPlumage(id as PlumageId);
         else h.selectTrail(id as TrailId);
         this.markPicks();
       });
@@ -399,25 +447,39 @@ export class Menu {
     this.helpFrom = null;
   }
 
-  /** What the bird wears: the saved pick while its milestone is open, else the default. */
-  private worn(): { plumage: PlumageId; trail: TrailId } {
+  /** The bird flown and what it wears: each saved pick while its milestone is open, else the
+   *  default. */
+  private worn(): Record<Row, string> {
     const s = this.settings;
     const j = this.journey;
     return {
+      species: j.isOpen(speciesDef(s.species).unlock) ? s.species : DEFAULT_SPECIES,
       plumage: j.isOpen(plumageDef(s.plumage).unlock) ? s.plumage : DEFAULT_PLUMAGE,
       trail: j.isOpen(trailDef(s.trail).unlock) ? s.trail : DEFAULT_TRAIL,
     };
   }
 
+  /** Shows the picked tab's row only. */
+  private markTabs(): void {
+    for (const tab of this.tabs) {
+      const on = tab.dataset.tab === this.tab;
+      tab.classList.toggle('selected', on);
+      tab.setAttribute('aria-selected', String(on));
+    }
+    for (const row of this.aviary.querySelectorAll<HTMLElement>('.aviary-row'))
+      row.hidden = row.dataset.row !== this.tab;
+  }
+
   /** Locked picks keep their name and swatch but say when they open; the worn one is marked. */
   private markPicks(): void {
     const worn = this.worn();
+    this.birdBlurb.textContent = speciesDef(worn.species as SpeciesId).blurb;
     for (const pick of this.picks) {
       const id = pick.dataset.id!;
-      const plumage = pick.dataset.row === 'plumage';
-      const unlock = plumage ? plumageDef(id as PlumageId).unlock : trailDef(id as TrailId).unlock;
+      const row = pick.dataset.row as Row;
+      const unlock = pickUnlock(row, id);
       const open = this.journey.isOpen(unlock);
-      const on = id === (plumage ? worn.plumage : worn.trail);
+      const on = id === worn[row];
       pick.classList.toggle('locked', !open);
       pick.classList.toggle('selected', on);
       pick.setAttribute('aria-checked', String(on));
@@ -428,6 +490,7 @@ export class Menu {
   }
 
   private showAviary(): void {
+    this.markTabs();
     this.markPicks();
     this.showJourney(this.journeyBars[3], false);
     this.only(this.aviary);
@@ -543,7 +606,9 @@ export class Menu {
     const detail =
       u.kind === 'level'
         ? (LEVEL_LIST.find((l) => l.id === u.id)?.blurb ?? '')
-        : KIND_DETAIL[u.kind];
+        : u.kind === 'species'
+          ? `${SPECIES.find((b) => b.unlock === u.id)?.blurb ?? ''} Fly it from the Aviary.`
+          : KIND_DETAIL[u.kind];
     el.innerHTML = `<span class="unlock-kind">${KIND_LABEL[u.kind]}</span><b></b><span class="unlock-detail"></span>`;
     el.querySelector('b')!.textContent = u.name;
     el.querySelector('.unlock-detail')!.textContent = detail;

@@ -10,6 +10,8 @@ export interface PlumageColors {
   belly: string;
   /** Warm flush on the breast, over the belly colour. */
   breast: string;
+  /** Face and throat below the cap. */
+  throat: string;
   back: string;
   cap: string;
   wingLead: string;
@@ -28,12 +30,13 @@ export interface PlumageColors {
   feet: string;
 }
 
-export type PlumageId = 'sea' | 'duskRose' | 'frost' | 'gilded';
+export type PlumageId = 'sea' | 'duskRose' | 'frost' | 'gilded' | 'swallow';
 
 export interface PlumageDef {
   readonly id: PlumageId;
   readonly name: string;
-  /** The journey milestone that opens it; null for the starting plumage. */
+  /** The journey milestone that opens it (a bird's own plumage opens with the bird); null for
+   *  the starting plumage. */
   readonly unlock: UnlockId | null;
   readonly colors: PlumageColors;
 }
@@ -50,6 +53,7 @@ export const PLUMAGES: readonly PlumageDef[] = [
     unlock: null,
     colors: {
       belly: '#f7f1e8',
+      throat: '#f7f1e8',
       breast: '#f6e6d6',
       back: '#aea6ae',
       cap: '#4b4253',
@@ -75,6 +79,7 @@ export const PLUMAGES: readonly PlumageDef[] = [
     unlock: 'duskRosePlumage',
     colors: {
       belly: '#f9ece9',
+      throat: '#f9ece9',
       breast: '#f4c9c2',
       back: '#b98fa0',
       cap: '#5a3a52',
@@ -100,6 +105,7 @@ export const PLUMAGES: readonly PlumageDef[] = [
     unlock: 'frostPlumage',
     colors: {
       belly: '#f4f8fb',
+      throat: '#f4f8fb',
       breast: '#e1ecf5',
       back: '#9fb4c8',
       cap: '#3f5170',
@@ -125,6 +131,7 @@ export const PLUMAGES: readonly PlumageDef[] = [
     unlock: 'gildedPlumage',
     colors: {
       belly: '#faf1dc',
+      throat: '#faf1dc',
       breast: '#f5dcae',
       back: '#c9a46a',
       cap: '#6a4a2a',
@@ -141,6 +148,33 @@ export const PLUMAGES: readonly PlumageDef[] = [
       tailBase: '#f2e0b8',
       tailTip: '#c99245',
       feet: '#e3a24a',
+    },
+  },
+  {
+    // The Swallow's own: a steel-blue back and wings, a rust face and throat, a cream belly.
+    // The blue stays a mid tone so the bird still reads against a night sea.
+    id: 'swallow',
+    name: 'Swallow',
+    unlock: 'swallow',
+    colors: {
+      belly: '#f6ead6',
+      breast: '#ecc3a0',
+      throat: '#c0623a',
+      back: '#3f5590',
+      cap: '#30437a',
+      wingLead: '#4e64a0',
+      wingTrail: '#3b4f88',
+      covert: '#4a5f9c',
+      dusky: '#2c3b6c',
+      underwing: '#f1e7d8',
+      bill: '#2e2a33',
+      billTip: '#17141c',
+      primaryBase: '#465b98',
+      primaryMid: '#3a4d86',
+      primaryTip: '#26325e',
+      tailBase: '#41568f',
+      tailTip: '#29355f',
+      feet: '#4a3c40',
     },
   },
 ];

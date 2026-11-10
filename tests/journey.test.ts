@@ -4,6 +4,7 @@ import { Journey, parseJourney, UNLOCKS, unlockAt } from '../src/core/Journey';
 import { isLevelId, LEVEL_LIST } from '../src/levels';
 
 const saved = { ...Config.unlocks };
+const ALL = UNLOCKS.map((u) => u.id);
 afterEach(() => Object.assign(Config.unlocks, saved));
 
 describe('Journey', () => {
@@ -30,7 +31,7 @@ describe('Journey', () => {
   it('reports several milestones crossed at once, lowest first', () => {
     const j = new Journey();
     const opened = j.earn(unlockAt('karst'));
-    expect(opened.map((u) => u.id)).toEqual(['emberTrail', 'city', 'duskRosePlumage', 'karst']);
+    expect(opened.map((u) => u.id)).toEqual(['emberTrail', 'city', 'swallow', 'karst']);
   });
 
   it('never earns from zero, negative or NaN amounts', () => {
@@ -52,7 +53,7 @@ describe('Journey', () => {
   });
 
   it('tracks the light of the current flight separately', () => {
-    const j = new Journey({ v: 1, light: 500, granted: [], revealed: [] });
+    const j = new Journey({ v: 1, light: 500, granted: [], revealed: [], seen: ALL });
     j.earn(12);
     expect(j.flightLight).toBe(12);
     j.newFlight();
@@ -66,14 +67,34 @@ describe('Journey', () => {
     Config.unlocks.city = 10_000;
     const back = new Journey(parseJourney(JSON.parse(JSON.stringify(j.toData()))));
     expect(back.isUnlocked('city')).toBe(true);
-    expect(back.next()?.id).toBe('duskRosePlumage');
+    expect(back.next()?.id).toBe('swallow');
   });
 
   it('quietly opens milestones a retune lowered below the saved light', () => {
     Config.unlocks.gildedPlumage = 5;
-    const j = new Journey({ v: 1, light: 10, granted: [], revealed: [] });
+    const j = new Journey({ v: 1, light: 10, granted: [], revealed: [], seen: ALL });
     expect(j.isUnlocked('gildedPlumage')).toBe(true);
     expect(j.dirty).toBe(true);
+    expect(j.unrevealed()).toEqual([]);
+  });
+
+  it('still gives a milestone new to the track its card when the light already passed it', () => {
+    // A save from before the Swallow rejoined the track (no `seen` list), well past its light.
+    const old = parseJourney({
+      light: 1000,
+      granted: ['emberTrail', 'city', 'duskRosePlumage', 'karst', 'jadeMistTrail'],
+    });
+    expect(old.seen).not.toContain('swallow');
+    const j = new Journey(old);
+    expect(j.isUnlocked('swallow')).toBe(true);
+    expect(j.unrevealed().map((u) => u.id)).toEqual(['swallow']);
+    expect(j.dirty).toBe(true);
+    // Once saved, the track it has seen is the whole track, and the card shows once.
+    const back = new Journey(parseJourney(JSON.parse(JSON.stringify(j.toData()))));
+    expect(back.toData().seen).toEqual(ALL);
+    expect(back.unrevealed().map((u) => u.id)).toEqual(['swallow']);
+    back.reveal();
+    expect(back.unrevealed()).toEqual([]);
   });
 
   it('grants levels flown before the journey, ignoring unknown ids and the Highlands', () => {
@@ -137,7 +158,7 @@ describe('Journey / Rest cards', () => {
     j.reveal();
     expect(j.unrevealed()).toEqual([]);
     j.earn(unlockAt('duskRosePlumage') - j.light);
-    expect(j.unrevealed().map((u) => u.id)).toEqual(['duskRosePlumage']);
+    expect(j.unrevealed().map((u) => u.id)).toEqual(['swallow', 'karst', 'duskRosePlumage']);
   });
 
   it('keeps unrevealed unlocks across a save, for flights that ended without a rest', () => {
@@ -163,7 +184,7 @@ describe('Journey / Rest cards', () => {
     const before = j.fraction();
     expect(j.startFraction).toBe(before);
     j.earn(unlockAt('karst') - 200);
-    expect(j.flightOpened).toBe(3); // Neon Bay, Dusk Rose, Jade River (Ember trail came before)
+    expect(j.flightOpened).toBe(3); // Neon Bay, the Swallow, Jade River (Ember trail came before)
     expect(j.startLight).toBe(200);
     j.newFlight();
     expect(j.startLight).toBe(unlockAt('karst'));
@@ -174,16 +195,19 @@ describe('Journey / Rest cards', () => {
 describe('parseJourney', () => {
   it('falls back to a fresh start on garbage', () => {
     for (const raw of [null, undefined, 42, 'x', [], { light: 'lots' }, { light: Infinity }])
-      expect(parseJourney(raw)).toEqual({ v: 1, light: 0, granted: [], revealed: [] });
+      expect(parseJourney(raw)).toEqual({
+        v: 1,
+        light: 0,
+        granted: [],
+        revealed: [],
+        seen: ALL.filter((id) => id !== 'swallow'),
+      });
   });
 
   it('clamps light and drops unknown or repeated granted ids', () => {
-    expect(parseJourney({ light: -5, granted: ['city', 'city', 'moon', 7] })).toEqual({
-      v: 1,
-      light: 0,
-      granted: ['city'],
-      revealed: ['city'],
-    });
+    expect(
+      parseJourney({ light: -5, granted: ['city', 'city', 'moon', 7], seen: ['city', 'moon'] }),
+    ).toEqual({ v: 1, light: 0, granted: ['city'], revealed: ['city'], seen: ['city'] });
     expect(parseJourney({ light: 12.7 }).light).toBe(12);
   });
 });

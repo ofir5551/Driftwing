@@ -1,6 +1,11 @@
 import { angleDelta, clamp } from '../src/core/math';
 import type { Spawn, World } from '../src/levels/World';
-import { createFlightState, stepFlight, type FlightInput } from '../src/player/FlightModel';
+import {
+  createFlightState,
+  stepFlight,
+  type FlightInput,
+  type FlightTuning,
+} from '../src/player/FlightModel';
 import { Wisps } from '../src/world/Wisps';
 
 /**
@@ -14,8 +19,9 @@ export function flyBot(
   seed: number,
   seconds: number,
   inSolid: (x: number, y: number, z: number) => boolean,
+  tune?: FlightTuning,
 ): { got: number; glances: number; inside: number } {
-  const s = createFlightState(spawn.x, spawn.y, spawn.z, spawn.yaw);
+  const s = createFlightState(spawn.x, spawn.y, spawn.z, spawn.yaw, tune);
   const wisps = new Wisps(
     seed,
     (x, z) => world.wispFloor(x, z),

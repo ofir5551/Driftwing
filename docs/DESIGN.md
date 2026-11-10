@@ -5,6 +5,10 @@
 - Flow, not challenge: no fail state, timer or enemies. Every collision is a soft bounce.
 - 30 seconds to delight: the first arc of wisps is in view within seconds of pressing Play.
 - Painterly calm: soft palettes, fog, gentle bloom, paper grain. No hard outlines or realism.
+- Phone first: the main way to play is a phone held upright. Every screen is laid out for a
+  320-430 px wide portrait viewport first (an iPhone SE at 320x568 must fit), then widened for
+  landscape and desktop. New features add no buttons or gestures: a phone has drag to steer, a
+  tap (or Boost) to flap and flicks for tricks, and that is the whole vocabulary.
 
 ## Flight
 
@@ -85,8 +89,19 @@ keys pad and a soft swung beat, in a drier room; yo pentatonic by day, hirajoshi
 Flight among buildings: walls are solid but soft. A look-ahead (about a second) climbs over a
 roof within reach, dips under a deck or beam, or veers to the more open side of a tall wall; on
 contact the bird glances off, turning along the wall and losing a little speed. Wisps run down
-the avenues at street-canyon height, turning a quarter at crossings, circle towers, or glide
-over the roofs; the opening ribbon goes through the torii and up the spawn avenue.
+the avenues at street-canyon height, changing lanes and turning a quarter at crossings, circle
+towers, or glide over the roofs; the opening ribbon goes through the torii and up the spawn
+avenue.
+
+Neon Bay is the skill level (playtest feedback: "flying straight and occasionally turning"
+collected nearly everything). Runs are 4-8 wisps (were 6-11) and turn at 75 % of crossings
+(55 %), on a tight 30 m arc where it fits (the 40 m arc is the fallback); towers are circled more
+often (35 %, after 2 patterns rather than 3). Along a run the ribbon changes lanes: a flattened
+sine (`weaveSharp`) holds one lane 12 m off the centre line, swerves across, holds the other,
+easing in after the merge and out before the turn. The lanes sit past the magnet's 11 m reach,
+so flying the centre line misses them; lane-change lines are planned 8 m clear of walls,
+pillars and decks (straight lanes 3.5 m) and fall back to a straight lane where they would not
+fit. All of it is `Config.city` (`weave*`, `run*`, `turnChance`, `turnRadius`, `spiralChance`).
 
 ## Jade River
 
@@ -260,8 +275,12 @@ invert-Y), settings and best score in localStorage.
 
 ## Progression (proposed)
 
-Status: steps 1-3 of the build order are built (light, the track, saving, journey bars, unlock
-notices, the Rest card, level locks); the rest is design. Goal: every short flight (2-10 min) moves something
+Status: steps 1-7 of the build order are built (light, the track, saving, journey bars, unlock
+notices, the Rest card, level locks, the Aviary with plumages and trails, the shared bird rig,
+the Swallow and the Crane), and the Phoenix, the final bird; the rest is design.
+Direction (revised): players should work toward a mix of things, led by **new birds that fly
+differently**, then **discoveries** in the levels and **bird mastery**; plumages and trails stay
+as a cheap cosmetic extra. Goal: every short flight (2-10 min) moves something
 forward and lasts beyond the session, while staying strictly calm: nothing decays, nothing can
 be lost or missed, there are no streaks, timers or daily rewards, and the score stays as it is.
 
@@ -284,26 +303,30 @@ It only grows.
 ### The journey track
 
 Milestones on one path. Levels, plumages, trails and species are spaced out so the next thing is
-always close.
+always close. Only what can be used is on the track: the Swallow and the Crane were taken off it
+until they could be flown (a milestone that opens nothing is a broken promise), then came back
+earlier than first planned, since new birds are the heart of it.
 
 |    ✧ | Unlock                                         | Flight (~180 ✧ each) |
 | ---: | ---------------------------------------------- | -------------------: |
 |    0 | Highlands, the Tern, Sea plumage, Breeze trail |                start |
 |  120 | Ember trail                                    |                    1 |
 |  300 | **Neon Bay**                                   |                    2 |
-|  480 | Dusk Rose plumage                              |                    3 |
+|  480 | **Swallow** (and its own plumage)              |                    3 |
 |  750 | **Jade River**                                 |                  4-5 |
-|  950 | Jade Mist trail                                |                  5-6 |
-| 1150 | **Swallow**                                    |                  6-7 |
+|  950 | Dusk Rose plumage                              |                  5-6 |
+| 1100 | Jade Mist trail                                |                    6 |
 | 1250 | **Aurora Fjords**                              |                    7 |
 | 1500 | Frost plumage                                  |                  8-9 |
+| 1650 | **Crane** (and its own plumage)                |                    9 |
 | 1800 | **City of Gold**                               |                   10 |
 | 2050 | Aurora trail                                   |                11-12 |
 | 2400 | **Red Canyons**                                |                13-14 |
 | 2700 | Gilded plumage                                 |                   15 |
-| 3000 | **Crane**                                      |                16-17 |
+| 3300 | **Phoenix** (and its own plumage): the end     |                   18 |
 
-Beyond 3000, light keeps counting on the title screen (an open question: maybe a rare plumage
+The Phoenix is the last milestone of the track, whatever comes later: the Falcon and the
+Albatross will fill the stretch between Red Canyons and it. Beyond it, light keeps counting on the title screen (an open question: maybe a rare plumage
 every 1000).
 
 - The track's thresholds are `Config.unlocks` (one number per milestone id, so the debug panel
@@ -345,54 +368,137 @@ flown yet (no best score) wears a small "New" mark until it is flown. A saved pi
 still locked (picked but never flown before locks existed) falls back to the Highlands, so the
 attract flight behind the title only ever flies open levels. `?level=` still loads any level.
 
-### Aviary (bird cosmetics)
+### Aviary (birds and cosmetics)
 
-A title-screen panel (like Controls) with three rows: **Species**, **Plumage**, **Trail**. Locked
-items show as soft silhouettes with their threshold. Picking one dresses the attract-flight bird
-behind the menu at once: that bird is the live preview, so no second renderer is needed. Choices
-persist.
+Built: a title-screen panel (beside Controls) with three tabs, **Bird**, **Plumage** and
+**Trail**, one row showing at a time so the card stays short on a phone and has room for more
+birds. The Bird row says what the picked bird does (tapping a locked bird says so too). Picking a
+bird puts on its own plumage, which the player can then change. Locked items keep their name and
+a faded swatch and say when they open; tapping one glows it (and, on wide screens, the panel's
+journey bar). Picking one dresses the attract-flight
+bird behind the menu at once: that bird is the live preview, so no second renderer is needed. The
+card stands aside (left on wide screens, low on tall ones) so the bird stays in view, and the
+trail is held visible (`Config.aviary.trailPreview`) since the bot's glide is too lazy to show it.
+Picks persist in the settings (`species`, `plumage`, `trail`); a pick whose milestone is not open (picked in
+a `?journey=` or `?unlocked` session) is not worn but not forgotten either. Unlock cards for
+birds, feathers and trails point to the Aviary.
 
 - **Plumage** is a palette of colour roles (belly, back, cap, wing lead / trail, covert, dusky
   edge, underwing, bill, primary base / mid / tip, tail base / tip): today's constants at the top
-  of `Bird.ts`, gathered into a `Plumage` record. Vertex colours are baked when the bird is
-  built, so changing plumage rebuilds the colour attributes (menu-time, not a hot path). Every
+  of `Bird.ts`, gathered into a `Plumage` record (`player/Plumage.ts`). Every painted part of the
+  bird registers its painter, so a plumage change repaints the colour attributes in place
+  (menu-time, not a hot path); Sea is byte-identical to the bird before plumages. Every
   species has its own signature plumage, plus the shared set (Sea, Dusk Rose, Frost, Gilded),
   which reads through the same roles. Plumages are checked against all six levels at dawn,
   midday and night, so the bird never vanishes into a palette.
-- **Trails** set the wingtip ribbon colour and opacity curve (`Trails` already takes a colour
-  per update): Breeze (today's white), Ember, Jade Mist, Aurora (hue drifting along the ribbon).
-  Wisps, lanterns and pickup particles never change colour: they are gameplay and must read the
-  same everywhere.
+- **Trails** (`fx/TrailStyle.ts`) set the wingtip ribbon's tip and tail colours: Breeze (today's
+  white), Ember, Jade Mist, Aurora (drifting between green and violet along the ribbon and over
+  time). Flow still warms the ribbon toward the wisp colour, fully on Breeze (as before) and only
+  a little on the coloured trails so they keep their hue. Wisps, lanterns and pickup particles
+  never change colour: they are gameplay and must read the same everywhere.
 
 ### Species
 
-Three birds: the **Tern** (today's bird, the all-rounder), the **Swallow** and the **Crane**.
-Each flies slightly differently. Each is a trade-off, none is strictly better, and every
-change stays within ±15 % so the wisp planner's assumptions (15 m spacing, ≤6 m rise per wisp)
-hold for all of them.
+The heart of the progression: each bird is a new way to fly. Planned: the **Tern** (today's
+bird, the all-rounder), the **Swallow**, the **Crane**, then the **Falcon** and the
+**Albatross**. Each is a trade-off, none is strictly better, and every stat change stays within
+±15 % so the wisp planner's assumptions (15 m spacing, ≤6 m rise per wisp) hold for all of them.
 
-- **Swallow**: quick and darting. Small and compact, long swept-back pointed wings, a deep
-  forked tail with streamers; glossy blue-black back, rust throat, cream belly. Flight: turn
+Revised: stat multipliers alone read as "a little different", so each bird also gets one
+**signature move** that changes how a level is played. No move is ever required: every wisp
+path still works for every bird; a move only makes some lines easier or more fun. Phone first
+means no new input: a signature is either **passive** (it happens when the bird does something it
+already does) or a bird's own version of an **existing trick** (same gesture, different move).
+
+| Bird      | Feel             | Signature                                                                                                                                 | Shines in                  |
+| --------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Tern      | All-rounder      | The dive-bomb stoop (already in)                                                                                                          | Everywhere                 |
+| Swallow   | Quick, darting   | **Flick**: its roll is a sharp sideways dart with a little speed (the roll gesture); **skim**: flying low over water speeds it up (built) | Neon Bay, Jade River       |
+| Crane     | Slow, stately    | **Thermal rider**: thermals lift it 1.8×; dive speed carries further (built)                                                              | Highlands, City of Gold    |
+| Falcon    | Fast, heavy      | **Stoop master**: its dive-bomb (the dive gesture) builds speed faster and deeper; weaker climbs                                          | Red Canyons, Aurora Fjords |
+| Albatross | Long, lazy wings | **Updraft rider**: lift along cliff faces and over waves, rarely needs to flap; turns poorly                                              | Aurora Fjords, coasts      |
+| Phoenix   | Blazing fast     | **Speed**: cruises at 1.6× everyone's speed; glows and sheds embers (built; the final bird)                                               | Open country, night        |
+
+- The first new bird comes early: the Swallow is at 480 ✧ (about flight 3), with Dusk Rose and
+  Jade Mist moved on to 950 and 1100. Players who already had them keep them.
+- A bird joining the track after players have passed its threshold still gets its Rest card:
+  saves record the track they have `seen`, and a milestone opened on load is revealed quietly
+  only if it was on that track (a retune lowered it), not if it is new (saves from before the
+  list count as having seen everything but the Swallow).
+
+- **Swallow** (built): quick and darting. Small and compact, a round head with a tiny bill, a
+  short arm and a long hand of close-packed primaries swept back into a sickle (held swept in a
+  glide), a deep forked tail with streamers; its plumage is a steel-blue back (a mid blue, so
+  it reads against a night sea), rust face and throat, cream belly. Flight: turn rate and
   response ×1.2, flap cooldown ×0.85, flap lift ×0.9, speed above cruise bleeds ×1.15 faster
-  (agile, but a dive doesn't carry as far). Camera a little closer.
-- **Crane**: slow and stately. Long neck held straight out, legs trailing past a short tail,
-  long broad wings whose five primaries spread like fingers (the existing primary fan suits
-  this); pale grey with a black neck and wingtips and a red crown. Flight: turn response ×0.85,
-  flap lift ×1.15, flap cooldown ×1.2, speed above cruise bleeds ×0.8 (long glides, dives carry
-  far). Wingbeats slower and deeper. Camera farther back.
-- A species is a `SpeciesDef`: a geometry spec (body, neck, head, wing arm / hand, primaries,
-  tail, legs), a default plumage, `WingBeat` timing, flight multipliers applied over
-  `Config.flight`, and camera distance. All species share one rig (body, arm, hand, primaries,
-  tail, head joints), so the existing pose and wingbeat code drives every bird. The first step
-  of this work is turning `Bird.ts` into that rig with the Tern as its first spec, kept
-  identical to today (screenshot compare) before any new bird is added.
+  (agile, but a dive doesn't carry as far); quicker wingbeats (×0.78); camera ×0.9. Its roll is
+  a dart: ×2.4 the sideways hop (~12 m a turn) and +4 m/s as it starts. **Skim**: within 5 m of
+  water it gains up to 8 m/s² (full at the surface), and touching water costs it nothing. The
+  first idea, a gain only on contact, did nothing: the soft altitude floor and terrain assist
+  keep any bird off the water but for a few frames a bounce, so the cushion is a height band
+  instead. Cruise relaxation balances it: a long skim settles near 50 m/s, never runs away.
+- **Crane** (built, 1650 ✧): slow and stately. A long neck held straight out (the torso lathe
+  drawn out, painted from `torso.neck` in the throat colour, so it flows from the breast without
+  a seam), a small head with a long horn bill, long legs trailing past a short square tail, long
+  broad wings whose five primaries spread like fingers. Its plumage is pale ash grey with a
+  black neck and face, black fingertips and a red crown patch: the cap edge is part of the
+  shape (`head.cap`), since the Tern's dark cap runs down the nape and the Crane's red must not
+  (from behind it read as a red ball). Flight: turn rate and response ×0.85, flap lift ×1.15,
+  flap cooldown ×1.2, speed above cruise bleeds ×0.8 (after a dive it keeps ~2 m/s more than the
+  Tern 3 s later), wingbeats ×1.35 slower, camera ×1.12. **Thermal rider** (passive): thermals
+  lift it 1.8× as hard (`FlightTuning.thermal`), so a column it finds carries it high.
+- **Phoenix** (built, 3300 ✧, the final bird): a creature of fire, our own design (a fiery
+  phoenix in general, not any game's character). A slim body under a tall crest, a short hooked
+  bill, long wings whose primaries fan like flames and a fan of eight long tail plumes. Its
+  plumage runs gold, flame orange and crimson to rose tips and is self-lit (`PlumageDef.glow`,
+  a shader uniform 0 for every other plumage; it flickers gently), so it blooms and reads at
+  night. It sheds embers (`species.embers` per second) that leave with 90 % of its velocity and
+  light drag: first they were left standing in the world, and the camera (6 m back at 40 m/s)
+  flew through them, so they ballooned into blurs at the lens. Flight: `speed` ×1.6 (cruise and
+  minimum, ~42 m/s), `topSpeed` ×1.3 (~88 m/s), and turn ×1.45 so its turning circle (speed /
+  turn) stays near the Tern's: the rule for every bird is now that circle, not the factors
+  alone. Its roll hops ×1.5. In 90 s of the bot it gathers ~50 % more wisps than the Tern in
+  Neon Bay and the canyons (it covers more ground) and never glances a wall there.
+- Jade River's pillar slaloms are the hard case for the slow-turning and the very fast: the bot
+  gets 72 % (Crane) and 79 % (Phoenix, three soft glances) of the Tern's wisps there. That is
+  each bird's trade-off, as designed; if players find it frustrating, the Crane's turn is the
+  first number to raise.
+- **Falcon** and **Albatross**: shapes and numbers to design on the rig.
+- A species is a `SpeciesDef` (`player/Species.ts`): a `BirdShape` (`player/BirdShape.ts`: torso
+  profile, head, bill, crest, feet, tail, wing arm / hand outlines, arch, primaries, glide
+  sweep), its own plumage, and its `Config.species` entry: `FlightTuning` multipliers over
+  `Config.flight` and `Config.tricks` (the Tern's are all 1 and 0, so its arithmetic is the bare
+  model's), chase distance and wingbeat tempo. All species share one rig, so the pose and
+  wingbeat code drives every bird; `Bird.setShape` rebuilds in place, so the scene node and
+  wingtip anchors stay the same objects. The Tern on the rig was checked identical to the bird
+  before it: every mesh's geometry, colours and transform match exactly.
+- Tests fly each bird's tuning through the bot over Neon Bay and the canyons, each on a fresh
+  world (a world's wisp planner keeps state between flights, which once made the Tern score 116
+  against its own 153): every bird must gather at least 90 % of the Tern's wisps.
+- Saves from before `seen` existed count as having seen everything but the birds added since
+  (`ADDED_LATER` in `Journey.ts`), so a bird new to the track always gets its card.
+- The Aviary's picks are `border-box` and, on a phone, 59 px: four to a row on an iPhone SE
+  (its row is 254 px), so four birds or seven plumages stay within two rows and the card ends
+  well above the bird. The portrait card rule is `.menu.aviary .card`: the general rule comes
+  later in the sheet and silently won with `.aviary .card`.
+
+### Discoveries and bird mastery (proposed)
+
+The "mix" beyond birds, and what gives the cosmetics a purpose beyond light:
+
+- **Discoveries**: three to five hidden moments per level (thread the Great Arch, circle the
+  lighthouse, touch a summit), noticed with a quiet chime and kept in a journal on the title
+  screen. Finding a level's set opens its plumage. Nothing is timed or missable.
+- **Bird mastery**: three gentle goals per bird that teach its signature (e.g. "Swallow: flick
+  through five wisps in a row"); finishing them opens that bird's plumage and trail.
 
 ### Save format
 
-`driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], species, plumage,
-trail }`, loaded with the same guards as settings (bad or missing fields fall back to defaults;
-storage errors mean no progress is saved, never a crash). `revealed` makes each unlock card show
-once.
+`driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], seen: string[] }`,
+loaded with the same guards as settings (bad or missing fields fall back to defaults; storage
+errors mean no progress is saved, never a crash). `revealed` makes each unlock card show once;
+`seen` is the track as the save knew it (see Species). The Aviary picks (`species`, `plumage`,
+`trail`) are settings: `driftwing:settings`.
 
 ### Code shape
 
@@ -401,17 +507,21 @@ once.
 - `main.ts` wires the events (`wisp`, `lanternReached`, `trick`) into the journey while
   `playing`, and banks at the points listed above.
 - `ui/Menu.ts`: journey bar, locked cards, Rest card, Aviary panel. `ui/Hud.ts`: unlock toast.
-- `player/species/` (`tern`, `swallow`, `crane`) + the shared rig in `Bird.ts`;
-  `player/Plumage.ts` for the palettes.
+- `player/Species.ts` (the birds) + `player/BirdShape.ts` (their bodies) + the shared rig in
+  `Bird.ts`; `player/Plumage.ts` for the palettes; `Config.species` for how each flies.
 
 ### Build order
 
-1. Light + journey core + banking + journey bar (title, pause) + unlock toast.
-2. Rest card.
-3. Level locks.
-4. Plumage roles + trails + Aviary panel (Tern only).
-5. Bird rig refactor (Tern unchanged), then the Swallow with its flight multipliers.
-6. The Crane.
+1. Light + journey core + banking + journey bar (title, pause) + unlock toast. (built)
+2. Rest card. (built)
+3. Level locks. (built)
+4. Plumage roles + trails + Aviary panel (Tern only); birds off the track. (built)
+5. Bird rig refactor (Tern unchanged, checked part by part). (built)
+6. The Swallow: shape, multipliers, the dart and the skim; the Aviary's Bird tab; back on the
+   track, earlier. (built)
+7. The Crane and thermal riding. (built)
+8. Discoveries: the journal and one or two levels first.
+9. The Falcon and the Albatross, then bird mastery.
 
 ## Audio
 
@@ -573,6 +683,29 @@ progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, re
   already reads as "ease under it" (it was written for the city's gates and decks).
 - Canyon walls are stepped by reading a band profile at a noise-shifted distance, not by adding
   noise to heights: the ledges meander while every stratum stays level, as real rock does.
+- The Aviary card sits at the top on an upright phone (the chase camera holds the bird at about
+  mid-screen, measured at 60-62 % of the height on SE, 14 and Pixel 7), compact, with Done beside
+  the title; the subtitle and journey bar show on wide screens only. The title card scrolls
+  instead of cutting off its last buttons, and on short upright phones it tightens and drops
+  the open levels' blurbs.
+- Neon Bay difficulty, measured with bots over the same seeds. Before: the precise bot gathered
+  ~1.6 wisps/s while steering a third of the time, and one that never turned (matching height
+  only) still gathered 54 % of that; no other level was above 22 %. After: no-turning flight
+  gathers 39 % (62 against 86 wisps per two minutes), the precise bot steers half the time and
+  keeps its rate (1.33/s over 25 min). What was tried and dropped: a steady zigzag (±8 m, every
+  6 wisps) was harder to follow than to ignore, since flying its centre line caught every
+  crossing through the magnet, and it cut the precise bot by 30 %; a height bob dipped runs
+  under the decks and tripled the wall glances for no extra challenge; a smaller magnet for the
+  city alone did no better than lanes past the usual one. Costs: wall glances rose to about one
+  a minute for the bot (about half while chasing a wisp it missed mid-swerve, which a person
+  would let go), and slow turners pay: over 90 s the Crane gathers ~45 % of the Tern's wisps
+  (the Swallow 129 %, the Phoenix 191 %). If the Crane feels punished there, raising its turn
+  or the city's `turnRadius` is the first lever.
+- Milestones that open nothing are taken off the track rather than shown: the Swallow and
+  Crane were there before birds could be flown, and a player told "Swallow unlocked" had no
+  Swallow. A test now checks every milestone opens a level, plumage or trail that exists.
+- Plumages repaint the bird in place (each painted part keeps its painter) rather than
+  rebuilding it: `Game.bird`, its wingtip anchors and its scene node stay the same objects.
 - `hash2(-x, -z)` equals `hash2(x, z)` when x and z are both odd (the multiplies are odd and
   negation flips them alike), which stood identical arches in cells mirrored through the spawn.
   The canyon offsets its cell coordinates far from the origin rather than change the shared hash,

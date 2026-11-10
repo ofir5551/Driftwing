@@ -163,8 +163,10 @@ describe('flying among buildings', () => {
 
 describe('city wisps', () => {
   it('ribbons never sit inside buildings, and an autopilot flies them through the streets', () => {
-    // Over 10 minutes on five seeds the bot gathers ~1.6 wisps/s and glances off a wall 0-6
-    // times; these two minutes guard against regressions.
+    // Runs change lanes and turn often, so the city asks for steering. Over 25 minutes on five
+    // seeds the bot gathers ~1.3 wisps/s and glances off a wall about once a minute (about half
+    // of those while chasing a wisp it missed mid-swerve, which a person would let go). These
+    // two minutes guard against regressions.
     for (const seed of [42, 2024]) {
       const w = new CityWorld(seed);
       const r = flyBot(
@@ -175,8 +177,8 @@ describe('city wisps', () => {
         (x, y, z) => w.layout.solidTop(x, y, z, 0) !== -Infinity,
       );
       expect(r.inside).toBe(0);
-      expect(r.got).toBeGreaterThan(150);
-      expect(r.glances).toBeLessThanOrEqual(1);
+      expect(r.got).toBeGreaterThan(140);
+      expect(r.glances).toBeLessThanOrEqual(5);
     }
   });
 });

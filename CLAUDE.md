@@ -14,13 +14,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
   `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon`,
-  `?unlocked` (every level open on the picker, nothing granted or saved).
+  `?unlocked` (every level, plumage and trail open, nothing granted or saved).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
   `__journey` (Journey: lifetime light and unlocks).
 - Headless Chromium: on Windows `--use-angle=d3d11` uses the real GPU; elsewhere SwiftShader works but is slow.
 
 ## Conventions
+
+- Phone first: most players hold a phone upright. Lay screens out for 320-430 px portrait first
+  (iPhone SE 320x568 must fit) and add no new buttons or gestures. Check UI with Playwright's
+  `devices['iPhone SE']`, `devices['iPhone 14']`, `devices['Pixel 7']`.
 
 - Strict TS, no `any`. Small modules. Comment the _why_ for flight and audio-scheduling math.
 - Every tunable number goes in `src/core/Config.ts` (auto-exposed in the debug panel).
@@ -45,7 +49,10 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `core/Journey.ts`: lifetime light and the unlock track (pure; saved by `Settings`). See DESIGN's
   Progression.
 - `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, unlock) so audio/fx/ui stay decoupled.
-- `player/FlightModel.ts`: pure arcade glide physics. `Bird.ts` visuals only. `ChaseCamera.ts` polar springs.
+- `player/FlightModel.ts`: pure arcade glide physics; a bird's `FlightTuning` (its
+  `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built
+  from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
+  plumage, tuning). `ChaseCamera.ts` polar springs. `fx/TrailStyle.ts`: wingtip trail colours.
 - `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
   decor), `Trees` (instanced), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.

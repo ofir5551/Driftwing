@@ -37,6 +37,7 @@ export const Config = {
     terrainAssist: 1.6, // how strongly the nose lifts to clear terrain ahead
     bounce: 0.55, // fraction of downward speed returned as upward speed on contact
     skimSlowdown: 0.18, // fraction of speed lost per second while skimming
+    skimHeight: 5, // m above the water within which a skimming bird (species.waterSkim) gains speed
   },
   tricks: {
     cooldown: 0.25, // s after a trick before the next can start
@@ -186,6 +187,20 @@ export const Config = {
     glance: 0.9, // fraction of the angle into a wall turned away on contact
     glanceSlow: 0.25, // speed lost against a wall, scaled by how head-on (about 0.04 per step head-on)
     lights: 1, // brightness of windows, neon and lamps after dark
+    // Wisp ribbons (CityWisps). Long straight avenue runs in one lane let a player line up once
+    // and hold (over half the wisps with no turning at all), so runs change lanes and turn more:
+    // the city should ask for steering about half the time. Every line is still checked clear
+    // of the scenery, and a run falls back to a straight lane with the wide turn where a lane
+    // change would clip something. See DESIGN's decisions log for the measurements.
+    weaveLateral: 12, // m either side of the centre a run's lanes sit (past the 11 m magnet)
+    weaveSharp: 1.6, // >1 flattens the sway into hold, swerve, hold (lane changes, not a zigzag)
+    weavePeriod: 12, // wisps per there-and-back across the avenue (180 m, ~7 s at cruise)
+    weaveMargin: 8, // m a lane-change line keeps from walls, pillars and decks (straight lanes 3.5)
+    runMin: 4, // wisps straight down an avenue before the next turn
+    runMax: 8,
+    turnChance: 0.75, // runs that turn at the next crossing
+    turnRadius: 30, // m, a tight quarter turn (~0.9 rad/s at cruise); the fallback arc is 40 m
+    spiralChance: 0.35, // patterns that circle a tower (when one is near)
     // The volcano painted into the sky: how far away it pretends to be. Its foot sits on the
     // sea at this distance, so climbing sinks it a little below the horizon (400 m -> ~3.5 deg).
     mountainDistance: 6500, // m
@@ -232,20 +247,25 @@ export const Config = {
     bankEvery: 10, // s between saves in flight (pausing and leaving the page save too)
   },
   unlocks: {
-    // Light at which each journey milestone opens (~180 light for a 6-minute flight).
+    // Light at which each journey milestone opens (~180 light for a 6-minute flight). A bird
+    // joins the track only once it can be flown (the Crane is still to come): see DESIGN.
     emberTrail: 120,
     city: 300,
-    duskRosePlumage: 480,
+    swallow: 480, // the first new way to fly comes early, about flight 3
     karst: 750,
-    jadeMistTrail: 950,
-    swallow: 1150,
+    duskRosePlumage: 950,
+    jadeMistTrail: 1100,
     fjord: 1250,
     frostPlumage: 1500,
+    crane: 1650, // the second new bird, about flight 9
     jerusalem: 1800,
     auroraTrail: 2050,
     canyon: 2400,
     gildedPlumage: 2700,
-    crane: 3000,
+    phoenix: 3300, // the final bird, the end of the track (later birds go before it)
+  },
+  aviary: {
+    trailPreview: 0.6, // lowest wingtip-trail opacity while the Aviary is open (the bot glides lazily)
   },
   lantern: {
     // A lit lantern is a destination: fly through its column of light to reach it.
@@ -290,6 +310,79 @@ export const Config = {
     idleGapMin: 1.4, // s of glide between bursts when slow or climbing
     idleGapMax: 6, // s of glide between bursts in fast level flight
     blendRate: 10, // 1/s, how fast the wings ease into and out of a beat
+  },
+  species: {
+    // Each bird's flight as multipliers on `flight` and `tricks` (see FlightTuning), plus its
+    // chase distance and wingbeat tempo. The Tern is the model itself: every factor 1, every
+    // addition 0. Keep factors near 1 (about +-20 %) so every bird can fly the wisp ribbons.
+    tern: {
+      turn: 1,
+      flapLift: 1,
+      flapCooldown: 1,
+      bleed: 1,
+      rollHop: 1,
+      rollBoost: 0,
+      waterSkim: 0,
+      thermal: 1,
+      speed: 1, // cruise and minimum speed
+      topSpeed: 1,
+      embers: 0, // embers shed per second
+      camera: 1, // chase distance
+      beat: 1, // wingbeat period
+    },
+    swallow: {
+      // Quick and darting: turns sharper and flaps more often, but each flap lifts less and dive
+      // speed bleeds away sooner. Its roll is a dart, and skimming water speeds it up.
+      turn: 1.2,
+      flapLift: 0.9,
+      flapCooldown: 0.85,
+      bleed: 1.15,
+      rollHop: 2.4, // a dart covers ~12 m sideways per turn (the Tern's roll ~5 m)
+      rollBoost: 4, // m/s as it darts
+      waterSkim: 8, // m/s^2 low over water (settles near 50 m/s on a long skim)
+      thermal: 1,
+      speed: 1,
+      topSpeed: 1,
+      embers: 0,
+      camera: 0.9, // a smaller bird: the camera sits a little closer
+      beat: 0.78, // quicker, shallower-feeling strokes
+    },
+    crane: {
+      // Slow and stately: wide, lazy turns and fewer, stronger flaps; dive speed carries far.
+      // It rides thermals: a column lifts it far faster than the others.
+      turn: 0.85,
+      flapLift: 1.15,
+      flapCooldown: 1.2,
+      bleed: 0.8,
+      rollHop: 1,
+      rollBoost: 0,
+      waterSkim: 0,
+      thermal: 1.8,
+      speed: 1,
+      topSpeed: 1,
+      embers: 0,
+      camera: 1.12, // a big bird: the camera sits a little farther back
+      beat: 1.35, // slow, deep strokes
+    },
+    phoenix: {
+      // The last bird: blazing fast. It cruises at 1.6x everyone's speed; it turns 1.45x as fast
+      // so its turning circle stays near the Tern's and the wisp ribbons stay in reach. It sheds
+      // embers as it flies.
+      turn: 1.45,
+      flapLift: 1.1,
+      flapCooldown: 1,
+      bleed: 1,
+      rollHop: 1.5,
+      rollBoost: 0,
+      waterSkim: 0,
+      thermal: 1,
+      speed: 1.6, // cruise ~42 m/s against 26
+      topSpeed: 1.3, // ~88 m/s flat out
+      embers: 40,
+      emberCarry: 0.9, // share of the bird's velocity an ember leaves with (its wake trails gently)
+      camera: 1.05,
+      beat: 0.9,
+    },
   },
   render: {
     // Overwritten by the quality preset (see Quality.ts); exposed here for live tuning.

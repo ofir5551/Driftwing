@@ -30,6 +30,8 @@ export class ChaseCamera {
   private readonly anchor = new THREE.Vector3();
   private readonly chasePos = new THREE.Vector3();
   private watching = false;
+  /** The species' chase distance (a small bird is watched from a little closer). */
+  distanceScale = 1;
   private watch = 0;
 
   constructor(aspect: number) {
@@ -47,7 +49,8 @@ export class ChaseCamera {
     // Portrait screens are narrow: back off and widen the view so the bird and the path ahead fit.
     const narrow = clamp(1 / this.camera.aspect, 1, 2.2) - 1;
     const targetDist =
-      c.distance * (1 + narrow * 0.22) + Math.max(0, p.speed - Config.flight.cruiseSpeed) * 0.04;
+      c.distance * this.distanceScale * (1 + narrow * 0.22) +
+      Math.max(0, p.speed - Config.flight.cruiseSpeed) * 0.04;
     // Only part of the pitch: dives are seen from above, climbs from below, horizon stays calm.
     const targetPitch = p.pitch * c.pitchFollow;
     if (!this.initialised) {

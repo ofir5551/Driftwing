@@ -740,6 +740,259 @@ body.steer-split .boost-btn {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
 }
 
+/* The title card scrolls rather than cut off its last buttons on a short screen. */
+.start .card {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+/* Upright phones with little height: tighter title, level names without blurbs (a locked
+   card still says when it opens). */
+@media (max-aspect-ratio: 1/1) and (max-height: 720px) {
+  .start .card h1 {
+    font-size: 46px;
+  }
+  .start .tag {
+    margin: 0 0 14px;
+    font-size: 13.5px;
+  }
+  .levels {
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+  .level {
+    padding: 9px 6px;
+  }
+  .times {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .time {
+    padding: 5px 11px;
+    font-size: 12.5px;
+  }
+  .start .journey {
+    margin-bottom: 14px;
+  }
+  .title-row {
+    margin-top: 10px;
+  }
+  .fs-nudge {
+    margin-top: 10px;
+  }
+}
+
+@media (max-aspect-ratio: 1/1) and (max-height: 620px) {
+  .level:not(.locked) .level-blurb {
+    display: none;
+  }
+}
+
+/* Aviary and Controls side by side under Play. */
+.title-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.title-row .btn.ghost {
+  margin: 0;
+}
+
+/* Aviary: the card stands aside and lets the world through, so the bird gliding behind it (the
+   live preview of what it wears) stays in view. On a phone held upright (the main way to play)
+   the bird flies at mid-screen, so the card takes the top, compact; on wide screens, the left. */
+.menu.aviary {
+  place-items: start center;
+}
+
+.aviary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aviary-head .btn {
+  font-size: 16px;
+  padding: 9px 26px;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  /* (.menu.aviary for specificity: the general .aviary .card rule comes later.) */
+  .menu.aviary .card {
+    width: 100%;
+    padding: 12px 16px 14px;
+  }
+  .aviary-sub,
+  .aviary .journey {
+    display: none;
+  }
+}
+
+.pick.nudge {
+  animation: journey-nudge 1.2s ease;
+}
+
+/* One row at a time: Bird, Plumage, Trail (time-chip styling). */
+.aviary-tabs {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 8px 0 10px;
+}
+
+.aviary-row[hidden] {
+  display: none;
+}
+
+.pick {
+  box-sizing: border-box; /* the width includes padding and border, so rows pack as planned */
+  flex: 0 1 76px;
+  min-width: 68px;
+}
+
+.bird-blurb {
+  margin: 10px 0 0;
+  min-height: 2.6em;
+  font-size: 13px;
+  line-height: 1.3;
+  opacity: 0.9;
+}
+
+@media (min-aspect-ratio: 1/1) {
+  .menu.aviary {
+    place-items: center start;
+    padding-left: max(16px, 4vw);
+  }
+  .aviary .card {
+    max-width: min(380px, 42vw);
+  }
+}
+
+.aviary .card {
+  background: rgba(60, 45, 80, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 22px;
+  padding: 18px 24px;
+  box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+
+.aviary .card h2 {
+  font-size: 32px;
+}
+
+.aviary-sub {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  opacity: 0.85;
+}
+
+.picks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pick {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 4px 7px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fffaf0;
+  text-shadow: 0 1px 8px rgba(60, 40, 80, 0.5);
+  background: rgba(255, 248, 238, 0.12);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.pick:hover,
+.pick:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.pick.selected {
+  border: 2px solid rgba(255, 244, 220, 1);
+  background: rgba(255, 236, 210, 0.36);
+  box-shadow: 0 0 18px rgba(255, 210, 150, 0.5);
+}
+
+.swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.5px rgba(255, 255, 255, 0.6),
+    0 2px 8px rgba(60, 40, 80, 0.35);
+}
+
+.pick-name {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pick-lock {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.pick-lock:empty {
+  display: none;
+}
+
+/* Locked: the swatch shows what is coming, faded; the pick says when it opens. */
+.pick.locked {
+  cursor: default;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(60, 45, 80, 0.14);
+}
+
+.pick.locked .swatch {
+  opacity: 0.4;
+  filter: saturate(0.5);
+}
+
+.pick.locked .pick-name {
+  opacity: 0.6;
+}
+
+.aviary .journey {
+  margin: 16px auto 4px;
+}
+
+@media (max-width: 480px) {
+  .picks {
+    gap: 5px;
+  }
+  /* Four to a row even on a 320 px phone, so four birds or seven plumages stay in two rows. */
+  .pick {
+    flex-basis: 59px; /* 4 x 59 + 3 gaps fits the SE's 254 px row */
+    min-width: 56px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .pick-name {
+    font-size: 11px;
+  }
+  .swatch {
+    width: 26px;
+    height: 26px;
+  }
+}
+
 /* Brief veil while a level switch rebuilds the world. */
 .veil {
   position: fixed;
@@ -1143,6 +1396,12 @@ body.touch .settings label.touch-only.row {
   .pause .card,
   .help .card {
     padding: 16px 22px;
+  }
+  .aviary .card {
+    padding: 10px 18px;
+  }
+  .aviary-sub {
+    display: none;
   }
   .settings {
     margin-top: 12px;

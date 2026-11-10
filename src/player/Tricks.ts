@@ -99,7 +99,7 @@ export function startTrick(s: FlightState, kind: TrickKind, env: FlightEnv): boo
     if (r === 0) return false;
     tr.radius = r;
     // Speed is scripted round the loop; entering below cruise would make a sluggish circle.
-    tr.entrySpeed = Math.max(s.speed, Config.flight.cruiseSpeed * 0.9);
+    tr.entrySpeed = Math.max(s.speed, Config.flight.cruiseSpeed * s.tune.speed * 0.9);
   } else if (kind === 'dive') {
     if (s.y - surface(env, s.x, s.z) < c.diveMinHeight) return false;
     s.speed += c.diveBoost;
@@ -108,6 +108,8 @@ export function startTrick(s: FlightState, kind: TrickKind, env: FlightEnv): boo
   } else {
     tr.turns = 1;
     tr.rate = 0;
+    // The Swallow's roll is a dart: it kicks off with a burst (the Tern's adds nothing).
+    s.speed += s.tune.rollBoost;
   }
   tr.kind = kind;
   tr.t = 0;

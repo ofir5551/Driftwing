@@ -8,6 +8,8 @@ import * as THREE from 'three';
 export const mistUniforms = {
   uMist: { value: 0 },
   uMistTop: { value: 50 },
+  /** Height the low mist rests on (sea level, or Sea of Clouds' cloud tops). */
+  uMistBase: { value: 0 },
   uMistFar: { value: 0 },
   uMistColor: { value: new THREE.Color() },
   uMistTime: { value: 0 },
@@ -16,12 +18,13 @@ export const mistUniforms = {
 export const MIST_PARS = /* glsl */ `
 uniform float uMist;
 uniform float uMistTop;
+uniform float uMistBase;
 uniform float uMistFar;
 uniform vec3 uMistColor;
 uniform float uMistTime;
 float mistAmount(vec3 wp) {
   float dist = length(wp - cameraPosition);
-  float low = 1.0 - smoothstep(0.0, uMistTop, wp.y);
+  float low = 1.0 - smoothstep(uMistBase, uMistTop, wp.y);
   // Two slow, crossed swells so the mist lies in banks rather than a flat sheet.
   float drift = 0.65 + 0.35 * sin(wp.x * 0.011 + uMistTime * 0.06) * sin(wp.z * 0.009 - uMistTime * 0.05 + 1.3);
   // Clear around the bird, thickening with distance: the near rock stays crisp.

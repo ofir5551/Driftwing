@@ -266,7 +266,7 @@ export class Gameplay {
     } else {
       const ground = g.field.height(x, z);
       const leafy = g.flightGround(x, z) - ground > 2;
-      const col = leafy ? LEAF : DUST;
+      const col = leafy ? LEAF : (g.world.skimColor ?? DUST);
       for (let i = 0; i < n * this.soft.density; i++)
         this.soft.emit(
           x + (Math.random() - 0.5) * 3,

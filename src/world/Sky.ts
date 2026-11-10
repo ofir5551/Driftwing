@@ -33,6 +33,8 @@ uniform float uHillsBase;
 uniform float uMesas;
 uniform float uMesasBase;
 uniform vec3 uMesaInk;
+uniform float uSummits;
+uniform float uSummitsBase;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -83,6 +85,37 @@ float mesa(float az, float n, float seed) {
     float wall = 1.0 - smoothstep(0.75, 1.0, q);
     float skirt = 1.0 - smoothstep(0.85, 1.7 + wide, q);
     h = max(h, max(wall * top, skirt * top * 0.5));
+  }
+  return h;
+}
+
+// A ring of great snow peaks around the horizon: n cells of azimuth, some empty, the rest
+// holding one jagged pyramid (a triangle with teeth along its ridges) of random width and a
+// height that is usually modest and now and then a giant. Writes which face (-1 left, +1
+// right) of the winning peak the azimuth falls on. Periodic in azimuth.
+float summit(float az, float n, float seed, out float side) {
+  float x = (az / 6.2831853 + 0.5) * n;
+  float c = floor(x);
+  float h = 0.0;
+  side = 0.0;
+  for (int k = -1; k <= 1; k++) {
+    float cc = c + float(k);
+    float id = mod(cc, n) + seed;
+    if (hash1(id + 5.7) < 0.3) continue;
+    float centre = cc + 0.5 + (hash1(id) - 0.5) * 0.5;
+    float tall = hash1(id + 3.1);
+    // Giants are broad, lesser peaks narrow, but every one is steeper than it is wide.
+    float w = (0.3 + 0.35 * hash1(id + 7.3)) * (0.7 + 0.6 * tall);
+    float q = (x - centre) / w;
+    // A pyramid with concave flanks, its ridges notched with teeth and a shoulder.
+    float tri = pow(max(1.0 - abs(q), 0.0), 1.35);
+    float teeth = 0.08 * sin(q * 19.0 + id) + 0.05 * sin(q * 47.0 + id * 3.0);
+    float shoulder = 0.18 * smoothstep(0.3, 0.6, abs(q + 0.4 * (hash1(id + 9.1) - 0.5)));
+    float v = max(tri * (1.0 + teeth) + shoulder * tri, 0.0) * (0.3 + 0.7 * tall * tall);
+    if (v > h) {
+      h = v;
+      side = sign(q);
+    }
   }
   return h;
 }
@@ -198,6 +231,39 @@ void main() {
     col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
   }
 
+  // Sea of Clouds: two ranges of great snow peaks standing out of the cloud sea far off, the
+  // far range taller and paler. The face toward the sun is lit (and takes the sun's colour, so
+  // the snow glows pink at sunrise), the other falls into blue shade; dark rock shows in
+  // streaks down the faces, and every foot sinks into the haze of the cloud sea.
+  if (uSummits > 0.5) {
+    float az = atan(d.x, d.z);
+    float hm = h - uSummitsBase;
+    float toSun = sin(atan(uSunDir.x, uSunDir.z) - az);
+    float day = smoothstep(-0.1, 0.1, uSunDir.y);
+    float bright = clamp(dot(uFog, vec3(0.4)) * 1.5, 0.3, 1.0);
+    for (int i = 0; i < 2; i++) {
+      float fi = float(i);
+      float amp = 0.12 - 0.05 * fi;
+      float side;
+      float top = summit(az + fi * 2.1, 30.0 + fi * 16.0, fi * 11.0, side) * amp;
+      float m = smoothstep(top + 0.0012, top - 0.0012, hm);
+      if (m <= 0.0) continue;
+      float lit = 0.8 + 0.32 * side * clamp(toSun * 3.0, -1.0, 1.0) * day;
+      vec3 snow = mix(uHorizon, vec3(1.0), 0.55) * bright;
+      snow = mix(snow, snow * uSun, 0.35 * day) * lit;
+      vec3 rock = mix(uTop, uFog, 0.45) * 0.72 * lit;
+      float streak = smoothstep(0.55, 0.95, sin(az * 173.0 + hm * 60.0 + fi * 3.0) * sin(az * 41.0 - fi));
+      float low = 1.0 - smoothstep(top * 0.25, top * 0.55, hm);
+      vec3 mc = mix(snow, rock, clamp(streak * 0.55 + low * 0.5, 0.0, 1.0));
+      mc = mix(mc, uFog, 0.5 - 0.22 * fi);
+      mc = mix(mc, uFog, (1.0 - smoothstep(-0.004, top * 0.5, hm)) * 0.85);
+      col = mix(col, mc, m);
+      peak = max(peak, m);
+    }
+    // Below the feet (from altitude) the cloud sea's haze carries on to the world's edge.
+    col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
+  }
+
   // Aurora Fjords: three curtains of light hung across the sky. Each has a sharp, wandering
   // lower hem and fades upward from green to violet, is combed into fine vertical rays that
   // shimmer, and swells and thins along its length. Drifts slowly; bloom halos the brightest.
@@ -249,9 +315,9 @@ void main() {
 
 /**
  * What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, the aurora,
- * rolling hills, or desert mesas.
+ * rolling hills, desert mesas, or great snow peaks beyond a cloud sea.
  */
-export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas';
+export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas' | 'summits';
 
 export class Sky {
   readonly mesh: THREE.Mesh;
@@ -282,6 +348,8 @@ export class Sky {
       uMesas: { value: 0 },
       uMesasBase: { value: 0 },
       uMesaInk: { value: new THREE.Color() },
+      uSummits: { value: 0 },
+      uSummitsBase: { value: 0 },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -312,6 +380,7 @@ export class Sky {
     this.u.uRidges.value = this.backdrop === 'karst' ? 1 : 0;
     this.u.uHills.value = this.backdrop === 'hills' ? 1 : 0;
     this.u.uMesas.value = this.backdrop === 'mesas' ? 1 : 0;
+    this.u.uSummits.value = this.backdrop === 'summits' ? 1 : 0;
     // The aurora comes out with the stars.
     this.u.uAurora.value =
       this.backdrop === 'aurora' ? Math.max(0, (p.stars - 0.25) / 0.75) * Config.fjord.aurora : 0;
@@ -321,6 +390,9 @@ export class Sky {
     this.u.uRidgeBase.value = drop / Math.hypot(drop, Config.karst.ridgeDistance);
     this.u.uHillsBase.value = drop / Math.hypot(drop, Config.jerusalem.hillsDistance);
     this.u.uMesasBase.value = drop / Math.hypot(drop, Config.canyon.mesasDistance);
+    // The snow peaks stand out of the cloud sea, not the water far below it.
+    const cdrop = Config.peaks.cloud - camera.position.y;
+    this.u.uSummitsBase.value = cdrop / Math.hypot(cdrop, Config.peaks.summitsDistance);
     // Ink: the upper sky deepened toward the ground light, so ridges darken with the day.
     this.u.uInk.value.copy(p.skyTop).lerp(p.hemiGround, 0.55).multiplyScalar(0.8);
     // Mesa shade: the ground light (red rock bounce by day) deepened toward the sky's top.

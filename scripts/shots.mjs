@@ -156,6 +156,32 @@ const shots = [
     wait: 3000,
     place: { x: 100, y: 26, z: 0, yaw: Math.PI / 2, phase: 0.86 },
   },
+  // Sea of Clouds (default seed).
+  { name: 'peaks-title', query: '?level=peaks', wait: 4500 },
+  {
+    name: 'peaks-gate',
+    query: '?level=peaks&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 112, z: 190, yaw: 0, phase: 0.02 },
+  },
+  {
+    name: 'peaks-day',
+    query: '?level=peaks&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 90, z: 150, yaw: 0.6, phase: 0.25 },
+  },
+  {
+    name: 'peaks-above',
+    query: '?level=peaks&autopilot',
+    wait: 3000,
+    place: { x: 380, y: 200, z: 250, yaw: -1.2, pitch: -0.15, phase: 0.1 },
+  },
+  {
+    name: 'peaks-dusk',
+    query: '?level=peaks&autopilot',
+    wait: 3000,
+    place: { x: -150, y: 110, z: 500, yaw: 2.6, pitch: -0.05, phase: 0.68 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */

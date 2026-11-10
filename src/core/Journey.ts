@@ -19,21 +19,22 @@ export interface Unlock {
   readonly name: string;
 }
 
-/** Every milestone. Level ids are the levels' own ids (the Highlands are always open). */
+/**
+ * Every milestone. Level ids are the levels' own ids (the Highlands are always open). Only
+ * what can be used goes on the track: the birds (`species`) join it when they can be flown.
+ */
 export const UNLOCKS: readonly Unlock[] = [
   { id: 'emberTrail', kind: 'trail', name: 'Ember trail' },
   { id: 'city', kind: 'level', name: 'Neon Bay' },
   { id: 'duskRosePlumage', kind: 'plumage', name: 'Dusk Rose plumage' },
   { id: 'karst', kind: 'level', name: 'Jade River' },
   { id: 'jadeMistTrail', kind: 'trail', name: 'Jade Mist trail' },
-  { id: 'swallow', kind: 'species', name: 'Swallow' },
   { id: 'fjord', kind: 'level', name: 'Aurora Fjords' },
   { id: 'frostPlumage', kind: 'plumage', name: 'Frost plumage' },
   { id: 'jerusalem', kind: 'level', name: 'City of Gold' },
   { id: 'auroraTrail', kind: 'trail', name: 'Aurora trail' },
   { id: 'canyon', kind: 'level', name: 'Red Canyons' },
   { id: 'gildedPlumage', kind: 'plumage', name: 'Gilded plumage' },
-  { id: 'crane', kind: 'species', name: 'Crane' },
 ];
 
 const BY_ID = new Map<string, Unlock>(UNLOCKS.map((u) => [u.id, u]));
@@ -80,9 +81,9 @@ export class Journey {
   startFraction = 0;
   /** Changed since the last save. */
   dirty = false;
-  /** Every level can be picked whatever the light (`?unlocked`, for testing). Never saved:
-   *  nothing is granted, so the real journey is untouched. */
-  allLevelsOpen = false;
+  /** Every level, plumage and trail can be picked whatever the light (`?unlocked`, for
+   *  testing). Never saved: nothing is granted, so the real journey is untouched. */
+  allOpen = false;
   private readonly granted = new Set<UnlockId>();
   private readonly revealed = new Set<UnlockId>();
 
@@ -128,7 +129,12 @@ export class Journey {
 
   /** A level can be picked once its milestone is passed; one off the track (the Highlands) always. */
   isLevelOpen(id: LevelId): boolean {
-    return this.allLevelsOpen || !isUnlockId(id) || this.granted.has(id);
+    return this.allOpen || !isUnlockId(id) || this.granted.has(id);
+  }
+
+  /** Whatever a milestone opens can be picked (null: no milestone, open from the start). */
+  isOpen(id: UnlockId | null): boolean {
+    return this.allOpen || id === null || this.granted.has(id);
   }
 
   /** The next milestone still locked, lowest threshold first; null once the track is done. */

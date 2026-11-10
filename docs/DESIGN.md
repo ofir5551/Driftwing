@@ -260,8 +260,11 @@ invert-Y), settings and best score in localStorage.
 
 ## Progression (proposed)
 
-Status: steps 1-3 of the build order are built (light, the track, saving, journey bars, unlock
-notices, the Rest card, level locks); the rest is design. Goal: every short flight (2-10 min) moves something
+Status: steps 1-4 of the build order are built (light, the track, saving, journey bars, unlock
+notices, the Rest card, level locks, the Aviary with plumages and trails); the rest is design.
+Direction (revised): players should work toward a mix of things, led by **new birds that fly
+differently**, then **discoveries** in the levels and **bird mastery**; plumages and trails stay
+as a cheap cosmetic extra. Goal: every short flight (2-10 min) moves something
 forward and lasts beyond the session, while staying strictly calm: nothing decays, nothing can
 be lost or missed, there are no streaks, timers or daily rewards, and the score stays as it is.
 
@@ -284,7 +287,9 @@ It only grows.
 ### The journey track
 
 Milestones on one path. Levels, plumages, trails and species are spaced out so the next thing is
-always close.
+always close. Only what can be used is on the track: the Swallow and the Crane were taken off it
+until they can be flown (a milestone that opens nothing is a broken promise). The table is the
+intended track once the birds exist; today's track is the same without them.
 
 |    ✧ | Unlock                                         | Flight (~180 ✧ each) |
 | ---: | ---------------------------------------------- | -------------------: |
@@ -294,7 +299,7 @@ always close.
 |  480 | Dusk Rose plumage                              |                    3 |
 |  750 | **Jade River**                                 |                  4-5 |
 |  950 | Jade Mist trail                                |                  5-6 |
-| 1150 | **Swallow**                                    |                  6-7 |
+| 1150 | **Swallow** (to move earlier, see Species)     |                  6-7 |
 | 1250 | **Aurora Fjords**                              |                    7 |
 | 1500 | Frost plumage                                  |                  8-9 |
 | 1800 | **City of Gold**                               |                   10 |
@@ -347,29 +352,54 @@ attract flight behind the title only ever flies open levels. `?level=` still loa
 
 ### Aviary (bird cosmetics)
 
-A title-screen panel (like Controls) with three rows: **Species**, **Plumage**, **Trail**. Locked
-items show as soft silhouettes with their threshold. Picking one dresses the attract-flight bird
-behind the menu at once: that bird is the live preview, so no second renderer is needed. Choices
-persist.
+Built: a title-screen panel (beside Controls) with a **Plumage** row and a **Trail** row; a
+**Bird** row joins them with the Swallow. Locked items keep their name and a faded swatch and say
+when they open; tapping one glows the panel's journey bar. Picking one dresses the attract-flight
+bird behind the menu at once: that bird is the live preview, so no second renderer is needed. The
+card stands aside (left on wide screens, low on tall ones) so the bird stays in view, and the
+trail is held visible (`Config.aviary.trailPreview`) since the bot's glide is too lazy to show it.
+Picks persist in the settings (`plumage`, `trail`); a pick whose milestone is not open (picked in
+a `?journey=` or `?unlocked` session) is not worn but not forgotten either. Unlock cards for
+feathers and trails point to the Aviary.
 
 - **Plumage** is a palette of colour roles (belly, back, cap, wing lead / trail, covert, dusky
   edge, underwing, bill, primary base / mid / tip, tail base / tip): today's constants at the top
-  of `Bird.ts`, gathered into a `Plumage` record. Vertex colours are baked when the bird is
-  built, so changing plumage rebuilds the colour attributes (menu-time, not a hot path). Every
+  of `Bird.ts`, gathered into a `Plumage` record (`player/Plumage.ts`). Every painted part of the
+  bird registers its painter, so a plumage change repaints the colour attributes in place
+  (menu-time, not a hot path); Sea is byte-identical to the bird before plumages. Every
   species has its own signature plumage, plus the shared set (Sea, Dusk Rose, Frost, Gilded),
   which reads through the same roles. Plumages are checked against all six levels at dawn,
   midday and night, so the bird never vanishes into a palette.
-- **Trails** set the wingtip ribbon colour and opacity curve (`Trails` already takes a colour
-  per update): Breeze (today's white), Ember, Jade Mist, Aurora (hue drifting along the ribbon).
-  Wisps, lanterns and pickup particles never change colour: they are gameplay and must read the
-  same everywhere.
+- **Trails** (`fx/TrailStyle.ts`) set the wingtip ribbon's tip and tail colours: Breeze (today's
+  white), Ember, Jade Mist, Aurora (drifting between green and violet along the ribbon and over
+  time). Flow still warms the ribbon toward the wisp colour, fully on Breeze (as before) and only
+  a little on the coloured trails so they keep their hue. Wisps, lanterns and pickup particles
+  never change colour: they are gameplay and must read the same everywhere.
 
 ### Species
 
-Three birds: the **Tern** (today's bird, the all-rounder), the **Swallow** and the **Crane**.
-Each flies slightly differently. Each is a trade-off, none is strictly better, and every
-change stays within ±15 % so the wisp planner's assumptions (15 m spacing, ≤6 m rise per wisp)
-hold for all of them.
+The heart of the progression: each bird is a new way to fly. Planned: the **Tern** (today's
+bird, the all-rounder), the **Swallow**, the **Crane**, then the **Falcon** and the
+**Albatross**. Each is a trade-off, none is strictly better, and every stat change stays within
+±15 % so the wisp planner's assumptions (15 m spacing, ≤6 m rise per wisp) hold for all of them.
+
+Revised: stat multipliers alone read as "a little different", so each bird also gets one
+**signature move** that changes how a level is played. No move is ever required: every wisp
+path still works for every bird; a move only makes some lines easier or more fun.
+
+| Bird      | Feel             | Signature                                                                                             | Shines in                  |
+| --------- | ---------------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |
+| Tern      | All-rounder      | The dive-bomb stoop (already in)                                                                      | Everywhere                 |
+| Swallow   | Quick, darting   | **Flick**: a sharp sideways dart with a little speed; skimming water gains speed instead of losing it | Neon Bay, Jade River       |
+| Crane     | Slow, stately    | **Thermal rider**: climbs much faster in thermals, holds glide speed longer                           | Highlands, City of Gold    |
+| Falcon    | Fast, heavy      | **Stoop master**: dives build speed faster and deeper; weaker climbs                                  | Red Canyons, Aurora Fjords |
+| Albatross | Long, lazy wings | **Updraft rider**: lift along cliff faces and over waves, rarely needs to flap; turns poorly          | Aurora Fjords, coasts      |
+
+- The first new bird should come early: the Swallow moves to about flight 3 (~480 ✧) when it
+  joins the track, with the plumages and trails reshuffled round it.
+- A bird joining the track after players have passed its threshold must still get its Rest
+  card: today a milestone quietly opened on load is marked revealed (right for retunes, wrong
+  for new content), so that step adds a way to grant without revealing.
 
 - **Swallow**: quick and darting. Small and compact, long swept-back pointed wings, a deep
   forked tail with streamers; glossy blue-black back, rust throat, cream belly. Flight: turn
@@ -380,6 +410,7 @@ hold for all of them.
   this); pale grey with a black neck and wingtips and a red crown. Flight: turn response ×0.85,
   flap lift ×1.15, flap cooldown ×1.2, speed above cruise bleeds ×0.8 (long glides, dives carry
   far). Wingbeats slower and deeper. Camera farther back.
+- **Falcon** and **Albatross**: shapes and numbers to design once the rig exists.
 - A species is a `SpeciesDef`: a geometry spec (body, neck, head, wing arm / hand, primaries,
   tail, legs), a default plumage, `WingBeat` timing, flight multipliers applied over
   `Config.flight`, and camera distance. All species share one rig (body, arm, hand, primaries,
@@ -387,12 +418,22 @@ hold for all of them.
   of this work is turning `Bird.ts` into that rig with the Tern as its first spec, kept
   identical to today (screenshot compare) before any new bird is added.
 
+### Discoveries and bird mastery (proposed)
+
+The "mix" beyond birds, and what gives the cosmetics a purpose beyond light:
+
+- **Discoveries**: three to five hidden moments per level (thread the Great Arch, circle the
+  lighthouse, touch a summit), noticed with a quiet chime and kept in a journal on the title
+  screen. Finding a level's set opens its plumage. Nothing is timed or missable.
+- **Bird mastery**: three gentle goals per bird that teach its signature (e.g. "Swallow: flick
+  through five wisps in a row"); finishing them opens that bird's plumage and trail.
+
 ### Save format
 
-`driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], species, plumage,
-trail }`, loaded with the same guards as settings (bad or missing fields fall back to defaults;
-storage errors mean no progress is saved, never a crash). `revealed` makes each unlock card show
-once.
+`driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[] }`, loaded with the
+same guards as settings (bad or missing fields fall back to defaults; storage errors mean no
+progress is saved, never a crash). `revealed` makes each unlock card show once. The Aviary picks
+(`plumage`, `trail`, later `species`) are settings: `driftwing:settings`.
 
 ### Code shape
 
@@ -406,12 +447,16 @@ once.
 
 ### Build order
 
-1. Light + journey core + banking + journey bar (title, pause) + unlock toast.
-2. Rest card.
-3. Level locks.
-4. Plumage roles + trails + Aviary panel (Tern only).
-5. Bird rig refactor (Tern unchanged), then the Swallow with its flight multipliers.
-6. The Crane.
+1. Light + journey core + banking + journey bar (title, pause) + unlock toast. (built)
+2. Rest card. (built)
+3. Level locks. (built)
+4. Plumage roles + trails + Aviary panel (Tern only); birds off the track. (built)
+5. Bird rig refactor (Tern unchanged, screenshot compare).
+6. The Swallow: shape, multipliers, the flick and water skim; the Aviary's Bird row; back on the
+   track, earlier.
+7. The Crane and thermal riding.
+8. Discoveries: the journal and one or two levels first.
+9. The Falcon and the Albatross, then bird mastery.
 
 ## Audio
 
@@ -573,6 +618,11 @@ progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, re
   already reads as "ease under it" (it was written for the city's gates and decks).
 - Canyon walls are stepped by reading a band profile at a noise-shifted distance, not by adding
   noise to heights: the ledges meander while every stratum stays level, as real rock does.
+- Milestones that open nothing are taken off the track rather than shown: the Swallow and
+  Crane were there before birds could be flown, and a player told "Swallow unlocked" had no
+  Swallow. A test now checks every milestone opens a level, plumage or trail that exists.
+- Plumages repaint the bird in place (each painted part keeps its painter) rather than
+  rebuilding it: `Game.bird`, its wingtip anchors and its scene node stay the same objects.
 - `hash2(-x, -z)` equals `hash2(x, z)` when x and z are both odd (the multiplies are odd and
   negation flips them alike), which stood identical arches in cells mirrored through the spawn.
   The canyon offsets its cell coordinates far from the origin rather than change the shared hash,

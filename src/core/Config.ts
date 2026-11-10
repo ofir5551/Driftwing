@@ -232,20 +232,22 @@ export const Config = {
     bankEvery: 10, // s between saves in flight (pausing and leaving the page save too)
   },
   unlocks: {
-    // Light at which each journey milestone opens (~180 light for a 6-minute flight).
+    // Light at which each journey milestone opens (~180 light for a 6-minute flight). The birds
+    // (Swallow, Crane) join the track when they can be flown: see DESIGN's Progression.
     emberTrail: 120,
     city: 300,
     duskRosePlumage: 480,
     karst: 750,
     jadeMistTrail: 950,
-    swallow: 1150,
     fjord: 1250,
     frostPlumage: 1500,
     jerusalem: 1800,
     auroraTrail: 2050,
     canyon: 2400,
     gildedPlumage: 2700,
-    crane: 3000,
+  },
+  aviary: {
+    trailPreview: 0.6, // lowest wingtip-trail opacity while the Aviary is open (the bot glides lazily)
   },
   lantern: {
     // A lit lantern is a destination: fly through its column of light to reach it.

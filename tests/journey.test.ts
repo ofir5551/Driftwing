@@ -70,9 +70,9 @@ describe('Journey', () => {
   });
 
   it('quietly opens milestones a retune lowered below the saved light', () => {
-    Config.unlocks.crane = 5;
+    Config.unlocks.gildedPlumage = 5;
     const j = new Journey({ v: 1, light: 10, granted: [], revealed: [] });
-    expect(j.isUnlocked('crane')).toBe(true);
+    expect(j.isUnlocked('gildedPlumage')).toBe(true);
     expect(j.dirty).toBe(true);
   });
 
@@ -99,9 +99,7 @@ describe('Journey', () => {
 describe('Journey / level locks', () => {
   it('opens only the Highlands at first', () => {
     const j = new Journey();
-    expect(LEVEL_LIST.filter((l) => j.isLevelOpen(l.id)).map((l) => l.id)).toEqual([
-      'highlands',
-    ]);
+    expect(LEVEL_LIST.filter((l) => j.isLevelOpen(l.id)).map((l) => l.id)).toEqual(['highlands']);
   });
 
   it('opens each level at its milestone, in order', () => {
@@ -121,10 +119,11 @@ describe('Journey / level locks', () => {
     expect(j.isLevelOpen('jerusalem')).toBe(false);
   });
 
-  it('opens every level with allLevelsOpen, without granting or saving it', () => {
+  it('opens every level, plumage and trail with allOpen, without granting or saving it', () => {
     const j = new Journey();
-    j.allLevelsOpen = true;
+    j.allOpen = true;
     expect(LEVEL_LIST.every((l) => j.isLevelOpen(l.id))).toBe(true);
+    expect(UNLOCKS.every((u) => j.isOpen(u.id))).toBe(true);
     expect(j.toData().granted).toEqual([]);
     expect(j.dirty).toBe(false);
   });
@@ -152,7 +151,7 @@ describe('Journey / Rest cards', () => {
     const j = new Journey();
     j.grant('canyon');
     expect(j.unrevealed()).toEqual([]);
-    Config.unlocks.crane = 5;
+    Config.unlocks.gildedPlumage = 5;
     expect(new Journey(parseJourney({ light: 10 })).unrevealed()).toEqual([]);
     const old = new Journey(parseJourney({ light: 400, granted: ['emberTrail', 'city'] }));
     expect(old.unrevealed()).toEqual([]);

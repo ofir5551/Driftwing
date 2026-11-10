@@ -3,6 +3,8 @@ import { parseJourney, type JourneyData } from './Journey';
 import { isLevelId } from '../levels';
 import type { LevelId } from '../levels/World';
 import { isTimeOfDay, type TimeOfDay } from '../world/DayCycle';
+import { DEFAULT_PLUMAGE, isPlumageId, type PlumageId } from '../player/Plumage';
+import { DEFAULT_TRAIL, isTrailId, type TrailId } from '../fx/TrailStyle';
 
 /** Touch steering: drag a floating stick anywhere, or on-screen buttons (a D-pad, an arrow
  *  cluster under each thumb, or split: a D-pad under each thumb, each turning only its own way)
@@ -21,6 +23,9 @@ export interface Settings {
   level: LevelId;
   /** Fixed look chosen on the title screen, or 'auto' for the level's own day cycle. */
   timeOfDay: TimeOfDay;
+  /** Picked in the Aviary. Worn only while its milestone is open (main.ts checks). */
+  plumage: PlumageId;
+  trail: TrailId;
 }
 
 const KEY = 'driftwing:settings';
@@ -33,6 +38,8 @@ const DEFAULTS: Settings = {
   touchSteer: 'drag',
   level: 'highlands',
   timeOfDay: 'auto',
+  plumage: DEFAULT_PLUMAGE,
+  trail: DEFAULT_TRAIL,
 };
 
 // localStorage can throw (private mode, disabled storage): settings then just don't persist.
@@ -50,6 +57,8 @@ export function loadSettings(): Settings {
       touchSteer: isTouchSteer(s.touchSteer) ? s.touchSteer : DEFAULTS.touchSteer,
       level: isLevelId(s.level) ? s.level : DEFAULTS.level,
       timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : DEFAULTS.timeOfDay,
+      plumage: isPlumageId(s.plumage) ? s.plumage : DEFAULTS.plumage,
+      trail: isTrailId(s.trail) ? s.trail : DEFAULTS.trail,
     };
   } catch {
     return { ...DEFAULTS };

@@ -17,6 +17,8 @@ import { isLevelId, LEVEL_LIST } from './levels';
 import type { LevelId } from './levels/World';
 import type { TimeOfDay } from './world/DayCycle';
 import { Menu, type MenuHandlers } from './ui/Menu';
+import { DEFAULT_PLUMAGE, plumageDef } from './player/Plumage';
+import { DEFAULT_TRAIL, trailDef } from './fx/TrailStyle';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -34,8 +36,9 @@ const journey =
   testLight === null
     ? new Journey(loadJourney())
     : new Journey(parseJourney({ light: Number(testLight) }));
-// `?unlocked` opens every level for this session without granting (or saving) anything.
-journey.allLevelsOpen = params.has('unlocked');
+// `?unlocked` opens every level, plumage and trail for this session without granting (or
+// saving) anything.
+journey.allOpen = params.has('unlocked');
 // Levels flown before the journey existed stay open whatever the light.
 if (testLight === null) for (const l of LEVEL_LIST) if (loadBest(l.id) > 0) journey.grant(l.id);
 // The last level picked, unless it is still locked (picked, never flown, before levels had
@@ -47,6 +50,16 @@ const gameplay = new Gameplay(game, ui);
 const audio = new GameAudio(game, gameplay.progress);
 gameplay.progress.best = loadBest(game.level.id);
 audio.setStyle(game.level.music);
+
+/** Dresses the bird from the Aviary picks; a pick whose milestone is not open (a `?journey=`
+ *  or `?unlocked` session picked it) falls back to the default without forgetting it. */
+function dress(): void {
+  const p = plumageDef(settings.plumage);
+  const t = trailDef(settings.trail);
+  game.bird.setPlumage((journey.isOpen(p.unlock) ? p : plumageDef(DEFAULT_PLUMAGE)).colors);
+  gameplay.setTrail(journey.isOpen(t.unlock) ? t : trailDef(DEFAULT_TRAIL));
+}
+dress();
 
 let bankTimer = 0;
 
@@ -192,6 +205,22 @@ const handlers: MenuHandlers = {
     settings.timeOfDay = t;
     game.setTimeOfDay(t);
     saveSettings(settings);
+  },
+  selectPlumage(id) {
+    if (!journey.isOpen(plumageDef(id).unlock)) return;
+    settings.plumage = id;
+    saveSettings(settings);
+    dress();
+  },
+  selectTrail(id) {
+    if (!journey.isOpen(trailDef(id).unlock)) return;
+    settings.trail = id;
+    saveSettings(settings);
+    dress();
+  },
+  aviary(open) {
+    // The bot's glide is lazy, so the trail would barely show: hold it visible while picking.
+    gameplay.trailPreview = open ? Config.aviary.trailPreview : 0;
   },
   toTitle() {
     if (game.mode === 'playing') return; // from the pause menu or the Rest card

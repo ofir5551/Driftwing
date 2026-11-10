@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DEFAULT_TRAIL, trailDef, type TrailDef } from './TrailStyle';
 
 const N = 14; // points per ribbon (~0.23 s of history: shorter than the camera distance)
 
@@ -13,14 +14,20 @@ void main() {
   gl_Position = projectionMatrix * mv;
 }`;
 const frag = /* glsl */ `
-uniform vec3 uColor;
+uniform vec3 uTip;
+uniform vec3 uTail;
+uniform float uDrift;
+uniform float uTime;
 uniform float uOpacity;
 varying float vT;
 varying float vDist;
 void main() {
   // Fade out as the ribbon nears the lens so it never smears across the camera.
   float a = (1.0 - vT) * (1.0 - vT) * smoothstep(0.0, 0.08, vT) * smoothstep(2.5, 5.5, vDist) * uOpacity;
-  gl_FragColor = vec4(uColor, a);
+  // Tip-to-tail gradient; a drifting trail instead wanders between its colours along the
+  // ribbon and over time, so the aurora's bands seem to move.
+  float k = mix(vT, 0.5 + 0.5 * sin(vT * 5.0 - uTime * 1.3), uDrift);
+  gl_FragColor = vec4(mix(uTip, uTail, k), a);
 }`;
 
 /**
@@ -102,11 +109,21 @@ export class Trails {
   private readonly ribbons: Ribbon[];
   private readonly mat: THREE.ShaderMaterial;
   private readonly tmp = new THREE.Vector3();
+  private readonly tip = new THREE.Color();
+  private readonly tail = new THREE.Color();
+  private style: TrailDef = trailDef(DEFAULT_TRAIL);
   private acc = 0;
+  private time = 0;
 
   constructor() {
     this.mat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color('#ffffff') }, uOpacity: { value: 0 } },
+      uniforms: {
+        uTip: { value: new THREE.Color() },
+        uTail: { value: new THREE.Color() },
+        uDrift: { value: 0 },
+        uTime: { value: 0 },
+        uOpacity: { value: 0 },
+      },
       vertexShader: vert,
       fragmentShader: frag,
       transparent: true,
@@ -116,6 +133,15 @@ export class Trails {
     });
     this.ribbons = [new Ribbon(this.mat), new Ribbon(this.mat)];
     this.group.add(this.ribbons[0].mesh, this.ribbons[1].mesh);
+    this.setStyle(this.style);
+  }
+
+  /** Picks the trail's colours (the Aviary; not a hot path). */
+  setStyle(style: TrailDef): void {
+    this.style = style;
+    this.tip.set(style.tip);
+    this.tail.set(style.tail);
+    this.mat.uniforms.uDrift.value = style.drift;
   }
 
   update(
@@ -123,7 +149,8 @@ export class Trails {
     tips: THREE.Object3D[],
     cam: THREE.Vector3,
     intensity: number,
-    color: THREE.Color,
+    flowColor: THREE.Color,
+    flow: number,
   ): void {
     // Sample at a fixed rate so ribbon length (in seconds) is frame-rate independent.
     this.acc += dt;
@@ -136,6 +163,11 @@ export class Trails {
     }
     const u = this.mat.uniforms;
     u.uOpacity.value += (intensity - u.uOpacity.value) * Math.min(1, dt * 4);
-    u.uColor.value.copy(color);
+    // Flow warms the ribbon toward the wisp colour, as much as the style allows.
+    const tint = flow * this.style.flowTint;
+    (u.uTip.value as THREE.Color).copy(this.tip).lerp(flowColor, tint);
+    (u.uTail.value as THREE.Color).copy(this.tail).lerp(flowColor, tint);
+    this.time += dt;
+    u.uTime.value = this.time;
   }
 }

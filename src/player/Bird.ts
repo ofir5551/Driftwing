@@ -3,6 +3,7 @@ import { Config } from '../core/Config';
 import { clamp, expDecay, smoothstep } from '../core/math';
 import { getToonGradient } from '../world/Terrain';
 import { WingBeat } from './WingBeat';
+import { DEFAULT_PLUMAGE, plumageDef, type PlumageColors } from './Plumage';
 
 /** Interpolated pose handed from the flight model to visuals. */
 export interface Pose {
@@ -19,22 +20,6 @@ export interface Pose {
   /** Radius of the loop being flown, 0 when not looping (the camera watches loops). */
   loopR: number;
 }
-
-// Palette (sRGB). A pale tern-like seabird: warm-grey mantle, dark cap, warm-to-dusky primaries.
-const BELLY = '#f7f1e8';
-const BACK = '#aea6ae';
-const CAP = '#4b4253';
-const WING_LEAD = '#f3ebe1';
-const WING_TRAIL = '#ada4ab';
-const COVERT = '#c6bec2';
-const DUSKY = '#776a73'; // trailing edge of the secondaries
-const UNDERWING = '#fbf6ef';
-const BILL_TIP = '#3f2f33';
-const PRIMARY_BASE = '#d9c9b9';
-const PRIMARY_MID = '#e7a37c';
-const PRIMARY_TIP = '#4e4458';
-const TAIL_BASE = '#e9ddcf';
-const TAIL_TIP = '#bf8f7b';
 
 /** Primaries, outermost first: pivot on the hand (span, chord), fan angle (rad back), length. */
 const PRIMARIES: [number, number, number, number][] = [
@@ -53,23 +38,29 @@ const SKY_LIFT = 0.35; // glow of downward-facing plumage (see skyLift)
 const scratch = new THREE.Color();
 const scratch2 = new THREE.Color();
 
-/** Writes a per-vertex colour attribute from a function of the vertex position. */
-function paint(
-  g: THREE.BufferGeometry,
-  colorAt: (x: number, y: number, z: number, out: THREE.Color) => void,
-): THREE.BufferGeometry {
-  const pos = g.getAttribute('position');
-  const col = new Float32Array(pos.count * 3);
-  for (let i = 0; i < pos.count; i++) {
-    colorAt(pos.getX(i), pos.getY(i), pos.getZ(i), scratch);
-    col.set([scratch.r, scratch.g, scratch.b], i * 3);
-  }
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  return g;
+type ColorAt = (x: number, y: number, z: number, out: THREE.Color) => void;
+
+/** The geometry's colour attribute, made on first use and rewritten in place by a repaint. */
+function colorAttr(g: THREE.BufferGeometry): THREE.BufferAttribute {
+  const count = g.getAttribute('position').count;
+  const old = g.hasAttribute('color') ? g.getAttribute('color') : null;
+  if (old instanceof THREE.BufferAttribute && old.count === count) return old;
+  const attr = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+  g.setAttribute('color', attr);
+  return attr;
 }
 
-const solid = (hex: string) => (_x: number, _y: number, _z: number, out: THREE.Color) =>
-  out.set(hex);
+/** Writes a per-vertex colour attribute from a function of the vertex position. */
+function paint(g: THREE.BufferGeometry, colorAt: ColorAt): THREE.BufferGeometry {
+  const pos = g.getAttribute('position');
+  const col = colorAttr(g);
+  for (let i = 0; i < pos.count; i++) {
+    colorAt(pos.getX(i), pos.getY(i), pos.getZ(i), scratch);
+    col.setXYZ(i, scratch.r, scratch.g, scratch.b);
+  }
+  col.needsUpdate = true;
+  return g;
+}
 
 /** Gradient across stops at t = 0, 0.5, 1. */
 function gradient(t: number, a: string, b: string, c: string, out: THREE.Color): THREE.Color {
@@ -78,47 +69,62 @@ function gradient(t: number, a: string, b: string, c: string, out: THREE.Color):
     : out.set(b).lerp(scratch2.set(c), (t - 0.5) * 2);
 }
 
+/** Feather stations base to tip: (t along the feather, half width). */
+const STATIONS: [number, number][] = [
+  [0, 0.32],
+  [0.18, 0.5],
+  [0.5, 0.5],
+  [0.75, 0.42],
+  [0.92, 0.22],
+  [1, 0],
+];
+/** Across each station: leading vane, shaft, trailing vane (the vertex order `feather` uses). */
+const ACROSS = [1, 0, -1];
+/** Shade of each: the raised shaft is paler, the narrow leading vane a shade darker. */
+const ACROSS_SHADE = [0.86, 1.1, 0.97];
+
+type FeatherColorAt = (t: number, out: THREE.Color) => void;
+
 /**
  * One feather as a strip along +x in the XZ plane: rounded base, broad vane, pointed tip.
  * Built station by station (not earcut) so the base-to-tip colour gradient interpolates cleanly.
  * Three vertices across: the shaft is a raised, paler ridge, so each vane catches the light on
  * its own; the narrow leading vane is a shade darker, as on a real flight feather.
  */
-function feather(length: number, width: number, colorAt: (t: number, out: THREE.Color) => void) {
-  const stations: [number, number][] = [
-    [0, 0.32],
-    [0.18, 0.5],
-    [0.5, 0.5],
-    [0.75, 0.42],
-    [0.92, 0.22],
-    [1, 0],
-  ];
+function feather(length: number, width: number): THREE.BufferGeometry {
   const pos: number[] = [];
-  const col: number[] = [];
   const idx: number[] = [];
-  for (const [t, hw] of stations) {
-    colorAt(t, scratch);
-    for (const s of [1, 0, -1]) {
+  for (const [t, hw] of STATIONS)
+    for (const s of ACROSS)
       // Slightly asymmetric vane (narrow leading edge), like a real flight feather.
       pos.push(
         t * length,
         s === 0 ? 0.012 * width * (1 - t) * 4 : 0,
         s * hw * width * (s > 0 ? 0.8 : 1.2),
       );
-      const f = s === 0 ? 1.1 : s > 0 ? 0.86 : 0.97;
-      col.push(scratch.r * f, scratch.g * f, scratch.b * f);
-    }
-  }
-  for (let i = 0; i < stations.length - 1; i++)
+  for (let i = 0; i < STATIONS.length - 1; i++)
     for (let j = 0; j < 2; j++) {
       const a = i * 3 + j;
       idx.push(a, a + 1, a + 3, a + 1, a + 4, a + 3);
     }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
+  return g;
+}
+
+/** Colours a `feather` base to tip. */
+function paintFeather(g: THREE.BufferGeometry, colorAt: FeatherColorAt): THREE.BufferGeometry {
+  const col = colorAttr(g);
+  for (let i = 0; i < STATIONS.length; i++) {
+    colorAt(STATIONS[i][0], scratch);
+    for (let j = 0; j < 3; j++) {
+      const f = ACROSS_SHADE[j];
+      col.setXYZ(i * 3 + j, scratch.r * f, scratch.g * f, scratch.b * f);
+    }
+  }
+  col.needsUpdate = true;
   return g;
 }
 
@@ -205,6 +211,9 @@ function rod(length: number, r0: number, r1: number): THREE.BufferGeometry {
  * Stylised low-poly tern-like seabird built from primitives. Local frame: +z forward, +y up, +x = left wing.
  * Wings are arm (shoulder) + hand (wrist) with five separate primaries that fan out in slow
  * flight and fold together in a dive; the tail is a fan of six feathers, slightly forked.
+ *
+ * Colours come from a plumage (`Plumage.ts`). Every painted part registers how it is painted,
+ * so `setPlumage` repaints the vertex colours in place instead of rebuilding the bird.
  */
 export class Bird {
   readonly root = new THREE.Group();
@@ -219,6 +228,39 @@ export class Bird {
   private readonly tailFeathers: THREE.Group[] = [];
   private readonly beat = new WingBeat();
   private tuck = 0;
+  /** The plumage being worn; the painters below read it each time they run. */
+  private c: PlumageColors = plumageDef(DEFAULT_PLUMAGE).colors;
+  private readonly repaints: (() => void)[] = [];
+  private readonly under = new THREE.Color();
+  private readonly feetMat: THREE.MeshToonMaterial;
+
+  /** Paints `g` now and again on every plumage change. */
+  private paint(g: THREE.BufferGeometry, colorAt: ColorAt): THREE.BufferGeometry {
+    this.repaints.push(() => paint(g, colorAt));
+    return paint(g, colorAt);
+  }
+
+  /** A feather, painted now and again on every plumage change. */
+  private feather(length: number, width: number, colorAt: FeatherColorAt): THREE.BufferGeometry {
+    const g = feather(length, width);
+    this.repaints.push(() => paintFeather(g, colorAt));
+    return paintFeather(g, colorAt);
+  }
+
+  /** A painter for one plumage role. */
+  private solid(role: keyof PlumageColors): ColorAt {
+    return (_x, _y, _z, out) => {
+      out.set(this.c[role]);
+    };
+  }
+
+  /** Dresses the bird in a plumage (the Aviary: menu time, not a hot path). */
+  setPlumage(colors: PlumageColors): void {
+    this.c = colors;
+    for (const r of this.repaints) r();
+    this.under.set(colors.underwing);
+    this.feetMat.color.set(colors.feet);
+  }
 
   constructor() {
     const toon = (color: string, extra: THREE.MeshToonMaterialParameters = {}) =>
@@ -228,7 +270,7 @@ export class Bird {
     const feathers = toon('#ffffff', { vertexColors: true, side: THREE.DoubleSide });
     // Pale underwing and undertail: seen from below the bird is white against the sky, as a
     // seabird is; the patterned upper side faces the chase camera.
-    const under = new THREE.Color(UNDERWING);
+    const under = this.under.set(this.c.underwing);
     feathers.onBeforeCompile = (shader) => {
       shader.uniforms.uUnder = { value: under };
       shader.fragmentShader = shader.fragmentShader
@@ -240,7 +282,8 @@ export class Bird {
       skyLift(shader);
     };
     plumage.onBeforeCompile = skyLift;
-    const feetMat = toon('#e2804f');
+    const feetMat = toon(this.c.feet);
+    this.feetMat = feetMat;
     const eyeMat = new THREE.MeshBasicMaterial({ color: '#221d29' });
     const glintMat = new THREE.MeshBasicMaterial({ color: '#fff8ec' });
 
@@ -271,11 +314,14 @@ export class Bird {
     }
     torsoGeo.computeVertexNormals();
     // Grey mantle over the back and shoulders, fading to a pale rump; a warm flush on the breast.
-    paint(torsoGeo, (_x, y, z, out) =>
+    this.paint(torsoGeo, (_x, y, z, out) =>
       out
-        .set(BELLY)
-        .lerp(scratch2.set('#f6e6d6'), smoothstep(0.1, 0.3, z) * smoothstep(0.02, -0.12, y) * 0.6)
-        .lerp(scratch2.set(BACK), smoothstep(-0.01, 0.09, y) * smoothstep(-0.55, -0.3, z)),
+        .set(this.c.belly)
+        .lerp(
+          scratch2.set(this.c.breast),
+          smoothstep(0.1, 0.3, z) * smoothstep(0.02, -0.12, y) * 0.6,
+        )
+        .lerp(scratch2.set(this.c.back), smoothstep(-0.01, 0.09, y) * smoothstep(-0.55, -0.3, z)),
     );
     const torso = new THREE.Mesh(torsoGeo, plumage);
 
@@ -284,15 +330,17 @@ export class Bird {
     this.head.position.set(0, 0.06, 0.36);
     const skullGeo = new THREE.SphereGeometry(0.13, 18, 12).scale(0.86, 0.86, 1.25);
     // Cap edge slopes: high at the bill, through the top of the eye, low down the nape.
-    paint(skullGeo, (_x, y, z, out) => {
+    this.paint(skullGeo, (_x, y, z, out) => {
       const edge = 0.012 + Math.max(0, z) * 0.1 - Math.max(0, -z) * 0.35;
-      out.set(BELLY).lerp(scratch2.set(CAP), smoothstep(edge - 0.015, edge + 0.015, y));
+      out
+        .set(this.c.belly)
+        .lerp(scratch2.set(this.c.cap), smoothstep(edge - 0.015, edge + 0.015, y));
     });
     const skull = new THREE.Mesh(skullGeo, plumage);
     skull.position.z = 0.14;
     const beak = new THREE.Mesh(
-      paint(new THREE.ConeGeometry(0.036, 0.26, 10, 3).scale(0.85, 1, 1), (_x, y, _z, out) =>
-        out.set('#ef8a4a').lerp(scratch2.set(BILL_TIP), smoothstep(0.03, 0.09, y)),
+      this.paint(new THREE.ConeGeometry(0.036, 0.26, 10, 3).scale(0.85, 1, 1), (_x, y, _z, out) =>
+        out.set(this.c.bill).lerp(scratch2.set(this.c.billTip), smoothstep(0.03, 0.09, y)),
       ),
       plumage,
     );
@@ -301,9 +349,9 @@ export class Bird {
     // A shaggy crest swept back off the nape, a tern's signature, so the head has a profile
     // rather than reading as a dark ball from behind.
     const crest = new THREE.Mesh(
-      paint(
+      this.paint(
         new THREE.ConeGeometry(0.075, 0.2, 7, 2).rotateX(-Math.PI / 2).scale(1, 0.45, 1),
-        solid(CAP),
+        this.solid('cap'),
       ),
       plumage,
     );
@@ -333,8 +381,8 @@ export class Bird {
       const streamer = u ** 4;
       const f = new THREE.Group();
       const m = new THREE.Mesh(
-        feather(0.32 + u * 0.12 + streamer * 0.18, 0.11 * (1 - streamer * 0.4), (t, out) =>
-          gradient(t, TAIL_BASE, TAIL_BASE, TAIL_TIP, out),
+        this.feather(0.32 + u * 0.12 + streamer * 0.18, 0.11 * (1 - streamer * 0.4), (t, out) =>
+          gradient(t, this.c.tailBase, this.c.tailBase, this.c.tailTip, out),
         ),
         feathers,
       );
@@ -346,17 +394,17 @@ export class Bird {
     this.body.add(torso, this.head, tail);
 
     const primaryColor = (t: number, out: THREE.Color) =>
-      gradient(t, PRIMARY_BASE, PRIMARY_MID, PRIMARY_TIP, out);
+      gradient(t, this.c.primaryBase, this.c.primaryMid, this.c.primaryTip, out);
     // Front to back: a pale leading edge, the grey mantle, then a dusky trailing band.
     const wingShade = (_x: number, _y: number, z: number, out: THREE.Color) =>
       out
-        .set(DUSKY)
-        .lerp(scratch2.set(WING_TRAIL), smoothstep(-0.25, -0.15, z))
-        .lerp(scratch2.set(WING_LEAD), smoothstep(0.04, 0.15, z));
+        .set(this.c.dusky)
+        .lerp(scratch2.set(this.c.wingTrail), smoothstep(-0.25, -0.15, z))
+        .lerp(scratch2.set(this.c.wingLead), smoothstep(0.04, 0.15, z));
     for (const side of [1, -1]) {
       // Arm: broad inner wing with a scalloped trailing edge of secondaries. (span, chord) points.
       const arm = new THREE.Mesh(
-        paint(
+        this.paint(
           wingSurface(
             [
               [0, 0.17],
@@ -381,7 +429,7 @@ export class Bird {
       // Coverts: a lighter layer over the front of the arm with its own scalloped edge, so the
       // wing reads as overlapping rows of feathers.
       const armCoverts = new THREE.Mesh(
-        paint(
+        this.paint(
           wingSurface(
             [
               [0, 0.15],
@@ -401,24 +449,27 @@ export class Bird {
             (x, z) => armArch(x, z) + 0.008,
           ),
           (_x, _y, z, out) =>
-            out.set(COVERT).lerp(scratch2.set(WING_LEAD), smoothstep(0.02, 0.13, z)),
+            out.set(this.c.covert).lerp(scratch2.set(this.c.wingLead), smoothstep(0.02, 0.13, z)),
         ),
         feathers,
       );
       // Leading edge starts inside the body so no rod end shows at the shoulder. It rides on
       // the front of the arch.
-      const armEdge = new THREE.Mesh(paint(rod(0.6, 0.045, 0.03), solid(WING_LEAD)), plumage);
+      const armEdge = new THREE.Mesh(
+        this.paint(rod(0.6, 0.045, 0.03), this.solid('wingLead')),
+        plumage,
+      );
       armEdge.position.set(0.04, 0.028, 0.12);
       // Rounded wrist so the joint stays closed when the hand bends.
       const wrist = new THREE.Mesh(
-        paint(new THREE.SphereGeometry(0.032, 10, 6).scale(1, 0.5, 1), solid(WING_LEAD)),
+        this.paint(new THREE.SphereGeometry(0.032, 10, 6).scale(1, 0.5, 1), this.solid('wingLead')),
         plumage,
       );
       wrist.position.set(0, 0.028, 0.11);
       // Hand: coverts over the bases of the primaries, plus a thin leading edge. They start a
       // little inside the arm so no wedge opens at the wrist when the hand bends.
       const coverts = new THREE.Mesh(
-        paint(
+        this.paint(
           wingSurface(
             [
               [-0.06, 0.13],
@@ -437,7 +488,10 @@ export class Bird {
         ),
         feathers,
       );
-      const handEdge = new THREE.Mesh(paint(rod(0.36, 0.03, 0.01), solid(WING_LEAD)), plumage);
+      const handEdge = new THREE.Mesh(
+        this.paint(rod(0.36, 0.03, 0.01), this.solid('wingLead')),
+        plumage,
+      );
       handEdge.position.set(0, 0.026, 0.1);
       handEdge.rotation.z = -0.07; // follows the hand's arch down to the tip
 
@@ -452,7 +506,7 @@ export class Bird {
         const g = new THREE.Group();
         // Bases tuck just under the arched coverts.
         g.position.set(px, handArch(px, pz) - 0.004 - 0.002 * i, pz);
-        const m = new THREE.Mesh(feather(len, 0.15, primaryColor), feathers);
+        const m = new THREE.Mesh(this.feather(len, 0.15, primaryColor), feathers);
         m.rotation.z = 0.05 * (PRIMARIES.length - i); // outer feathers curl up a little
         g.add(m);
         if (i === 0) {
@@ -467,9 +521,8 @@ export class Bird {
       // filling the notch a bare wing sheet leaves against the round torso. Grey mantle on top,
       // pale belly below, matching the body either side of the joint.
       const fairing = new THREE.Mesh(
-        paint(
-          new THREE.SphereGeometry(1, 14, 8).scale(0.16, 0.05, 0.21),
-          (_x, y, _z, out) => out.set(BELLY).lerp(scratch2.set(BACK), smoothstep(-0.03, 0.03, y)),
+        this.paint(new THREE.SphereGeometry(1, 14, 8).scale(0.16, 0.05, 0.21), (_x, y, _z, out) =>
+          out.set(this.c.belly).lerp(scratch2.set(this.c.back), smoothstep(-0.03, 0.03, y)),
         ),
         plumage,
       );

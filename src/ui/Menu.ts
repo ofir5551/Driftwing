@@ -4,6 +4,14 @@ import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
 import { TIME_OF_DAY_LIST, type TimeOfDay } from '../world/DayCycle';
 import {
+  DEFAULT_PLUMAGE,
+  PLUMAGES,
+  plumageDef,
+  type PlumageDef,
+  type PlumageId,
+} from '../player/Plumage';
+import { DEFAULT_TRAIL, TRAILS, trailDef, type TrailDef, type TrailId } from '../fx/TrailStyle';
+import {
   fullscreenSupport,
   isFullscreen,
   onFullscreenChange,
@@ -18,6 +26,11 @@ export interface MenuHandlers {
   isNewLevel(id: LevelId): boolean;
   /** A time-of-day chip was picked on the title screen. */
   selectTime(t: TimeOfDay): void;
+  /** An open plumage or trail was picked in the Aviary. */
+  selectPlumage(id: PlumageId): void;
+  selectTrail(id: TrailId): void;
+  /** The Aviary opened or closed (the trail shows on a lazy glide while it is open). */
+  aviary(open: boolean): void;
   /** Pause menu or Rest card -> back to the title screen to pick another level. */
   toTitle(): void;
   /** Pause menu -> end the flight with the Rest card. */
@@ -105,9 +118,47 @@ const KIND_LABEL: Record<UnlockKind, string> = {
 };
 const KIND_DETAIL: Record<Exclude<UnlockKind, 'level'>, string> = {
   species: 'A new bird to fly',
-  plumage: 'New feathers for your bird',
-  trail: 'New colours for your wingtip trails',
+  plumage: 'New feathers: wear them from the Aviary',
+  trail: 'New wingtip colours: pick them in the Aviary',
 };
+
+/** One Aviary row's item: what the menu needs from a plumage or a trail. */
+interface Pick {
+  id: string;
+  name: string;
+  unlock: PlumageDef['unlock'];
+  /** CSS background for its swatch. */
+  swatch: string;
+}
+
+const plumageSwatch = ({ colors: c }: PlumageDef) =>
+  `linear-gradient(135deg, ${c.cap} 0 24%, ${c.back} 24% 50%, ${c.belly} 50% 76%, ${c.primaryMid} 76%)`;
+const trailSwatch = (t: TrailDef) =>
+  t.drift > 0
+    ? `linear-gradient(90deg, ${t.tip}, ${t.tail}, ${t.tip})`
+    : `linear-gradient(90deg, ${t.tip}, ${t.tail})`;
+const PLUMAGE_PICKS: Pick[] = PLUMAGES.map((p) => ({ ...p, swatch: plumageSwatch(p) }));
+const TRAIL_PICKS: Pick[] = TRAILS.map((t) => ({ ...t, swatch: trailSwatch(t) }));
+
+const picksHtml = (row: string, label: string, picks: Pick[]) =>
+  `<h3>${label}</h3>
+   <div class="picks" role="radiogroup" aria-label="${label}">${picks
+     .map(
+       (p) =>
+         `<button class="pick" role="radio" aria-checked="false" data-row="${row}" data-id="${p.id}">
+            <span class="swatch" style="background: ${p.swatch}"></span>
+            <span class="pick-name">${p.name}</span><span class="pick-lock"></span>
+          </button>`,
+     )
+     .join('')}</div>`;
+
+/** The Aviary: what the bird wears. The bird gliding behind the card is the live preview. */
+const AVIARY_HTML = `<h2>Aviary</h2>
+  <p class="aviary-sub">Your bird wears its choice behind this card.</p>
+  ${picksHtml('plumage', 'Plumage', PLUMAGE_PICKS)}
+  ${picksHtml('trail', 'Trail', TRAIL_PICKS)}
+  ${JOURNEY_HTML}
+  <button class="btn primary" id="aviary-done">Done</button>`;
 const FILL_MS = 900; // matches .journey-fill's transition
 const STEP_MS = 1150; // one fill plus a breath before the next
 
@@ -119,6 +170,8 @@ export class Menu {
   /** Bumped whenever the Rest card's animation should stop (it is shown again or left). */
   private restToken = 0;
   private readonly help: HTMLDivElement;
+  private readonly aviary: HTMLDivElement;
+  private readonly picks: HTMLButtonElement[];
   /** The screen the Controls panel returns to. */
   private helpFrom: HTMLDivElement | null = null;
   private readonly pauseBtn: HTMLButtonElement;
@@ -132,7 +185,7 @@ export class Menu {
 
   constructor(
     ui: HTMLElement,
-    settings: Settings,
+    private readonly settings: Settings,
     private readonly journey: Journey,
     h: MenuHandlers,
   ) {
@@ -152,7 +205,10 @@ export class Menu {
        ).join('')}</div>
        ${JOURNEY_HTML}
        <button class="btn primary" id="play-btn">Play</button>
-       <button class="btn ghost controls-btn">Controls</button>
+       <div class="title-row">
+         <button class="btn ghost" id="aviary-btn">Aviary</button>
+         <button class="btn ghost controls-btn">Controls</button>
+       </div>
        <button class="fs-nudge" hidden>⤢ Best played fullscreen</button>
        <p class="fs-tip" hidden>For fullscreen, tap Share, then <b>Add to Home Screen</b>, and open Driftwing from there.</p>
        <p class="best" hidden></p>`,
@@ -199,14 +255,15 @@ export class Menu {
        <button class="btn primary" id="fly-btn">Keep flying</button>
        <button class="btn ghost" id="rest-title-btn">Title</button>`,
     );
-    this.journeyBars = [this.start, this.pause, this.rest].map((p) =>
+    this.aviary = this.panel('aviary', AVIARY_HTML);
+    this.journeyBars = [this.start, this.pause, this.rest, this.aviary].map((p) =>
       p.querySelector<HTMLElement>('.journey')!,
     );
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.className = 'pause-btn';
     this.pauseBtn.setAttribute('aria-label', 'Pause');
     this.pauseBtn.innerHTML = '<span></span><span></span>';
-    ui.append(this.start, this.pause, this.rest, this.help, this.pauseBtn);
+    ui.append(this.start, this.pause, this.rest, this.help, this.aviary, this.pauseBtn);
     this.setupFullscreen(ui);
 
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
@@ -215,7 +272,7 @@ export class Menu {
       card.addEventListener('click', () => {
         const id = card.dataset.level as LevelId;
         if (this.journey.isLevelOpen(id)) h.selectLevel(id);
-        else this.nudgeJourney(); // the bar says how close it is
+        else this.nudgeJourney(this.journeyBars[0]); // the bar says how close it is
       });
     this.isNewLevel = (id) => h.isNewLevel(id);
     this.timeChips = [...this.start.querySelectorAll<HTMLButtonElement>('.time')];
@@ -236,6 +293,30 @@ export class Menu {
     for (const from of [this.start, this.pause])
       from.querySelector('.controls-btn')!.addEventListener('click', () => this.showHelp(from));
     this.help.querySelector('#controls-back')!.addEventListener('click', () => this.hideHelp());
+    this.start.querySelector('#aviary-btn')!.addEventListener('click', () => {
+      this.showAviary();
+      h.aviary(true);
+    });
+    this.aviary.querySelector('#aviary-done')!.addEventListener('click', () => {
+      h.aviary(false);
+      this.only(this.start);
+    });
+    this.picks = [...this.aviary.querySelectorAll<HTMLButtonElement>('.pick')];
+    for (const pick of this.picks)
+      pick.addEventListener('click', () => {
+        const id = pick.dataset.id!;
+        const plumage = pick.dataset.row === 'plumage';
+        const unlock = plumage
+          ? plumageDef(id as PlumageId).unlock
+          : trailDef(id as TrailId).unlock;
+        if (!this.journey.isOpen(unlock)) {
+          this.nudgeJourney(this.journeyBars[3]);
+          return;
+        }
+        if (plumage) h.selectPlumage(id as PlumageId);
+        else h.selectTrail(id as TrailId);
+        this.markPicks();
+      });
     const vol = this.pause.querySelector<HTMLInputElement>('#vol')!;
     const mute = this.pause.querySelector<HTMLInputElement>('#mute')!;
     const quality = this.pause.querySelector<HTMLSelectElement>('#quality')!;
@@ -260,7 +341,7 @@ export class Menu {
     };
     for (const el of [vol, mute, quality, invert, steer]) el.addEventListener('input', changed);
     // Keep keyboard/mouse events on menus from steering or flapping the bird.
-    for (const p of [this.start, this.pause, this.rest, this.help])
+    for (const p of [this.start, this.pause, this.rest, this.help, this.aviary])
       p.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
@@ -315,6 +396,40 @@ export class Menu {
     this.helpFrom = null;
   }
 
+  /** What the bird wears: the saved pick while its milestone is open, else the default. */
+  private worn(): { plumage: PlumageId; trail: TrailId } {
+    const s = this.settings;
+    const j = this.journey;
+    return {
+      plumage: j.isOpen(plumageDef(s.plumage).unlock) ? s.plumage : DEFAULT_PLUMAGE,
+      trail: j.isOpen(trailDef(s.trail).unlock) ? s.trail : DEFAULT_TRAIL,
+    };
+  }
+
+  /** Locked picks keep their name and swatch but say when they open; the worn one is marked. */
+  private markPicks(): void {
+    const worn = this.worn();
+    for (const pick of this.picks) {
+      const id = pick.dataset.id!;
+      const plumage = pick.dataset.row === 'plumage';
+      const unlock = plumage ? plumageDef(id as PlumageId).unlock : trailDef(id as TrailId).unlock;
+      const open = this.journey.isOpen(unlock);
+      const on = id === (plumage ? worn.plumage : worn.trail);
+      pick.classList.toggle('locked', !open);
+      pick.classList.toggle('selected', on);
+      pick.setAttribute('aria-checked', String(on));
+      pick.setAttribute('aria-disabled', String(!open));
+      pick.querySelector('.pick-lock')!.textContent =
+        open || unlock === null ? '' : `${unlockAt(unlock).toLocaleString()} ✧`;
+    }
+  }
+
+  private showAviary(): void {
+    this.markPicks();
+    this.showJourney(this.journeyBars[3], false);
+    this.only(this.aviary);
+  }
+
   private markTime(t: TimeOfDay): void {
     for (const chip of this.timeChips) {
       const on = chip.dataset.time === t;
@@ -340,7 +455,7 @@ export class Menu {
   /** Shows only `panel` (or none), with the pause button only while flying. */
   private only(panel: HTMLDivElement | null): void {
     this.restToken++;
-    for (const p of [this.start, this.pause, this.rest, this.help])
+    for (const p of [this.start, this.pause, this.rest, this.help, this.aviary])
       p.classList.toggle('show', p === panel);
     this.pauseBtn.classList.toggle('show', panel === null);
     this.fsBtn?.classList.toggle('show', panel !== null);
@@ -431,9 +546,8 @@ export class Menu {
     return el;
   }
 
-  /** A gentle glow on the title's journey bar (a locked card was tapped). */
-  private nudgeJourney(): void {
-    const bar = this.journeyBars[0];
+  /** A gentle glow on a journey bar (something locked was tapped). */
+  private nudgeJourney(bar: HTMLElement): void {
     bar.classList.remove('nudge');
     void bar.offsetWidth; // restart the animation
     bar.classList.add('nudge');

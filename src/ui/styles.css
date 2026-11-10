@@ -740,6 +740,156 @@ body.steer-split .boost-btn {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
 }
 
+/* Aviary and Controls side by side under Play. */
+.title-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.title-row .btn.ghost {
+  margin: 0;
+}
+
+/* Aviary: the card stands aside and lets the world through, so the bird gliding behind it (the
+   live preview of what it wears) stays in view: to the left on wide screens, low on tall ones. */
+.menu.aviary {
+  place-items: end center;
+}
+
+@media (min-aspect-ratio: 1/1) {
+  .menu.aviary {
+    place-items: center start;
+    padding-left: max(16px, 4vw);
+  }
+  .aviary .card {
+    max-width: min(380px, 42vw);
+  }
+}
+
+.aviary .card {
+  background: rgba(60, 45, 80, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 22px;
+  padding: 18px 24px;
+  box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+
+.aviary .card h2 {
+  font-size: 32px;
+}
+
+.aviary-sub {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  opacity: 0.85;
+}
+
+.aviary h3 {
+  margin: 12px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.picks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.pick {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 4px 7px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fffaf0;
+  text-shadow: 0 1px 8px rgba(60, 40, 80, 0.5);
+  background: rgba(255, 248, 238, 0.12);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.pick:hover,
+.pick:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.pick.selected {
+  border: 2px solid rgba(255, 244, 220, 1);
+  background: rgba(255, 236, 210, 0.36);
+  box-shadow: 0 0 18px rgba(255, 210, 150, 0.5);
+}
+
+.swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.5px rgba(255, 255, 255, 0.6),
+    0 2px 8px rgba(60, 40, 80, 0.35);
+}
+
+.pick-name {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pick-lock {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.pick-lock:empty {
+  display: none;
+}
+
+/* Locked: the swatch shows what is coming, faded; the pick says when it opens. */
+.pick.locked {
+  cursor: default;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(60, 45, 80, 0.14);
+}
+
+.pick.locked .swatch {
+  opacity: 0.4;
+  filter: saturate(0.5);
+}
+
+.pick.locked .pick-name {
+  opacity: 0.6;
+}
+
+.aviary .journey {
+  margin: 16px auto 4px;
+}
+
+@media (max-width: 480px) {
+  .picks {
+    gap: 5px;
+  }
+  .pick-name {
+    font-size: 11.5px;
+  }
+  .swatch {
+    width: 26px;
+    height: 26px;
+  }
+}
+
 /* Brief veil while a level switch rebuilds the world. */
 .veil {
   position: fixed;
@@ -1143,6 +1293,12 @@ body.touch .settings label.touch-only.row {
   .pause .card,
   .help .card {
     padding: 16px 22px;
+  }
+  .aviary .card {
+    padding: 10px 18px;
+  }
+  .aviary-sub {
+    display: none;
   }
   .settings {
     margin-top: 12px;

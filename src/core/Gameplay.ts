@@ -8,6 +8,7 @@ import { trickFamily, trickName, trickScale, type TrickKind } from '../player/Tr
 import { Particles } from '../fx/Particles';
 import { gust } from '../player/FlightModel';
 import { Trails } from '../fx/Trails';
+import type { TrailDef } from '../fx/TrailStyle';
 import { Wind } from '../fx/Wind';
 import { Hud } from '../ui/Hud';
 import { Lanterns } from '../world/Lanterns';
@@ -41,6 +42,8 @@ export class Gameplay {
   private readonly lanternTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
   private contactFx = 0;
+  /** Lowest trail opacity, so the Aviary can show the trail on a lazy glide (0 in play). */
+  trailPreview = 0;
   /** Rising sparks round a lantern still to reach (bound once: no per-frame closure). */
   private readonly lanternSpark = (x: number, y: number, z: number): void =>
     this.glow.emit(x, y, z, 0, 4 + Math.random() * 3, 0, 2.4, 1.5, GOLD, -0.5, 0.3);
@@ -80,6 +83,11 @@ export class Gameplay {
     game.onFrame((dt, time) => this.frame(dt, time));
     game.events.on('contact', (e) => this.onContact(e.kind, e.x, e.y, e.z, e.strength));
     game.events.on('level', () => this.onLevel());
+  }
+
+  /** The wingtip trail's style (the Aviary). */
+  setTrail(style: TrailDef): void {
+    this.trails.setStyle(style);
   }
 
   /** New level: clear the old world's wisps, thermals and lanterns; the path restarts at the bird. */
@@ -281,8 +289,9 @@ export class Gameplay {
       dt,
       [g.bird.tipL, g.bird.tipR],
       cam,
-      trailIntensity,
-      this.tmp.copy(WHITE).lerp(this.wispColor, this.progress.flow * 0.6),
+      Math.max(trailIntensity, this.trailPreview),
+      this.wispColor,
+      this.progress.flow,
     );
     const pitch = pose.pitch + pose.trickPitch;
     const cp = Math.cos(pitch);

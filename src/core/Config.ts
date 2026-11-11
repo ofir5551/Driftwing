@@ -32,7 +32,11 @@ export const Config = {
     // level switch (LevelDef.maxAltitude); exposed here for live tuning.
     maxAltitude: 400,
     boundsPush: 0.06, // strength of the soft altitude push (per metre of overshoot)
-    clearance: 1.6, // m the bird's body keeps above the ground/water surface
+    clearance: 1.6, // m the bird's body keeps above the water, and the margin for solid scenery
+    groundHeight: 4, // m the bird never goes below over land (treetops, roofs and cloud sea too)
+    groundCushion: 6, // m above that floor over which the nose is eased level, so it glides in
+    groundLead: 0.7, // s of current sink rate the cushion looks ahead, so fast dives ease out early
+    shoreBlend: 3, // m of terrain above the water over which the water margin blends into the land floor
     terrainLookahead: 1.4, // s ahead to sample the ground for the climb assist
     terrainAssist: 1.6, // how strongly the nose lifts to clear terrain ahead
     bounce: 0.55, // fraction of downward speed returned as upward speed on contact

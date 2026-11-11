@@ -15,8 +15,8 @@
 Arcade glide. Constant forward motion; pitch trades speed (dive = faster, climb = slower) with
 soft min/max speed. Steering is critically damped; turns bank into the curve and auto-level.
 Flap (Space / click / button): gentle lift + speed boost, short cooldown, no stamina.
-Soft altitude bounds push back gently. Ground/water contact skims with a puff/splash and a small
-slowdown. Chase camera: spring-damped, FOV widens with speed, follows roll slightly, looks ahead.
+Soft altitude bounds push back gently. Water contact skims with a splash and a small slowdown.
+Land never bumps the bird (see "Ground floor" under decisions): it glides above it. Chase camera: spring-damped, FOV widens with speed, follows roll slightly, looks ahead.
 Thermals lift the bird for free. Soft ceiling at 400 m above water, above the cloud layer (300 m in Neon Bay, per level).
 Holding climb makes the bird beat its wings (a small lift and push every 0.4 s, stronger the
 steeper the climb, with a soft whoosh); the flap button stays the big boost. Nose-down pulls
@@ -593,6 +593,15 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   flaps and thermals are for climbing and fun, not for staying aloft.
 - Climb authority fades near min speed, so "hold up" levels off instead of stalling.
 - Terrain assist: the model samples the ground ~1.4 s ahead and lifts the nose to clear it.
+- Ground floor: players said bumping the ground broke the immersion, so over land (terrain, canopy,
+  roofs, the cloud sea: everything `groundAt` reports above the water) the bird keeps `groundHeight`
+  (4 m) clear and never scrapes. It is a cushion, not a wall: near the floor the nose-down allowance
+  fades to level (`groundCushion`, judged `groundLead` s ahead at the current sink rate so a fast dive
+  eases out early), and the terrain assist asks for a wider berth. The hard clamp is only a backstop
+  for steep slopes: no bounce, no lost speed, and no dust or sound (`Game.step` only emits a ground
+  `contact` when a level's `collide` reports a wall strike, which still glances off). Water is
+  unchanged (splash, bounce, the Swallow's skim); the margin blends between the two over `shoreBlend`
+  metres of terrain above the shoreline. Tuned in `Config.flight`.
 - Steering up = climb by default (pointer above centre, W/Up). Invert-Y flips it.
 - Chase camera springs its orbit angles and distance, not world position: a world-space spring
   trails by 2v/omega at speed and an offset spring cuts inside turns; polar keeps the bird steady.

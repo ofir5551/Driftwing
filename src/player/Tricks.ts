@@ -67,6 +67,8 @@ const surface = (env: FlightEnv, x: number, z: number): number =>
 export function fitLoop(s: FlightState, env: FlightEnv, r: number): number {
   const c = Config.tricks;
   const room = Config.world.waterLevel + Config.flight.maxAltitude - 8 - s.y;
+  // The loop must stay above the land floor as well as the old skim margin over water.
+  const clearBelow = Math.max(Config.flight.clearance * 2, Config.flight.groundHeight);
   r = Math.min(r, room / 2);
   const fx = Math.sin(s.yaw);
   const fz = Math.cos(s.yaw);
@@ -77,8 +79,7 @@ export function fitLoop(s: FlightState, env: FlightEnv, r: number): number {
       // Ahead by the circle plus the drift so far; drift time ~ arc length / speed.
       const f = r * Math.sin(a) + c.loopDrift * r * a;
       const up = r * (1 - Math.cos(a));
-      if (surface(env, s.x + fx * f, s.z + fz * f) + Config.flight.clearance * 2 > s.y + up)
-        clear = false;
+      if (surface(env, s.x + fx * f, s.z + fz * f) + clearBelow > s.y + up) clear = false;
     }
     if (clear) return r;
   }

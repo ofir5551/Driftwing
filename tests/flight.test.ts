@@ -3,6 +3,7 @@ import { Config } from '../src/core/Config';
 import { springStep } from '../src/core/math';
 import {
   createFlightState,
+  floorMargin,
   gust,
   stepFlight,
   type FlightEnv,
@@ -132,11 +133,42 @@ describe('FlightModel', () => {
 
   it('never goes through the ground; contact is soft', () => {
     const env = flat(20);
-    const { s, contacts } = run(createFlightState(0, 60, 0), 10, input(0, -1), env);
-    expect(s.y).toBeGreaterThanOrEqual(20 + Config.flight.clearance - 1e-6);
+    const { s } = run(createFlightState(0, 60, 0), 10, input(0, -1), env);
+    expect(s.y).toBeGreaterThanOrEqual(20 + Config.flight.groundHeight - 1e-6);
     expect(s.speed).toBeGreaterThan(Config.flight.minSpeed * 0.6);
-    // Terrain assist means contact may be rare, but the bird must stay above ground.
-    expect(contacts).toBeGreaterThanOrEqual(0);
+  });
+
+  it('holding dive over land eases level above the floor without touching it', () => {
+    const env = flat(20);
+    const s = createFlightState(0, 60, 0);
+    let minH = Infinity;
+    let contacts = 0;
+    for (let t = 0; t < 12; t += DT) {
+      stepFlight(s, input(0, -1), env, DT);
+      minH = Math.min(minH, s.y - 20);
+      if (s.contact !== 'none') contacts++;
+    }
+    expect(minH).toBeGreaterThanOrEqual(Config.flight.groundHeight - 1e-6);
+    // The cushion levels the bird out; the floor clamp is only a backstop.
+    expect(contacts).toBe(0);
+    // And it settles into a glide just above the floor, not hovering high.
+    expect(s.y - 20).toBeLessThan(Config.flight.groundHeight + Config.flight.groundCushion + 1);
+  });
+
+  it('a steep slope never puts the bird below the land floor', () => {
+    // A wall of rising ground in the bird's path: the bird is carried up it, never into it.
+    const env: FlightEnv = {
+      groundAt: (_x, z) => Math.max(0, (z - 100) * 1.5),
+      thermalAt: () => 0,
+    };
+    const s = createFlightState(0, 30, 0);
+    for (let t = 0; t < 15; t += DT) {
+      stepFlight(s, input(0, -1), env, DT);
+      const g = env.groundAt(s.x, s.z);
+      expect(s.y).toBeGreaterThanOrEqual(
+        Math.max(g, Config.world.waterLevel) + floorMargin(g) - 1e-6,
+      );
+    }
   });
 
   it('reports water contact when skimming a lake', () => {

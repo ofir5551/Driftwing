@@ -151,6 +151,20 @@ export function surfaceAt(env: FlightEnv, x: number, z: number): number {
   return Math.max(env.groundAt(x, z), Config.world.waterLevel);
 }
 
+/**
+ * 0 over water, 1 over land, blending across `shoreBlend` metres of terrain above the water so the
+ * floor eases between the two at a shoreline instead of stepping by a couple of metres.
+ */
+export function landWeight(ground: number): number {
+  return smoothstep(0, Config.flight.shoreBlend, ground - Config.world.waterLevel);
+}
+
+/** How far above the surface the bird's body is kept: a skim over water, a clear floor over land. */
+export function floorMargin(ground: number): number {
+  const c = Config.flight;
+  return c.clearance + (c.groundHeight - c.clearance) * landWeight(ground);
+}
+
 export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, dt: number): void {
   const c = Config.flight;
   const m = s.tune;
@@ -194,16 +208,33 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const fx = Math.sin(s.yaw);
   const fz = Math.cos(s.yaw);
   const ahead = Math.max(1, s.speed * c.terrainLookahead);
-  const aheadSurface = Math.max(
-    surfaceAt(env, s.x + fx * ahead, s.z + fz * ahead),
-    surfaceAt(env, s.x + fx * ahead * 0.5, s.z + fz * ahead * 0.5),
-  );
-  const shortfall = aheadSurface + c.clearance * 3 - s.y;
+  // Each sample asks for its own margin: a wide berth over land (the floor plus room to level out),
+  // the old skim margin over water.
+  let needed = -Infinity;
+  for (let k = 1; k <= 2; k++) {
+    const g = env.groundAt(s.x + fx * ahead * (k / 2), s.z + fz * ahead * (k / 2));
+    const margin = c.clearance * 3 + (c.groundHeight * 1.5 - c.clearance * 3) * landWeight(g);
+    needed = Math.max(needed, Math.max(g, water) + margin);
+  }
+  const shortfall = needed - s.y;
   if (shortfall > 0 && !looping) {
     targetPitch = Math.max(
       targetPitch,
       Math.min(c.maxClimb, (shortfall / ahead) * c.terrainAssist),
     );
+  }
+
+  // Ground cushion: over land the nose-down allowance shrinks to zero as the bird nears its floor
+  // (`groundHeight`), so a dive flattens into a glide along the ground instead of running into it.
+  // Water is left out on purpose: skimming and splashing there is part of the game.
+  const here = env.groundAt(s.x, s.z);
+  const land = landWeight(here);
+  if (land > 0 && !looping) {
+    // Judge the height we will have in `groundLead` seconds at the current sink rate, not the one
+    // we have now: the pitch spring lags, so a steep dive must start easing out well before the floor.
+    const sink = Math.max(0, -(Math.sin(s.pitch) * s.speed + s.liftVy));
+    const free = smoothstep(0, c.groundCushion, s.y - here - c.groundHeight - sink * c.groundLead);
+    targetPitch = Math.max(targetPitch, -c.maxDive * (1 - land * (1 - free)));
   }
 
   // Soft altitude bounds bias the nose too, so the push feels like a gentle hand, not a wall.
@@ -311,23 +342,29 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   s.z += (fz * along + fx * side) * dt;
   s.y += vy * dt;
 
-  // --- Soft contact --------------------------------------------------------------------------
-  // Never a crash: clamp above the surface, reflect part of the downward velocity as a bounce,
-  // nudge the nose up and shave a little speed. The contact flag drives splash/dust FX.
+  // --- Floor ---------------------------------------------------------------------------------
+  // Never a crash. Over land the cushion above should keep the bird off its floor; if a steep
+  // slope still catches it, it is simply carried up and along with no bounce and no lost speed, so
+  // it reads as gliding over the ground, never into it. The level's collide() may still glance it
+  // off a steep wall (that is what the 'ground' flag is for); the FX for it come from there.
+  // Water keeps the old soft bounce, splash and slowdown: skimming it is part of the game.
   const ground = env.groundAt(s.x, s.z);
-  const floor = Math.max(ground, water) + c.clearance;
+  const floor = Math.max(ground, water) + floorMargin(ground);
   if (s.y < floor) {
-    s.contact = ground >= water ? 'ground' : 'water';
+    const onLand = ground >= water;
+    s.contact = onLand ? 'ground' : 'water';
     s.contactStrength = Math.max(0, -vy);
     s.y = floor;
-    s.liftVy = Math.max(s.liftVy, s.contactStrength * c.bounce + 1.5);
+    // Either way the nose comes up a little, so the bird levels out instead of grinding down.
     if (s.pitchSpring.x < 0 && !looping) {
       s.pitchSpring.x *= 0.5;
       s.pitchSpring.v = Math.max(s.pitchSpring.v, 0.8);
     }
-    // A skimming bird touches water without losing speed.
-    if (s.contact !== 'water' || m.waterSkim <= 0)
-      s.speed -= s.speed * c.skimSlowdown * dt * (s.contact === 'ground' ? 1.5 : 1);
+    if (!onLand) {
+      s.liftVy = Math.max(s.liftVy, s.contactStrength * c.bounce + 1.5);
+      // A skimming bird touches water without losing speed.
+      if (m.waterSkim <= 0) s.speed -= s.speed * c.skimSlowdown * dt;
+    }
   }
 }
 

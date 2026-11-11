@@ -295,7 +295,9 @@ export class Game {
     }
     if (s.flapped) this.events.emit('flap', { x: s.x, y: s.y, z: s.z });
     if (s.climbBeat) this.events.emit('wingbeat', { x: s.x, y: s.y, z: s.z });
-    if (s.contact !== 'none')
+    // Water splashes; the ground only makes a sound or dust when the level reports a solid strike
+    // (`hit`, a wall glance). Gliding along the ground floor is silent, so nothing seems to bump.
+    if (s.contact === 'water' || (s.contact === 'ground' && hit > 0))
       this.events.emit('contact', {
         kind: s.contact,
         x: s.x,

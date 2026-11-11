@@ -37,13 +37,14 @@ export const UNLOCKS: readonly Unlock[] = [
   { id: 'auroraTrail', kind: 'trail', name: 'Aurora trail' },
   { id: 'canyon', kind: 'level', name: 'Red Canyons' },
   { id: 'gildedPlumage', kind: 'plumage', name: 'Gilded plumage' },
+  { id: 'peaks', kind: 'level', name: 'Sea of Clouds' },
   { id: 'phoenix', kind: 'species', name: 'Phoenix' },
 ];
 
 const BY_ID = new Map<string, Unlock>(UNLOCKS.map((u) => [u.id, u]));
 
 /** Milestones added to the track after saves began recording what they had seen. */
-const ADDED_LATER: ReadonlySet<string> = new Set(['swallow', 'crane', 'phoenix']);
+const ADDED_LATER: ReadonlySet<string> = new Set(['swallow', 'crane', 'phoenix', 'peaks']);
 /** The track as it stood before saves recorded what they had seen. */
 const LEGACY_SEEN: readonly UnlockId[] = UNLOCKS.map((u) => u.id).filter(
   (id) => !ADDED_LATER.has(id),

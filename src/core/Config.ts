@@ -206,6 +206,32 @@ export const Config = {
     mountainDistance: 6500, // m
     mountainFootFade: 0.05, // rad below the foot over which it dissolves into the haze
   },
+  peaks: {
+    // Plan (read when a level is created).
+    cloud: 40, // m, mean height of the cloud sea's surface (the ground the bird skims)
+    swell: 6, // m, long swells in the cloud sea, either way
+    billow: 9, // m, rounded heaps of cloud on the swells, creased between
+    dome: 26, // m, cloud heaps rising off the sea now and then
+    heap: 6, // m, cloud piled against the foot of every spire
+    spireCell: 100, // m, grid cell holding up to two spires
+    spireMin: 13, // m, base radius of the smallest spires
+    spireMax: 32, // m, base radius of the largest (before the cluster boost)
+    spireTop: 330, // m, no summit rises above this (the ceiling is 420)
+    spireLod: 520, // m, beyond this spires use the coarse mesh (chosen when chunks change)
+    gateAhead: 400, // m from the spawn to the Sky Gate (two spires and a bridge)
+    gateHalf: 52, // m, each gate spire's centre off the line the bird flies
+    bridgeY: 150, // m, the gate bridge's deck where it meets the rock
+    bridgeSag: 5, // m, how far the deck sags in the middle
+    // Atmosphere and light.
+    mist: 0.75, // the cloud sea's breath: mist hugging its surface, dissolving the spires' feet
+    mistRise: 30, // m above the cloud sea that mist reaches
+    mistFar: 0.36, // distance haze: far spires fade in layers
+    banks: 0.6, // opacity of the cloud banks drifting round the spires' waists
+    billowDetail: 0.55, // strength of the cauliflower lobes painted on the cloud sea
+    glow: 0.3, // how much the cloud sea glows with the sky's light (clouds are never dark)
+    summitsDistance: 5000, // m, how far the painted snow peaks on the horizon pretend to be
+    lanterns: 1, // brightness of temple and bridge lanterns after dark
+  },
   karst: {
     // Plan (read when a level is created).
     riverScale: 0.0008, // frequency of the river noise: a river every ~700 m
@@ -262,6 +288,7 @@ export const Config = {
     auroraTrail: 2050,
     canyon: 2400,
     gildedPlumage: 2700,
+    peaks: 3000,
     phoenix: 3300, // the final bird, the end of the track (later birds go before it)
   },
   aviary: {

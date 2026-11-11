@@ -6,7 +6,7 @@ import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 
-export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord' | 'jerusalem' | 'canyon';
+export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord' | 'jerusalem' | 'canyon' | 'peaks';
 
 /**
  * Everything level-specific about the world the bird flies through: terrain, scenery, what
@@ -38,6 +38,8 @@ export interface World {
   pushPoint(p: { x: number; y: number; z: number }, margin: number): void;
   /** Whether a thermal column of radius r may stand at x,z. */
   thermalOk(x: number, z: number, r: number): boolean;
+  /** Colour of the puff a ground skim throws up (default: dust, or leaves over canopy). */
+  readonly skimColor?: THREE.Color;
   /** Optional level-specific wisp patterns. */
   readonly planner: WispPlanner | null;
   readonly chunkCount: number;

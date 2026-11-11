@@ -67,6 +67,8 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
   one: ancient stone that glows, a sense of arrival, swooping over roofs and down valleys.
 - **Red Canyons**: red sandstone canyons, arches and mesas (the Colorado Plateau), opening in the
   midday glare. The free one: wide open sky, speed down a canyon, threading stone arches.
+- **Sea of Clouds**: granite spires standing out of a sea of cloud (Huangshan's summits), opening
+  at sunrise. The lofty one: above everything, weightless, skimming the cloud tops.
 
 ## Neon Bay
 
@@ -265,6 +267,56 @@ across the floor); near an arch a ribbon pulls to the middle and to 0.42 of the 
 so it threads it, the Great Arch first. Glides carry on over the rims and the plateau, and
 generic patterns run only far out in the desert.
 
+## Sea of Clouds
+
+Mood: serene, lofty, weightless; the feeling of being above everything. It opens as the sun
+clears the cloud sea, ahead and a little right of the bird (`sunTurn`), beside the Sky Gate, and
+the day runs at 1.3x: a deep high-altitude blue by day, honey at golden hour, rose and violet at
+dusk and a moonlit silver sea under the stars. The ground light is the cloud's bounce (lilac,
+blue-grey), never earth's, and the fog is the far sea's colour, so the horizon melts into it;
+the water plane far below takes the same colour where it shows past the last chunk.
+
+Plan: the ground is the cloud sea at ~40 m: long swells, rounded heaps from |noise| (round tops,
+sharp creases where it crosses zero, the shape of cumulus seen from above; plain noise rolled
+like dunes and read as sand), now and then a big heap rising 26 m, and cloud piled softly against
+every spire's foot. Spires stand on a 100 m jittered grid (up to two per cell, clustered by a
+noise into ranges with open sea between, hash coordinates offset so cells mirrored through the
+origin differ), their bases hidden in the cloud. Five silhouettes (column, needle, tiered tower,
+massif, leaning blade) are lathed from one profile: a tapering column with stepped tiers (the
+granite breaking along its joints) under a flat summit dome; the mesh is flat-shaded, each
+column of rock a little proud or recessed, so the granite reads as hard facets where Jade River's
+limestone is smooth. Windswept pines (flat pads of needles on a crooked trunk) crowd the crowns,
+stand on the ledges and reach out from the cliffs over the drop; hermitages crown some of the
+tallest. The Sky Gate stands 400 m ahead of the spawn: two great columns 104 m apart joined by
+a hanging plank bridge with rope rails and prayer flags (blue, white, red, green, yellow), a
+monastery (a main hall, a side hall and a three-storey tower) on the taller one.
+
+Atmosphere: the cloud sea has its own paint (cauliflower lobes drifting with the wind, tilted
+into the normal so the toon bands break into heaped puffs, lilac in the creases, a glow from the
+sky's light so cloud is never dark). The shared mist rests on the cloud tops (`uMistBase`) and
+reaches 30 m up, dissolving the spires' feet; the sea itself takes only the fog. Banks of cloud
+drift round the spires' waists and the bird can fly through them; the sky's own clouds float
+140 m higher than usual. Two ranges of great snow peaks are painted round the horizon (jagged
+pyramids, the face toward the sun lit and coloured by it, pink at sunrise), standing out of the
+cloud sea's haze. Lanterns on the temples and the bridge glow after dark.
+
+Flight: the cloud sea is soft ground, skimmed like water with a puff of cloud (`World.skimColor`).
+Spires are solid but soft, flown with the city's look-ahead and wall glance; summits push up
+(skim them). The bridge is a solid box with an underside: the look-ahead eases the nose under
+it, and touching it pushes the bird up off the deck or down under it. Music: a breathy bamboo
+flute (a sine and a soft triangle with band-passed breath on the pitch, a chiff as it speaks,
+bending up from a little flat, a slow vibrato on held notes) at 60 BPM over a wide high sine pad
+and an open-fifth drone, a slow glinting arpeggio an octave up with flow, and the largest reverb;
+lydian at dawn (the raised fourth floats), major by day, suspended in the golden hour, dorian at
+dusk, minor at night.
+
+Wisps: the opening ribbon rises gently down the open corridor and threads the Sky Gate 40 m
+under the bridge. Then: skims that ride 7 m over the cloud tops, following the heaps (from high
+up a skim glides straight down first and only then weaves); slaloms between spires at the height
+the ribbon is flying; glides that sink back toward the sea; and swings that join a spire's
+circle on a tangent, climb about 315 degrees round it and cross its summit. Every pattern is
+checked 9 m clear of rock and 3 m over the cloud before anything spawns.
+
 ## Gameplay
 
 Wisps in arcs/ribbons ahead of the player. Quick chains fill a flow meter (score multiplier,
@@ -323,6 +375,7 @@ earlier than first planned, since new birds are the heart of it.
 | 2050 | Aurora trail                                   |                11-12 |
 | 2400 | **Red Canyons**                                |                13-14 |
 | 2700 | Gilded plumage                                 |                   15 |
+| 3000 | **Sea of Clouds**                              |                16-17 |
 | 3300 | **Phoenix** (and its own plumage): the end     |                   18 |
 
 The Phoenix is the last milestone of the track, whatever comes later: the Falcon and the
@@ -529,7 +582,7 @@ Generative ambient on Web Audio: detuned pads -> lowpass -> synthesized convolut
 sub drone, sparse pentatonic bells on a slow grid. Wisp pickups play the next note of a phrase,
 quantized to the grid. Speed opens the filter, altitude shifts voicing, flow adds arp/shimmer.
 Key drifts with the day cycle. Each level has a `MusicStyle` (`audio/styles.ts`): keys, tempo,
-progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, reverb, arpeggio, beat. SFX: flap whoosh, speed-scaled wind, splash. Lookahead scheduler.
+progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fifth, reverb, arpeggio, beat. SFX: flap whoosh, speed-scaled wind, splash. Lookahead scheduler.
 
 ## Decisions log
 
@@ -710,6 +763,24 @@ progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, re
   negation flips them alike), which stood identical arches in cells mirrored through the spawn.
   The canyon offsets its cell coordinates far from the origin rather than change the shared hash,
   which would reshuffle every other level.
+- Sea of Clouds' ground is a cloud sea drawn as ordinary terrain chunks with their own shader,
+  not a volume: the flight model, the look-ahead, the camera and the wisp floor all work on a
+  height field already, and skimming the cloud tops is the level's water. Its heaps come from
+  |noise|: plain noise at any amplitude rolled like dunes and read as sand in the golden hour.
+- The shared mist gained a base height (`uMistBase`, 0 for every other level) so it can rest on
+  the cloud tops; the cloud sea's own material leaves the low mist out (on the sea it flattened
+  every billow to one wash) and takes only the fog.
+- Sea of Clouds hands over to the generic wisp patterns only out over open cloud (no spire within
+  260 m), and when nothing fits it wheels round with short glides instead: near a spire a
+  generic pattern lifts its path straight over the summit, a 100 m jump the bot could not climb
+  (as the fjords found with their walls). Swings join the spire's circle on a tangent and sweep
+  315 degrees so the crossing over the summit continues the ribbon's heading; leaving across the
+  crown after half a turn made a hairpin, and a spire is only chosen if its summit can be
+  reached at 80 % of the steepest rise. In a two-minute headless flight per seed the bot gathers
+  ~1.5-1.7 wisps/s and glances off rock 0-1 times.
+- Sea of Clouds joined the journey at 3000 light, after the Gilded plumage and before the
+  Phoenix, which stays the end of the track. Saves from before it treat it as new to the track
+  (`ADDED_LATER`), so a player already past 3000 still gets its card.
 - Installable web app (PWA), so phones can install it from the browser and play offline. No
   plugin dependency: a small Vite plugin builds `src/sw.ts` into `sw.js` with the build's file
   list and a version hash. The worker precaches each build in its own cache. Pages are network

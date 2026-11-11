@@ -9,6 +9,7 @@ import {
 } from '../src/audio/scales';
 import {
   CANYON_MUSIC,
+  PEAKS_MUSIC,
   CITY_MUSIC,
   FJORD_MUSIC,
   HIGHLANDS_MUSIC,
@@ -107,6 +108,7 @@ describe('level music styles', () => {
     FJORD_MUSIC,
     JERUSALEM_MUSIC,
     CANYON_MUSIC,
+    PEAKS_MUSIC,
   };
 
   it.each(Object.entries(styles))('%s is a playable style', (_, st) => {

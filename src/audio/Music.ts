@@ -416,6 +416,8 @@ export class Music {
         return;
       case 'guitar':
         return this.guitar(t, midi, vel, pan, dur, level);
+      case 'flute':
+        return this.flute(t, midi, vel, pan, dur, level);
     }
   }
 
@@ -654,6 +656,72 @@ export class Music {
       o.stop(end + 0.05);
     }
     flt.connect(env);
+    this.out(env, pan);
+    vib.start(t);
+    vib.stop(end + 0.05);
+  }
+
+  /**
+   * Bamboo flute: a sine with a soft triangle under it (a flute is nearly a pure tone) and a
+   * breath of band-passed noise riding on the pitch, loudest in the chiff as the note speaks.
+   * It swells in rather than striking, bends up into pitch from a little flat (the player
+   * shading the hole open), and a held note blooms a slow vibrato.
+   */
+  private flute(
+    t: number,
+    midi: number,
+    vel: number,
+    pan: number,
+    dur: number,
+    level: number,
+  ): void {
+    const ctx = this.engine.ctx!;
+    const f = midiToFreq(midi);
+    const len = Math.min(dur * 0.9, 3.6);
+    const end = t + len;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(level * vel * 0.55, t + 0.09);
+    env.gain.linearRampToValueAtTime(level * vel * 0.4, t + len * 0.6);
+    env.gain.exponentialRampToValueAtTime(0.0001, end);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 5.1;
+    const depth = ctx.createGain();
+    depth.gain.setValueAtTime(0, t);
+    depth.gain.linearRampToValueAtTime(0, t + 0.35);
+    depth.gain.linearRampToValueAtTime(len > 1.2 ? 14 : 5, t + 1.1); // cents
+    vib.connect(depth);
+    for (const [type, gain] of [
+      ['sine', 1],
+      ['triangle', 0.22],
+    ] as const) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = f;
+      o.detune.setValueAtTime(-35, t);
+      o.detune.setTargetAtTime(0, t, 0.06);
+      depth.connect(o.detune);
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      o.connect(g).connect(env);
+      o.start(t);
+      o.stop(end + 0.05);
+    }
+    // Breath: noise on the note's pitch, a puff at the start and a whisper under the tone.
+    const src = ctx.createBufferSource();
+    src.buffer = this.engine.noise;
+    src.loop = true; // the buffer is shorter than a long note
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = Math.min(f * 2, 8000);
+    bp.Q.value = 1.6;
+    const breath = ctx.createGain();
+    breath.gain.setValueAtTime(0, t);
+    breath.gain.linearRampToValueAtTime(level * vel * 0.5, t + 0.04);
+    breath.gain.exponentialRampToValueAtTime(level * vel * 0.08, t + 0.3);
+    breath.gain.exponentialRampToValueAtTime(0.0001, end);
+    src.connect(bp).connect(breath).connect(env);
+    src.start(t, this.rand() * 1.5, len + 0.1);
     this.out(env, pan);
     vib.start(t);
     vib.stop(end + 0.05);

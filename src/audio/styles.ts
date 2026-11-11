@@ -6,10 +6,11 @@ import {
   FJORD_KEYS,
   JERUSALEM_KEYS,
   KARST_KEYS,
+  PEAKS_KEYS,
 } from './scales';
 
 /** Instrument for ambient notes, wisp notes and the lantern flourish. */
-export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar';
+export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute';
 
 /**
  * A level's musical identity. The generative engine is shared; this is what it plays and how,
@@ -140,5 +141,25 @@ export const CANYON_MUSIC: MusicStyle = {
   droneFifth: 0.75,
   reverb: 1.3,
   arp: { pattern: [0, 4, 2, 4, 0, 4, 2, 4], perStep: 2, octave: 0 },
+  pulse: 0,
+};
+
+/**
+ * Sea of Clouds: weightless and high. A breathy bamboo flute that bends up into its notes and
+ * blooms a slow vibrato, over a wide, high sine pad and an open-fifth drone, a slow glinting
+ * arpeggio an octave up with flow, and the largest room of any level, as if the sound carried
+ * across the cloud sea and came back off the far peaks.
+ */
+export const PEAKS_MUSIC: MusicStyle = {
+  keys: PEAKS_KEYS,
+  bpm: 60,
+  progression: [0, 3, 1, 4, 0, 2, 3, 0],
+  voice: 'flute',
+  density: 0.55,
+  grace: 0.22,
+  pad: { wave: 'sine', detune: 9, attack: 4, release: 6, level: 0.06 },
+  droneFifth: 0.7,
+  reverb: 1.6,
+  arp: { pattern: [0, 4, 2, 7, 4, 2], perStep: 1, octave: 12 },
   pulse: 0,
 };

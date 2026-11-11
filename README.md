@@ -2,8 +2,8 @@
 
 A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
 through a neon-lit Japanese bay city, among misty karst peaks on a jade river, down deep fjords
-under the northern lights, over the golden stone of Jerusalem or through the stone arches of red
-desert canyons, follow ribbons of glowing wisps
+under the northern lights, over the golden stone of Jerusalem, through the stone arches of red
+desert canyons or among granite spires above a sea of clouds, follow ribbons of glowing wisps
 and build a melody as you gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
 music, sound) is generated procedurally: the repository contains no art or audio assets.
 
@@ -109,6 +109,25 @@ you back to choose again).
 | **Hoodoos on the rim**                          | **Night**                                     |
 | ![Hoodoos](docs/screenshots/canyon-hoodoos.jpg) | ![Night](docs/screenshots/canyon-night.jpg)   |
 
+- **Sea of Clouds**: granite spires rising out of a sea of cloud, after Huangshan's summits,
+  opening as the sun comes up over it. The cloud sea is the ground: rolling heaps of cloud, creased
+  lilac between them, that the bird skims as it would water, throwing up a puff of cloud. Faceted
+  granite columns, needles and tiered towers stand out of it with windswept pines on their crowns
+  and reaching out from the cliffs, hermitages on the tallest, and banks of cloud drift round their
+  waists. Ahead of the start stands the Sky Gate: two great spires joined by a hanging plank bridge
+  strung with prayer flags, a monastery on the taller. Great snow peaks ring the horizon, pink at
+  sunrise. The music is a breathy bamboo flute in a floating lydian at dawn, over a high, wide pad
+  in the largest room of any level. Wisps thread the gate, skim the cloud tops, weave between the
+  spires and swing round one to cross its summit.
+
+![Sea of Clouds title screen](docs/screenshots/peaks-title.jpg)
+
+| Through the Sky Gate at sunrise            | Midday over the cloud sea                |
+| ------------------------------------------ | ---------------------------------------- |
+| ![Gate](docs/screenshots/peaks-gate.jpg)   | ![Day](docs/screenshots/peaks-day.jpg)   |
+| **Above the spires**                       | **Dusk, the bridge lanterns lit**        |
+| ![Above](docs/screenshots/peaks-above.jpg) | ![Dusk](docs/screenshots/peaks-dusk.jpg) |
+
 ## Play
 
 ```bash
@@ -144,7 +163,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst|fjord|jerusalem|canyon`, `?unlocked` (every level open, nothing saved).
+`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks`, `?unlocked` (every level open, nothing saved).
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -188,6 +207,11 @@ file list by the plugin in `vite.config.ts`) and `src/pwa.ts`, which registers i
   their walls stepped terrain read at a meandering distance so the strata stay level; arches
   are one instanced unit shape whose half-elliptical band is also the collision shape, so the
   look-ahead eases the bird under a span, and mesas are painted round the sky dome.
+- **Sea of Clouds**: the ground is a cloud sea (`src/world/peaks/`): terrain whose heaps come from
+  |noise| (round tops, creased valleys, as cumulus seen from above), painted by its own shader
+  (drifting lobes tilted into the normal), with the shared mist resting on it so the spires'
+  feet dissolve. Spires are lathed and flat-shaded from one stepped radius profile that the
+  collisions share; the gate's bridge is a solid with an underside the look-ahead eases under.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

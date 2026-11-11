@@ -24,6 +24,9 @@ export const MODES = {
   // Major pentatonic with the flat seventh for the major sixth: the mixolydian twang of a
   // desert guitar, bright but never sweet.
   dominantPenta: [0, 2, 4, 7, 10],
+  // Major pentatonic with the raised fourth for the fifth: lydian's floating, unresolved
+  // brightness, the sound of being above everything.
+  lydianPenta: [0, 2, 4, 6, 9],
 } as const;
 
 export type ModeName = keyof typeof MODES;
@@ -96,6 +99,18 @@ export const CANYON_KEYS: DayKey[] = [
   { root: 57, mode: 'majorPenta' }, // A, day
   { root: 64, mode: 'dominantPenta' }, // E, golden hour
   { root: 62, mode: 'minorPenta' }, // D, dusk
+  { root: 59, mode: 'minorPenta' }, // B, twilight
+];
+
+/**
+ * Sea of Clouds' keys: lydian's raised fourth at sunrise (weightless, wide-eyed), an open major
+ * by day, suspended in the golden hour, dorian at dusk and a quiet minor under the stars.
+ */
+export const PEAKS_KEYS: DayKey[] = [
+  { root: 64, mode: 'lydianPenta' }, // E, dawn
+  { root: 62, mode: 'majorPenta' }, // D, day
+  { root: 57, mode: 'susPenta' }, // A, golden hour
+  { root: 61, mode: 'dorianPenta' }, // C#, dusk
   { root: 59, mode: 'minorPenta' }, // B, twilight
 ];
 

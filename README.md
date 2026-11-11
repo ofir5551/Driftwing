@@ -151,6 +151,14 @@ Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another
 Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (enable Pages with
 "GitHub Actions" as the source in the repository settings).
 
+The game is an installable web app: Chrome offers **Install** (Android: menu → _Add to Home
+screen_ / _Install app_), Safari _Add to Home Screen_. Installed, it opens fullscreen and plays
+offline. Each deploy reaches players on their next launch online, or, if the app stays open, the
+next time it is put away on the title screen; a flight is never interrupted. The pieces:
+`public/manifest.webmanifest`, the icons in `public/icons/` (painted by
+`node scripts/icons.mjs`), the service worker `src/sw.ts` (built to `sw.js` with the build's
+file list by the plugin in `vite.config.ts`) and `src/pwa.ts`, which registers it.
+
 ## How it works
 
 - **Flight**: an arcade glide model (`src/player/FlightModel.ts`) that trades height for speed,

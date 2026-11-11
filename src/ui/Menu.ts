@@ -657,6 +657,11 @@ export class Menu {
     this.only(this.start);
   }
 
+  /** The title screen is up (nothing on it is lost by a reload). */
+  get onTitle(): boolean {
+    return this.start.classList.contains('show');
+  }
+
   showPlaying(): void {
     this.only(null);
   }

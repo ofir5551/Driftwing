@@ -20,6 +20,7 @@ import { Menu, type MenuHandlers } from './ui/Menu';
 import { DEFAULT_PLUMAGE, plumageDef } from './player/Plumage';
 import { DEFAULT_TRAIL, trailDef } from './fx/TrailStyle';
 import { DEFAULT_SPECIES, speciesDef } from './player/Species';
+import { applyUpdate, registerServiceWorker, updateReady } from './pwa';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -241,6 +242,7 @@ const handlers: MenuHandlers = {
     document.body.classList.remove('paused');
     gameplay.hud.visible = false;
     menu.showStart(gameplay.progress.best, game.level.id);
+    updateIfCalm();
   },
 };
 const menu = new Menu(ui, settings, journey, handlers);
@@ -281,8 +283,19 @@ game.onFrame((dt) => {
   }
 });
 
+/** Reloads into a newer build that has downloaded (see pwa.ts), but only on the title, where
+ *  a reload loses nothing: never mid-flight, on the pause menu or on the Rest card. */
+function updateIfCalm(): void {
+  if (!updateReady() || game.mode !== 'menu' || !menu.onTitle || switching) return;
+  persist();
+  applyUpdate();
+}
+
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) handlers.pause();
+  if (document.hidden) {
+    handlers.pause();
+    updateIfCalm(); // out of sight, so the reload isn't even seen
+  }
 });
 addEventListener('pagehide', persist);
 // Leaving pointer lock (usually via Esc, which the browser swallows) pauses the game.
@@ -299,5 +312,7 @@ game.setMode('menu');
 menu.showStart(gameplay.progress.best, game.level.id);
 game.start();
 if (params.has('autopilot')) handlers.play(); // screenshots / demos: skip the title
+
+registerServiceWorker();
 
 Object.assign(window, { __dw: game, __gp: gameplay, __audio: audio, __journey: journey });

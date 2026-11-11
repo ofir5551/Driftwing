@@ -38,6 +38,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 ## Architecture
 
 - `main.ts`: wires Game + Gameplay + GameAudio + Menu, settings persistence, pause/mute/hints.
+- `pwa.ts` + `sw.ts`: installable app. The service worker precaches each build (offline play);
+  `vite.config.ts` builds it to `sw.js` with the file list. Updates reload only on the title.
+  Files added to `public/` must be listed in `PUBLIC_FILES` there. Icons: `scripts/icons.mjs`.
 - `core/Loop.ts`: fixed 60 Hz step + accumulator; render gets `alpha` to interpolate. dt clamped.
 - `core/Game.ts`: renderer, scene, flight, camera, sky/water/clouds, adaptive resolution/quality, and the
   current level's `World` (`setLevel` swaps it in place). Modes: `menu` (bot flies the attract backdrop),

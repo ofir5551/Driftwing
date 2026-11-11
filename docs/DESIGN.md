@@ -710,3 +710,12 @@ progression, voice (bell, koto, guqin, glass, oud, guitar), pad, drone fifth, re
   negation flips them alike), which stood identical arches in cells mirrored through the spawn.
   The canyon offsets its cell coordinates far from the origin rather than change the shared hash,
   which would reshuffle every other level.
+- Installable web app (PWA), so phones can install it from the browser and play offline. No
+  plugin dependency: a small Vite plugin builds `src/sw.ts` into `sw.js` with the build's file
+  list and a version hash. The worker precaches each build in its own cache. Pages are network
+  first (`no-cache`, 4 s timeout, then the cached build), so an online launch always opens the
+  newest deploy; hashed assets are cache first (matched with `ignoreVary`: the page requests them
+  in CORS mode). A new worker waits instead of taking over, keeping the old cache so a running
+  game never loses files; the page swaps it in (skip-waiting, then reload) only on the title, on
+  returning there or when the app is hidden. The icons are the one painted asset, generated
+  from SVG by `scripts/icons.mjs`; the bird and wisps stay inside the maskable safe zone.

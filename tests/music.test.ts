@@ -8,6 +8,7 @@ import {
   StepScheduler,
 } from '../src/audio/scales';
 import {
+  ATOLL_MUSIC,
   CANYON_MUSIC,
   PEAKS_MUSIC,
   CITY_MUSIC,
@@ -109,6 +110,7 @@ describe('level music styles', () => {
     JERUSALEM_MUSIC,
     CANYON_MUSIC,
     PEAKS_MUSIC,
+    ATOLL_MUSIC,
   };
 
   it.each(Object.entries(styles))('%s is a playable style', (_, st) => {

@@ -24,6 +24,7 @@ uniform vec3 uSky;
 uniform vec3 uSun;
 uniform vec3 uSunDir;
 uniform float uTime;
+uniform float uClarity;
 varying vec3 vWorld;
 
 void main() {
@@ -42,7 +43,10 @@ void main() {
   col += uSun * glint * 1.4 * smoothstep(-0.05, 0.1, uSunDir.y);
   // Soft painted streaks: low-frequency brightness bands drifting with the ripples.
   col *= 0.96 + 0.06 * sin(p.x * 0.03 + p.y * 0.02 + g.x * 2.0);
-  gl_FragColor = vec4(col, 0.86);
+  // Clear water (a lagoon) lets the seabed's own colours through where the view looks down
+  // into it and turns to a mirror of the sky at grazing angles; 0 keeps the usual veil.
+  float alpha = mix(0.86, mix(0.32, 0.94, fres), uClarity);
+  gl_FragColor = vec4(col, alpha);
   #include <colorspace_fragment>
   #include <fog_fragment>
   gl_FragColor.rgb = mix(gl_FragColor.rgb, uMistColor, mistAmount(vWorld));
@@ -62,6 +66,7 @@ export class Water {
         uSun: { value: new THREE.Color() },
         uSunDir: { value: new THREE.Vector3() },
         uTime: { value: 0 },
+        uClarity: { value: 0 },
       },
     ]);
     // Shared (not cloned by merge), so the level's mist reaches the water too.
@@ -78,8 +83,10 @@ export class Water {
     this.mesh.renderOrder = 1; // after terrain so the lakebed shows through near shores
   }
 
-  update(day: DayCycle, cam: THREE.Camera, time: number): void {
+  /** `clarity`: 0 the usual painted veil, 1 glass-clear over the seabed (a level's choice). */
+  update(day: DayCycle, cam: THREE.Camera, time: number, clarity = 0): void {
     const p = day.palette;
+    this.u.uClarity.value = clarity;
     this.u.uColor.value.copy(p.water);
     this.u.uSky.value.copy(p.skyHorizon);
     this.u.uSun.value.copy(p.sun);

@@ -236,6 +236,36 @@ export const Config = {
     summitsDistance: 5000, // m, how far the painted snow peaks on the horizon pretend to be
     lanterns: 1, // brightness of temple and bridge lanterns after dark
   },
+  atoll: {
+    // Plan (read when a level is created).
+    cell: 1100, // m, grid cell that may hold one atoll (centres jitter a little, so rings never cross)
+    radiusMin: 220, // m, reef ring radius of the smallest atolls
+    radiusMax: 340, // m, of the largest (the home atoll is bigger)
+    homeRadius: 540, // m, the home atoll round the spawn, with the high island in its lagoon
+    homeAhead: 330, // m from the spawn to the home atoll's centre
+    reefWidth: 34, // m, half width of the reef flat
+    lagoonDepth: 7, // m, the lagoon floor's mean depth
+    ocean: 42, // m, depth of the open ocean between atolls
+    motu: 2.6, // m, height of the palm islets on the reef above the water
+    motuShare: 0.5, // about this share of every reef carries islets
+    canopy: 8, // m, palm and jungle canopy counts as soft ground this high
+    islandChance: 0.3, // chance an atoll other than home has a smaller high island
+    islandRadius: 175, // m, base radius of the home high island
+    islandHeight: 165, // m, the summit of its fang (the ceiling is 300)
+    solidAbove: 8, // m, land higher than this counts as solid for the look-ahead (the island)
+    rockCell: 60, // m, grid cell that may hold one mushroom rock in a lagoon
+    rockMin: 8, // m, cap radius of the smallest mushroom rocks
+    rockMax: 17, // m, of the largest
+    rockLod: 450, // m, beyond this rocks use the coarse mesh (chosen when chunks change)
+    // Atmosphere and light.
+    clarity: 0.8, // how clear the water is: 0 opaque (other levels), 1 glass-clear over the sand
+    surf: 1, // brightness of the surf breaking on the outer reefs
+    glow: 1, // bioluminescence in the surf after dark
+    windows: 1, // brightness of bungalow windows and boat lanterns after dark
+    mistFar: 0.16, // sea haze: far atolls fade into the horizon
+    cumulusDistance: 25000, // m, how far the painted cumulus towers on the horizon pretend to be
+    cumulusBase: 600, // m, their flat bases' height
+  },
   karst: {
     // Plan (read when a level is created).
     riverScale: 0.0008, // frequency of the river noise: a river every ~700 m
@@ -293,6 +323,7 @@ export const Config = {
     canyon: 2400,
     gildedPlumage: 2700,
     peaks: 3000,
+    atoll: 3150,
     phoenix: 3300, // the final bird, the end of the track (later birds go before it)
   },
   aviary: {

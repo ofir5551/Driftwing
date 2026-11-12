@@ -35,6 +35,8 @@ uniform float uMesasBase;
 uniform vec3 uMesaInk;
 uniform float uSummits;
 uniform float uSummitsBase;
+uniform float uCumulus;
+uniform float uCumulusBase;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -115,6 +117,51 @@ float summit(float az, float n, float seed, out float side) {
     if (v > h) {
       h = v;
       side = sign(q);
+    }
+  }
+  return h;
+}
+
+// A ring of trade-wind cumulus over the sea horizon: n cells of azimuth, most holding one
+// cloud (a flat base under a heap of rounded towers of different heights, their tops lumpy like
+// cauliflower), some left as open sky. Writes where across its own tower (-1..1) the azimuth
+// falls, so each tower can be shaded as a dome. Periodic in azimuth.
+float cumulus(float az, float n, float seed, out float across) {
+  float x = (az / 6.2831853 + 0.5) * n;
+  float c = floor(x);
+  float h = 0.0;
+  across = 0.0;
+  for (int k = -1; k <= 1; k++) {
+    float cc = c + float(k);
+    float id = mod(cc, n) + seed;
+    if (hash1(id + 5.7) < 0.3) continue;
+    float centre = cc + 0.5 + (hash1(id) - 0.5) * 0.5;
+    float w = 0.3 + 0.4 * hash1(id + 7.3);
+    float u = (x - centre) / w;
+    if (abs(u) >= 1.0) continue;
+    float tall = 0.35 + 0.65 * hash1(id + 3.1);
+    // A low, broad heap the towers rise out of.
+    float t = 0.3 * sqrt(1.0 - u * u);
+    float q0 = u;
+    for (int j = 0; j < 5; j++) {
+      float fj = float(j);
+      float cx = (hash1(id + fj * 1.7 + 0.4) - 0.5) * 1.2;
+      float r = 0.22 + 0.25 * hash1(id + fj * 2.3 + 0.9);
+      // The middle towers stand tallest: the cloud heaps up toward its centre.
+      float hh = (0.5 + 0.5 * hash1(id + fj * 3.7 + 1.3)) * (1.0 - 0.5 * abs(cx));
+      float q = (u - cx) / r;
+      if (abs(q) >= 1.0) continue;
+      float dome = hh * sqrt(1.0 - q * q);
+      if (dome > t) {
+        t = dome;
+        q0 = q;
+      }
+    }
+    // Cauliflower: small round bulges all along the top.
+    t *= (1.0 + 0.07 * abs(sin(u * 23.0 + id))) * tall * (1.0 - smoothstep(0.85, 1.0, abs(u)));
+    if (t > h) {
+      h = t;
+      across = q0;
     }
   }
   return h;
@@ -264,6 +311,39 @@ void main() {
     col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
   }
 
+  // Coral Atolls: towering trade-wind cumulus over the sea horizon in two rows, the far row
+  // smaller and hazier. Domed towers lit on the side toward the sun and taking its colour
+  // (gold in the evening, pink at dusk), a cool shade on the far side and the flat base.
+  if (uCumulus > 0.5) {
+    float az = atan(d.x, d.z);
+    float toSun = sin(atan(uSunDir.x, uSunDir.z) - az);
+    float day = smoothstep(-0.1, 0.1, uSunDir.y);
+    float bright = clamp(dot(uFog, vec3(0.4)) * 1.5, 0.35, 1.0);
+    // Light across the sky as seen here: sideways toward the sun, and from above.
+    vec2 light = normalize(vec2(clamp(toSun * 2.0, -1.0, 1.0), 0.6 + max(uSunDir.y, 0.0)));
+    for (int i = 0; i < 2; i++) {
+      float fi = float(i);
+      float hm = h - uCumulusBase * (0.6 + 0.4 * fi);
+      if (hm < 0.0) continue;
+      float amp = 0.045 + 0.035 * fi;
+      float across;
+      float top = cumulus(az + fi * 2.7, 26.0 - 8.0 * fi, fi * 9.0, across) * amp;
+      if (top <= 0.0) continue;
+      float m = smoothstep(top + 0.002, top - 0.002, hm) * smoothstep(0.0, 0.004, hm);
+      if (m <= 0.0) continue;
+      vec2 nrm = vec2(across, sqrt(max(1.0 - across * across, 0.0)));
+      float lam = max(dot(nrm, light), 0.0) * mix(0.6, 1.0, day);
+      float up = smoothstep(0.0, top * 0.6, hm);
+      vec3 white = mix(uHorizon, vec3(1.0), 0.65) * bright;
+      vec3 sunlit = mix(white, white * uSun * 1.15, 0.3 + 0.35 * (1.0 - smoothstep(0.1, 0.6, uSunDir.y)));
+      vec3 shade = mix(uHorizon, uTop, 0.45) * 0.86 * bright + uFog * 0.08;
+      vec3 cc = mix(shade, sunlit, clamp(lam * (0.55 + 0.45 * up) + 0.15 * up, 0.0, 1.0));
+      cc = mix(cc, uFog, 0.4 - 0.22 * fi);
+      col = mix(col, cc, m * 0.96);
+      peak = max(peak, m);
+    }
+  }
+
   // Aurora Fjords: three curtains of light hung across the sky. Each has a sharp, wandering
   // lower hem and fades upward from green to violet, is combed into fine vertical rays that
   // shimmer, and swells and thins along its length. Drifts slowly; bloom halos the brightest.
@@ -315,9 +395,10 @@ void main() {
 
 /**
  * What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, the aurora,
- * rolling hills, desert mesas, or great snow peaks beyond a cloud sea.
+ * rolling hills, desert mesas, great snow peaks beyond a cloud sea, or cumulus over the ocean.
  */
-export type Backdrop = 'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas' | 'summits';
+export type Backdrop =
+  'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas' | 'summits' | 'cumulus';
 
 export class Sky {
   readonly mesh: THREE.Mesh;
@@ -350,6 +431,8 @@ export class Sky {
       uMesaInk: { value: new THREE.Color() },
       uSummits: { value: 0 },
       uSummitsBase: { value: 0 },
+      uCumulus: { value: 0 },
+      uCumulusBase: { value: 0 },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -381,6 +464,7 @@ export class Sky {
     this.u.uHills.value = this.backdrop === 'hills' ? 1 : 0;
     this.u.uMesas.value = this.backdrop === 'mesas' ? 1 : 0;
     this.u.uSummits.value = this.backdrop === 'summits' ? 1 : 0;
+    this.u.uCumulus.value = this.backdrop === 'cumulus' ? 1 : 0;
     // The aurora comes out with the stars.
     this.u.uAurora.value =
       this.backdrop === 'aurora' ? Math.max(0, (p.stars - 0.25) / 0.75) * Config.fjord.aurora : 0;
@@ -393,6 +477,9 @@ export class Sky {
     // The snow peaks stand out of the cloud sea, not the water far below it.
     const cdrop = Config.peaks.cloud - camera.position.y;
     this.u.uSummitsBase.value = cdrop / Math.hypot(cdrop, Config.peaks.summitsDistance);
+    // The cumulus bases float well above the sea, far out over it.
+    const bdrop = Config.atoll.cumulusBase - camera.position.y;
+    this.u.uCumulusBase.value = bdrop / Math.hypot(bdrop, Config.atoll.cumulusDistance);
     // Ink: the upper sky deepened toward the ground light, so ridges darken with the day.
     this.u.uInk.value.copy(p.skyTop).lerp(p.hemiGround, 0.55).multiplyScalar(0.8);
     // Mesa shade: the ground light (red rock bounce by day) deepened toward the sky's top.

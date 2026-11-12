@@ -354,7 +354,7 @@ export class Game {
     const cam = this.chase.camera;
     this.applyPalette();
     this.sky.update(this.day, cam, this.time);
-    this.water.update(this.day, cam, this.time);
+    this.water.update(this.day, cam, this.time, this.level.waterClarity ?? 0);
     this.clouds.update(this.day, cam.position, this.time);
     for (const fn of this.frameHooks) fn(dt, this.time);
     this.composer.render(this.day, this.time, dt, this.level.saturation ?? 1);

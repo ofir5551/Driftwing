@@ -1,4 +1,5 @@
 import {
+  ATOLL_KEYS,
   CANYON_KEYS,
   CITY_KEYS,
   DAY_KEYS,
@@ -10,7 +11,7 @@ import {
 } from './scales';
 
 /** Instrument for ambient notes, wisp notes and the lantern flourish. */
-export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute';
+export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute' | 'marimba';
 
 /**
  * A level's musical identity. The generative engine is shared; this is what it plays and how,
@@ -42,8 +43,9 @@ export interface MusicStyle {
   arp: { pattern: number[]; perStep: 1 | 2; octave: number } | null;
   /** Level of the soft beat; 0 = none. */
   pulse: number;
-  /** The beat's pattern: a swung lo-fi kit (default) or maqsum on a frame drum. */
-  beat?: 'lofi' | 'maqsum';
+  /** The beat's pattern: a swung lo-fi kit (default), maqsum on a frame drum, or an island
+   *  lilt of shaker and log drum. */
+  beat?: 'lofi' | 'maqsum' | 'island';
 }
 
 /** Highlands: the original pastoral score, airy saw pads and FM bells. */
@@ -162,4 +164,24 @@ export const PEAKS_MUSIC: MusicStyle = {
   reverb: 1.6,
   arp: { pattern: [0, 4, 2, 7, 4, 2], perStep: 1, octave: 12 },
   pulse: 0,
+};
+
+/**
+ * Coral Atolls: sunny and playful. A wooden marimba (rolled on its long notes) bouncing over a
+ * light triangle pad, a skipping arpeggio an octave up with flow, an easy island lilt of shaker
+ * and log drum, the quickest tempo of any level and an open-air room, short and bright.
+ */
+export const ATOLL_MUSIC: MusicStyle = {
+  keys: ATOLL_KEYS,
+  bpm: 88,
+  progression: [0, 3, 4, 0, 1, 3, 4, 0],
+  voice: 'marimba',
+  density: 0.85,
+  grace: 0.1,
+  pad: { wave: 'triangle', detune: 5, attack: 1.6, release: 3, level: 0.038 },
+  droneFifth: 0.3,
+  reverb: 0.75,
+  arp: { pattern: [0, 2, 4, 2, 5, 4, 2, 4], perStep: 2, octave: 12 },
+  pulse: 0.6,
+  beat: 'island',
 };

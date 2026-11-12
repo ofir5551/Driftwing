@@ -3,7 +3,8 @@
 A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
 through a neon-lit Japanese bay city, among misty karst peaks on a jade river, down deep fjords
 under the northern lights, over the golden stone of Jerusalem, through the stone arches of red
-desert canyons or among granite spires above a sea of clouds, follow ribbons of glowing wisps
+desert canyons, among granite spires above a sea of clouds or low over the turquoise lagoons
+of coral atolls, follow ribbons of glowing wisps
 and build a melody as you gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
 music, sound) is generated procedurally: the repository contains no art or audio assets.
 
@@ -128,6 +129,25 @@ you back to choose again).
 | **Above the spires**                       | **Dusk, the bridge lanterns lit**        |
 | ![Above](docs/screenshots/peaks-above.jpg) | ![Dusk](docs/screenshots/peaks-dusk.jpg) |
 
+- **Coral Atolls**: rings of coral reef in the open Pacific, opening in the late morning. The
+  water is nearly clear, so the seabed paints it: white sand, aqua shallows, turquoise lagoons
+  and the deep blue of the ocean between the atolls. Surf breaks white round every outer reef
+  (and glows cyan after dark), palm islets line the rings with passes cut through them, and
+  jungle-domed mushroom rocks stand in the lagoons. In the home lagoon a green volcanic island
+  raises a sheer fang, with a curving pier of thatched overwater bungalows off its shore whose
+  windows light up at night. Trade-wind cumulus heap up round the horizon. The music is a
+  wooden marimba over an island lilt of shaker and log drum. Wisps skip like a thrown stone,
+  dipping to the water and bounding up again, run along the reefs over the surf, weave between
+  the rocks and swing round the island's shoulder.
+
+![Coral Atolls title screen](docs/screenshots/atoll-title.jpg)
+
+| Across the home lagoon                       | A palm islet                               |
+| -------------------------------------------- | ------------------------------------------ |
+| ![Lagoon](docs/screenshots/atoll-lagoon.jpg) | ![Islet](docs/screenshots/atoll-islet.jpg) |
+| **The bungalows in the golden hour**         | **Night, the surf aglow**                  |
+| ![Pier](docs/screenshots/atoll-pier.jpg)     | ![Night](docs/screenshots/atoll-night.jpg) |
+
 ## Play
 
 ```bash
@@ -163,7 +183,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks`, `?unlocked` (every level open, nothing saved).
+`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll`, `?unlocked` (every level open, nothing saved).
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -212,6 +232,11 @@ file list by the plugin in `vite.config.ts`) and `src/pwa.ts`, which registers i
   (drifting lobes tilted into the normal), with the shared mist resting on it so the spires'
   feet dissolve. Spires are lathed and flat-shaded from one stepped radius profile that the
   collisions share; the gate's bridge is a solid with an underside the look-ahead eases under.
+- **Coral Atolls**: atolls on a coarse jittered grid (`src/world/atoll/`), each a wobbly ring
+  (three harmonics) whose reef, islets and passes are functions of the angle round it; the
+  water turns nearly clear for this level so the seabed's vertex colours paint the lagoons, and
+  the surf is one animated strip per atoll in view. Mushroom rocks are lathed from a notched
+  profile the collisions share; the high island is terrain the look-ahead steers round.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

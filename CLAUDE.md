@@ -13,7 +13,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks`,
+  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll`,
   `?unlocked` (every level, plumage and trail open, nothing granted or saved).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
@@ -47,7 +47,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `playing`, `paused`. `onStep`/`onFrame` hooks.
 - `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`, `Karst`
   (Jade River, with its own palettes), `Fjord` (Aurora Fjords), `Jerusalem` (City of Gold),
-  `Canyon` (Red Canyons), `Peaks` (Sea of Clouds); `index` registry.
+  `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls); `index` registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Journey.ts`: lifetime light and the unlock track (pure; saved by `Settings`). See DESIGN's
   Progression.
@@ -83,6 +83,13 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   a monastery)), `PeaksWisps` (gate ribbon, cloud skims, slaloms, tangent swings over summits),
   `PeaksDecor`, `cloudSea` (the sea's shader), `geometry`, `PeaksWorld`. Snow peaks are the
   `summits` backdrop; the mist rests on the cloud tops via `uMistBase`.
+- `world/atoll/`: `AtollLayout` (pure: atolls on a coarse grid, each a wobbly reef ring with
+  motus and passes round a lagoon; mushroom rocks lathed from one notched profile; high islands
+  (the home one's fang ahead of the spawn) that `solidTop` reports as solid; bungalow piers as
+  soft canopy), `AtollWisps` (skipping-stone hops aimed at the next atoll, reef rims, rock
+  slaloms, island swings), `AtollDecor`, `Surf` (an animated foam strip per atoll in view),
+  `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
+  the seabed's colours through the water.
 - `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),

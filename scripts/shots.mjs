@@ -182,6 +182,32 @@ const shots = [
     wait: 3000,
     place: { x: -150, y: 110, z: 500, yaw: 2.6, pitch: -0.05, phase: 0.68 },
   },
+  // Coral Atolls (default seed).
+  { name: 'atoll-title', query: '?level=atoll', wait: 4500 },
+  {
+    name: 'atoll-lagoon',
+    query: '?level=atoll&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 40, z: 180, yaw: 0.6, pitch: -0.05, phase: 0.3 },
+  },
+  {
+    name: 'atoll-islet',
+    query: '?level=atoll&autopilot',
+    wait: 3000,
+    place: { x: 30, y: 9, z: 800, yaw: 0.2, phase: 0.2 },
+  },
+  {
+    name: 'atoll-pier',
+    query: '?level=atoll&autopilot',
+    wait: 3000,
+    place: { x: -40, y: 14, z: 300, yaw: -1.3, pitch: -0.05, phase: 0.5 },
+  },
+  {
+    name: 'atoll-night',
+    query: '?level=atoll&autopilot',
+    wait: 3000,
+    place: { x: 120, y: 30, z: -20, yaw: 2.0, pitch: -0.15, phase: 0.88 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */

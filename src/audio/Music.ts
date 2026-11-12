@@ -354,6 +354,15 @@ export class Music {
       if (b === 0 || b === 4) this.dum(t);
       if (b === 1 || b === 3 || b === 6) this.tek(t, b === 6 ? 0.8 : 1);
       if (p.flow > 0.35 && (b === 5 || b === 7)) this.tek(t + dur * 0.5, 0.4);
+    } else if (s.pulse > 0 && s.beat === 'island') {
+      // An island lilt over a bar of eight eighths: a low log drum on 1 and the "and" of 2, a
+      // higher one on 4, and a shaker on every eighth (accented off the beat); a second, higher
+      // drum answers on the last eighth once the player is in flow.
+      const b = step % 8;
+      if (b === 0 || b === 3) this.logDrum(t, 150, 1);
+      if (b === 6) this.logDrum(t, 215, 0.8);
+      if (p.flow > 0.35 && b === 7) this.logDrum(t + dur * 0.5, 260, 0.5);
+      this.noiseHit(b % 2 ? t + dur * 0.08 : t, 'highpass', 7500, b % 2 ? 0.03 : 0.016, 0.06);
     } else if (s.pulse > 0) {
       // Lo-fi beat over a bar of eight eighths: kick on 1 and the "and" of 3, rim on 2 and 4,
       // swung hats once the player is in flow.
@@ -418,6 +427,15 @@ export class Music {
         return this.guitar(t, midi, vel, pan, dur, level);
       case 'flute':
         return this.flute(t, midi, vel, pan, dur, level);
+      case 'marimba':
+        this.marimba(t, midi, vel, pan, level);
+        // A long note is rolled: soft quick re-strikes, as a player sustains a wooden bar.
+        if (dur > 3 && this.rand() < 0.35) {
+          const q = this.sched!.stepDur / 3;
+          for (let k = 1; k <= 4; k++)
+            this.marimba(t + k * q, midi, vel * (0.5 - k * 0.06), pan, level);
+        }
+        return;
     }
   }
 
@@ -725,6 +743,50 @@ export class Music {
     this.out(env, pan);
     vib.start(t);
     vib.stop(end + 0.05);
+  }
+
+  /**
+   * Marimba: a wooden bar under its resonator tube. A sine at the pitch with the bar's tuned
+   * fourth harmonic and an inharmonic ~9.9x overtone that dies within a few tens of ms (the
+   * mallet's knock), all short: wood rings for a second, not like metal.
+   */
+  private marimba(t: number, midi: number, vel: number, pan: number, level: number): void {
+    const ctx = this.engine.ctx!;
+    const f = midiToFreq(midi);
+    const env = ctx.createGain();
+    env.gain.value = 1;
+    for (const [ratio, gain, decay] of [
+      [1, 1, 1.1],
+      [4, 0.28, 0.25],
+      [9.9, 0.12, 0.05],
+    ] as const) {
+      if (f * ratio > 12000) continue;
+      const o = ctx.createOscillator();
+      o.frequency.value = f * ratio;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(level * vel * gain * 1.1, t + 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g).connect(env);
+      o.start(t);
+      o.stop(t + decay + 0.05);
+    }
+    this.out(env, pan);
+  }
+
+  /** Log drum: a hollow wooden tock that drops a little in pitch. */
+  private logDrum(t: number, pitch: number, vel: number): void {
+    const ctx = this.engine.ctx!;
+    const o = ctx.createOscillator();
+    o.frequency.setValueAtTime(pitch * 1.25, t);
+    o.frequency.exponentialRampToValueAtTime(pitch, t + 0.05);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.22 * vel, t + 0.004);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+    o.connect(env).connect(this.pulseBus);
+    o.start(t);
+    o.stop(t + 0.32);
   }
 
   /** Frame drum "dum": a deep, short boom from the skin's centre. */

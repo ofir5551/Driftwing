@@ -69,6 +69,9 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
   midday glare. The free one: wide open sky, speed down a canyon, threading stone arches.
 - **Sea of Clouds**: granite spires standing out of a sea of cloud (Huangshan's summits), opening
   at sunrise. The lofty one: above everything, weightless, skimming the cloud tops.
+- **Coral Atolls**: rings of coral reef round turquoise lagoons in the open Pacific (the
+  Tuamotus, Bora Bora's high island, Palau's rock islands), opening in the late morning. The
+  playful one: bright and sunny, low over glassy water, skipping like a stone.
 
 ## Neon Bay
 
@@ -317,6 +320,71 @@ the ribbon is flying; glides that sink back toward the sea; and swings that join
 circle on a tangent, climb about 315 degrees round it and cross its summit. Every pattern is
 checked 9 m clear of rock and 3 m over the cloud before anything spawns.
 
+## Coral Atolls
+
+Mood: playful, sunny, easy; a holiday. Where the other levels ask for awe or stillness, this
+one asks the bird to play: bounce low over clear water, skim the surf, flick between rocks. It
+opens in the late morning (phase 0.14), when the lagoons are brightest, and the day runs at
+1.2x: a deep clean blue overhead by day, gold in the evening, a coral-pink and violet dusk and a
+warm blue night. The sun is turned (`sunTurn`) to go down ahead of the spawn, behind the high
+island's fang. Saturation is lifted a touch (1.06): this is the one level allowed to be vivid.
+
+Plan: deep ocean (~42 m) with an atoll in most cells of a 1100 m grid (centres jittered by 10 %,
+so rings never cross; neighbours of the big home ring shrink or drop out). Each atoll is a ring
+whose radius wobbles with three harmonics; everything on it is a function of the angle round
+it: the reef flat a hand under the water rising to a crest on the ocean side, then a steep wall
+easing onto the ocean floor; inside, pale sand flats deepening into a ~7 m lagoon of long sand
+swells and coral heads; islets (motus) of sand and palms where a noise sampled round a circle is
+high (about half the ring, so they close up seamlessly); and one or two passes cut deep through
+the reef with no islets. The home atoll (540 m) sits 330 m ahead of the spawn with its passes
+ahead-right and behind, so the first view across the lagoon meets an unbroken ring of palms. Its
+high island is a ridged volcanic cone (radial gullies, wandering a little round it) and a fang
+beside it, sheer through the middle and rounded at the crown, rising to ~165 m; about a third
+of the other atolls hold a smaller one. A curving pier of thatched overwater bungalows on stilts
+runs off the home island's shore toward the spawn's right, and off an islet in about half the
+other lagoons. Mushroom rocks (Palau's rock islands: a jungle dome on a stem the sea has
+undercut at the waterline) stand in clusters in the lagoons, clear of islands, piers and the
+opening run; four silhouettes are lathed from one notched profile the collisions share, each
+pulled in (never out) to a lopsided plan so no two read alike. Boats (a little catamaran with a
+white sail, an outrigger canoe) lie moored on the lagoons.
+
+Water and colour: the level turns the water nearly clear (`waterClarity`, 0.8): looking down,
+the water plane is a light veil and the seabed's vertex colours show through, so the terrain
+paints the lagoons by depth (white sand, aqua shallows, turquoise, the blue of a pass, the
+deep blue of the ocean), with pale coral rubble on the reef flats and coral heads dark in the
+lagoons. At grazing angles the water turns back into a mirror of the sky (fresnel), so the
+far sea still reads as sea. Every other level keeps clarity 0, the painted veil.
+
+Atmosphere: no valley mist, only a light sea haze fading the far atolls. Surf breaks round every
+outer reef: one strip per atoll in view (built as it comes into draw distance, freed when it
+leaves) with a crest line where the swell breaks and bands of foam rolling in over the flat,
+none in the passes. After dark the churned water glows a bioluminescent cyan (HDR, bloomed).
+Trade-wind cumulus are painted round the horizon (the `cumulus` backdrop): two rows of flat-based
+heaps of domed towers with cauliflower tops, each tower lit where it faces the sun and taking its
+colour (gold, then pink), a cool shade on the far side. Windows of the bungalows and lanterns on
+the pier and the boats' mastheads glow after dark.
+
+Flight: the water is the ground here; the bird skims it with a spray, not dust
+(`World.skimColor`). Palms, jungle and bungalow roofs are soft canopy. Mushroom rocks are solid
+but soft, flown with the city's look-ahead and wall glance (their domes push up: skim them). The
+high islands are terrain the look-ahead reports as solid above 8 m, so the bird veers round the
+fang rather than being lifted up its face. Music: a wooden marimba (a sine with the bar's tuned
+fourth harmonic and an inharmonic knock that dies in tens of milliseconds; long notes rolled)
+at 88 BPM, the quickest of any level, over a light triangle pad, a skipping arpeggio an octave
+up with flow and an island lilt (log drums on 1, the "and" of 2 and 4, a shaker on every
+eighth), in an open-air room. Suspended at dawn, a bright major by day, mixolydian in the golden
+hour, a softer major at dusk, suspended at night.
+
+Wisps: skipping-stone hops are the spine: the ribbon dips to 4 m over the water (or the palm
+tops) and bounds 6-10 m up again every three or four wisps. The opening hops cross the home
+lagoon toward the fang, and the first swing then curves round the island's shoulder. Out of a
+lagoon, the hops aim at the next atoll ahead within a turn of the trend (through a pass when one
+faces the ribbon). Near a reef: rim runs, an arc along it over the surf and the islets. In a
+lagoon with rocks: slaloms between them. Swings walk round a high island at a height among its
+shoulders, as far out as the land needs, for about half a turn. Generic patterns (and their
+thermal spirals) get one pattern in ten. Every pattern is checked 9 m clear of rock and land
+sideways and 2.5 m over the water, palms and roofs before anything spawns.
+
 ## Gameplay
 
 Wisps in arcs/ribbons ahead of the player. Quick chains fill a flow meter (score multiplier,
@@ -376,6 +444,7 @@ earlier than first planned, since new birds are the heart of it.
 | 2400 | **Red Canyons**                                |                13-14 |
 | 2700 | Gilded plumage                                 |                   15 |
 | 3000 | **Sea of Clouds**                              |                16-17 |
+| 3150 | **Coral Atolls**                               |                   17 |
 | 3300 | **Phoenix** (and its own plumage): the end     |                   18 |
 
 The Phoenix is the last milestone of the track, whatever comes later: the Falcon and the
@@ -790,6 +859,25 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Sea of Clouds joined the journey at 3000 light, after the Gilded plumage and before the
   Phoenix, which stays the end of the track. Saves from before it treat it as new to the track
   (`ADDED_LATER`), so a player already past 3000 still gets its card.
+- Coral Atolls' water is the shared water plane with a clarity (`LevelDef.waterClarity`, 0 for
+  every other level): the alpha drops where the view looks down and returns to the sky mirror
+  at grazing angles, so the terrain's vertex colours paint the lagoons by depth. A depth-aware
+  water shader would need a depth texture; painting the seabed reuses what the chunks already
+  do and costs nothing.
+- The surf is geometry, not part of the water shader: the water plane does not know where the
+  reefs are. One strip per atoll in view, built on demand (a few hundred quads) and freed as it
+  leaves the draw distance, all sharing one animated material.
+- Coral Atolls' rocks are mushrooms, not pillars: a notch at the waterline under a jungle dome
+  (Palau), so they read as a different place from Jade River's karst. The first profile flared
+  slowly from the notch to the cap and read as flowerpots; the dome now starts a few metres over
+  the water. Under a cap's overhang is air: the solid test only applies the dome's vertical
+  margin above where the dome begins.
+- Coral Atolls' ribbon first wandered along its trend and rarely met a reef or an island (hops
+  every time); the hops now aim at the next atoll ahead within a turn of the trend, through a
+  pass that faces the ribbon. In a two-minute headless flight per seed the bot gathers ~1.5-1.8
+  wisps/s with no glances.
+- Coral Atolls joined the journey at 3150 light, after Sea of Clouds and before the Phoenix,
+  which stays the end of the track (`ADDED_LATER`, as Sea of Clouds).
 - Installable web app (PWA), so phones can install it from the browser and play offline. No
   plugin dependency: a small Vite plugin builds `src/sw.ts` into `sw.js` with the build's file
   list and a version hash. The worker precaches each build in its own cache. Pages are network

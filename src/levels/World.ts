@@ -6,7 +6,8 @@ import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 
-export type LevelId = 'highlands' | 'city' | 'karst' | 'fjord' | 'jerusalem' | 'canyon' | 'peaks';
+export type LevelId =
+  'highlands' | 'city' | 'karst' | 'fjord' | 'jerusalem' | 'canyon' | 'peaks' | 'atoll';
 
 /**
  * Everything level-specific about the world the bird flies through: terrain, scenery, what
@@ -77,6 +78,11 @@ export interface LevelDef {
   cloudLift?: number;
   /** Multiplier on the post pass's saturation (an ink-wash level mutes its colour). */
   saturation?: number;
+  /**
+   * How clear the water is: 0 (default) the painted veil, 1 glass-clear so the seabed's colours
+   * show through (read every frame, so a getter onto Config stays live in the debug panel).
+   */
+  readonly waterClarity?: number;
   /** Soft ceiling, m above water (copied into Config.flight.maxAltitude on a level switch). */
   maxAltitude: number;
   create(seed: number): { world: World; spawn: Spawn };

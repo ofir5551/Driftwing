@@ -114,6 +114,19 @@ export const PEAKS_KEYS: DayKey[] = [
   { root: 59, mode: 'minorPenta' }, // B, twilight
 ];
 
+/**
+ * Coral Atolls' keys: sunny and easy all day. Suspended at first light, a bright major through
+ * the late morning, the mixolydian lilt of island guitar in the golden hour, major again (lower,
+ * softer) at dusk and an open, unresolved night.
+ */
+export const ATOLL_KEYS: DayKey[] = [
+  { root: 62, mode: 'susPenta' }, // D, dawn
+  { root: 65, mode: 'majorPenta' }, // F, day
+  { root: 60, mode: 'dominantPenta' }, // C, golden hour
+  { root: 58, mode: 'majorPenta' }, // Bb, dusk
+  { root: 57, mode: 'susPenta' }, // A, twilight
+];
+
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);
 
 /** MIDI note for a scale degree (can be negative or beyond one octave). */

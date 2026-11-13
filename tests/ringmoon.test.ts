@@ -64,15 +64,41 @@ describe('ringmoon layout', () => {
       for (let x = -2000; x < 2000; x += 41) {
         n++;
         const y = L.height(x, z);
-        expect(y).toBeLessThan(10);
+        if (L.mainland(x, z) === 0) expect(y).toBeLessThan(10);
         if (y > 1) {
           land++;
           expect(L.openness(x, z, 100)).toBeLessThan(1);
           expect(L.shipZone(x, z, 0)).toBeGreaterThan(1.2);
         }
       }
-    expect(land / n).toBeGreaterThan(0.35);
-    expect(land / n).toBeLessThan(0.6);
+    // Islets and mainland together: more land than sea, but channels and open water remain.
+    expect(land / n).toBeGreaterThan(0.45);
+    expect(land / n).toBeLessThan(0.75);
+  });
+
+  it('raises broad mainland with rolling hills, clear of the start and the ship', () => {
+    let main = 0;
+    let hills = 0;
+    let top = 0;
+    let n = 0;
+    for (let z = -4000; z < 4000; z += 31)
+      for (let x = -4000; x < 4000; x += 37) {
+        n++;
+        if (L.mainland(x, z) < 0.5) continue;
+        main++;
+        const y = L.height(x, z);
+        if (y > 15) hills++;
+        top = Math.max(top, y);
+        expect(L.openness(x, z, 160)).toBeLessThan(1);
+        expect(L.shipZone(x, z, 0)).toBeGreaterThan(2.3);
+        // Never a cliff: the ground rises no steeper than ~1.3 in 1.
+        expect(Math.abs(L.height(x + 2, z) - y)).toBeLessThan(2.6);
+      }
+    expect(main / n).toBeGreaterThan(0.12);
+    expect(main / n).toBeLessThan(0.35);
+    expect(hills / main).toBeGreaterThan(0.3);
+    expect(top).toBeGreaterThan(35);
+    expect(top).toBeLessThan(Config.ringmoon.hillHeight + 10);
   });
 
   it('stands spires in groves, clear of the opening run and the ship', () => {
@@ -81,7 +107,9 @@ describe('ringmoon layout', () => {
     let tall = 0;
     for (const p of ss) {
       if (p.h > 100) tall++;
-      expect(p.top).toBeLessThan(Config.ringmoon.spireHigh);
+      // A spire on a hill stands on it (its foot buried a little), so its top rises with it.
+      expect(p.top).toBeLessThan(Config.ringmoon.spireHigh + Config.ringmoon.hillHeight);
+      expect(p.y0).toBeGreaterThan(L.height(p.x, p.z) - 9);
       expect(p.y0).toBeLessThan(L.height(p.x, p.z));
       if (L.gate.includes(p)) continue;
       expect(L.nearOpening(p.x, p.z, 40)).toBe(false);

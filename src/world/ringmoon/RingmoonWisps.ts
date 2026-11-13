@@ -14,6 +14,11 @@ const MARGIN = 9;
 const SLALOM_MARGIN = 16;
 /** And how far above the water and the fronds. */
 const ABOVE = 2.5;
+/**
+ * Most a ribbon drops per wisp (15 m apart): coming down off the mainland's hills a steeper
+ * ribbon sent the bird diving to ~40 m/s, too fast to follow the next pattern's bends.
+ */
+const DESCEND = 3;
 /** Headings to try, relative to the trend (radians). */
 const TURNS = [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.3, -1.3];
 
@@ -62,7 +67,10 @@ export class RingmoonPlanner implements WispPlanner {
         return true;
       }
     }
-    if (L.spiresNear(c.x + Math.sin(base) * 120, c.z + Math.cos(base) * 120, 110) >= 3)
+    // Slaloms on the flat (water and islets), where the bird arrives at an easy speed.
+    const ax = c.x + Math.sin(base) * 120;
+    const az = c.z + Math.cos(base) * 120;
+    if (this.surface(c.x, c.z) < 16 && this.surface(ax, az) < 16 && L.spiresNear(ax, az, 110) >= 3)
       if (this.slalom(c, base, rand) && this.commit(c, spawn)) return true;
     const n = 11 + Math.floor(rand() * 5);
     const ph = rand();
@@ -128,7 +136,7 @@ export class RingmoonPlanner implements WispPlanner {
       z += Math.cos(h) * sp;
       h += bend;
       const want = this.surface(x, z) + 5 + 3 * Math.sin(i * 0.5 + phase * 6);
-      y += clamp(want - y, -5, Config.wisps.maxRise);
+      y += clamp(want - y, -DESCEND, Config.wisps.maxRise);
       this.pts.push(x, y, z);
     }
   }
@@ -160,7 +168,7 @@ export class RingmoonPlanner implements WispPlanner {
         const lat = amp * Math.sin((i / n) * Math.PI * 2 + ph) * Math.min(1, i / 2);
         const wx = x + fz * lat;
         const wz = z - fx * lat;
-        y += clamp(this.surface(wx, wz) + lift - y, -4.5, Config.wisps.maxRise);
+        y += clamp(this.surface(wx, wz) + lift - y, -DESCEND, Config.wisps.maxRise);
         this.pts.push(wx, y, wz);
         near += L.spiresNear(wx, wz, 40);
       }
@@ -207,7 +215,7 @@ export class RingmoonPlanner implements WispPlanner {
       if (d < R0 * 1.7) turned += Math.abs(turn);
       x += Math.sin(h) * sp;
       z += Math.cos(h) * sp;
-      y += clamp(Y - y, -4, Config.wisps.maxRise);
+      y += clamp(Y - y, -DESCEND, Config.wisps.maxRise);
       this.pts.push(x, y, z);
     }
     if (turned < 1.2) return false;
@@ -228,7 +236,7 @@ export class RingmoonPlanner implements WispPlanner {
       x += fx * sp;
       z += fz * sp;
       const floor = Math.max(this.surface(x, z) + 12, L.skyline(x, z, 14) + 10);
-      y += clamp(floor - y, -4.5, Config.wisps.maxRise);
+      y += clamp(floor - y, -DESCEND, Config.wisps.maxRise);
       this.pts.push(x, y, z);
     }
   }

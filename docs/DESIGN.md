@@ -406,9 +406,13 @@ one light), so every sunset happens twice. The suns go down to the right of the 
 
 Plan: a shallow sea (~5 m) over pale sand with violet and amber moss beds, fairly clear water
 (`waterClarity` 0.55) so they show through. Islets are low moss tables (3-8 m) rising in a
-terrace or two, close to half the surface (channels of water between them), rust ledges on their steps, carrying coil fronds
+terrace or two, most of the sea (channels of water between them), rust ledges on their steps, carrying coil fronds
 (a stalk whose top is still rolled up like a fiddlehead), fans of glassy reeds and glow pods.
-Basalt spires stand in groves on a 64 m grid, from 38 to 150 m: three silhouettes (needle,
+Beyond the islets lies mainland: broad land a kilometre or two across (~21 % of the world, kept
+240 m off the opening run and well clear of the ship), a flat moss shore rising inland into
+rolling hills up to ~46 m, teal up their flanks and gold on their crowns, never cliffs (no
+steeper than ~1.3 in 1); islets fade out where it begins. Plants thin out inland so the hills
+read as open moss. Altogether ~58 % of the world is land. Basalt spires stand in groves on a 64 m grid, from 38 to 150 m: three silhouettes (needle,
 stout column, jointed finger) lathed from one profile with a flared foot and knuckles, leaning
 up to 0.15 m per m. The lean is a shear in each instance's matrix and every query follows the
 leaning axis. The ship stands 470 m ahead of the spawn, its long axis turned almost across the
@@ -962,3 +966,7 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Ringmoon's islets first covered ~21 % of the surface and the level read as open water with
   stone in it. They now cover ~46 % (`isleShare` 0.48): broad moss tables with channels of
   water between them, still kept off the opening run and the ship.
+- Ringmoon gained mainland with rolling hills beside the islets (~58 % land in all). Coming
+  down off a hill a ribbon dropping 5 m per wisp sent the bot diving to ~40 m/s, too fast for
+  the next slalom's bends, and one seed fell to ~100 wisps in two minutes. Ribbons now drop at
+  most 3 m per wisp and slaloms only start on the flat: ~200 wisps on five seeds, no glances.

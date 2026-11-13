@@ -29,6 +29,8 @@ const C = {
   turf: new THREE.Color('#8a7cc0'),
   turfGold: new THREE.Color('#d1a95a'),
   ledge: new THREE.Color('#9a6a4a'),
+  hill: new THREE.Color('#5f8e86'),
+  hillTop: new THREE.Color('#c3b46e'),
 };
 const WHITE = new THREE.Color('#fff');
 /** A skim over the shallows throws up a pale green spray. */
@@ -112,6 +114,9 @@ export class RingmoonWorld implements World {
     // The islets: a pale shore, then violet turf patched with gold, rust ledges on the steps.
     out.copy(C.shore).lerp(C.turf, smoothstep(0.8, 2, y));
     out.lerp(C.turfGold, smoothstep(0.1, 0.45, t) * smoothstep(1.5, 3, y) * 0.8);
+    // The mainland's hills: teal moss up their flanks, gold on the crowns.
+    out.lerp(C.hill, smoothstep(9, 20, y) * (0.55 + 0.25 * t));
+    out.lerp(C.hillTop, smoothstep(26, 44, y) * 0.7);
     out.lerp(C.ledge, smoothstep(0.35, 0.8, slope) * smoothstep(1, 2.5, y));
     return out.multiplyScalar(0.95 + 0.07 * t);
   }

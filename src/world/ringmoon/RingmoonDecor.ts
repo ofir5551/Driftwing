@@ -93,6 +93,8 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
         const z = (j + hash2(i, j, seed + 22)) * cell;
         const y = L.height(x, z);
         if (y < 1.4) continue;
+        // Inland the plants thin out, so the hills read as open moss and the counts stay low.
+        if (y > 10 && hash2(i, j, seed + 27) < smoothstep(10, 30, y) * 0.6) continue;
         const h = hash2(i, j, seed + 23);
         const rot = hash2(i, j, seed + 25) * Math.PI * 2;
         const tint = hash2(i, j, seed + 26);

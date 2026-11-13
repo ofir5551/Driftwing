@@ -99,6 +99,8 @@ export class RingmoonLayout {
   private readonly nBed: Noise2D;
   private readonly nSpire: Noise2D;
   private readonly nFine: Noise2D;
+  private readonly nLand: Noise2D;
+  private readonly nHill: Noise2D;
   private readonly cells = new Map<number, Spire[]>();
   /** The opening run: from the spawn, under the ship's belly and on beyond it. */
   private readonly runEnd: { x: number; z: number };
@@ -109,6 +111,8 @@ export class RingmoonLayout {
     this.nBed = createNoise2D(seed + 802);
     this.nSpire = createNoise2D(seed + 803);
     this.nFine = createNoise2D(seed + 804);
+    this.nLand = createNoise2D(seed + 805);
+    this.nHill = createNoise2D(seed + 806);
     const R = Config.ringmoon;
     const s = this.spawn;
     const a = R.shipLength;
@@ -218,19 +222,58 @@ export class RingmoonLayout {
     return m;
   }
 
-  /** Terrain: sea floor, and the islets' moss tables rising in a terrace or two. */
+  /** How far inland (x, z) lies on the mainland: < 0 at sea, rising from 0 at the coast. */
+  private inland(x: number, z: number): number {
+    const R = Config.ringmoon;
+    return 0.5 + fbm(this.nLand, x * R.landScale, z * R.landScale, 3) - (1 - R.landShare);
+  }
+
+  /**
+   * 0..1: how much of the mainland stands at (x, z): broad land a kilometre or two across,
+   * kept further off the opening run and the ship than the islets (its hills would wall them in).
+   */
+  mainland(x: number, z: number): number {
+    let m = smoothstep(-0.02, 0.03, this.inland(x, z));
+    if (m <= 0) return 0;
+    m *= 1 - this.openness(x, z, 240);
+    m *= smoothstep(2.4, 3.4, this.shipZone(x, z, 0));
+    return m;
+  }
+
+  /**
+   * The mainland's height: a flat moss shore, then rolling hills rising inland (rounded crowns
+   * of different heights from a plain fbm, never cliffs: the bird swoops over them).
+   */
+  private landY(x: number, z: number): number {
+    const R = Config.ringmoon;
+    const deep = smoothstep(0.02, 0.2, this.inland(x, z));
+    const roll = 0.5 + 0.5 * fbm(this.nHill, x * 0.0018, z * 0.0018, 3);
+    const hills = R.hillHeight * Math.pow(smoothstep(0.04, 0.96, roll), 1.25) * deep;
+    return R.isleTop + 1.2 + hills + 0.5 * fbm(this.nFine, x * 0.03, z * 0.03, 2);
+  }
+
+  /**
+   * Terrain: the sea floor, the islets' moss tables rising in a terrace or two, and the
+   * mainland's rolling hills.
+   */
   height(x: number, z: number): number {
     const R = Config.ringmoon;
     const bed = this.bedY(x, z);
-    const m = this.isle(x, z);
-    if (m <= 0) return bed;
-    const n = 0.5 + fbm(this.nIsle, x * R.isleScale, z * R.isleScale, 3) - (1 - R.isleShare);
-    const top =
-      R.isleTop +
-      2.4 * smoothstep(0.07, 0.1, n) +
-      2.2 * smoothstep(0.16, 0.19, n) +
-      0.5 * fbm(this.nFine, x * 0.03, z * 0.03, 2);
-    return lerp(bed, top, m);
+    let y = bed;
+    const ml = this.mainland(x, z);
+    // Islets belong to the sea: on the mainland their terraces would stand up as steps.
+    const m = this.isle(x, z) * (1 - smoothstep(0, 0.5, ml));
+    if (m > 0) {
+      const n = 0.5 + fbm(this.nIsle, x * R.isleScale, z * R.isleScale, 3) - (1 - R.isleShare);
+      const top =
+        R.isleTop +
+        2.4 * smoothstep(0.07, 0.1, n) +
+        2.2 * smoothstep(0.16, 0.19, n) +
+        0.5 * fbm(this.nFine, x * 0.03, z * 0.03, 2);
+      y = lerp(bed, top, m);
+    }
+    if (ml > 0) y = Math.max(y, lerp(bed, this.landY(x, z), ml));
+    return y;
   }
 
   /** Soft canopy: coil fronds and reed fans on the islets. */
@@ -269,7 +312,8 @@ export class RingmoonLayout {
     if (this.nearOpening(x, z, 40 + reach)) return list;
     if (this.shipZone(x, z, 60 + reach) < 1) return list;
     for (const g of this.gate) if (Math.hypot(x - g.x, z - g.z) < 70 + reach) return list;
-    const y0 = -R.depth - 3;
+    // Standing on the land where there is some (a hill buries the foot, not the spire).
+    const y0 = Math.max(-R.depth - 3, this.height(x, z) - 6);
     list.push({
       x,
       z,

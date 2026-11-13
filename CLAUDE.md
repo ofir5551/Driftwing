@@ -91,7 +91,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   slaloms, island swings), `AtollDecor`, `Surf` (an animated foam strip per atoll in view),
   `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
   the seabed's colours through the water.
-- `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets, leaning
+- `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets and mainland of rolling
+  hills, leaning
   basalt spires lathed from one knuckled profile (the lean is a shear in the instance matrix;
   queries follow the leaning axis), the ship (an ellipsoid hull with an underside, four leg
   capsules) and the two gate spires beside it), `RingmoonWisps` (the run under the ship, grove

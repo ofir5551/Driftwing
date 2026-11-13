@@ -272,6 +272,9 @@ export const Config = {
     isleScale: 0.0024, // frequency of the islet noise: a table of moss every ~400 m
     isleShare: 0.48, // about this share of the sea carries islets (~46 % land: islets and channels)
     isleTop: 3.2, // m, the islets' moss tables above the water (terraces rise a little higher)
+    landScale: 0.0006, // frequency of the mainland noise: broad land a kilometre or two across
+    landShare: 0.24, // about this share of the world is mainland (on top of the islets)
+    hillHeight: 46, // m, the tallest rolling moss hills inland
     canopy: 9, // m, coil fronds and reed fans on the islets count as soft ground this high
     spireCell: 64, // m, grid cell that may hold one basalt spire
     spireMin: 6, // m, base radius of the slimmest spires

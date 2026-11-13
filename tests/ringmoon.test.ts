@@ -71,8 +71,8 @@ describe('ringmoon layout', () => {
           expect(L.shipZone(x, z, 0)).toBeGreaterThan(1.2);
         }
       }
-    expect(land / n).toBeGreaterThan(0.08);
-    expect(land / n).toBeLessThan(0.4);
+    expect(land / n).toBeGreaterThan(0.35);
+    expect(land / n).toBeLessThan(0.6);
   });
 
   it('stands spires in groves, clear of the opening run and the ship', () => {

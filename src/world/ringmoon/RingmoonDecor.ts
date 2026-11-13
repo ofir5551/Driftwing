@@ -86,7 +86,7 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
       for (let i = Math.floor(ox / C); i <= Math.floor((ox + size) / C); i++)
         for (const s of L.cell(i, j)) if (inChunk(s.x, s.z)) out.spires.push(s);
     // The islets: coil fronds in loose groves, reed fans between them, glow pods at their feet.
-    const cell = 8;
+    const cell = 10;
     for (let j = Math.ceil(oz / cell); j < Math.ceil((oz + size) / cell); j++)
       for (let i = Math.ceil(ox / cell); i < Math.ceil((ox + size) / cell); i++) {
         const x = (i + hash2(i, j, seed + 21)) * cell;
@@ -99,7 +99,7 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
         const s = 0.75 + hash2(i, j, seed + 24) * 0.5;
         if (h < 0.4) out.plants.push(COIL, x, y - 0.3, z, s, rot, tint);
         else if (h < 0.7) out.plants.push(REED, x, y - 0.2, z, s, rot, tint);
-        else if (h < 0.8) out.pods.push(x, y + 0.5, z, 0.8 + tint * 0.6, tint);
+        else if (h < 0.77) out.pods.push(x, y + 0.5, z, 0.8 + tint * 0.6, tint);
       }
     return out;
   }

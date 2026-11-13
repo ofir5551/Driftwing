@@ -270,7 +270,7 @@ export const Config = {
     // Plan (read when a level is created).
     depth: 5, // m, the shallow sea's mean depth over its moss beds
     isleScale: 0.0024, // frequency of the islet noise: a table of moss every ~400 m
-    isleShare: 0.24, // about this share of the sea carries islets
+    isleShare: 0.48, // about this share of the sea carries islets (~46 % land: islets and channels)
     isleTop: 3.2, // m, the islets' moss tables above the water (terraces rise a little higher)
     canopy: 9, // m, coil fronds and reed fans on the islets count as soft ground this high
     spireCell: 64, // m, grid cell that may hold one basalt spire

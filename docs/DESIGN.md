@@ -406,7 +406,7 @@ one light), so every sunset happens twice. The suns go down to the right of the 
 
 Plan: a shallow sea (~5 m) over pale sand with violet and amber moss beds, fairly clear water
 (`waterClarity` 0.55) so they show through. Islets are low moss tables (3-8 m) rising in a
-terrace or two, about a quarter of the sea, rust ledges on their steps, carrying coil fronds
+terrace or two, close to half the surface (channels of water between them), rust ledges on their steps, carrying coil fronds
 (a stalk whose top is still rolled up like a fiddlehead), fans of glassy reeds and glow pods.
 Basalt spires stand in groves on a 64 m grid, from 38 to 150 m: three silhouettes (needle,
 stout column, jointed finger) lathed from one profile with a flared foot and knuckles, leaning
@@ -959,3 +959,6 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   stays the end of the track (`ADDED_LATER`). Nine level cards make five rows on an upright
   phone; under 620 px of height the title tightens its cards so Play stays in view on an
   iPhone SE.
+- Ringmoon's islets first covered ~21 % of the surface and the level read as open water with
+  stone in it. They now cover ~46 % (`isleShare` 0.48): broad moss tables with channels of
+  water between them, still kept off the opening run and the ship.

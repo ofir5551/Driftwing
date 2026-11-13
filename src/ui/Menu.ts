@@ -68,22 +68,22 @@ const CONTROLS_HTML = `<h2>Controls</h2>
       <li><b>Flick</b> the steering finger for a trick: left or right rolls, up loops, down dives. Keep pushing to stretch it</li>
     </ul>
     <ul class="controls touch-dpad">
-      <li><b>D-pad</b> at the bottom left to steer; rest between two arrows for a diagonal, or slide round without lifting</li>
-      <li><b>Boost</b> at the bottom right to flap (hold to keep flapping)</li>
+      <li><b>D-pad</b> under one thumb to steer; rest between two arrows for a diagonal, or slide round without lifting</li>
+      <li><b>Boost</b> under the other thumb to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls touch-split">
       <li><b>Two pads</b>: the left one turns <b>left</b>, the right one turns <b>right</b>, and both climb and dive. One works at a time: while you hold one, the other rests. Rest between two arrows for a diagonal, or slide round without lifting</li>
-      <li><b>Boost</b> above the right pad to flap (hold to keep flapping)</li>
+      <li><b>Boost</b> above one of the pads to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls touch-arrows">
       <li><b>Left</b> and <b>right</b> under each thumb, with <b>up</b> and <b>down</b> beside both, so one thumb turns while the other climbs or dives. Slide between them without lifting</li>
-      <li><b>Boost</b> above the right arrows to flap (hold to keep flapping)</li>
+      <li><b>Boost</b> above one of the clusters to flap (hold to keep flapping)</li>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls">
-      <li><b>Pause</b> with the button at the top right. Pick <b>Drag</b>, <b>D-pad</b>, <b>Side arrows</b> or <b>Split</b> steering there</li>
+      <li><b>Pause</b> with the button at the top right. Its <b>Settings</b> pick <b>Drag</b>, <b>D-pad</b>, <b>Arrows</b> or <b>Split</b> steering, and <b>Left-handed</b> swaps the buttons' sides</li>
     </ul>
   </div>
   <div class="controls-list desktop-only">
@@ -112,6 +112,66 @@ const JOURNEY_HTML = `<div class="journey" title="Light: gathered from wisps, la
     <div class="journey-head"><span class="journey-light"></span><span class="journey-next"></span></div>
     <div class="journey-track"><div class="journey-fill"></div></div>
   </div>`;
+
+/** Line icons for the pause tiles and the sound button (stroked in currentColor by the CSS). */
+const ICON = {
+  rest: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
+  levels:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>',
+  settings:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>',
+  sound:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="cross" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>',
+};
+
+/** A row of chips that picks one value (Steering, Quality). */
+const chipsHtml = (id: string, label: string, opts: readonly (readonly [string, string])[]) =>
+  `<div class="chips" id="${id}" role="radiogroup" aria-label="${label}">${opts
+    .map(
+      ([v, l]) =>
+        `<button class="time chip" role="radio" aria-checked="false" data-value="${v}">${l}</button>`,
+    )
+    .join('')}</div>`;
+
+/** An on/off row: a name, a one-line hint and a switch. The whole row is the button. */
+const switchHtml = (id: string, name: string, hint: string) =>
+  `<button class="switch-row" id="${id}" role="switch" aria-checked="false">
+     <span class="switch-text"><span>${name}</span><small>${hint}</small></span>
+     <span class="switch" aria-hidden="true"></span>
+   </button>`;
+
+/** Settings, opened from the pause card so that card stays short (Done goes back to it). */
+const SETTINGS_HTML = `<div class="settings-head">
+    <h2>Settings</h2><button class="btn primary" id="settings-done">Done</button>
+  </div>
+  <div class="setting">
+    <p class="setting-label">Sound</p>
+    <div class="sound">
+      <button class="sound-btn" id="mute" aria-label="Mute">${ICON.sound}</button>
+      <input type="range" id="vol" min="0" max="1" step="0.01" aria-label="Volume">
+    </div>
+  </div>
+  <div class="setting touch-only">
+    <p class="setting-label">Touch steering</p>
+    ${chipsHtml('steer', 'Touch steering', [
+      ['drag', 'Drag'],
+      ['dpad', 'D-pad'],
+      ['arrows', 'Arrows'],
+      ['split', 'Split'],
+    ])}
+    <div class="lefty-row">${switchHtml('lefty', 'Left-handed', 'D-pad right, Boost left')}</div>
+  </div>
+  <div class="setting">${switchHtml('invert', 'Invert climb / dive', 'Push up to dive, down to climb')}</div>
+  <div class="setting">
+    <p class="setting-label">Quality</p>
+    ${chipsHtml('quality', 'Quality', [
+      ['auto', 'Auto'],
+      ['low', 'Low'],
+      ['medium', 'Med'],
+      ['high', 'High'],
+    ])}
+  </div>
+  <button class="link-btn controls-btn">Controls</button>`;
 
 /** What the Rest card tallies for the flight just ended. */
 export interface RestTally {
@@ -218,6 +278,7 @@ export class Menu {
   /** Bumped whenever the Rest card's animation should stop (it is shown again or left). */
   private restToken = 0;
   private readonly help: HTMLDivElement;
+  private readonly settingsPanel: HTMLDivElement;
   private readonly aviary: HTMLDivElement;
   private readonly picks: HTMLButtonElement[];
   private readonly tabs: HTMLButtonElement[];
@@ -275,29 +336,14 @@ export class Menu {
        <p class="pause-stats"></p>
        ${JOURNEY_HTML}
        <button class="btn primary" id="resume-btn">Resume</button>
-       <button class="btn ghost" id="rest-btn" title="End this flight and see how it went">Rest</button>
-       <button class="btn ghost" id="title-btn">Change level</button>
-       <button class="btn ghost controls-btn">Controls</button>
-       <div class="settings">
-         <label>Volume <input type="range" id="vol" min="0" max="1" step="0.01"></label>
-         <label class="row"><input type="checkbox" id="mute"> Mute</label>
-         <label>Quality
-           <select id="quality">
-             <option value="auto">Auto</option><option value="low">Low</option>
-             <option value="medium">Medium</option><option value="high">High</option>
-           </select>
-         </label>
-         <label class="row"><input type="checkbox" id="invert"> Invert vertical steering</label>
-         <label class="touch-only">Steering
-           <select id="steer">
-             <option value="drag">Drag anywhere</option><option value="dpad">D-pad</option>
-             <option value="arrows">Side arrows</option>
-             <option value="split">Split</option>
-           </select>
-         </label>
+       <div class="pause-tiles">
+         <button class="tile" id="rest-btn" title="End this flight and see how it went">${ICON.rest}<span>Rest</span></button>
+         <button class="tile" id="title-btn" title="Back to the title to pick a level">${ICON.levels}<span>Levels</span></button>
+         <button class="tile" id="settings-btn">${ICON.settings}<span>Settings</span></button>
        </div>`,
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
+    this.settingsPanel = this.panel('settings-panel', SETTINGS_HTML);
     this.help = this.panel('help', CONTROLS_HTML);
     this.rest = this.panel(
       'rest',
@@ -319,7 +365,15 @@ export class Menu {
     this.pauseBtn.className = 'pause-btn';
     this.pauseBtn.setAttribute('aria-label', 'Pause');
     this.pauseBtn.innerHTML = '<span></span><span></span>';
-    ui.append(this.start, this.pause, this.rest, this.help, this.aviary, this.pauseBtn);
+    ui.append(
+      this.start,
+      this.pause,
+      this.settingsPanel,
+      this.rest,
+      this.help,
+      this.aviary,
+      this.pauseBtn,
+    );
     this.setupFullscreen(ui);
 
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
@@ -347,8 +401,14 @@ export class Menu {
     this.rest.querySelector('#fly-btn')!.addEventListener('click', () => h.keepFlying());
     this.rest.querySelector('#rest-title-btn')!.addEventListener('click', () => h.toTitle());
     this.pauseBtn.addEventListener('click', () => h.pause());
-    for (const from of [this.start, this.pause])
+    for (const from of [this.start, this.settingsPanel])
       from.querySelector('.controls-btn')!.addEventListener('click', () => this.showHelp(from));
+    this.pause
+      .querySelector('#settings-btn')!
+      .addEventListener('click', () => this.only(this.settingsPanel));
+    this.settingsPanel
+      .querySelector('#settings-done')!
+      .addEventListener('click', () => this.only(this.pause));
     this.help.querySelector('#controls-back')!.addEventListener('click', () => this.hideHelp());
     this.start.querySelector('#aviary-btn')!.addEventListener('click', () => {
       this.showAviary();
@@ -383,32 +443,84 @@ export class Menu {
         else h.selectTrail(id as TrailId);
         this.markPicks();
       });
-    const vol = this.pause.querySelector<HTMLInputElement>('#vol')!;
-    const mute = this.pause.querySelector<HTMLInputElement>('#mute')!;
-    const quality = this.pause.querySelector<HTMLSelectElement>('#quality')!;
-    const invert = this.pause.querySelector<HTMLInputElement>('#invert')!;
-    const steer = this.pause.querySelector<HTMLSelectElement>('#steer')!;
-    const sync = () => {
-      vol.value = String(settings.volume);
-      mute.checked = settings.muted;
-      quality.value = settings.quality;
-      invert.checked = settings.invertY;
-      steer.value = settings.touchSteer;
-    };
-    sync();
-    this.syncInputs = sync;
-    const changed = () => {
-      settings.volume = Number(vol.value);
-      settings.muted = mute.checked;
-      settings.quality = quality.value as Settings['quality'];
-      settings.invertY = invert.checked;
-      settings.touchSteer = steer.value as Settings['touchSteer'];
-      h.change(settings);
-    };
-    for (const el of [vol, mute, quality, invert, steer]) el.addEventListener('input', changed);
+    this.syncInputs = this.setupSettings(h);
     // Keep keyboard/mouse events on menus from steering or flapping the bird.
-    for (const p of [this.start, this.pause, this.rest, this.help, this.aviary])
-      p.addEventListener('pointerdown', (e) => e.stopPropagation());
+    for (const p of this.panels()) p.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+
+  private panels(): HTMLDivElement[] {
+    return [this.start, this.pause, this.settingsPanel, this.rest, this.help, this.aviary];
+  }
+
+  /**
+   * The Settings card: chips and switches write straight into `settings` and hand it to
+   * `change`. Returns the function that redraws the card from `settings` (e.g. after M mutes).
+   */
+  private setupSettings(h: MenuHandlers): () => void {
+    const s = this.settings;
+    const p = this.settingsPanel;
+    const vol = p.querySelector<HTMLInputElement>('#vol')!;
+    const mute = p.querySelector<HTMLButtonElement>('#mute')!;
+    const lefty = p.querySelector<HTMLButtonElement>('#lefty')!;
+    const invert = p.querySelector<HTMLButtonElement>('#invert')!;
+    const chips = (id: string) => [...p.querySelectorAll<HTMLButtonElement>(`#${id} .chip`)];
+    const steer = chips('steer');
+    const quality = chips('quality');
+    const mark = (group: HTMLButtonElement[], value: string) => {
+      for (const c of group) {
+        const on = c.dataset.value === value;
+        c.classList.toggle('selected', on);
+        c.setAttribute('aria-checked', String(on));
+      }
+    };
+    const sync = () => {
+      vol.value = String(s.volume);
+      mute.classList.toggle('muted', s.muted);
+      mute.setAttribute('aria-label', s.muted ? 'Unmute' : 'Mute');
+      p.querySelector('.sound')!.classList.toggle('muted', s.muted);
+      mark(steer, s.touchSteer);
+      mark(quality, s.quality);
+      invert.setAttribute('aria-checked', String(s.invertY));
+      lefty.setAttribute('aria-checked', String(s.leftHanded));
+      // Drag steering has no buttons to swap, and the one D-pad moves wholesale while side arrows
+      // and split keep a cluster under each thumb, so only Boost changes sides.
+      p.querySelector<HTMLElement>('.lefty-row')!.hidden = s.touchSteer === 'drag';
+      lefty.querySelector('small')!.textContent =
+        s.touchSteer === 'dpad' ? 'D-pad right, Boost left' : 'Boost over the left thumb';
+    };
+    const changed = () => {
+      sync();
+      h.change(s);
+    };
+    vol.addEventListener('input', () => {
+      s.volume = Number(vol.value);
+      s.muted = false; // moving the slider means "I want to hear it"
+      changed();
+    });
+    mute.addEventListener('click', () => {
+      s.muted = !s.muted;
+      changed();
+    });
+    invert.addEventListener('click', () => {
+      s.invertY = !s.invertY;
+      changed();
+    });
+    lefty.addEventListener('click', () => {
+      s.leftHanded = !s.leftHanded;
+      changed();
+    });
+    for (const c of steer)
+      c.addEventListener('click', () => {
+        s.touchSteer = c.dataset.value as Settings['touchSteer'];
+        changed();
+      });
+    for (const c of quality)
+      c.addEventListener('click', () => {
+        s.quality = c.dataset.value as Settings['quality'];
+        changed();
+      });
+    sync();
+    return sync;
   }
 
   /** Re-read settings into the form (e.g. after M toggles mute). */
@@ -536,11 +648,13 @@ export class Menu {
   /** Shows only `panel` (or none), with the pause button only while flying. */
   private only(panel: HTMLDivElement | null): void {
     this.restToken++;
-    for (const p of [this.start, this.pause, this.rest, this.help, this.aviary])
-      p.classList.toggle('show', p === panel);
+    for (const p of this.panels()) p.classList.toggle('show', p === panel);
     this.pauseBtn.classList.toggle('show', panel === null);
-    // Not over the Aviary: on a phone its card takes the top of the screen.
-    this.fsBtn?.classList.toggle('show', panel !== null && panel !== this.aviary);
+    // Not over the Aviary or Settings: on a phone their cards reach the top corner.
+    this.fsBtn?.classList.toggle(
+      'show',
+      panel !== null && panel !== this.aviary && panel !== this.settingsPanel,
+    );
   }
 
   /**
@@ -695,7 +809,20 @@ export class Menu {
       card.classList.toggle('selected', on);
       card.setAttribute('aria-checked', String(on));
     }
+    // Glide to a new pick while the title is up; jump straight there when it first appears.
+    const shown = this.onTitle;
     this.only(this.start);
+    this.centreLevel(level, shown);
+  }
+
+  /** On a phone the cards are one row that scrolls sideways: bring the picked one to the middle
+   *  (a no-op for the desktop grid, which never overflows). */
+  private centreLevel(level: LevelId, smooth: boolean): void {
+    const row = this.levelCards[0].parentElement!;
+    const card = this.levelCards.find((c) => c.dataset.level === level);
+    if (!card || row.scrollWidth <= row.clientWidth) return;
+    const left = card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2;
+    row.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
   }
 
   /** The title screen is up (nothing on it is lost by a reload). */

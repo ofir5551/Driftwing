@@ -732,6 +732,45 @@ body.steer-split .boost-btn {
   }
 }
 
+/* Phones (upright, or short when held sideways): the cards are one row that scrolls sideways,
+   snapping card by card, so the title never scrolls up and down. The next card peeks in under a
+   soft edge fade, which says "swipe" without a hint; Menu.centreLevel keeps the pick in the
+   middle. The padding is room for the "New" badge and the pick's glow, which the
+   scroller would otherwise clip. */
+@media (max-width: 600px), (max-height: 520px) {
+  .levels {
+    position: relative; /* the cards' offsetLeft, for centring */
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 14px,
+      #000 calc(100% - 14px),
+      transparent
+    );
+    mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+  }
+  .levels::-webkit-scrollbar {
+    display: none;
+  }
+  .level {
+    /* About two and a third to a row, so the next card clearly peeks in. */
+    flex: 0 0 max(100px, calc(100% / 2.35 - 8px));
+    align-content: start;
+    scroll-snap-align: center;
+  }
+  .level-name {
+    white-space: normal;
+    line-height: 1.15;
+  }
+}
+
 /* Time-of-day chips under the level cards; picking one previews it on the live backdrop. */
 .times {
   display: flex;
@@ -789,8 +828,7 @@ body.steer-split .boost-btn {
   scrollbar-width: none;
 }
 
-/* Upright phones with little height: tighter title, level names without blurbs (a locked
-   card still says when it opens). */
+/* Upright phones with little height: a tighter title. */
 @media (max-aspect-ratio: 1/1) and (max-height: 720px) {
   .start .card h1 {
     font-size: 46px;
@@ -826,10 +864,7 @@ body.steer-split .boost-btn {
 }
 
 @media (max-aspect-ratio: 1/1) and (max-height: 620px) {
-  .level:not(.locked) .level-blurb {
-    display: none;
-  }
-  /* Nine cards in five rows: tighter still, so Play stays in view on an iPhone SE. */
+  /* Tighter still on an iPhone SE (the cards are one row there, so they keep their blurbs). */
   .start .card h1 {
     font-size: 40px;
   }
@@ -1281,56 +1316,287 @@ body.steer-split .controls.touch-split {
   transition: transform 0.9s ease;
 }
 
-.settings {
+/* Under Resume: Rest, Levels and Settings as three tiles in a row (the old stack of three ghost
+   buttons made the pause card scroll on a phone). */
+.pause-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
   margin-top: 22px;
+}
+
+.tile {
+  font: inherit;
   display: grid;
-  gap: 12px;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  min-height: 62px;
+  padding: 8px 4px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fffaf0;
+  text-shadow: 0 1px 8px rgba(60, 40, 80, 0.5);
+  background: rgba(255, 248, 238, 0.12);
+  font-size: 13.5px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.tile:hover,
+.tile:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 248, 238, 0.2);
+}
+
+.tile svg,
+.sound-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 4px rgba(60, 40, 80, 0.5));
+}
+
+/* Settings: its own card, opened from the pause card (Done goes back). */
+.menu.settings-panel {
+  background: rgba(60, 45, 80, 0.25);
+  backdrop-filter: blur(3px);
+}
+
+.settings-panel .card {
+  width: min(380px, 100%);
   text-align: left;
-  font-size: 15px;
+  background: rgba(255, 248, 238, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 22px;
+  padding: 20px 22px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
-.settings label {
-  display: grid;
-  gap: 6px;
-}
-
-.settings label.row {
+.settings-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-head h2 {
+  font-size: 32px;
+  margin: 0;
+}
+
+.settings-head .btn {
+  font-size: 15px;
+  padding: 8px 22px;
+  animation: none;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
+}
+
+.setting {
+  margin-bottom: 14px;
+}
+
+.setting-label {
+  margin: 0 0 7px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
 /* Only meaningful on touch devices, so hidden for mouse and keyboard players. */
-.settings label.touch-only {
+.setting.touch-only {
   display: none;
 }
 
-body.touch .settings label.touch-only {
-  display: grid;
+body.touch .setting.touch-only {
+  display: block;
 }
 
-body.touch .settings label.touch-only.row {
+.sound {
   display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.settings input[type='range'] {
-  width: 100%;
+.sound-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 248, 238, 0.12);
+  color: #fffaf0;
+  cursor: pointer;
+}
+
+.sound-btn .cross,
+.sound-btn.muted .waves {
+  display: none;
+}
+
+.sound-btn.muted .cross {
+  display: inline;
+}
+
+.sound input[type='range'] {
+  flex: 1;
+  min-width: 0;
   accent-color: #ffd98f;
+  transition: opacity 0.2s;
 }
 
-.settings input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  accent-color: #ffd98f;
+.sound.muted input[type='range'] {
+  opacity: 0.45;
 }
 
-.settings select {
+.chips {
+  display: flex;
+  gap: 6px;
+}
+
+.chips .chip {
+  flex: 1;
+  min-height: 36px;
+  padding: 5px 2px;
+  white-space: nowrap;
+}
+
+/* An on/off row: the whole row is the button. */
+.switch-row {
   font: inherit;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 250, 240, 0.9);
-  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-shadow: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.switch-text {
+  display: grid;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+}
+
+.switch-text small {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+
+.switch {
+  flex: none;
+  position: relative;
+  width: 46px;
+  height: 27px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  background: rgba(40, 30, 60, 0.4);
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff6df;
+  box-shadow: 0 1px 4px rgba(60, 40, 80, 0.4);
+  transition: transform 0.2s ease;
+}
+
+.switch-row[aria-checked='true'] .switch {
+  background: rgba(246, 213, 138, 0.85);
+  border-color: #fff4dc;
+}
+
+.switch-row[aria-checked='true'] .switch::after {
+  transform: translateX(19px);
+}
+
+.switch-row:focus-visible {
+  outline: none;
+}
+
+.switch-row:focus-visible .switch {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4);
+}
+
+/* Left-handed sits under the steering chips it belongs to. */
+.lefty-row {
+  margin-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+.lefty-row[hidden] {
+  display: none;
+}
+
+.link-btn {
+  display: block;
+  margin: 4px auto 0;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: inherit;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  opacity: 0.9;
+  cursor: pointer;
+}
+
+/* Left-handed (Settings): the D-pad and Boost trade sides; with side arrows or split pads a
+   cluster stays under each thumb and only Boost moves, over the left one. */
+body.lefty .dpad:not(.split-left, .split-right) {
+  left: auto;
+  right: max(28px, env(safe-area-inset-right));
+}
+
+body.lefty .boost-btn {
+  right: auto;
+  left: max(28px, env(safe-area-inset-left));
+}
+
+body.lefty.steer-arrows .boost-btn {
+  right: auto;
+  left: calc(var(--edge-l) + var(--btn) + var(--gap) / 2 - var(--size) / 2);
+}
+
+body.lefty.steer-split .boost-btn {
+  right: auto;
+  left: calc(var(--edge-l) + var(--pad) / 2 - var(--size) / 2);
 }
 
 .pause-btn {
@@ -1471,9 +1737,11 @@ body.touch .settings label.touch-only.row {
   .aviary-sub {
     display: none;
   }
-  .settings {
-    margin-top: 12px;
-    gap: 8px;
+  .settings-panel .card {
+    padding: 12px 20px;
+  }
+  .setting {
+    margin-bottom: 8px;
   }
 }
 

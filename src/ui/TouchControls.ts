@@ -187,6 +187,12 @@ export class TouchControls {
     this.setVisible(this.shown);
   }
 
+  /** Left-handed: `body.lefty` mirrors the buttons' sides in the CSS (DirectionPad measures
+   *  where its pad is on each touch, so nothing here needs to know). */
+  setLeftHanded(on: boolean): void {
+    document.body.classList.toggle('lefty', on);
+  }
+
   /** Show or hide the on-screen controls (hidden in menus). */
   setVisible(v: boolean): void {
     this.shown = v;

@@ -39,7 +39,10 @@ between its buttons (the nearest one is pressed). Boost sits above the right clu
 D-pad under each thumb, the left one without a right arrow and the right one without a left, both
 climbing and diving. One pad works at a time: while one is held the other ignores touches and fades,
 so the turns never mix. Boost sits above the right pad. Either way, double-tap an arrow for a trick,
-as on the keyboard. Drag stays the default. Gamepad: left stick + A.
+as on the keyboard. Drag stays the default. A Left-handed switch (shown for the button schemes)
+mirrors them: the D-pad goes bottom right and Boost bottom left; Side arrows and Split keep a cluster
+under each thumb (their turns stay on their own sides) and only Boost moves, over the left one.
+Gamepad: left stick + A.
 A Controls panel (title and pause screens) lists the controls for the current device.
 
 ## World
@@ -50,8 +53,9 @@ Post: bloom, paper grain, vignette, colour grade.
 
 ## Levels
 
-Chosen on the title screen as cards; the attract flight behind the menu switches to the picked
-world at once (a short veil hides the rebuild). The pause menu's "Change level" returns to the
+Chosen on the title screen as cards (a grid on wide screens; on phones one row that swipes
+sideways and centres the pick); the attract flight behind the menu switches to the picked
+world at once (a short veil hides the rebuild). The pause menu's "Levels" tile returns to the
 title. The pick and a best score per level persist. A level is a `LevelDef` (name, opening time of
 day, day length, music keys, sky mountain, ceiling) that creates a `World`: terrain, streamed scenery,
 what counts as solid, a steering assist, and hooks for wisp patterns and thermal placement.
@@ -1041,3 +1045,13 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
     became the paddies away from the river, the heights, and a turn round the fang. City of
     Gold's "tower's tip" moved to a turn round a tower's shaft for the same reason (its swings
     pass over the tips).
+- The pause card was one long column (Resume, three stacked buttons, then volume, mute, quality,
+  invert and steering) that scrolled on every phone. It is now Resume plus three tiles (Rest,
+  Levels, Settings), and Settings is its own card: a speaker button that mutes beside the volume
+  slider, chips for steering and quality, switches for invert and a new Left-handed option, and
+  Controls as a link. "Invert vertical steering" read as "flip the pad", so it is now "Invert
+  climb / dive" with a hint. Left-handed mirrors the button schemes: the D-pad goes right and Boost
+  left; Side arrows and Split keep their turns on their own sides and only move Boost.
+- On phones the title's level cards are one sideways-swiping row (snapping, the next card peeking
+  in) instead of a two-column grid that pushed Play, the Aviary and Controls off an iPhone SE. The
+  row has room for the blurbs again.

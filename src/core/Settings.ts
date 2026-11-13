@@ -28,6 +28,8 @@ export interface Settings {
   quality: QualityLevel | 'auto';
   invertY: boolean;
   touchSteer: TouchSteer;
+  /** Mirror the on-screen buttons for a left thumb: Boost on the left (and the D-pad right). */
+  leftHanded: boolean;
   /** Last level picked on the title screen. */
   level: LevelId;
   /** Fixed look chosen on the title screen, or 'auto' for the level's own day cycle. */
@@ -47,6 +49,7 @@ const DEFAULTS: Settings = {
   quality: 'auto',
   invertY: false,
   touchSteer: 'drag',
+  leftHanded: false,
   level: 'highlands',
   timeOfDay: 'auto',
   species: DEFAULT_SPECIES,
@@ -68,6 +71,7 @@ export function loadSettings(): Settings {
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',
       invertY: s.invertY === true,
       touchSteer: isTouchSteer(s.touchSteer) ? s.touchSteer : DEFAULTS.touchSteer,
+      leftHanded: s.leftHanded === true,
       level: isLevelId(s.level) ? s.level : DEFAULTS.level,
       timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : DEFAULTS.timeOfDay,
       species: isSpeciesId(s.species) ? s.species : DEFAULTS.species,

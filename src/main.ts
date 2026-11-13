@@ -100,6 +100,7 @@ function applySettings(s: Settings): void {
   audio.engine.setMuted(s.muted);
   Config.input.invertY = s.invertY;
   game.input.touch.setScheme(s.touchSteer);
+  game.input.touch.setLeftHanded(s.leftHanded);
   if (!params.has('quality')) {
     game.autoQuality = s.quality === 'auto';
     if (s.quality !== 'auto' && s.quality !== game.quality) game.setQuality(s.quality);

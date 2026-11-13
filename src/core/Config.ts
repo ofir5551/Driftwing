@@ -291,6 +291,13 @@ export const Config = {
     shipHeight: 18, // m, half the hull's height
     shipBelly: 27, // m, the underside above the water: room to fly beneath it
     legRadius: 2.4, // m, each leg's thickness (solid)
+    // Alien things on the land, all one family (ivory shell, copper, teal light).
+    propCell: 130, // m, grid cell that may hold one group of alien things
+    podChance: 0.22, // chance a cell on land holds a few landing pods (soft, glided over)
+    crystalChance: 0.24, // chance it holds crystal clusters instead (soft)
+    beaconChance: 0.07, // chance it holds a beacon tower instead (solid, on bigger land)
+    beaconHeight: 50, // m, a beacon tower's height (each varies a little)
+    ringSpin: 0.35, // rad/s, how fast a beacon's rings turn
     // Atmosphere and light.
     clarity: 0.55, // how clear the shallows are: the moss beds show through (0 opaque, 1 glass)
     mistFar: 0.22, // sea haze: far spires fade into the jade horizon

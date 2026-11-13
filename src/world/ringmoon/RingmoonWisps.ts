@@ -1,7 +1,7 @@
 import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
-import type { RingmoonLayout, Spire } from './RingmoonLayout';
+import type { RingmoonLayout } from './RingmoonLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
 
@@ -35,7 +35,8 @@ export class RingmoonPlanner implements WispPlanner {
   private readonly best: number[] = [];
   private free = 0;
   private sinceSwing = 2;
-  private lastSpire: Spire | null = null;
+  /** The spire or beacon the last swing went round (never twice running). */
+  private lastAround: object | null = null;
   /** The ribbon's overall direction (a slow average of its travel), so it never doubles back. */
   private trendX = 0;
   private trendZ = 0;
@@ -185,19 +186,38 @@ export class RingmoonPlanner implements WispPlanner {
   }
 
   /**
-   * Curve round a tall spire ahead: walk forward turning toward a circle round it at a height
-   * among its knuckles, far enough out to clear its lean, for about half a turn.
+   * Curve round a beacon tower or a tall spire ahead: walk forward turning toward a circle
+   * round it (at its rings' height, or among a spire's knuckles, far enough out to clear its
+   * lean) for about half a turn.
    */
   private swing(c: WispCursor, base: number, rand: () => number): boolean {
     const L = this.L;
-    const P = L.tallSpire(c.x + Math.sin(base) * 170, c.z + Math.cos(base) * 170, 150);
-    if (!P || P === this.lastSpire) return false;
+    const fx = c.x + Math.sin(base) * 170;
+    const fz = c.z + Math.cos(base) * 170;
+    // A beacon tower ahead first: a loop round it at the height of its turning rings.
+    const B = L.beaconNear(fx, fz, 150);
+    const P = B ? null : L.tallSpire(fx, fz, 150);
+    const around = B ?? P;
+    if (!around || around === this.lastAround) return false;
     const sp = Config.wisps.spacing;
-    const Y = clamp(c.y + 12, 24, P.top * 0.55);
-    // The axis at that height, and an orbit clear of the widest the spire gets.
-    const ax = P.x + P.lx * (Y - P.y0);
-    const az = P.z + P.lz * (Y - P.y0);
-    const R0 = P.r * 1.4 + Math.hypot(P.lx, P.lz) * P.h * 0.5 + 24;
+    let Y: number;
+    let ax: number;
+    let az: number;
+    let R0: number;
+    if (B) {
+      Y = clamp(c.y + 8, B.y0 + 12, B.y0 + (B.top - B.y0) * 0.73);
+      ax = B.x;
+      az = B.z;
+      // No tighter than the ribbon can turn (0.3 rad per 15 m), well clear of the rings.
+      R0 = Math.max(B.r + 30, 48);
+    } else {
+      const S = P!;
+      Y = clamp(c.y + 12, 24, S.top * 0.55);
+      // The axis at that height, and an orbit clear of the widest the spire gets.
+      ax = S.x + S.lx * (Y - S.y0);
+      az = S.z + S.lz * (Y - S.y0);
+      R0 = S.r * 1.4 + Math.hypot(S.lx, S.lz) * S.h * 0.5 + 24;
+    }
     const side = rand() < 0.5 ? 1 : -1;
     let x = c.x;
     let y = c.y;
@@ -219,7 +239,7 @@ export class RingmoonPlanner implements WispPlanner {
       this.pts.push(x, y, z);
     }
     if (turned < 1.2) return false;
-    this.lastSpire = P;
+    this.lastAround = around;
     return true;
   }
 

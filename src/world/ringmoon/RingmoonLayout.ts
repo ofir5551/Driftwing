@@ -83,6 +83,46 @@ export interface Ship {
   legR: number;
 }
 
+/** Alien things on the land. */
+export const PROP_POD = 0;
+export const PROP_BEACON = 1;
+export const PROP_CRYSTAL = 2;
+
+/**
+ * A landing pod, a crystal cluster or a beacon tower. Pods and crystals stand no taller than
+ * the frond canopy, so the bird glides over them; beacons are solid.
+ */
+export interface Prop {
+  type: number;
+  x: number;
+  z: number;
+  /** Base (a little into the ground). */
+  y0: number;
+  /** Uniform scale of the unit shape. */
+  s: number;
+  yaw: number;
+  /** Highest point. */
+  top: number;
+  /** Footprint radius. */
+  r: number;
+  seed: number;
+}
+
+/** Landing pod height (m, at scale 1): legs, teardrop shell and antenna. */
+export const POD_H = 8.4;
+/** Crystal cluster height (m, at scale 1). */
+export const CRYSTAL_H = 6;
+/** A beacon tower at scale 1 (m): mast radius, the ring band and its radius, tip radius. */
+export const BEACON = { h: 50, mast: 1.4, foot: 2.8, band0: 0.6, band1: 0.86, ring: 5.4, tip: 1.8 };
+
+/** Radius of a beacon tower (scale 1) at fraction t of its height, or -1 off it. */
+export function beaconProfile(t: number): number {
+  if (t < 0 || t > 1) return -1;
+  if (t > BEACON.band0 && t < BEACON.band1) return BEACON.ring;
+  if (t > 0.95) return BEACON.tip;
+  return t < 0.07 ? BEACON.foot : BEACON.mast;
+}
+
 /** Cell hash with offset coordinates: cells mirrored through the origin never match. */
 const cellHash = (i: number, j: number, seed: number) => hash2(i + 6113, j + 2729, seed);
 const CELL_CACHE = 6000;
@@ -102,6 +142,7 @@ export class RingmoonLayout {
   private readonly nLand: Noise2D;
   private readonly nHill: Noise2D;
   private readonly cells = new Map<number, Spire[]>();
+  private readonly propCells = new Map<number, Prop[]>();
   /** The opening run: from the spawn, under the ship's belly and on beyond it. */
   private readonly runEnd: { x: number; z: number };
 
@@ -360,6 +401,163 @@ export class RingmoonLayout {
       }
   }
 
+  // --- Alien things ----------------------------------------------------------------------------
+
+  /** Whether a prop of footprint r may stand at (x, z): on fairly level land, clear of things. */
+  private propOk(x: number, z: number, r: number, stone: number): boolean {
+    const y = this.height(x, z);
+    if (y < 1.8) return false;
+    if (Math.abs(this.height(x + r, z) - y) + Math.abs(this.height(x, z + r) - y) > r * 0.7)
+      return false;
+    if (this.nearOpening(x, z, 45 + r) || this.shipZone(x, z, 40 + r) < 1) return false;
+    return this.spiresNear(x, z, stone + r) === 0;
+  }
+
+  /** The alien things (if any) in grid cell (i, j): pods, crystals or a beacon. Cached. */
+  props(i: number, j: number): Prop[] {
+    const key = (i + 0x8000) * 0x10000 + (j + 0x8000);
+    let list = this.propCells.get(key);
+    if (list) return list;
+    if (this.propCells.size > CELL_CACHE) this.propCells.clear();
+    list = [];
+    this.propCells.set(key, list);
+    const R = Config.ringmoon;
+    const C = R.propCell;
+    const s = this.seed;
+    const h = (salt: number) => cellHash(i, j, s + salt);
+    const cx = (i + 0.2 + 0.6 * h(851)) * C;
+    const cz = (j + 0.2 + 0.6 * h(852)) * C;
+    const pick = h(853);
+    const add = (
+      type: number,
+      x: number,
+      z: number,
+      sc: number,
+      r: number,
+      H: number,
+      k: number,
+    ) => {
+      const y0 = this.height(x, z) - (type === PROP_BEACON ? 2 : 0.4);
+      list!.push({
+        type,
+        x,
+        z,
+        y0,
+        s: sc,
+        yaw: h(860 + k) * Math.PI * 2,
+        top: y0 + H * sc,
+        r: r * sc,
+        seed: h(870 + k),
+      });
+    };
+    if (pick < R.podChance) {
+      // A few pods set down near one another.
+      const n = 1 + Math.floor(h(854) * 3);
+      for (let k = 0; k < n; k++) {
+        const a = (h(880) + k / 3) * Math.PI * 2; // spread round, never two in one spot
+        const x = cx + (k ? Math.sin(a) * 13 : 0);
+        const z = cz + (k ? Math.cos(a) * 13 : 0);
+        const sc = 0.85 + 0.2 * h(890 + k);
+        if (this.propOk(x, z, 4 * sc, 14)) add(PROP_POD, x, z, sc, 3.6, POD_H, k);
+      }
+    } else if (pick < R.podChance + R.crystalChance) {
+      const n = 1 + Math.floor(h(855) * 2);
+      for (let k = 0; k < n; k++) {
+        const a = (h(880) + k / 3) * Math.PI * 2; // spread round, never two in one spot
+        const x = cx + (k ? Math.sin(a) * 9 : 0);
+        const z = cz + (k ? Math.cos(a) * 9 : 0);
+        const sc = 0.95 + 0.45 * h(890 + k); // up to ~8.4 m, still under the frond canopy
+        if (this.propOk(x, z, 4 * sc, 12)) add(PROP_CRYSTAL, x, z, sc, 4, CRYSTAL_H, k);
+      }
+    } else if (pick < R.podChance + R.crystalChance + R.beaconChance) {
+      // Beacons on bigger land (a hill or a broad islet), well clear of the stone.
+      const sc = (R.beaconHeight / BEACON.h) * (0.85 + 0.3 * h(856));
+      if (this.height(cx, cz) > 4 && this.propOk(cx, cz, BEACON.ring * sc, 40))
+        add(PROP_BEACON, cx, cz, sc, BEACON.ring, BEACON.h, 0);
+    }
+    return list;
+  }
+
+  /** Calls `fn` for every prop that could reach (x, z) within `pad`; stops when it returns true. */
+  private nearProps(x: number, z: number, pad: number, fn: (p: Prop) => boolean): void {
+    const C = Config.ringmoon.propCell;
+    const R = 30 + pad;
+    const i0 = Math.floor((x - R) / C);
+    const i1 = Math.floor((x + R) / C);
+    const j0 = Math.floor((z - R) / C);
+    const j1 = Math.floor((z + R) / C);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const list = this.props(i, j);
+        for (let n = 0; n < list.length; n++) {
+          const p = list[n];
+          const R2 = p.r + pad;
+          if ((x - p.x) ** 2 + (z - p.z) ** 2 > R2 * R2) continue;
+          if (fn(p)) return;
+        }
+      }
+  }
+
+  /** A beacon's radius at height y, or -1 above or below it. */
+  beaconRadius(p: Prop, y: number): number {
+    const r = beaconProfile((y - p.y0) / (BEACON.h * p.s));
+    return r < 0 ? -1 : r * p.s;
+  }
+
+  private qb: Prop | null = null;
+  private readonly beaconFn = (p: Prop): boolean => {
+    if (p.type !== PROP_BEACON) return false;
+    const y = this.qy;
+    const m = this.qm;
+    if (y < p.y0 - m || y > p.top + m) return false;
+    const d = Math.hypot(this.qx - p.x, this.qz - p.z);
+    const yc = clamp(y, p.y0, p.top);
+    // The widest it gets within the margin up or down (so the look-ahead sees the rings coming).
+    const r = Math.max(
+      this.beaconRadius(p, yc),
+      this.beaconRadius(p, Math.min(yc + m, p.top)),
+      this.beaconRadius(p, Math.max(yc - m, p.y0)),
+    );
+    if (d > r + m) return false;
+    const H = this.hit;
+    H[0] = p.x - p.r;
+    H[1] = p.y0;
+    H[2] = p.z - p.r;
+    H[3] = p.x + p.r;
+    H[4] = p.top;
+    H[5] = p.z + p.r;
+    this.qr = p.top;
+    this.qb = p;
+    return true;
+  };
+
+  private readonly beaconsFn = (p: Prop): boolean => {
+    if (p.type === PROP_BEACON && p.top > this.best) this.best = p.top;
+    return false;
+  };
+
+  private nb: Prop | null = null;
+  private nbD = Infinity;
+  private readonly nearBeaconFn = (p: Prop): boolean => {
+    if (p.type !== PROP_BEACON) return false;
+    const d = Math.hypot(p.x - this.tx, p.z - this.tz);
+    if (d < this.nbD) {
+      this.nbD = d;
+      this.nb = p;
+    }
+    return false;
+  };
+
+  /** The nearest beacon tower within `r` of (x, z), or null. */
+  beaconNear(x: number, z: number, r: number): Prop | null {
+    this.nb = null;
+    this.nbD = Infinity;
+    this.tx = x;
+    this.tz = z;
+    this.nearProps(x, z, r, this.nearBeaconFn);
+    return this.nb;
+  }
+
   // Query state for the closures below (kept on the instance so queries never allocate).
   private qx = 0;
   private qy = 0;
@@ -445,6 +643,8 @@ export class RingmoonLayout {
     this.qp = null;
     this.nearSpires(x, z, margin, this.solidFn);
     if (this.qr !== -Infinity) return this.qr;
+    this.nearProps(x, z, margin, this.beaconFn);
+    if (this.qr !== -Infinity) return this.qr;
     const S = this.ship;
     const H = this.hit;
     const ext = S.a + S.legR + margin + 30;
@@ -521,6 +721,42 @@ export class RingmoonLayout {
       const up = q.top + margin - p.y;
       // Over the tip when that is the shorter way out (only near the crown).
       if ((p.y - q.y0) / q.h > SPIRE_SHAPES[q.shape].crown - 0.05 && up < side) {
+        if (up <= 0) return 0;
+        n.x = n.z = 0;
+        n.y = 1;
+        p.y += up + 1e-3;
+        return up;
+      }
+      if (side <= 0) return 0;
+      n.y = 0;
+      n.x = dx / d;
+      n.z = dz / d;
+      p.x += n.x * (side + 1e-3);
+      p.z += n.z * (side + 1e-3);
+      return side;
+    }
+    this.qb = null;
+    this.qr = -Infinity;
+    this.nearProps(p.x, p.z, margin, this.beaconFn);
+    const b = this.qb as Prop | null;
+    if (b) {
+      let dx = p.x - b.x;
+      let dz = p.z - b.z;
+      let d = Math.hypot(dx, dz);
+      if (d < 1e-3) {
+        dx = 1;
+        dz = 0;
+        d = 1;
+      }
+      const yc = clamp(p.y, b.y0, b.top);
+      const r = Math.max(
+        this.beaconRadius(b, yc),
+        this.beaconRadius(b, Math.min(yc + margin, b.top)),
+        this.beaconRadius(b, Math.max(yc - margin, b.y0)),
+      );
+      const side = r + margin - d;
+      const up = b.top + margin - p.y;
+      if (up < side && up < 4) {
         if (up <= 0) return 0;
         n.x = n.z = 0;
         n.y = 1;
@@ -613,6 +849,7 @@ export class RingmoonLayout {
   skyline(x: number, z: number, r: number): number {
     this.best = -Infinity;
     this.nearSpires(x, z, r, this.skyFn);
+    this.nearProps(x, z, r, this.beaconsFn);
     if (this.shipZone(x, z, r + 10) < 1) this.best = Math.max(this.best, this.ship.y + this.ship.c);
     return this.best;
   }

@@ -95,7 +95,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   hills, leaning
   basalt spires lathed from one knuckled profile (the lean is a shear in the instance matrix;
   queries follow the leaning axis), the ship (an ellipsoid hull with an underside, four leg
-  capsules) and the two gate spires beside it), `RingmoonWisps` (the run under the ship, grove
+  capsules), the two gate spires beside it, and alien props on the land: landers and crystals
+  (soft, under the canopy) and beacon towers (solid; rings spun in the shader)), `RingmoonWisps` (the run under the ship, grove
   slaloms, skims, swings round tall spires), `RingmoonDecor`, `geometry`, `RingmoonWorld`. The
   ringed giant and the second sun are the `giant` backdrop in `Sky`.
 - `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,

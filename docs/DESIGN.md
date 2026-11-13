@@ -422,6 +422,15 @@ under the belly, on four plain splayed legs. Its belly is 27 m over the water. T
 (150 and 124 m) stand past either end of it, leaning in a little. The opening run (spawn to
 beyond the ship) is kept clear of islets and spires.
 
+Alien things are spread over the land, one family designed for the level (ivory shell, copper
+and orange accents, teal light): landing pods (upright teardrops on three thin legs with a
+copper band and a lit hatch) set down in twos and threes; crystal clusters (violet and teal
+six-sided shafts that glow faintly at night); and, rarely and only on bigger land, beacon
+towers: a slim 45-55 m mast with two tilted copper rings turning opposite ways round it (in
+the vertex shader, no matrix updates) and a teal tip that pulses after dark. Pods and crystals
+stay under the frond canopy, so the bird glides over them; beacons are solid (slim at the mast,
+wide at the rings), and now and then a ribbon loops round one at the height of its rings.
+
 Flight: the water is the ground; skims throw a pale green spray. Fronds and reeds are soft
 canopy. Spires, hull and legs are solid but soft, flown with the city's look-ahead and wall
 glance. The hull is an ellipsoid the drawn pod stays inside (pulled in, never out): the bird is
@@ -970,3 +979,8 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   down off a hill a ribbon dropping 5 m per wisp sent the bot diving to ~40 m/s, too fast for
   the next slalom's bends, and one seed fell to ~100 wisps in two minutes. Ribbons now drop at
   most 3 m per wisp and slaloms only start on the flat: ~200 wisps on five seeds, no glances.
+- Ringmoon's alien things are one original family (teardrop landers, ringed beacons,
+  crystals) sharing the level's palette. Landers and crystals are capped under the 9 m frond
+  canopy so they cost no collisions; only the beacons are solid, profiled so the look-ahead
+  sees the rings coming. Swings round a beacon orbit at >= 48 m: the ribbon turns at most
+  0.3 rad per wisp.

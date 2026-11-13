@@ -157,7 +157,7 @@ export class RingmoonWorld implements World {
     u.uMistTime.value = time;
     const night = smoothstep(0.08, 0.6, p.stars) * R.glow;
     this.glowMaterial.color.copy(GLOW_DAY).lerp(GLOW_NIGHT, night);
-    this.decor.frame(day);
+    this.decor.frame(day, time);
   }
 
   assist(s: FlightState, input: FlightInput): void {

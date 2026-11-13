@@ -153,7 +153,7 @@ you back to choose again).
   one and a small white one that trails it, so every sunset happens twice). Leaning basalt
   spires stand in groves, banded with amber lichen; islets of violet moss and broad mainland of rolling teal and gold hills carry coil
   fronds still rolled like fiddleheads, fans of glassy reeds and glow pods that light up after
-  dark. Ahead of the spawn an old ribbed seed-pod ship rests on four legs in the shallows, its
+  dark. Landing pods, glowing crystals and beacon towers with turning copper rings dot the land. Ahead of the spawn an old ribbed seed-pod ship rests on four legs in the shallows, its
   belly high enough to fly under, a crack of light along its back. The music is a distant horn
   over a deep pad, lydian by day and whole-tone in the double sunset, the slowest tempo of any
   level. Wisps run under the ship, slalom through the groves, skim the moss beds and swing

@@ -4,10 +4,15 @@ import { LEVEL_LIST } from '../src/levels';
 import { RINGMOON_MUSIC } from '../src/audio/styles';
 import { Config } from '../src/core/Config';
 import {
+  BEACON,
+  PROP_BEACON,
+  PROP_CRYSTAL,
+  PROP_POD,
   RingmoonLayout,
   SPIRE_REACH,
   SPIRE_SHAPES,
   spireProfile,
+  type Prop,
   type Spire,
 } from '../src/world/ringmoon/RingmoonLayout';
 import { RingmoonWorld } from '../src/world/ringmoon/RingmoonWorld';
@@ -221,5 +226,52 @@ describe('ringmoon level and music', () => {
     expect(RINGMOON_MUSIC.voice).toBe('horn');
     for (const l of LEVEL_LIST)
       if (l.id !== 'ringmoon') expect(l.music.bpm).toBeGreaterThan(RINGMOON_MUSIC.bpm);
+  });
+});
+
+describe('ringmoon alien things', () => {
+  /** Every prop centred in a square around the origin. */
+  function propsAround(layout: RingmoonLayout, half: number): Prop[] {
+    const C = Config.ringmoon.propCell;
+    const out: Prop[] = [];
+    for (let j = Math.floor(-half / C); j <= Math.floor(half / C); j++)
+      for (let i = Math.floor(-half / C); i <= Math.floor(half / C); i++)
+        out.push(...layout.props(i, j));
+    return out;
+  }
+
+  it('sets landers, crystals and beacons on the land, clear of the run, the ship and the stone', () => {
+    const ps = propsAround(L, 3000);
+    const count = [0, 0, 0];
+    for (const p of ps) {
+      count[p.type]++;
+      expect(L.height(p.x, p.z)).toBeGreaterThan(1.8);
+      expect(L.nearOpening(p.x, p.z, 45)).toBe(false);
+      expect(L.shipZone(p.x, p.z, 40)).toBeGreaterThanOrEqual(1);
+      expect(L.spiresNear(p.x, p.z, 10)).toBe(0);
+      // Landers and crystals stay under the frond canopy: the bird glides over them.
+      if (p.type !== PROP_BEACON)
+        expect(p.top).toBeLessThanOrEqual(L.height(p.x, p.z) + Config.ringmoon.canopy + 0.5);
+    }
+    expect(count[PROP_POD]).toBeGreaterThan(40);
+    expect(count[PROP_CRYSTAL]).toBeGreaterThan(40);
+    expect(count[PROP_BEACON]).toBeGreaterThan(4);
+    expect(L.props(3, -2)).toEqual(new RingmoonLayout(1337).props(3, -2));
+  });
+
+  it('makes a beacon solid: wide at its rings, slim at its mast, pushed out sideways', () => {
+    const b = propsAround(L, 3000).find((p) => p.type === PROP_BEACON)!;
+    const H = b.top - b.y0;
+    const ringY = b.y0 + H * 0.73;
+    const mastY = b.y0 + H * 0.35;
+    expect(L.solidTop(b.x + BEACON.ring * b.s - 0.5, ringY, b.z, 0)).toBe(b.top);
+    expect(L.solidTop(b.x + BEACON.ring * b.s - 0.5, mastY, b.z, 0)).toBe(-Infinity);
+    expect(L.solidTop(b.x + 0.5, mastY, b.z, 0)).toBe(b.top);
+    const n = { x: 0, y: 0, z: 0 };
+    const pt = { x: b.x + 2, y: ringY, z: b.z };
+    expect(L.pushPoint(pt, 1, n)).toBeGreaterThan(0);
+    expect(n.x).toBeGreaterThan(0.9);
+    expect(L.solidTop(pt.x, pt.y, pt.z, 0.99)).toBe(-Infinity);
+    expect(L.skyline(b.x, b.z, 5)).toBeGreaterThanOrEqual(b.top);
   });
 });

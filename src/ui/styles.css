@@ -787,6 +787,24 @@ body.steer-split .boost-btn {
   .level:not(.locked) .level-blurb {
     display: none;
   }
+  /* Nine cards in five rows: tighter still, so Play stays in view on an iPhone SE. */
+  .start .card h1 {
+    font-size: 40px;
+  }
+  .levels {
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .level {
+    gap: 2px;
+    padding: 6px 6px;
+  }
+  .times {
+    margin-bottom: 10px;
+  }
+  .start .journey {
+    margin-bottom: 10px;
+  }
 }
 
 /* Aviary and Controls side by side under Play. */

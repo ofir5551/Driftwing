@@ -13,7 +13,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll`,
+  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon`,
   `?unlocked` (every level, plumage and trail open, nothing granted or saved).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
@@ -47,7 +47,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `playing`, `paused`. `onStep`/`onFrame` hooks.
 - `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`, `Karst`
   (Jade River, with its own palettes), `Fjord` (Aurora Fjords), `Jerusalem` (City of Gold),
-  `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls); `index` registry.
+  `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls), `Ringmoon` (Ringmoon Shallows); `index`
+  registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Journey.ts`: lifetime light and the unlock track (pure; saved by `Settings`). See DESIGN's
   Progression.
@@ -90,6 +91,12 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   slaloms, island swings), `AtollDecor`, `Surf` (an animated foam strip per atoll in view),
   `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
   the seabed's colours through the water.
+- `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets, leaning
+  basalt spires lathed from one knuckled profile (the lean is a shear in the instance matrix;
+  queries follow the leaning axis), the ship (an ellipsoid hull with an underside, four leg
+  capsules) and the two gate spires beside it), `RingmoonWisps` (the run under the ship, grove
+  slaloms, skims, swings round tall spires), `RingmoonDecor`, `geometry`, `RingmoonWorld`. The
+  ringed giant and the second sun are the `giant` backdrop in `Sky`.
 - `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),

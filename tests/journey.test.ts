@@ -200,7 +200,9 @@ describe('parseJourney', () => {
         light: 0,
         granted: [],
         revealed: [],
-        seen: ALL.filter((id) => !['swallow', 'crane', 'phoenix', 'peaks', 'atoll'].includes(id)),
+        seen: ALL.filter(
+          (id) => !['swallow', 'crane', 'phoenix', 'peaks', 'atoll', 'ringmoon'].includes(id),
+        ),
       });
   });
 

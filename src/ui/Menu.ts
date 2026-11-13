@@ -1,8 +1,16 @@
-import { isUnlockId, unlockAt, type Journey, type Unlock, type UnlockKind } from '../core/Journey';
+import {
+  isUnlockId,
+  unlockAt,
+  type Journey,
+  type Unlock,
+  type UnlockId,
+  type UnlockKind,
+} from '../core/Journey';
 import type { Settings } from '../core/Settings';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
 import { TIME_OF_DAY_LIST, type TimeOfDay } from '../world/DayCycle';
+import { LEVEL_FINDS } from '../world/Discoveries';
 import {
   DEFAULT_PLUMAGE,
   PLUMAGES,
@@ -116,6 +124,8 @@ export interface RestTally {
   best: number;
   newBest: boolean;
   seconds: number;
+  /** Names of the discoveries made this flight. */
+  finds: readonly string[];
 }
 
 const KIND_LABEL: Record<UnlockKind, string> = {
@@ -220,6 +230,7 @@ export class Menu {
   private readonly best: HTMLElement;
   private readonly pauseStats: HTMLElement;
   private readonly levelCards: HTMLButtonElement[];
+  private readonly levelsMore: HTMLElement;
   private readonly journeyBars: HTMLElement[];
   private readonly timeChips: HTMLButtonElement[];
   /** Only exists where the Fullscreen API does. */
@@ -239,8 +250,10 @@ export class Menu {
          (l) =>
            `<button class="level" role="radio" aria-checked="false" data-level="${l.id}">
               <span class="level-name">${l.name}</span><span class="level-blurb">${l.blurb}</span>
+              <span class="level-finds" hidden></span>
             </button>`,
        ).join('')}</div>
+       <p class="levels-more" hidden></p>
        <div class="times" role="radiogroup" aria-label="Time of day">${TIME_OF_DAY_LIST.map(
          (t) =>
            `<button class="time" role="radio" aria-checked="false" data-time="${t.id}">${t.label}</button>`,
@@ -292,6 +305,7 @@ export class Menu {
        <p class="rest-sub"></p>
        <div class="tally"></div>
        <p class="rest-best"></p>
+       <p class="rest-finds" hidden></p>
        ${JOURNEY_HTML}
        <div class="unlock-cards"></div>
        <button class="btn primary" id="fly-btn">Keep flying</button>
@@ -310,6 +324,7 @@ export class Menu {
 
     this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
     this.levelCards = [...this.start.querySelectorAll<HTMLButtonElement>('.level')];
+    this.levelsMore = this.start.querySelector<HTMLElement>('.levels-more')!;
     for (const card of this.levelCards)
       card.addEventListener('click', () => {
         const id = card.dataset.level as LevelId;
@@ -551,6 +566,9 @@ export class Menu {
     const best = r.querySelector<HTMLElement>('.rest-best')!;
     best.textContent = t.newBest ? 'A new best' : `Best ${t.best.toLocaleString()}`;
     best.classList.toggle('new', t.newBest);
+    const finds = r.querySelector<HTMLElement>('.rest-finds')!;
+    finds.hidden = t.finds.length === 0;
+    finds.textContent = `Found: ${t.finds.join(' · ')}`;
     const cards = r.querySelector<HTMLElement>('.unlock-cards')!;
     cards.replaceChildren();
 
@@ -627,21 +645,44 @@ export class Menu {
     el.classList.add('nudge');
   }
 
-  /** Locked cards keep their name but say when they open; open ones not flown yet say "New". */
+  /**
+   * Open levels, then only the next one still locked (it keeps its name and says when it opens),
+   * so a new player sees a place or two and Play rather than a wall of locks; a line says how many
+   * more lie ahead. Open ones not flown yet say "New".
+   */
   private markLevels(): void {
+    let nextLocked: UnlockId | null = null;
+    let hidden = 0;
+    for (const { id } of LEVEL_LIST) {
+      if (this.journey.isLevelOpen(id) || !isUnlockId(id)) continue;
+      if (nextLocked === null || unlockAt(id) < unlockAt(nextLocked)) nextLocked = id;
+    }
     for (const card of this.levelCards) {
       const id = card.dataset.level as LevelId;
       const level = LEVEL_LIST.find((l) => l.id === id);
       const open = this.journey.isLevelOpen(id);
       const isNew = open && this.isNewLevel(id);
+      card.hidden = !open && id !== nextLocked;
+      if (card.hidden) hidden++;
       card.classList.toggle('locked', !open);
       card.classList.toggle('new', isNew);
       card.setAttribute('aria-disabled', String(!open));
+      // Its hidden finds, one mark each (filled once found), on open levels.
+      const marks = card.querySelector<HTMLElement>('.level-finds')!;
+      const total = LEVEL_FINDS[id].length;
+      const got = this.journey.foundIn(id);
+      marks.hidden = !open || total === 0;
+      card.classList.toggle('has-finds', !marks.hidden);
+      marks.textContent = '●'.repeat(got) + '○'.repeat(total - got);
+      marks.title = `Hidden finds: ${got} of ${total}`;
       card.querySelector('.level-blurb')!.textContent =
         open || !isUnlockId(id)
           ? (level?.blurb ?? '')
           : `Opens at ${unlockAt(id).toLocaleString()} ✧`;
     }
+    this.levelsMore.hidden = hidden === 0;
+    this.levelsMore.textContent =
+      hidden === 1 ? 'One more place further along' : `${hidden} more places further along`;
   }
 
   showStart(best: number, level: LevelId): void {

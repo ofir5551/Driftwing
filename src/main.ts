@@ -21,6 +21,7 @@ import { DEFAULT_PLUMAGE, plumageDef } from './player/Plumage';
 import { DEFAULT_TRAIL, trailDef } from './fx/TrailStyle';
 import { DEFAULT_SPECIES, speciesDef } from './player/Species';
 import { applyUpdate, registerServiceWorker, updateReady } from './pwa';
+import { findName } from './world/Discoveries';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -50,6 +51,8 @@ const urlLevel = params.get('level');
 const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level, settings.timeOfDay);
 const gameplay = new Gameplay(game, ui);
 const audio = new GameAudio(game, gameplay.progress);
+// A find already made is never made again (in any session that keeps the journey).
+gameplay.discoveries.known = (id) => journey.hasFound(id);
 gameplay.progress.best = loadBest(game.level.id);
 audio.setStyle(game.level.music);
 
@@ -130,14 +133,32 @@ function switchLevel(id: LevelId): void {
   }, 380);
 }
 
-let flapped = false;
 let playTime = 0;
 /** The level's saved best when the flight began (so the Rest card can say "a new best"). */
 let bestBefore = 0;
-let welcomed = false;
-let hintShown = false;
-let boostHintShown = false;
+
+// First-flight lessons (Config.hints): each is learned by doing it once and saved, so a
+// returning player flies without a word. Steering comes first; boosting only once steering is
+// known, and never twice in a flight. A save from before lessons were kept: light means the
+// player has already gathered wisps and steered to them.
+if (journey.light > 0) settings.taught.wisps = settings.taught.steer = true;
+let steerTime = 0;
+/** Play time at which steering was learned this flight (-1: known before, or not yet). */
+let steerLearnedAt = -1;
+let steerHinted = false;
+let boostHinted = false;
+function learn(lesson: keyof Settings['taught']): void {
+  if (settings.taught[lesson]) return;
+  settings.taught[lesson] = true;
+  if (earns) saveSettings(settings); // the autopilot teaches nobody
+}
 const isTouch = () => document.body.classList.contains('touch');
+const steerHint = () =>
+  !isTouch()
+    ? 'Move the pointer to steer'
+    : settings.touchSteer === 'drag'
+      ? 'Slide your finger to steer'
+      : 'Use the arrows to steer';
 const flapHint = () =>
   !isTouch()
     ? 'Hold Space or click to boost'
@@ -151,14 +172,16 @@ const handlers: MenuHandlers = {
     applySettings(settings);
     gameplay.progress.reset();
     journey.newFlight();
+    gameplay.discoveries.restart();
     bestBefore = loadBest(game.level.id);
     game.setMode('playing');
     gameplay.hud.visible = true;
     menu.showPlaying();
     playTime = 0;
-    // Hints are once per visit: a second flight (Keep flying, or Play again) needs none.
-    if (!welcomed) gameplay.hud.toast('Follow the wisps', 3);
-    welcomed = true;
+    steerTime = 0;
+    steerLearnedAt = -1;
+    steerHinted = boostHinted = false;
+    if (!settings.taught.wisps) gameplay.hud.toast('Follow the wisps', 3);
   },
   rest() {
     if (game.mode !== 'paused') return;
@@ -179,6 +202,7 @@ const handlers: MenuHandlers = {
         best: p.best,
         newBest: p.score > bestBefore,
         seconds: playTime,
+        finds: journey.flightFinds.map(findName),
       },
       journey.unrevealed(),
     );
@@ -247,11 +271,20 @@ const handlers: MenuHandlers = {
 };
 const menu = new Menu(ui, settings, journey, handlers);
 
-game.events.on('flap', () => (flapped = true));
+// The bot flaps on the title too: only the player's own flaps teach boosting.
+game.events.on('flap', () => game.mode === 'playing' && learn('boost'));
 // These only fire while playing (the attract flight doesn't score).
-game.events.on('wisp', () => earn(Config.journey.wisp));
+game.events.on('wisp', () => {
+  learn('wisps');
+  earn(Config.journey.wisp);
+});
 game.events.on('lanternReached', () => earn(Config.journey.lantern));
 game.events.on('trick', () => earn(Config.journey.trick));
+game.events.on('discovery', (e) => {
+  if (!earns || !journey.discover(e.id)) return;
+  earn(Config.discoveries.light);
+  bankJourney(); // a find is worth saving at once
+});
 game.events.on('lantern', persist);
 game.onFrame((dt) => {
   const input = game.input;
@@ -270,18 +303,32 @@ game.onFrame((dt) => {
     playTime += dt;
     bankTimer += dt;
     if (bankTimer >= Config.journey.bankEvery) bankJourney();
-    // Drag steering has no boost button, so say how to boost once "Follow the wisps" has faded.
-    if (!boostHintShown && playTime > 3.4) {
-      boostHintShown = true;
-      if (isTouch() && settings.touchSteer === 'drag') gameplay.hud.toast(flapHint(), 4);
-    }
-    // One gentle nudge if the player hasn't discovered flapping yet.
-    if (!hintShown && !flapped && playTime > 14) {
-      hintShown = true;
-      gameplay.hud.toast(flapHint(), 4);
-    }
+    teach(dt);
   }
 });
+
+/** One lesson at a time, each only while the toast is free (never over a lantern or unlock). */
+function teach(dt: number): void {
+  const h = Config.hints;
+  const t = settings.taught;
+  const steer = game.input.state;
+  if (!t.steer) {
+    if (Math.abs(steer.steerX) + Math.abs(steer.steerY) > h.steerInput) steerTime += dt;
+    if (steerTime > h.steerLearned) {
+      learn('steer');
+      steerLearnedAt = playTime;
+    } else if (!steerHinted && playTime > h.steerAt && !gameplay.hud.busy) {
+      steerHinted = true;
+      gameplay.hud.toast(steerHint(), 4);
+    }
+    return; // boosting waits until steering is known
+  }
+  if (t.boost || boostHinted || gameplay.hud.busy) return;
+  if (playTime > h.boostAt && (steerLearnedAt < 0 || playTime > steerLearnedAt + h.boostGap)) {
+    boostHinted = true;
+    gameplay.hud.toast(flapHint(), 4);
+  }
+}
 
 /** Reloads into a newer build that has downloaded (see pwa.ts), but only on the title, where
  *  a reload loses nothing: never mid-flight, on the pause menu or on the Rest card. */

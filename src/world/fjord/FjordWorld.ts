@@ -14,6 +14,8 @@ import { FjordDecor, type FjordChunk } from './FjordDecor';
 import { FjordLayout } from './FjordLayout';
 import { FjordPlanner } from './FjordWisps';
 import { beamGeometry, lampGeometry, lighthouseGeometry } from './geometry';
+import type { DiscoveryDef } from '../Discoveries';
+import { fjordFinds } from './finds';
 
 const C = {
   bed: new THREE.Color('#1d3442'),
@@ -42,6 +44,7 @@ export class FjordWorld implements World {
   readonly field: HeightField;
   readonly layout: FjordLayout;
   readonly planner: FjordPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   private readonly chunks: ChunkManager<FjordChunk>;
   private readonly decor: FjordDecor;
   private readonly tower: THREE.Mesh;
@@ -51,6 +54,7 @@ export class FjordWorld implements World {
 
   constructor(seed: number) {
     const L = (this.layout = new FjordLayout(seed));
+    this.discoveries = fjordFinds(L);
     const tint = createNoise2D(seed + 420);
     this.field = {
       height: (x, z) => L.height(x, z),

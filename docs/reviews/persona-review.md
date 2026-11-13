@@ -4,13 +4,13 @@ Five independent reviewers, each playing a different kind of player, read DESIGN
 played the game headlessly on iPhone SE and iPhone 14 in portrait. None of them saw the others'
 reports. This file merges them. Nothing has been implemented.
 
-| Persona | In one line |
-| --- | --- |
-| Calm minimalist (core player) | "The best moment is when the HUD fades and it's just a bird, a lake and fog. Getting there is noisier than it needs to be." |
-| Journey fan | "In its best frames it already does what thatgamecompany does. But the places are a pilgrimage and the structure around them is a content list." |
-| Daily returner | "Calm, no nagging, and the Rest card is lovely. But the track ends in about 18 flights, and then the number just counts." |
-| Curious explorer | "I flew 4 km out into the moss hills and nothing noticed I'd been anywhere. A great view and no guidebook." |
-| Non-gamer | "I pressed Play and it flew, which was a relief. Nobody told me how to steer, and tapping did nothing." |
+| Persona                       | In one line                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Calm minimalist (core player) | "The best moment is when the HUD fades and it's just a bird, a lake and fog. Getting there is noisier than it needs to be."                      |
+| Journey fan                   | "In its best frames it already does what thatgamecompany does. But the places are a pilgrimage and the structure around them is a content list." |
+| Daily returner                | "Calm, no nagging, and the Rest card is lovely. But the track ends in about 18 flights, and then the number just counts."                        |
+| Curious explorer              | "I flew 4 km out into the moss hills and nothing noticed I'd been anywhere. A great view and no guidebook."                                      |
+| Non-gamer                     | "I pressed Play and it flew, which was a relief. Nobody told me how to steer, and tapping did nothing."                                          |
 
 The key claims below were checked against the code (file:line references are as of this commit).
 
@@ -83,16 +83,19 @@ The key claims below were checked against the code (file:line references are as 
 
 Ranked by how many personas each serves against effort. None breaks a pillar.
 
-| # | Change | Who it serves | Effort |
-| --- | --- | --- | --- |
-| 1 | **Fix the first-minute hints.** At 3.4 s, if the player hasn't dragged yet, say "Slide your finger to steer". Show the boost hint only after they've steered, and never twice. Save completed hints in Settings so a returning player sees none. Place toasts below the bird, off the opening's focal point. | Non-gamer, minimalist, Journey fan | S |
-| 2 | **A calmer fresh title.** Show the open levels plus the next locked one, with "N more places" in the journey line. Make Aviary and Controls fit on the SE without scrolling. | All five | S-M |
-| 3 | **Respace the end of the track.** For example Atoll 2900, Ringmoon 3150, Phoenix 3450, plus one more milestone in 2050-3000. Add the Ringmoon row to DESIGN's table. Existing unlocks are kept (`granted`). | Returner, Journey fan | S |
-| 4 | **Quieter numbers in flight.** Take the score off the in-flight HUD (it stays on pause and Rest). "Lantern reached" without "+points". Only the first lantern gets an "awakens" toast; the beam and bell carry the rest. | Minimalist, Journey fan | S |
-| 5 | **Discoveries v1.** Add a shared `discovery` event and 3-5 finds per level, none on the opening ribbon (circle the lighthouse, glide the ship's seam, pass under the Sky Gate bridge…). Each find is a pure predicate in the level's Layout, testable in Vitest. In flight: a chime and a light. On the Rest card: its name. On the level card: ●●○○ marks. No new button. | Explorer, returner, Journey fan (minimalist's rule respected) | M-L |
+| #   | Change                                                                                                                                                                                                                                                                                                                                                                     | Who it serves                                                 | Effort |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------ |
+| 1   | **Fix the first-minute hints.** At 3.4 s, if the player hasn't dragged yet, say "Slide your finger to steer". Show the boost hint only after they've steered, and never twice. Save completed hints in Settings so a returning player sees none. Place toasts below the bird, off the opening's focal point.                                                               | Non-gamer, minimalist, Journey fan                            | S      |
+| 2   | **A calmer fresh title.** Show the open levels plus the next locked one, with "N more places" in the journey line. Make Aviary and Controls fit on the SE without scrolling.                                                                                                                                                                                               | All five                                                      | S-M    |
+| 3   | **Respace the end of the track.** For example Atoll 2900, Ringmoon 3150, Phoenix 3450, plus one more milestone in 2050-3000. Add the Ringmoon row to DESIGN's table. Existing unlocks are kept (`granted`).                                                                                                                                                                | Returner, Journey fan                                         | S      |
+| 4   | **Quieter numbers in flight.** Take the score off the in-flight HUD (it stays on pause and Rest). "Lantern reached" without "+points". Only the first lantern gets an "awakens" toast; the beam and bell carry the rest.                                                                                                                                                   | Minimalist, Journey fan                                       | S      |
+| 5   | **Discoveries v1.** Add a shared `discovery` event and 3-5 finds per level, none on the opening ribbon (circle the lighthouse, glide the ship's seam, pass under the Sky Gate bridge…). Each find is a pure predicate in the level's Layout, testable in Vitest. In flight: a chime and a light. On the Rest card: its name. On the level card: ●●○○ marks. No new button. | Explorer, returner, Journey fan (minimalist's rule respected) | M-L    |
 
 Items 1-4 are small and could ship together as one "first impressions and calm" pass. Item 5 is
 the one that answers "why open it next week", which three personas asked independently.
+
+**Status:** all five are built (see DESIGN's decisions log). Discoveries v1 has three finds per
+level, not five, and the Neon Bay and City of Gold finds were placed where the wisps don't fly.
 
 ## Also worth doing (smaller)
 

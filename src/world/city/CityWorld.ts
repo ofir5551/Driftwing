@@ -12,6 +12,8 @@ import { BK, CityLayout, ZONE_AVENUE, ZONE_STREET } from './CityLayout';
 import { CityPlanner } from './CityWisps';
 import { avoidSolids, glanceOffWall } from './collide';
 import { createCityUniforms, createGroundMaterial, type CityUniforms } from './materials';
+import type { DiscoveryDef } from '../Discoveries';
+import { cityFinds } from './finds';
 
 const C = {
   seabed: new THREE.Color('#4f6d78'),
@@ -33,6 +35,7 @@ export class CityWorld implements World {
   readonly field: HeightField;
   readonly layout: CityLayout;
   readonly planner: CityPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   private readonly uniforms: CityUniforms;
   private readonly chunks: ChunkManager<CityChunk>;
   readonly decor: CityDecor;
@@ -41,6 +44,7 @@ export class CityWorld implements World {
 
   constructor(seed: number) {
     const L = (this.layout = new CityLayout(seed));
+    this.discoveries = cityFinds(L);
     this.uniforms = createCityUniforms();
     const tint = createNoise2D(seed + 205);
     this.field = {

@@ -14,6 +14,8 @@ import { shipGeometry, shipGlowGeometry } from './geometry';
 import { RingmoonDecor, type RingmoonChunk } from './RingmoonDecor';
 import { RingmoonLayout } from './RingmoonLayout';
 import { RingmoonPlanner } from './RingmoonWisps';
+import type { DiscoveryDef } from '../Discoveries';
+import { ringmoonFinds } from './finds';
 
 /**
  * Sea-floor and islet colours. The water over the shallows is fairly clear (the level's water
@@ -50,6 +52,7 @@ export class RingmoonWorld implements World {
   readonly field: HeightField;
   readonly layout: RingmoonLayout;
   readonly planner: RingmoonPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   readonly skimColor = SPRAY;
   private readonly chunks: ChunkManager<RingmoonChunk>;
   private readonly decor: RingmoonDecor;
@@ -59,6 +62,7 @@ export class RingmoonWorld implements World {
 
   constructor(seed: number) {
     const L = (this.layout = new RingmoonLayout(seed));
+    this.discoveries = ringmoonFinds(L);
     const tint = createNoise2D(seed + 820);
     this.field = {
       height: (x, z) => L.height(x, z),

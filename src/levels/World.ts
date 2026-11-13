@@ -5,6 +5,7 @@ import type { Backdrop } from '../world/Sky';
 import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
+import type { DiscoveryDef } from '../world/Discoveries';
 
 export type LevelId =
   | 'highlands'
@@ -51,6 +52,8 @@ export interface World {
   readonly skimColor?: THREE.Color;
   /** Optional level-specific wisp patterns. */
   readonly planner: WispPlanner | null;
+  /** The level's hidden finds (`world/<level>/finds.ts`). */
+  readonly discoveries: readonly DiscoveryDef[];
   readonly chunkCount: number;
   readonly pending: number;
   dispose(): void;

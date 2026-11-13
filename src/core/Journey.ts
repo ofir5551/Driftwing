@@ -1,5 +1,6 @@
 import { Config } from './Config';
 import type { LevelId } from '../levels/World';
+import { isFindId, LEVEL_FINDS } from '../world/Discoveries';
 
 /**
  * The journey: light earned across every flight, and the milestones it opens (levels, species,
@@ -73,6 +74,8 @@ export interface JourneyData {
   /** Every milestone on the track when this was saved. One added since (a new bird) that the
    *  light has already passed still gets its card; one a retune lowered opens quietly. */
   seen: UnlockId[];
+  /** Discoveries made (ids from world/Discoveries). Older saves have none. */
+  found: string[];
 }
 
 /** Reads saved data defensively: anything missing or malformed falls back to a fresh start. */
@@ -88,7 +91,8 @@ export function parseJourney(raw: unknown): JourneyData {
     ? [...new Set(o.revealed.filter(isUnlockId))]
     : [...granted];
   const seen = Array.isArray(o.seen) ? [...new Set(o.seen.filter(isUnlockId))] : [...LEGACY_SEEN];
-  return { v: 1, light, granted, revealed, seen };
+  const found = Array.isArray(o.found) ? [...new Set(o.found.filter(isFindId))] : [];
+  return { v: 1, light, granted, revealed, seen, found };
 }
 
 const NONE: readonly Unlock[] = [];
@@ -108,8 +112,11 @@ export class Journey {
   /** Every level, plumage and trail can be picked whatever the light (`?unlocked`, for
    *  testing). Never saved: nothing is granted, so the real journey is untouched. */
   allOpen = false;
+  /** Discoveries made this flight, in order (the Rest card names them). */
+  readonly flightFinds: string[] = [];
   private readonly granted = new Set<UnlockId>();
   private readonly revealed = new Set<UnlockId>();
+  private readonly found = new Set<string>();
 
   constructor(data?: JourneyData) {
     const seen = new Set<UnlockId>(data ? data.seen : UNLOCKS.map((u) => u.id));
@@ -117,6 +124,7 @@ export class Journey {
       this.light = data.light;
       for (const id of data.granted) this.granted.add(id);
       for (const id of data.revealed) this.revealed.add(id);
+      for (const id of data.found) this.found.add(id);
     }
     // Milestones already passed but not recorded open now: quietly if a retune lowered one,
     // with a card still to come if it is new to the track (a bird added since the save).
@@ -201,7 +209,28 @@ export class Journey {
     }
   }
 
+  /** A discovery was made: kept for good. False if it was already found. */
+  discover(id: string): boolean {
+    if (!isFindId(id) || this.found.has(id)) return false;
+    this.found.add(id);
+    this.flightFinds.push(id);
+    this.dirty = true;
+    return true;
+  }
+
+  hasFound(id: string): boolean {
+    return this.found.has(id);
+  }
+
+  /** How many of a level's discoveries have been made. */
+  foundIn(level: LevelId): number {
+    let n = 0;
+    for (const f of LEVEL_FINDS[level]) if (this.found.has(f.id)) n++;
+    return n;
+  }
+
   newFlight(): void {
+    this.flightFinds.length = 0;
     this.flightLight = 0;
     this.flightOpened = 0;
     this.startLight = this.light;
@@ -216,6 +245,7 @@ export class Journey {
       granted: ids(this.granted),
       revealed: ids(this.revealed),
       seen: UNLOCKS.map((u) => u.id),
+      found: [...this.found],
     };
   }
 

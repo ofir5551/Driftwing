@@ -14,6 +14,7 @@ import { Hud } from '../ui/Hud';
 import { Lanterns } from '../world/Lanterns';
 import { Thermals } from '../world/Thermals';
 import { Wisps } from '../world/Wisps';
+import { DiscoveryTracker, type DiscoveryDef } from '../world/Discoveries';
 
 const GOLD = new THREE.Color('#ffd27a');
 const MOON = new THREE.Color('#a9e8ff');
@@ -33,6 +34,8 @@ export class Gameplay {
   readonly hud: Hud;
   readonly wisps: Wisps;
   readonly thermals: Thermals;
+  /** The level's hidden finds (main.ts tells it which are already found). */
+  readonly discoveries = new DiscoveryTracker();
   private readonly lanterns = new Lanterns();
   private readonly glow = new Particles(2400, true);
   private readonly soft = new Particles(900, false);
@@ -82,6 +85,7 @@ export class Gameplay {
       this.shadow.mesh,
     );
     this.thermals.update(game.flight.x, game.flight.z);
+    this.discoveries.setLevel(game.world.discoveries);
 
     game.onStep((dt) => this.step(dt));
     game.onFrame((dt, time) => this.frame(dt, time));
@@ -144,6 +148,7 @@ export class Gameplay {
     this.thermals.reset();
     this.thermals.update(g.flight.x, g.flight.z);
     this.lanterns.reset();
+    this.discoveries.setLevel(g.world.discoveries);
     g.autopilotTarget = null;
   }
 
@@ -180,6 +185,8 @@ export class Gameplay {
     if (scoring) {
       const orb = this.lanterns.reach(s.x, s.y, s.z);
       if (orb) this.reachLantern(orb.x, orb.y, orb.z);
+      const find = this.discoveries.step(dt, s.x, s.y, s.z, g.day.palette.stars);
+      if (find) this.discover(find);
     }
     // The bot prefers a lantern still to reach over the wisps (lanterns only light while scoring).
     const lantern = scoring ? this.lanterns.pending(s.x, s.z, Config.lantern.guide) : null;
@@ -201,9 +208,21 @@ export class Gameplay {
     this.glow.burst(50, s.x, s.y, s.z, 14, 1.4, 1.6, GOLD, -1, 4);
     this.glow.burst(40, x, y + 30, z, 20, 2.4, 2, WHITE, -2, 10);
     g.composer.flash = 0.45;
-    this.hud.trick('Lantern reached', points);
+    // Light and a bell say it: the points go to the score, not the screen.
+    this.hud.trick('Lantern reached', 0);
     this.hud.pulse();
     g.events.emit('lanternReached', { x, y, z, points });
+  }
+
+  /** A hidden find: no words in flight (the Rest card names it), just light and a chime. */
+  private discover(d: DiscoveryDef): void {
+    const g = this.game;
+    const s = g.flight;
+    this.glow.burst(40, s.x, s.y, s.z, 10, 1.6, 1.8, GOLD, -0.6, 3);
+    this.glow.burst(24, s.x, s.y + 6, s.z, 14, 2.2, 1.4, WHITE, 1.5, 5);
+    g.composer.flash = Math.max(g.composer.flash, Config.discoveries.flash);
+    this.hud.pulse();
+    g.events.emit('discovery', { id: d.id, name: d.name, x: s.x, y: s.y, z: s.z });
   }
 
   private landTrick(kind: TrickKind, size: number, scoring: boolean): void {
@@ -232,7 +251,7 @@ export class Gameplay {
     g.composer.flash = 0.6;
     const n = this.progress.lanterns;
     // The first one says what lanterns are for; after that the sparks and beam say it.
-    this.hud.toast(n === 1 ? 'A lantern awakens: fly through its light' : `Lantern ${n} awakens`);
+    if (n === 1) this.hud.toast('A lantern awakens: fly through its light');
     g.events.emit('lantern', { x: orb.x, y: orb.y, z: orb.z, index: n });
   }
 

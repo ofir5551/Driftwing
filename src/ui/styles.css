@@ -395,15 +395,19 @@ body.steer-split .boost-btn {
   }
 }
 
+/* Below the bird (it flies at about 58% of the height), so hints never sit on the horizon where
+   each level's opening landmark rises. */
 .toast {
   position: fixed;
-  top: 22%;
+  top: 67%;
   left: 50%;
   transform: translate(-50%, 8px);
   font-size: clamp(20px, 4vw, 34px);
   letter-spacing: 0.08em;
   color: #fff8e8;
-  text-shadow: 0 2px 18px rgba(255, 190, 110, 0.9);
+  text-shadow:
+    0 1px 3px rgba(60, 40, 50, 0.55),
+    0 2px 18px rgba(255, 190, 110, 0.9);
   opacity: 0;
   transition:
     opacity 0.8s ease,
@@ -625,6 +629,44 @@ body.steer-split .boost-btn {
 .level.locked:focus-visible {
   transform: none;
   border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Hidden finds: a mark each in the card's corner, filled once found. */
+.level-finds {
+  position: absolute;
+  right: 8px;
+  bottom: 3px;
+  font-size: 8px;
+  letter-spacing: 0.25em;
+  color: var(--glow);
+  opacity: 0.85;
+}
+
+.level-finds[hidden] {
+  display: none;
+}
+
+/* Room under the text for the marks (specific enough to outrank the phone sizes below). */
+.levels .level.has-finds {
+  padding-bottom: 13px;
+}
+
+/* Only the next locked level shows (Menu.markLevels); the rest wait unseen. */
+.level[hidden] {
+  display: none;
+}
+
+/* The line sits close under the cards, taking the space the cards' own margin left. */
+.levels:has(+ .levels-more:not([hidden])) {
+  margin-bottom: 8px;
+}
+
+.levels-more {
+  margin: 0 0 20px;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  opacity: 0.8;
 }
 
 /* Open but not flown yet. */
@@ -1128,6 +1170,14 @@ body.steer-split .controls.touch-split {
   font-size: 14px;
   letter-spacing: 0.06em;
   opacity: 0.85;
+}
+
+.rest-finds {
+  margin: -4px 0 14px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #ffe9b8;
+  text-shadow: 0 0 12px rgba(255, 210, 140, 0.8);
 }
 
 .rest-best.new {

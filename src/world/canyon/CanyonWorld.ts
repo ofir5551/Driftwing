@@ -13,6 +13,8 @@ import { getToonGradient, type HeightField } from '../Terrain';
 import { CanyonDecor, type CanyonChunk } from './CanyonDecor';
 import { CanyonLayout } from './CanyonLayout';
 import { CanyonPlanner } from './CanyonWisps';
+import type { DiscoveryDef } from '../Discoveries';
+import { canyonFinds } from './finds';
 
 const C = {
   bed: new THREE.Color('#2c4a44'),
@@ -47,12 +49,14 @@ export class CanyonWorld implements World {
   readonly field: HeightField;
   readonly layout: CanyonLayout;
   readonly planner: CanyonPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   private readonly chunks: ChunkManager<CanyonChunk>;
   private readonly decor: CanyonDecor;
   private readonly n = { x: 0, y: 0, z: 0 };
 
   constructor(seed: number) {
     const L = (this.layout = new CanyonLayout(seed));
+    this.discoveries = canyonFinds(L);
     const tint = createNoise2D(seed + 620);
     this.field = {
       height: (x, z) => L.height(x, z),

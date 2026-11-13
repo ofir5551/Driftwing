@@ -245,6 +245,23 @@ export class Music {
     });
   }
 
+  /**
+   * A hidden find: a high fifth falling to the third, then the octave above, slow and wide, on
+   * the next beat. Softer than a milestone and unlike a lantern's roll, so it reads as its own.
+   */
+  discovered(): void {
+    const ctx = this.engine.ctx;
+    const sched = this.sched;
+    if (!ctx || !sched) return;
+    const t0 = sched.quantize(ctx.currentTime + 0.05, 2, 0.01);
+    const key = this.root + this.shift;
+    const degs = [4, 2, 7];
+    degs.forEach((deg, i) => {
+      const m = degreeToMidi(key, this.mode, this.chordRoot + deg) + 24;
+      this.note(t0 + i * sched.stepDur * 1.5, m, 0.32, (1 - i) * 0.6, 5, 0.12, true);
+    });
+  }
+
   lanternReached(): void {
     const ctx = this.engine.ctx;
     if (!ctx || !this.sched) return;

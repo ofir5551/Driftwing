@@ -15,6 +15,8 @@ import { bridgeGeometry } from './geometry';
 import { PeaksDecor, type PeaksChunk } from './PeaksDecor';
 import { PeaksLayout } from './PeaksLayout';
 import { PeaksPlanner } from './PeaksWisps';
+import type { DiscoveryDef } from '../Discoveries';
+import { peaksFinds } from './finds';
 
 const C = {
   trough: new THREE.Color('#bdb8d6'),
@@ -37,6 +39,7 @@ export class PeaksWorld implements World {
   readonly field: HeightField;
   readonly layout: PeaksLayout;
   readonly planner: PeaksPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   readonly skimColor = PUFF;
   private readonly chunks: ChunkManager<PeaksChunk>;
   private readonly decor: PeaksDecor;
@@ -49,6 +52,7 @@ export class PeaksWorld implements World {
 
   constructor(seed: number) {
     const L = (this.layout = new PeaksLayout(seed));
+    this.discoveries = peaksFinds(L);
     const tint = createNoise2D(seed + 520);
     this.field = {
       height: (x, z) => L.height(x, z),

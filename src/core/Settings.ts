@@ -14,6 +14,14 @@ export type TouchSteer = 'drag' | 'dpad' | 'arrows' | 'split';
 const isTouchSteer = (v: unknown): v is TouchSteer =>
   v === 'drag' || v === 'dpad' || v === 'arrows' || v === 'split';
 
+/** First-flight lessons the player has learned by doing them (see Config.hints). */
+export interface Taught {
+  /** Gathered a wisp. */
+  wisps: boolean;
+  steer: boolean;
+  boost: boolean;
+}
+
 export interface Settings {
   volume: number;
   muted: boolean;
@@ -28,6 +36,7 @@ export interface Settings {
   species: SpeciesId;
   plumage: PlumageId;
   trail: TrailId;
+  taught: Taught;
 }
 
 const KEY = 'driftwing:settings';
@@ -43,13 +52,14 @@ const DEFAULTS: Settings = {
   species: DEFAULT_SPECIES,
   plumage: DEFAULT_PLUMAGE,
   trail: DEFAULT_TRAIL,
+  taught: { wisps: false, steer: false, boost: false },
 };
 
 // localStorage can throw (private mode, disabled storage): settings then just don't persist.
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return { ...DEFAULTS, taught: { ...DEFAULTS.taught } };
     const s = JSON.parse(raw) as Partial<Settings>;
     return {
       volume: typeof s.volume === 'number' ? Math.min(1, Math.max(0, s.volume)) : DEFAULTS.volume,
@@ -63,10 +73,18 @@ export function loadSettings(): Settings {
       species: isSpeciesId(s.species) ? s.species : DEFAULTS.species,
       plumage: isPlumageId(s.plumage) ? s.plumage : DEFAULTS.plumage,
       trail: isTrailId(s.trail) ? s.trail : DEFAULTS.trail,
+      taught: parseTaught(s.taught),
     };
   } catch {
-    return { ...DEFAULTS };
+    return { ...DEFAULTS, taught: { ...DEFAULTS.taught } };
   }
+}
+
+function parseTaught(raw: unknown): Taught {
+  const t = (typeof raw === 'object' && raw !== null ? raw : {}) as Partial<
+    Record<keyof Taught, unknown>
+  >;
+  return { wisps: t.wisps === true, steer: t.steer === true, boost: t.boost === true };
 }
 
 export function saveSettings(s: Settings): void {

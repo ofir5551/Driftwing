@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { lerp, smoothstep } from '../../core/math';
 import { mulberry32 } from '../noise';
 import { painted } from '../Trees';
-import { spireProfile, type Ship, type SpireShape } from './RingmoonLayout';
+import { BEACON, CRYSTAL_H, spireProfile, type Ship, type SpireShape } from './RingmoonLayout';
 
 /**
  * Ringmoon Shallows' shapes. Spires are lathed from the layout's profile in unit radius and
@@ -387,4 +387,232 @@ export function podGeometry(): THREE.BufferGeometry {
   const g = new THREE.IcosahedronGeometry(0.7, 0).scale(1, 1.3, 1);
   g.deleteAttribute('uv');
   return g;
+}
+
+// --- Alien things: one family, ivory shell, copper, teal light ----------------------------------
+
+const IVORY = new THREE.Color('#e8dfc8');
+const IVORY_SHADE = new THREE.Color('#bdb096');
+const COPPER = new THREE.Color('#c0703a');
+const COPPER_DARK = new THREE.Color('#7a4026');
+const STRUT = new THREE.Color('#5d5752');
+
+/** Lander shell radius at fraction t of its height: a round-bottomed teardrop, pointed on top. */
+const landerR = (t: number) =>
+  2.5 * Math.pow(Math.max(0, Math.sin(Math.PI * Math.pow(t, 0.72))), 0.85);
+/** The shell's base above the ground and its height (m, at scale 1). */
+const LANDER_BASE = 2.1;
+const LANDER_SHELL = 5.6;
+
+/**
+ * A landing pod: an upright teardrop of ivory shell on three thin splayed legs with round foot
+ * pads, a copper band round its widest part with rivet bumps, and a short antenna with a copper
+ * bulb. ~8.4 m tall at scale 1. The hatch's light is a separate mesh (`landerGlowGeometry`).
+ */
+export function landerGeometry(): THREE.BufferGeometry {
+  const RINGS = 12;
+  const SEG = 10;
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  const c = new THREE.Color();
+  for (let i = 0; i <= RINGS; i++) {
+    const t = i / RINGS;
+    const band = 1 - smoothstep(0.03, 0.06, Math.abs(t - 0.42));
+    const r = landerR(t) * (1 + 0.04 * band);
+    for (let k = 0; k < SEG; k++) {
+      const a = (k / SEG) * Math.PI * 2;
+      pos.push(Math.cos(a) * r, LANDER_BASE + t * LANDER_SHELL, Math.sin(a) * r);
+      c.copy(IVORY).lerp(IVORY_SHADE, 0.35 + 0.3 * Math.sin(a * 2 + t * 5));
+      c.lerp(COPPER, band).lerp(COPPER_DARK, smoothstep(0.25, 0, t) * 0.6);
+      col.push(c.r, c.g, c.b);
+    }
+  }
+  for (let i = 0; i < RINGS; i++)
+    for (let k = 0; k < SEG; k++) {
+      const a = i * SEG + k;
+      const b = i * SEG + ((k + 1) % SEG);
+      idx.push(a, a + SEG, b, b, a + SEG, b + SEG);
+    }
+  const shell = new THREE.BufferGeometry();
+  shell.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  shell.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  shell.setIndex(idx);
+  shell.computeVertexNormals();
+  const parts: THREE.BufferGeometry[] = [shell.toNonIndexed()];
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2 + 0.5;
+    const top = new THREE.Vector3(Math.cos(a) * 1.6, LANDER_BASE + 0.9, Math.sin(a) * 1.6);
+    const foot = new THREE.Vector3(Math.cos(a) * 3.4, 0.15, Math.sin(a) * 3.4);
+    const len = top.distanceTo(foot);
+    const leg = new THREE.CylinderGeometry(0.16, 0.22, len, 5);
+    leg.applyQuaternion(
+      new THREE.Quaternion().setFromUnitVectors(up, top.clone().sub(foot).normalize()),
+    );
+    leg.translate((top.x + foot.x) / 2, (top.y + foot.y) / 2, (top.z + foot.z) / 2);
+    parts.push(painted(leg, (_x, _y, _z, out) => out.copy(STRUT)));
+    const pad = new THREE.CylinderGeometry(0.55, 0.7, 0.3, 7).translate(foot.x, 0.15, foot.z);
+    parts.push(painted(pad, (_x, _y, _z, out) => out.copy(COPPER_DARK)));
+  }
+  const top = LANDER_BASE + LANDER_SHELL;
+  parts.push(
+    painted(
+      new THREE.CylinderGeometry(0.06, 0.08, 0.9, 4).translate(0, top + 0.35, 0),
+      (_x, _y, _z, o) => o.copy(STRUT),
+    ),
+  );
+  parts.push(
+    painted(new THREE.IcosahedronGeometry(0.22, 0).translate(0, top + 0.85, 0), (_x, _y, _z, o) =>
+      o.copy(COPPER),
+    ),
+  );
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    const r = landerR(0.42) * 1.05;
+    const g = new THREE.IcosahedronGeometry(0.16, 0).translate(
+      Math.cos(a) * r,
+      LANDER_BASE + 0.42 * LANDER_SHELL,
+      Math.sin(a) * r,
+    );
+    parts.push(painted(g, (_x, _y, _z, o) => o.copy(COPPER_DARK)));
+  }
+  return mergeGeometries(parts)!;
+}
+
+/** A lander's hatch: a tall oval of light on its +z side, under the copper band. */
+export function landerGlowGeometry(): THREE.BufferGeometry {
+  const t = 0.3;
+  const g = new THREE.SphereGeometry(1, 10, 8).scale(0.75, 1.15, 0.25);
+  g.translate(0, LANDER_BASE + t * LANDER_SHELL, landerR(t) * 0.93);
+  g.deleteAttribute('uv');
+  return g;
+}
+
+/**
+ * A beacon tower's mast (50 m at scale 1): a copper foot flaring into the ground, a slim
+ * ivory mast with copper collars, up to a cradle under the tip. The rings and the tip light are
+ * separate meshes (the rings turn, the tip pulses).
+ */
+export function beaconGeometry(): THREE.BufferGeometry {
+  const H = BEACON.h;
+  const parts: THREE.BufferGeometry[] = [];
+  parts.push(
+    painted(
+      new THREE.CylinderGeometry(BEACON.mast * 1.2, BEACON.foot, H * 0.07, 8).translate(
+        0,
+        H * 0.035,
+        0,
+      ),
+      (_x, y, _z, o) => o.copy(COPPER).lerp(COPPER_DARK, smoothstep(H * 0.07, 0, y)),
+    ),
+  );
+  parts.push(
+    painted(
+      new THREE.CylinderGeometry(BEACON.mast * 0.45, BEACON.mast, H * 0.9, 7).translate(
+        0,
+        H * 0.5,
+        0,
+      ),
+      (_x, y, _z, o) => o.copy(IVORY).lerp(IVORY_SHADE, 0.3 + 0.3 * Math.sin(y * 0.4)),
+    ),
+  );
+  for (const t of [0.2, 0.38, 0.55, 0.9]) {
+    const r = BEACON.mast * (1 - 0.55 * t) + 0.35;
+    parts.push(
+      painted(new THREE.CylinderGeometry(r, r, 0.7, 8).translate(0, H * t, 0), (_x, _y, _z, o) =>
+        o.copy(COPPER),
+      ),
+    );
+  }
+  parts.push(
+    painted(
+      new THREE.CylinderGeometry(BEACON.tip * 0.9, 0.5, 1.6, 8).translate(0, H * 0.95 - 0.8, 0),
+      (_x, _y, _z, o) => o.copy(COPPER_DARK),
+    ),
+  );
+  return mergeGeometries(parts)!;
+}
+
+/**
+ * One of a beacon's two rings, tilted off level: a copper hoop with ivory studs round it. Built
+ * round the mast's axis so turning it about local y keeps it centred (its tilt wobbles as it
+ * turns). `upper` picks the smaller, higher ring.
+ */
+export function beaconRingGeometry(upper: boolean): THREE.BufferGeometry {
+  const R = upper ? BEACON.ring * 0.78 : BEACON.ring;
+  const y = BEACON.h * (upper ? 0.8 : 0.67);
+  const parts: THREE.BufferGeometry[] = [
+    painted(new THREE.TorusGeometry(R - 0.35, 0.35, 5, 28).rotateX(Math.PI / 2), (_x, _y, _z, o) =>
+      o.copy(COPPER),
+    ),
+  ];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    parts.push(
+      painted(
+        new THREE.IcosahedronGeometry(0.42, 0).translate(
+          Math.cos(a) * (R - 0.35),
+          0,
+          Math.sin(a) * (R - 0.35),
+        ),
+        (_x, _y, _z, o) => o.copy(IVORY),
+      ),
+    );
+  }
+  const g = mergeGeometries(parts)!;
+  g.rotateZ(upper ? -0.32 : 0.24);
+  g.translate(0, y, 0);
+  return g;
+}
+
+/** A beacon's tip light (the instance's colour pulses after dark). */
+export function beaconTipGeometry(): THREE.BufferGeometry {
+  const g = new THREE.IcosahedronGeometry(BEACON.tip, 1).translate(0, BEACON.h * 0.97, 0);
+  g.deleteAttribute('uv');
+  return g;
+}
+
+const CRYSTAL_VIOLET = new THREE.Color('#8a5fd0');
+const CRYSTAL_TEAL = new THREE.Color('#4fc7b8');
+const CRYSTAL_TIP = new THREE.Color('#e9e2ff');
+
+/**
+ * A crystal cluster: six-sided shafts with pointed tips growing out of one spot at different
+ * angles and heights (the tallest ~6 m at scale 1), violet or teal, paling to the tips.
+ */
+export function crystalGeometry(): THREE.BufferGeometry {
+  const rand = mulberry32(77);
+  const parts: THREE.BufferGeometry[] = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let k = 0; k < 6; k++) {
+    const h = k === 0 ? CRYSTAL_H - 1 : 2 + rand() * 3;
+    const r = 0.35 + 0.25 * (h / CRYSTAL_H);
+    const shaft = new THREE.CylinderGeometry(r, r * 1.1, h, 6).translate(0, h / 2, 0);
+    const tip = new THREE.ConeGeometry(r, r * 2.2, 6).translate(0, h + r * 1.1, 0);
+    const teal = rand() < 0.4;
+    const g = mergeGeometries(
+      [shaft, tip].map((p) => {
+        p.deleteAttribute('uv');
+        return p.toNonIndexed();
+      }),
+    )!;
+    const top = h + r * 2.2;
+    painted(g, (_x, y, _z, o) =>
+      o
+        .copy(teal ? CRYSTAL_TEAL : CRYSTAL_VIOLET)
+        .lerp(CRYSTAL_TIP, smoothstep(top * 0.5, top, y) * 0.7),
+    );
+    const lean = k === 0 ? 0.05 : 0.25 + rand() * 0.45;
+    const a = rand() * Math.PI * 2;
+    const dir = new THREE.Vector3(
+      Math.sin(lean) * Math.cos(a),
+      Math.cos(lean),
+      Math.sin(lean) * Math.sin(a),
+    );
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir));
+    g.translate(Math.cos(a) * 0.6, 0, Math.sin(a) * 0.6);
+    parts.push(g);
+  }
+  return mergeGeometries(parts)!;
 }

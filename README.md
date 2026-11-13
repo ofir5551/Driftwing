@@ -151,9 +151,9 @@ you back to choose again).
 - **Ringmoon Shallows**: another world, opening in the afternoon. A shallow jade sea on a moon
   of a ringed gas giant that hangs huge in the sky all day, lit as a gibbous by two suns (a gold
   one and a small white one that trails it, so every sunset happens twice). Leaning basalt
-  spires stand in groves, banded with amber lichen; low islets of violet moss carry coil
+  spires stand in groves, banded with amber lichen; islets of violet moss and broad mainland of rolling teal and gold hills carry coil
   fronds still rolled like fiddleheads, fans of glassy reeds and glow pods that light up after
-  dark. Ahead of the spawn an old ribbed seed-pod ship rests on four legs in the shallows, its
+  dark. Landing pods, glowing crystals and beacon towers with turning copper rings dot the land. Ahead of the spawn an old ribbed seed-pod ship rests on four legs in the shallows, its
   belly high enough to fly under, a crack of light along its back. The music is a distant horn
   over a deep pad, lydian by day and whole-tone in the double sunset, the slowest tempo of any
   level. Wisps run under the ship, slalom through the groves, skim the moss beds and swing
@@ -256,7 +256,7 @@ file list by the plugin in `vite.config.ts`) and `src/pwa.ts`, which registers i
   water turns nearly clear for this level so the seabed's vertex colours paint the lagoons, and
   the surf is one animated strip per atoll in view. Mushroom rocks are lathed from a notched
   profile the collisions share; the high island is terrain the look-ahead steers round.
-- **Ringmoon Shallows**: a shallow sea with terraced moss islets (`src/world/ringmoon/`), spires
+- **Ringmoon Shallows**: a shallow sea with terraced moss islets and hilly mainland (`src/world/ringmoon/`), spires
   on a grid lathed from one knuckled profile and leaned by a shear in each instance matrix (the
   collisions follow the leaning axis), and the ship: an ellipsoid the drawn seed pod stays inside,
   pushed out of radially, whose underside the look-ahead eases beneath. The gas giant, its rings

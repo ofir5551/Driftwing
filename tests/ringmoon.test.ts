@@ -4,10 +4,15 @@ import { LEVEL_LIST } from '../src/levels';
 import { RINGMOON_MUSIC } from '../src/audio/styles';
 import { Config } from '../src/core/Config';
 import {
+  BEACON,
+  PROP_BEACON,
+  PROP_CRYSTAL,
+  PROP_POD,
   RingmoonLayout,
   SPIRE_REACH,
   SPIRE_SHAPES,
   spireProfile,
+  type Prop,
   type Spire,
 } from '../src/world/ringmoon/RingmoonLayout';
 import { RingmoonWorld } from '../src/world/ringmoon/RingmoonWorld';
@@ -64,15 +69,41 @@ describe('ringmoon layout', () => {
       for (let x = -2000; x < 2000; x += 41) {
         n++;
         const y = L.height(x, z);
-        expect(y).toBeLessThan(10);
+        if (L.mainland(x, z) === 0) expect(y).toBeLessThan(10);
         if (y > 1) {
           land++;
           expect(L.openness(x, z, 100)).toBeLessThan(1);
           expect(L.shipZone(x, z, 0)).toBeGreaterThan(1.2);
         }
       }
-    expect(land / n).toBeGreaterThan(0.08);
-    expect(land / n).toBeLessThan(0.4);
+    // Islets and mainland together: more land than sea, but channels and open water remain.
+    expect(land / n).toBeGreaterThan(0.45);
+    expect(land / n).toBeLessThan(0.75);
+  });
+
+  it('raises broad mainland with rolling hills, clear of the start and the ship', () => {
+    let main = 0;
+    let hills = 0;
+    let top = 0;
+    let n = 0;
+    for (let z = -4000; z < 4000; z += 31)
+      for (let x = -4000; x < 4000; x += 37) {
+        n++;
+        if (L.mainland(x, z) < 0.5) continue;
+        main++;
+        const y = L.height(x, z);
+        if (y > 15) hills++;
+        top = Math.max(top, y);
+        expect(L.openness(x, z, 160)).toBeLessThan(1);
+        expect(L.shipZone(x, z, 0)).toBeGreaterThan(2.3);
+        // Never a cliff: the ground rises no steeper than ~1.3 in 1.
+        expect(Math.abs(L.height(x + 2, z) - y)).toBeLessThan(2.6);
+      }
+    expect(main / n).toBeGreaterThan(0.12);
+    expect(main / n).toBeLessThan(0.35);
+    expect(hills / main).toBeGreaterThan(0.3);
+    expect(top).toBeGreaterThan(35);
+    expect(top).toBeLessThan(Config.ringmoon.hillHeight + 10);
   });
 
   it('stands spires in groves, clear of the opening run and the ship', () => {
@@ -81,7 +112,9 @@ describe('ringmoon layout', () => {
     let tall = 0;
     for (const p of ss) {
       if (p.h > 100) tall++;
-      expect(p.top).toBeLessThan(Config.ringmoon.spireHigh);
+      // A spire on a hill stands on it (its foot buried a little), so its top rises with it.
+      expect(p.top).toBeLessThan(Config.ringmoon.spireHigh + Config.ringmoon.hillHeight);
+      expect(p.y0).toBeGreaterThan(L.height(p.x, p.z) - 9);
       expect(p.y0).toBeLessThan(L.height(p.x, p.z));
       if (L.gate.includes(p)) continue;
       expect(L.nearOpening(p.x, p.z, 40)).toBe(false);
@@ -193,5 +226,52 @@ describe('ringmoon level and music', () => {
     expect(RINGMOON_MUSIC.voice).toBe('horn');
     for (const l of LEVEL_LIST)
       if (l.id !== 'ringmoon') expect(l.music.bpm).toBeGreaterThan(RINGMOON_MUSIC.bpm);
+  });
+});
+
+describe('ringmoon alien things', () => {
+  /** Every prop centred in a square around the origin. */
+  function propsAround(layout: RingmoonLayout, half: number): Prop[] {
+    const C = Config.ringmoon.propCell;
+    const out: Prop[] = [];
+    for (let j = Math.floor(-half / C); j <= Math.floor(half / C); j++)
+      for (let i = Math.floor(-half / C); i <= Math.floor(half / C); i++)
+        out.push(...layout.props(i, j));
+    return out;
+  }
+
+  it('sets landers, crystals and beacons on the land, clear of the run, the ship and the stone', () => {
+    const ps = propsAround(L, 3000);
+    const count = [0, 0, 0];
+    for (const p of ps) {
+      count[p.type]++;
+      expect(L.height(p.x, p.z)).toBeGreaterThan(1.8);
+      expect(L.nearOpening(p.x, p.z, 45)).toBe(false);
+      expect(L.shipZone(p.x, p.z, 40)).toBeGreaterThanOrEqual(1);
+      expect(L.spiresNear(p.x, p.z, 10)).toBe(0);
+      // Landers and crystals stay under the frond canopy: the bird glides over them.
+      if (p.type !== PROP_BEACON)
+        expect(p.top).toBeLessThanOrEqual(L.height(p.x, p.z) + Config.ringmoon.canopy + 0.5);
+    }
+    expect(count[PROP_POD]).toBeGreaterThan(40);
+    expect(count[PROP_CRYSTAL]).toBeGreaterThan(40);
+    expect(count[PROP_BEACON]).toBeGreaterThan(4);
+    expect(L.props(3, -2)).toEqual(new RingmoonLayout(1337).props(3, -2));
+  });
+
+  it('makes a beacon solid: wide at its rings, slim at its mast, pushed out sideways', () => {
+    const b = propsAround(L, 3000).find((p) => p.type === PROP_BEACON)!;
+    const H = b.top - b.y0;
+    const ringY = b.y0 + H * 0.73;
+    const mastY = b.y0 + H * 0.35;
+    expect(L.solidTop(b.x + BEACON.ring * b.s - 0.5, ringY, b.z, 0)).toBe(b.top);
+    expect(L.solidTop(b.x + BEACON.ring * b.s - 0.5, mastY, b.z, 0)).toBe(-Infinity);
+    expect(L.solidTop(b.x + 0.5, mastY, b.z, 0)).toBe(b.top);
+    const n = { x: 0, y: 0, z: 0 };
+    const pt = { x: b.x + 2, y: ringY, z: b.z };
+    expect(L.pushPoint(pt, 1, n)).toBeGreaterThan(0);
+    expect(n.x).toBeGreaterThan(0.9);
+    expect(L.solidTop(pt.x, pt.y, pt.z, 0.99)).toBe(-Infinity);
+    expect(L.skyline(b.x, b.z, 5)).toBeGreaterThanOrEqual(b.top);
   });
 });

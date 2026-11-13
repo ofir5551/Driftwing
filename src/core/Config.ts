@@ -270,8 +270,11 @@ export const Config = {
     // Plan (read when a level is created).
     depth: 5, // m, the shallow sea's mean depth over its moss beds
     isleScale: 0.0024, // frequency of the islet noise: a table of moss every ~400 m
-    isleShare: 0.24, // about this share of the sea carries islets
+    isleShare: 0.48, // about this share of the sea carries islets (~46 % land: islets and channels)
     isleTop: 3.2, // m, the islets' moss tables above the water (terraces rise a little higher)
+    landScale: 0.0006, // frequency of the mainland noise: broad land a kilometre or two across
+    landShare: 0.24, // about this share of the world is mainland (on top of the islets)
+    hillHeight: 46, // m, the tallest rolling moss hills inland
     canopy: 9, // m, coil fronds and reed fans on the islets count as soft ground this high
     spireCell: 64, // m, grid cell that may hold one basalt spire
     spireMin: 6, // m, base radius of the slimmest spires
@@ -288,6 +291,13 @@ export const Config = {
     shipHeight: 18, // m, half the hull's height
     shipBelly: 27, // m, the underside above the water: room to fly beneath it
     legRadius: 2.4, // m, each leg's thickness (solid)
+    // Alien things on the land, all one family (ivory shell, copper, teal light).
+    propCell: 130, // m, grid cell that may hold one group of alien things
+    podChance: 0.22, // chance a cell on land holds a few landing pods (soft, glided over)
+    crystalChance: 0.24, // chance it holds crystal clusters instead (soft)
+    beaconChance: 0.07, // chance it holds a beacon tower instead (solid, on bigger land)
+    beaconHeight: 50, // m, a beacon tower's height (each varies a little)
+    ringSpin: 0.35, // rad/s, how fast a beacon's rings turn
     // Atmosphere and light.
     clarity: 0.55, // how clear the shallows are: the moss beds show through (0 opaque, 1 glass)
     mistFar: 0.22, // sea haze: far spires fade into the jade horizon

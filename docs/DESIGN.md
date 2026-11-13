@@ -72,6 +72,9 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
 - **Coral Atolls**: rings of coral reef round turquoise lagoons in the open Pacific (the
   Tuamotus, Bora Bora's high island, Palau's rock islands), opening in the late morning. The
   playful one: bright and sunny, low over glassy water, skipping like a stone.
+- **Ringmoon Shallows**: a shallow jade sea on a moon of a ringed gas giant, with two suns and an
+  old ship standing in the water, opening in the afternoon. The vast one: another world, the
+  giant filling the sky, slow and strange and enormous.
 
 ## Neon Bay
 
@@ -384,6 +387,54 @@ lagoon with rocks: slaloms between them. Swings walk round a high island at a he
 shoulders, as far out as the land needs, for about half a turn. Generic patterns (and their
 thermal spirals) get one pattern in ten. Every pattern is checked 9 m clear of rock and land
 sideways and 2.5 m over the water, palms and roofs before anything spawns.
+
+## Ringmoon Shallows
+
+Mood: vast, epic and strange; another world. Every other level is a place on Earth; this one is
+not, and it should feel enormous and quiet rather than hostile. It opens in the afternoon (phase
+0.36) and the day runs at 1.4x: a jade-green sky over a teal sea by day, a long gold double
+sunset, a turquoise and violet dusk and a deep blue-green night. Saturation 1.04.
+
+The sky: a ringed gas giant (`giant` backdrop) hangs ahead and to the left of the spawn, ~0.2
+rad in angular radius, 0.3 rad up. It is a sphere ray-traced in the sky shader: cream, amber and
+jade bands by latitude round a tilted pole, a pale oval storm, lit as a gibbous by the sun with a
+dim night side and a soft limb; its rings are a disc in its equatorial plane with a gap, drawn
+behind or in front of the planet as the ray meets them, shadowed by the planet behind it, and
+their shadow bands the lit face. The air veils it by day and less at night. A second, smaller
+white sun trails the first by 0.42 rad round the sky, a little lower (sky only; the scene keeps
+one light), so every sunset happens twice. The suns go down to the right of the ship.
+
+Plan: a shallow sea (~5 m) over pale sand with violet and amber moss beds, fairly clear water
+(`waterClarity` 0.55) so they show through. Islets are low moss tables (3-8 m) rising in a
+terrace or two, about a quarter of the sea, rust ledges on their steps, carrying coil fronds
+(a stalk whose top is still rolled up like a fiddlehead), fans of glassy reeds and glow pods.
+Basalt spires stand in groves on a 64 m grid, from 38 to 150 m: three silhouettes (needle,
+stout column, jointed finger) lathed from one profile with a flared foot and knuckles, leaning
+up to 0.15 m per m. The lean is a shear in each instance's matrix and every query follows the
+leaning axis. The ship stands 470 m ahead of the spawn, its long axis turned almost across the
+view: an original design, a ribbed seed pod of weathered ivory shell 176 m long, pointed at both
+ends, a seam split along its back with a crack of light in it, nodes along the back and a lamp
+under the belly, on four plain splayed legs. Its belly is 27 m over the water. Two tall spires
+(150 and 124 m) stand past either end of it, leaning in a little. The opening run (spawn to
+beyond the ship) is kept clear of islets and spires.
+
+Flight: the water is the ground; skims throw a pale green spray. Fronds and reeds are soft
+canopy. Spires, hull and legs are solid but soft, flown with the city's look-ahead and wall
+glance. The hull is an ellipsoid the drawn pod stays inside (pulled in, never out): the bird is
+pushed out of it along the ray from its centre, so down under the belly (nose eased down), up
+over the back (a skim) and sideways at the ends. Its underside is in `hit`, so the look-ahead
+eases under it rather than climbing. Music: a distant horn (two detuned saws through a lowpass
+that swells open as the note speaks, sliding up into pitch) at 50 BPM, the slowest of any
+level, over a deep wide sawtooth pad, an open-fifth drone and a slow arpeggio an octave up with
+flow, in the biggest room. Suspended at dawn, lydian by day, whole-tone in the golden hour, dorian
+at dusk and minor at night.
+
+Wisps: the opening ribbon runs low across the shallows and straight under the middle of the
+ship's belly (a third of the way up to it), then climbs on past it. After that: slaloms through
+the groves (planned 16 m clear of stone: in a grove the look-ahead sees stone on both sides at
+once), low skims over the water and the frond tops in a slow swell, and every few patterns a
+swing round a spire over 90 m tall, at a height among its knuckles, far enough out to clear
+its lean. Generic patterns (and their thermal spirals) only where no spire stands within 240 m.
 
 ## Gameplay
 
@@ -887,3 +938,24 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   game never loses files; the page swaps it in (skip-waiting, then reload) only on the title, on
   returning there or when the app is hidden. The icons are the one painted asset, generated
   from SVG by `scripts/icons.mjs`; the bird and wisps stay inside the maskable safe zone.
+- Ringmoon Shallows is the first level not on Earth: a moon of a ringed gas giant with two suns
+  and an old ship in its shallows, all designed for Driftwing. The giant is ray-traced in the
+  sky shader (a sphere and a ring plane at unit distance), so it costs nothing in geometry and
+  is identical from anywhere in the endless world, like the other backdrops.
+- Ringmoon's spires lean, which the other levels' pillars and rocks never did. The mesh is the
+  same unit lathe; the lean is a shear (column 1 of the instance matrix carries lx, lz), and
+  `solidTop`/`pushPoint` move the axis with height. Toon shading hides the slightly skewed
+  normals.
+- The ship's collision is an ellipsoid, and the drawn hull's cross-section is (1 - s^2)^0.72 of
+  it along the length (pointier than the ellipsoid's sqrt), so the bird never meets the hull
+  before it is drawn. Pushing out radially from the centre instead of along the true normal
+  keeps it to one closed-form step and gives the right exits: down under the belly, up over the
+  back.
+- Ringmoon's first groves were too dense (spires 64 m apart with gaps ~30 m): in a slalom the
+  look-ahead saw stone on both sides, swerved the bot off the ribbon and the path re-anchored
+  ~14 times in two minutes (~1.2 wisps/s). Groves fill at most ~64 % of cells and slaloms are
+  planned 16 m clear: ~1.5-1.75 wisps/s, no glances, on four seeds.
+- Ringmoon joined the journey at 3230 light, after Coral Atolls and before the Phoenix, which
+  stays the end of the track (`ADDED_LATER`). Nine level cards make five rows on an upright
+  phone; under 620 px of height the title tightens its cards so Play stays in view on an
+  iPhone SE.

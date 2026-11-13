@@ -27,6 +27,9 @@ export const MODES = {
   // Major pentatonic with the raised fourth for the fifth: lydian's floating, unresolved
   // brightness, the sound of being above everything.
   lydianPenta: [0, 2, 4, 6, 9],
+  // Five steps of the whole-tone scale: no fifth and no semitone, nothing pulls anywhere. The
+  // strangeness of another world's sky, used sparingly (one time of day).
+  wholeTone: [0, 2, 4, 6, 8],
 } as const;
 
 export type ModeName = keyof typeof MODES;
@@ -125,6 +128,19 @@ export const ATOLL_KEYS: DayKey[] = [
   { root: 60, mode: 'dominantPenta' }, // C, golden hour
   { root: 58, mode: 'majorPenta' }, // Bb, dusk
   { root: 57, mode: 'susPenta' }, // A, twilight
+];
+
+/**
+ * Ringmoon Shallows' keys: low and wide for a vast place. Lydian in the afternoon it opens on
+ * (wonder, the raised fourth never settling), whole-tone in the long double sunset, dorian as
+ * the giant's rings catch the last light, suspended at dawn and a deep minor at night.
+ */
+export const RINGMOON_KEYS: DayKey[] = [
+  { root: 57, mode: 'susPenta' }, // A, dawn
+  { root: 55, mode: 'lydianPenta' }, // G, day
+  { root: 58, mode: 'wholeTone' }, // Bb, golden hour (the two suns setting)
+  { root: 53, mode: 'dorianPenta' }, // F, dusk
+  { root: 56, mode: 'minorPenta' }, // Ab, twilight
 ];
 
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

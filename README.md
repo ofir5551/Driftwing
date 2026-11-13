@@ -3,8 +3,8 @@
 A calm, painterly bird-gliding game for the browser. Glide over an endless dreamy landscape,
 through a neon-lit Japanese bay city, among misty karst peaks on a jade river, down deep fjords
 under the northern lights, over the golden stone of Jerusalem, through the stone arches of red
-desert canyons, among granite spires above a sea of clouds or low over the turquoise lagoons
-of coral atolls, follow ribbons of glowing wisps
+desert canyons, among granite spires above a sea of clouds low over the turquoise lagoons
+of coral atolls or through the spire groves of a moon under a ringed giant, follow ribbons of glowing wisps
 and build a melody as you gather them. No fail state, no timer, no enemies. Everything (terrain, trees, cities, sky,
 music, sound) is generated procedurally: the repository contains no art or audio assets.
 
@@ -148,6 +148,25 @@ you back to choose again).
 | **The bungalows in the golden hour**         | **Night, the surf aglow**                  |
 | ![Pier](docs/screenshots/atoll-pier.jpg)     | ![Night](docs/screenshots/atoll-night.jpg) |
 
+- **Ringmoon Shallows**: another world, opening in the afternoon. A shallow jade sea on a moon
+  of a ringed gas giant that hangs huge in the sky all day, lit as a gibbous by two suns (a gold
+  one and a small white one that trails it, so every sunset happens twice). Leaning basalt
+  spires stand in groves, banded with amber lichen; low islets of violet moss carry coil
+  fronds still rolled like fiddleheads, fans of glassy reeds and glow pods that light up after
+  dark. Ahead of the spawn an old ribbed seed-pod ship rests on four legs in the shallows, its
+  belly high enough to fly under, a crack of light along its back. The music is a distant horn
+  over a deep pad, lydian by day and whole-tone in the double sunset, the slowest tempo of any
+  level. Wisps run under the ship, slalom through the groves, skim the moss beds and swing
+  round the tallest spires.
+
+![Ringmoon Shallows title screen](docs/screenshots/ringmoon-title.jpg)
+
+| Under the ship                              | Golden hour in the groves                     |
+| ------------------------------------------- | --------------------------------------------- |
+| ![Ship](docs/screenshots/ringmoon-ship.jpg) | ![Grove](docs/screenshots/ringmoon-grove.jpg) |
+| **The second sunset, from high up**         | **Night under the rings**                     |
+| ![High](docs/screenshots/ringmoon-high.jpg) | ![Night](docs/screenshots/ringmoon-night.jpg) |
+
 ## Play
 
 ```bash
@@ -183,7 +202,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll`, `?unlocked` (every level open, nothing saved).
+`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon`, `?unlocked` (every level open, nothing saved).
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -237,6 +256,11 @@ file list by the plugin in `vite.config.ts`) and `src/pwa.ts`, which registers i
   water turns nearly clear for this level so the seabed's vertex colours paint the lagoons, and
   the surf is one animated strip per atoll in view. Mushroom rocks are lathed from a notched
   profile the collisions share; the high island is terrain the look-ahead steers round.
+- **Ringmoon Shallows**: a shallow sea with terraced moss islets (`src/world/ringmoon/`), spires
+  on a grid lathed from one knuckled profile and leaned by a shear in each instance matrix (the
+  collisions follow the leaning axis), and the ship: an ellipsoid the drawn seed pod stays inside,
+  pushed out of radially, whose underside the look-ahead eases beneath. The gas giant, its rings
+  and the second sun are the `giant` backdrop painted into the sky dome.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

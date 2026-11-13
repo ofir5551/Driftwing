@@ -37,6 +37,11 @@ uniform float uSummits;
 uniform float uSummitsBase;
 uniform float uCumulus;
 uniform float uCumulusBase;
+uniform float uGiant;
+uniform vec3 uGiantDir;
+uniform vec3 uGiantPole;
+uniform float uGiantSize;
+uniform vec3 uSun2Dir;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -372,6 +377,78 @@ void main() {
     col += glow * uAurora * smoothstep(0.0, 0.06, h) * (1.0 - peak);
   }
 
+
+  // Ringmoon Shallows: the ringed gas giant this moon circles, hanging in the sky. A sphere seen
+  // from far off (a ray against a unit-distance sphere), banded by latitude round its tilted
+  // pole with a pale storm, lit as a gibbous by the sun and dim on its night side; its rings
+  // a thin disc in the plane round its equator, with a gap, drawn behind or in front of it as
+  // the ray meets them. The air in front veils it by day and the haze swallows it near the sea.
+  if (uGiant > 0.5) {
+    vec3 C = uGiantDir;
+    vec3 pole = uGiantPole;
+    float R = sin(uGiantSize);
+    float b = dot(d, C);
+    float disc = b * b - (1.0 - R * R);
+    float tS = disc > 0.0 ? b - sqrt(disc) : 1e9;
+    float dn = dot(d, pole);
+    float tR = abs(dn) > 1e-4 ? dot(C, pole) / dn : -1.0;
+    float day = smoothstep(-0.1, 0.2, uSunDir.y);
+    float veil = mix(0.72, 0.95, uStars) * smoothstep(-0.01, 0.1, h);
+    // Rings.
+    float ringA = 0.0;
+    vec3 ringC = vec3(0.0);
+    if (tR > 0.0) {
+      float rr = length(d * tR - C) / R;
+      float band = smoothstep(1.32, 1.42, rr) * (1.0 - smoothstep(2.3, 2.42, rr));
+      float gap = 1.0 - 0.8 * (1.0 - smoothstep(0.015, 0.045, abs(rr - 1.86)));
+      float fine = 0.62 + 0.38 * sin(rr * 47.0) * sin(rr * 17.0 + 1.0);
+      ringA = band * gap * fine * 0.75;
+      // The giant's shadow falls across the rings behind it, away from the sun.
+      vec3 rp = d * tR - C;
+      float sh = dot(rp, uSunDir) < 0.0 ? smoothstep(R * 0.9, R * 1.05, length(rp - uSunDir * dot(rp, uSunDir))) : 1.0;
+      vec3 ice = mix(vec3(0.93, 0.88, 0.76), vec3(0.78, 0.86, 0.84), smoothstep(1.4, 2.3, rr));
+      ringC = ice * mix(uHorizon, vec3(1.0), 0.5) * mix(0.35, 1.05, day * sh) + uSun * 0.08 * day;
+    }
+    // The planet.
+    float planet = 0.0;
+    vec3 pc = vec3(0.0);
+    if (disc > 0.0) {
+      vec3 nrm = (d * tS - C) / R;
+      float lat = dot(nrm, pole);
+      float lon = atan(dot(nrm, cross(pole, C)), dot(nrm, C));
+      float w = lat * 9.0 + 0.35 * sin(lat * 23.0 + lon * 2.0) + 0.15 * sin(lon * 7.0 + lat * 31.0);
+      vec3 cream = vec3(0.93, 0.86, 0.7);
+      vec3 amber = vec3(0.8, 0.56, 0.36);
+      vec3 jade = vec3(0.45, 0.66, 0.6);
+      pc = mix(cream, amber, smoothstep(-0.3, 0.6, sin(w)));
+      pc = mix(pc, jade, smoothstep(0.55, 0.95, sin(w * 0.5 + 1.7)) * 0.6);
+      // A pale oval storm in the southern bands.
+      vec2 st = vec2((lon - 0.35) * 2.2, (lat + 0.32) * 5.5);
+      pc = mix(pc, vec3(0.98, 0.93, 0.86), (1.0 - smoothstep(0.55, 1.0, length(st))) * 0.8);
+      float lam = dot(nrm, uSunDir);
+      float lit = smoothstep(-0.12, 0.3, lam);
+      // The rings' shadow banding the lit face (where the line to the sun meets the ring plane).
+      float tp = -dot(nrm * R, pole) / max(abs(dot(uSunDir, pole)), 1e-3) * sign(dot(uSunDir, pole));
+      if (tp > 0.0) {
+        float rs = length(C + nrm * R + uSunDir * tp - C) / R;
+        pc *= 1.0 - 0.45 * smoothstep(1.35, 1.45, rs) * (1.0 - smoothstep(2.3, 2.4, rs));
+      }
+      vec3 nightSide = mix(uTop, uHorizon, 0.3) * 0.32 + ringC * 0.06;
+      pc = mix(nightSide, pc * (0.5 + 0.65 * max(lam, 0.0)) * mix(vec3(1.0), uSun, 0.25), lit);
+      // A soft atmosphere round the limb.
+      float limb = pow(1.0 - max(dot(nrm, -d), 0.0), 3.0);
+      pc = mix(pc, mix(uHorizon, vec3(0.9, 0.95, 0.85), 0.5), limb * 0.35 * lit);
+      planet = smoothstep(0.0, 0.0006, disc);
+    }
+    vec3 gc = col;
+    if (tR > 0.0 && tR > tS) gc = mix(gc, ringC, ringA);
+    gc = mix(gc, pc, planet);
+    if (tR > 0.0 && tR < tS) gc = mix(gc, ringC, ringA);
+    float cover = max(planet, ringA);
+    col = mix(col, gc, veil);
+    peak = max(peak, cover * veil);
+  }
+
   // Faint stars, only above the horizon haze; twinkle slowly.
   if (uStars > 0.0 && h > 0.02 && peak < 0.5) {
     vec3 cell = floor(d * 220.0);
@@ -386,6 +463,13 @@ void main() {
   float s = max(dot(d, uSunDir), 0.0);
   float vis = smoothstep(-0.15, 0.05, uSunDir.y);
   col += uSun * (smoothstep(0.9985, 0.9993, s) * 0.9 * (1.0 - peak) + pow(s, 40.0) * 0.35 + pow(s, 5.0) * 0.15) * vis;
+  // Ringmoon's second sun: smaller, whiter, trailing the first round the sky.
+  if (uGiant > 0.5) {
+    float s2 = max(dot(d, uSun2Dir), 0.0);
+    float vis2 = smoothstep(-0.12, 0.04, uSun2Dir.y);
+    vec3 white = mix(uSun, vec3(1.0, 0.98, 0.95), 0.6);
+    col += white * (smoothstep(0.9993, 0.9997, s2) * 0.9 * (1.0 - peak) + pow(s2, 90.0) * 0.25) * vis2;
+  }
 
   // Tiny dither to stop gradient banding on 8-bit displays.
   col += (hash(vec3(gl_FragCoord.xy, uTime)) - 0.5) / 255.0;
@@ -395,10 +479,11 @@ void main() {
 
 /**
  * What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, the aurora,
- * rolling hills, desert mesas, great snow peaks beyond a cloud sea, or cumulus over the ocean.
+ * rolling hills, desert mesas, great snow peaks beyond a cloud sea, cumulus over the ocean, or
+ * a ringed gas giant (with a second sun).
  */
 export type Backdrop =
-  'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas' | 'summits' | 'cumulus';
+  'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas' | 'summits' | 'cumulus' | 'giant';
 
 export class Sky {
   readonly mesh: THREE.Mesh;
@@ -433,6 +518,12 @@ export class Sky {
       uSummitsBase: { value: 0 },
       uCumulus: { value: 0 },
       uCumulusBase: { value: 0 },
+      uGiant: { value: 0 },
+      uGiantDir: { value: new THREE.Vector3(0, 0, 1) },
+      // The rings tilted ~20 degrees open to the spawn's view.
+      uGiantPole: { value: new THREE.Vector3(0.5, 1, -0.1).normalize() },
+      uGiantSize: { value: 0.2 },
+      uSun2Dir: { value: new THREE.Vector3(0, 1, 0) },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -465,6 +556,24 @@ export class Sky {
     this.u.uMesas.value = this.backdrop === 'mesas' ? 1 : 0;
     this.u.uSummits.value = this.backdrop === 'summits' ? 1 : 0;
     this.u.uCumulus.value = this.backdrop === 'cumulus' ? 1 : 0;
+    this.u.uGiant.value = this.backdrop === 'giant' ? 1 : 0;
+    if (this.backdrop === 'giant') {
+      const R = Config.ringmoon;
+      const ce = Math.cos(R.giantEl);
+      this.u.uGiantDir.value.set(
+        Math.sin(R.giantAz) * ce,
+        Math.sin(R.giantEl),
+        Math.cos(R.giantAz) * ce,
+      );
+      this.u.uGiantSize.value = R.giantSize;
+      // The second sun trails the first round the sky, a little lower.
+      const sd = day.sunDir;
+      const c2 = Math.cos(R.sun2);
+      const s2 = Math.sin(R.sun2);
+      this.u.uSun2Dir.value
+        .set(sd.x * c2 + sd.z * s2, sd.y - 0.06, -sd.x * s2 + sd.z * c2)
+        .normalize();
+    }
     // The aurora comes out with the stars.
     this.u.uAurora.value =
       this.backdrop === 'aurora' ? Math.max(0, (p.stars - 0.25) / 0.75) * Config.fjord.aurora : 0;

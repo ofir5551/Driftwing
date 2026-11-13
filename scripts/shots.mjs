@@ -1,10 +1,12 @@
-// README screenshots: node scripts/shots.mjs [baseUrl] [outDir]
+// README screenshots: node scripts/shots.mjs [baseUrl] [outDir] [namePrefix]
 // Needs a running server (`npm run dev` or `npm run preview`). Writes JPEGs.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
 const base = process.argv[2] ?? 'http://localhost:5173/';
 const out = process.argv[3] ?? 'docs/screenshots';
+// Only the shots whose names start with this (say one level's, after adding it).
+const only = process.argv[4] ?? '';
 mkdirSync(out, { recursive: true });
 
 const shots = [
@@ -208,6 +210,32 @@ const shots = [
     wait: 3000,
     place: { x: 120, y: 30, z: -20, yaw: 2.0, pitch: -0.15, phase: 0.88 },
   },
+  // Ringmoon Shallows (default seed).
+  { name: 'ringmoon-title', query: '?level=ringmoon', wait: 4500 },
+  {
+    name: 'ringmoon-ship',
+    query: '?level=ringmoon&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 12, z: 330, yaw: 0, pitch: 0.12, phase: 0.36 },
+  },
+  {
+    name: 'ringmoon-grove',
+    query: '?level=ringmoon&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 60, z: 150, yaw: 0, pitch: -0.08, phase: 0.5 },
+  },
+  {
+    name: 'ringmoon-high',
+    query: '?level=ringmoon&autopilot',
+    wait: 3000,
+    place: { x: -200, y: 200, z: 100, yaw: 0.18, pitch: -0.3, phase: 0.62 },
+  },
+  {
+    name: 'ringmoon-night',
+    query: '?level=ringmoon&autopilot',
+    wait: 3000,
+    place: { x: 0, y: 14, z: 100, yaw: 0, phase: 0.86 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */
@@ -229,7 +257,7 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH, // optional: a system Chromium instead of Playwright's
   args: [`--use-angle=${angle}`, '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
 });
-for (const s of shots) {
+for (const s of shots.filter((s) => s.name.startsWith(only))) {
   const ctx = await browser.newContext({
     viewport: s.viewport ?? { width: 1280, height: 720 },
     hasTouch: !!s.mobile,

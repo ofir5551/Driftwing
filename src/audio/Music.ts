@@ -427,6 +427,8 @@ export class Music {
         return this.guitar(t, midi, vel, pan, dur, level);
       case 'flute':
         return this.flute(t, midi, vel, pan, dur, level);
+      case 'horn':
+        return this.horn(t, midi, vel, pan, dur, level);
       case 'marimba':
         this.marimba(t, midi, vel, pan, level);
         // A long note is rolled: soft quick re-strikes, as a player sustains a wooden bar.
@@ -772,6 +774,59 @@ export class Music {
       o.stop(t + decay + 0.05);
     }
     this.out(env, pan);
+  }
+
+  /**
+   * Distant horn: two sawtooths a few cents apart through a lowpass that swells open as the
+   * note speaks and closes again as it fades, so it blooms rather than strikes, like a horn
+   * heard across water. It slides up into pitch from a little flat; a long note gains a slow,
+   * shallow vibrato. Kept dark (the filter never opens past a few harmonics): vast, not brassy.
+   */
+  private horn(
+    t: number,
+    midi: number,
+    vel: number,
+    pan: number,
+    dur: number,
+    level: number,
+  ): void {
+    const ctx = this.engine.ctx!;
+    const f = midiToFreq(midi);
+    const len = Math.min(Math.max(dur * 0.95, 1.2), 5);
+    const end = t + len;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(level * vel * 0.42, t + 0.35);
+    env.gain.linearRampToValueAtTime(level * vel * 0.32, t + len * 0.55);
+    env.gain.exponentialRampToValueAtTime(0.0001, end);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.7;
+    lp.frequency.setValueAtTime(f * 1.2, t);
+    lp.frequency.linearRampToValueAtTime(Math.min(f * 3.6, 6000), t + 0.5);
+    lp.frequency.exponentialRampToValueAtTime(Math.min(f * 1.6, 6000), end);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 4.3;
+    const depth = ctx.createGain();
+    depth.gain.setValueAtTime(0, t);
+    depth.gain.linearRampToValueAtTime(0, t + 0.6);
+    depth.gain.linearRampToValueAtTime(len > 2 ? 9 : 3, t + 1.6); // cents
+    vib.connect(depth);
+    for (const cents of [-6, 6]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      o.detune.setValueAtTime(cents - 40, t);
+      o.detune.setTargetAtTime(cents, t, 0.08);
+      depth.connect(o.detune);
+      o.connect(lp);
+      o.start(t);
+      o.stop(end + 0.05);
+    }
+    lp.connect(env);
+    this.out(env, pan);
+    vib.start(t);
+    vib.stop(end + 0.05);
   }
 
   /** Log drum: a hollow wooden tock that drops a little in pitch. */

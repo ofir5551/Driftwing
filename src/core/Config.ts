@@ -266,6 +266,37 @@ export const Config = {
     cumulusDistance: 25000, // m, how far the painted cumulus towers on the horizon pretend to be
     cumulusBase: 600, // m, their flat bases' height
   },
+  ringmoon: {
+    // Plan (read when a level is created).
+    depth: 5, // m, the shallow sea's mean depth over its moss beds
+    isleScale: 0.0024, // frequency of the islet noise: a table of moss every ~400 m
+    isleShare: 0.24, // about this share of the sea carries islets
+    isleTop: 3.2, // m, the islets' moss tables above the water (terraces rise a little higher)
+    canopy: 9, // m, coil fronds and reed fans on the islets count as soft ground this high
+    spireCell: 64, // m, grid cell that may hold one basalt spire
+    spireMin: 6, // m, base radius of the slimmest spires
+    spireMax: 13, // m, of the stoutest
+    spireLow: 38, // m, height of the shortest spires
+    spireHigh: 150, // m, of the tallest (the ceiling is 320)
+    lean: 0.15, // most a spire leans: metres sideways per metre up
+    spireLod: 460, // m, beyond this spires use the coarse mesh (chosen when chunks change)
+    // The ship: an old seed-pod vessel resting on four legs in the shallows ahead of the spawn.
+    shipAhead: 470, // m from the spawn to the ship's middle
+    shipYaw: 1.25, // rad, its long axis turned almost across the view, so it reads end to end
+    shipLength: 88, // m, half its length
+    shipWidth: 30, // m, half its beam
+    shipHeight: 18, // m, half the hull's height
+    shipBelly: 27, // m, the underside above the water: room to fly beneath it
+    legRadius: 2.4, // m, each leg's thickness (solid)
+    // Atmosphere and light.
+    clarity: 0.55, // how clear the shallows are: the moss beds show through (0 opaque, 1 glass)
+    mistFar: 0.22, // sea haze: far spires fade into the jade horizon
+    giantSize: 0.2, // rad, angular radius of the ringed gas giant in the sky
+    giantAz: 0.35, // rad, its azimuth from the spawn's heading (positive: to the left)
+    giantEl: 0.3, // rad, its height above the horizon
+    sun2: 0.42, // rad the second, smaller sun trails the first round the sky
+    glow: 1, // brightness of the reed tips, ship lights and pods after dark
+  },
   karst: {
     // Plan (read when a level is created).
     riverScale: 0.0008, // frequency of the river noise: a river every ~700 m
@@ -324,6 +355,7 @@ export const Config = {
     gildedPlumage: 2700,
     peaks: 3000,
     atoll: 3150,
+    ringmoon: 3230, // the newest level, just before the final bird
     phoenix: 3300, // the final bird, the end of the track (later birds go before it)
   },
   aviary: {

@@ -8,10 +8,12 @@ import {
   JERUSALEM_KEYS,
   KARST_KEYS,
   PEAKS_KEYS,
+  RINGMOON_KEYS,
 } from './scales';
 
 /** Instrument for ambient notes, wisp notes and the lantern flourish. */
-export type Voice = 'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute' | 'marimba';
+export type Voice =
+  'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute' | 'marimba' | 'horn';
 
 /**
  * A level's musical identity. The generative engine is shared; this is what it plays and how,
@@ -184,4 +186,23 @@ export const ATOLL_MUSIC: MusicStyle = {
   arp: { pattern: [0, 2, 4, 2, 5, 4, 2, 4], perStep: 2, octave: 12 },
   pulse: 0.6,
   beat: 'island',
+};
+
+/**
+ * Ringmoon Shallows: vast and slow. A soft distant horn (two detuned saws through a filter that
+ * swells open as the note speaks) over a deep, wide sawtooth pad and an open-fifth drone, the
+ * slowest tempo of any level, an arpeggio an octave up with flow, and the biggest room.
+ */
+export const RINGMOON_MUSIC: MusicStyle = {
+  keys: RINGMOON_KEYS,
+  bpm: 50,
+  progression: [0, 4, 1, 3, 0, 2, 4, 3],
+  voice: 'horn',
+  density: 0.55,
+  grace: 0.06,
+  pad: { wave: 'sawtooth', detune: 11, attack: 4.5, release: 6, level: 0.05 },
+  droneFifth: 0.6,
+  reverb: 1.55,
+  arp: { pattern: [0, 2, 4, 6, 4, 2], perStep: 1, octave: 12 },
+  pulse: 0,
 };

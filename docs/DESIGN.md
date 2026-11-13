@@ -1055,3 +1055,5 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - On phones the title's level cards are one sideways-swiping row (snapping, the next card peeking
   in) instead of a two-column grid that pushed Play, the Aviary and Controls off an iPhone SE. The
   row has room for the blurbs again.
+- The Aviary is called "Birds" on screen (the title button, its card and the unlock cards'
+  "pick them in Birds"): a plainer word. The code keeps the `aviary` names.

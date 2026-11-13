@@ -195,8 +195,8 @@ const KIND_LABEL: Record<UnlockKind, string> = {
   trail: 'New trail',
 };
 const KIND_DETAIL: Record<Exclude<UnlockKind, 'level' | 'species'>, string> = {
-  plumage: 'New feathers: wear them from the Aviary',
-  trail: 'New wingtip colours: pick them in the Aviary',
+  plumage: 'New feathers: pick them in Birds',
+  trail: 'New wingtip colours: pick them in Birds',
 };
 
 /** One Aviary row's item: what the menu needs from a bird, a plumage or a trail. */
@@ -258,7 +258,7 @@ const picksHtml = (row: Row, label: string, picks: Pick[]) =>
  * short on a phone; the bird gliding behind it is the live preview.
  */
 const AVIARY_HTML = `<div class="aviary-head">
-    <h2>Aviary</h2><button class="btn primary" id="aviary-done">Done</button>
+    <h2>Birds</h2><button class="btn primary" id="aviary-done">Done</button>
   </div>
   <p class="aviary-sub">Your bird flies your choice behind this card.</p>
   <div class="aviary-tabs" role="tablist">${ROWS.map(
@@ -322,7 +322,7 @@ export class Menu {
        ${JOURNEY_HTML}
        <button class="btn primary" id="play-btn">Play</button>
        <div class="title-row">
-         <button class="btn ghost" id="aviary-btn">Aviary</button>
+         <button class="btn ghost" id="aviary-btn">Birds</button>
          <button class="btn ghost controls-btn">Controls</button>
        </div>
        <button class="fs-nudge" hidden>⤢ Best played fullscreen</button>
@@ -739,7 +739,7 @@ export class Menu {
       u.kind === 'level'
         ? (LEVEL_LIST.find((l) => l.id === u.id)?.blurb ?? '')
         : u.kind === 'species'
-          ? `${SPECIES.find((b) => b.unlock === u.id)?.blurb ?? ''} Fly it from the Aviary.`
+          ? `${SPECIES.find((b) => b.unlock === u.id)?.blurb ?? ''} Pick it in Birds.`
           : KIND_DETAIL[u.kind];
     el.innerHTML = `<span class="unlock-kind">${KIND_LABEL[u.kind]}</span><b></b><span class="unlock-detail"></span>`;
     el.querySelector('b')!.textContent = u.name;

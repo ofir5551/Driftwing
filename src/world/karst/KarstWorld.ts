@@ -14,6 +14,8 @@ import { getToonGradient, type HeightField } from '../Terrain';
 import { KarstDecor, type KarstChunk } from './KarstDecor';
 import { KarstLayout } from './KarstLayout';
 import { KarstPlanner } from './KarstWisps';
+import type { DiscoveryDef } from '../Discoveries';
+import { karstFinds } from './finds';
 
 const C = {
   bed: new THREE.Color('#4f7268'),
@@ -42,6 +44,7 @@ export class KarstWorld implements World {
   readonly field: HeightField;
   readonly layout: KarstLayout;
   readonly planner: KarstPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   private readonly chunks: ChunkManager<KarstChunk>;
   private readonly decor: KarstDecor;
   private readonly banks: Clouds;
@@ -50,6 +53,7 @@ export class KarstWorld implements World {
 
   constructor(seed: number) {
     const L = (this.layout = new KarstLayout(seed));
+    this.discoveries = karstFinds(L);
     const tint = createNoise2D(seed + 320);
     this.field = {
       height: (x, z) => L.height(x, z),

@@ -454,8 +454,12 @@ its lean. Generic patterns (and their thermal spirals) only where no spire stand
 Wisps in arcs/ribbons ahead of the player. Quick chains fill a flow meter (score multiplier,
 music intensity) that decays slowly. Every N wisps a lantern lights up with a celebration and the
 music modulates. A lit lantern is an optional destination: flying through its light refills
-flow, pays a bonus and gives a surge of speed and lift. Minimal HUD that fades when idle. Start screen, pause menu (volume, quality,
-invert-Y), settings and best score in localStorage.
+flow, pays a bonus and gives a surge of speed and lift. Minimal HUD that fades when idle: the
+flow ring round the wisp count and the lanterns reached. The score is kept for the pause menu and
+the Rest card, out of the sightline while flying, and a reached lantern says "Lantern reached"
+without its points (light and the bell say the rest). Only the first lantern to light gets a
+toast. Start screen, pause menu (volume, quality, invert-Y), settings and best score in
+localStorage.
 
 ## Progression (proposed)
 
@@ -505,11 +509,15 @@ earlier than first planned, since new birds are the heart of it.
 | 1650 | **Crane** (and its own plumage)                |                    9 |
 | 1800 | **City of Gold**                               |                   10 |
 | 2050 | Aurora trail                                   |                11-12 |
-| 2400 | **Red Canyons**                                |                13-14 |
-| 2700 | Gilded plumage                                 |                   15 |
-| 3000 | **Sea of Clouds**                              |                16-17 |
-| 3150 | **Coral Atolls**                               |                   17 |
-| 3300 | **Phoenix** (and its own plumage): the end     |                   18 |
+| 2300 | **Red Canyons**                                |                   13 |
+| 2550 | Gilded plumage                                 |                14-15 |
+| 2800 | **Sea of Clouds**                              |                16-17 |
+| 3050 | **Coral Atolls**                               |                   17 |
+| 3300 | **Ringmoon Shallows**                          |                18-19 |
+| 3550 | **Phoenix** (and its own plumage): the end     |                   20 |
+
+From the Aurora trail on, milestones are 250 apart (about a flight and a half), so each of the
+last worlds gets its own Rest card; they used to bunch up (3000, 3150, 3230 and 3300).
 
 The Phoenix is the last milestone of the track, whatever comes later: the Falcon and the
 Albatross will fill the stretch between Red Canyons and it. Beyond it, light keeps counting on the title screen (an open question: maybe a rare plumage
@@ -542,13 +550,21 @@ every 1000).
   never get one, nor do saves from before cards existed. Buttons: **Keep flying** (a new flight
   from where the bird is) and **Title**. Any toast or waiting notice is cleared (the card says
   it). The card is optional: pausing and closing the tab still bank everything.
-- Hints ("Follow the wisps", how to boost) are once per visit: a second flight needs none.
+- Hints are lessons, each learned by doing it once and saved in the settings (`taught`), so a
+  returning player flies without a word. "Follow the wisps" until a wisp is gathered; at 3.4 s
+  "how to steer" (the one thing a newcomer must know) until the player has steered for most of a
+  second; then, once steering is known, "how to boost", at most once a flight, until the first
+  flap. A hint waits for a free toast. Toasts sit below the bird (it flies at about 58% of the
+  height), never on the horizon where each level's opening landmark rises. A save from before
+  lessons were kept that has light already knows the wisps and steering.
 - The title screen shows the same journey bar under the level cards.
 
 ### Level locks
 
-Locked level cards stay visible, dashed and dimmed, with their name and "Opens at 750 ✧" in
-place of the blurb, so the next world is something to look forward to, not hidden. Tapping one
+Open levels show, plus only the next locked one, dashed and dimmed, with its name and "Opens at
+750 ✧" in place of the blurb, so the next world is something to look forward to; a line under
+the cards says how many more lie further along. (All nine used to show, which on a fresh save
+read as a wall of locks and pushed Aviary and Controls off an iPhone SE.) Tapping the locked card
 does nothing but glow the journey bar below (that is where the answer is). An open level not
 flown yet (no best score) wears a small "New" mark until it is flown. A saved pick that is
 still locked (picked but never flown before locks existed) falls back to the Highlands, so the
@@ -668,19 +684,41 @@ already does) or a bird's own version of an **existing trick** (same gesture, di
   well above the bird. The portrait card rule is `.menu.aviary .card`: the general rule comes
   later in the sheet and silently won with `.aviary .card`.
 
-### Discoveries and bird mastery (proposed)
+### Discoveries (built) and bird mastery (proposed)
 
 The "mix" beyond birds, and what gives the cosmetics a purpose beyond light:
 
-- **Discoveries**: three to five hidden moments per level (thread the Great Arch, circle the
-  lighthouse, touch a summit), noticed with a quiet chime and kept in a journal on the title
-  screen. Finding a level's set opens its plumage. Nothing is timed or missable.
+- **Discoveries** (v1, built): three hidden moments per level, never on the wisps' ribbons (a
+  test flies the bot through every level by day and by night and makes none), so following the
+  wisps never stumbles on one: they are for the curious.
+
+  | Level             | Finds                                                              |
+  | ----------------- | ------------------------------------------------------------------ |
+  | Highlands         | atop a floating isle, beneath one, above the clouds                |
+  | Neon Bay          | the crown of a tall tower, up the river (low, 3 s), across the bay |
+  | Jade River        | a summit pavilion, round a tall pillar, the paddies by moonlight   |
+  | Aurora Fjords     | round the lighthouse, an iceberg's back, under the aurora (night)  |
+  | City of Gold      | over the golden dome, along the old walls (4 s), round a tower     |
+  | Red Canyons       | over the Great Arch, through a far arch, a hoodoo's cap            |
+  | Sea of Clouds     | the monastery, a hermitage lantern, among the stars (night)        |
+  | Coral Atolls      | over the bungalows, the fang's summit, round the fang by moonlight |
+  | Ringmoon Shallows | round the old ship, along its back, round a beacon's rings         |
+
+  A find is a pure test in `world/<level>/finds.ts` against the layout (a place, a place held
+  for a few seconds, or a full turn round a pivot), looked at ten times a second while playing.
+  In flight it is only light and a chime: a burst of gold, a soft flash and three high notes,
+  no words. The Rest card names the flight's finds ("Found: Over the Great Arch"), each gives
+  25 light, and each open level's card marks them in its corner (●○○). Saved in the journey
+  (`found`). Night finds come round with the day, so nothing is missable. Not yet: finding a
+  level's set opening its plumage, and Ringmoon's ship lighting a pair of its nodes per level.
+
 - **Bird mastery**: three gentle goals per bird that teach its signature (e.g. "Swallow: flick
   through five wisps in a row"); finishing them opens that bird's plumage and trail.
 
 ### Save format
 
-`driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], seen: string[] }`,
+`driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], seen: string[],
+found: string[] }`,
 loaded with the same guards as settings (bad or missing fields fall back to defaults; storage
 errors mean no progress is saved, never a crash). `revealed` makes each unlock card show once;
 `seen` is the track as the save knew it (see Species). The Aviary picks (`species`, `plumage`,
@@ -790,8 +828,8 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   the context suspends when the tab is hidden; master fades in on unlock.
 - Menus: the title screen floats over a live attract flight (bot steering toward wisps), so the
   first frame is already the game. Play is the audio-unlock gesture and continues seamlessly.
-  One-time hints: "Follow the wisps" on start, then (touch drag only) "Tap with a second finger to boost";
-  a flap hint only if the player hasn't flapped by 14 s.
+  Hints are lessons learned by doing (see "In flight and the Rest card"): the wisps, then
+  steering, then boosting, each saved once learned.
 - Pause: P/Esc, the touch pause button, losing pointer lock, or hiding the tab. Music ducks.
 - Settings (volume, mute, quality, invert-Y, touch steering) and best score persist in localStorage (guarded).
 - Adaptive quality: below ~47 fps for a second, render scale drops 0.1 (floor 0.55); after 6 s
@@ -984,3 +1022,22 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   canopy so they cost no collisions; only the beacons are solid, profiled so the look-ahead
   sees the rings coming. Swings round a beacon orbit at >= 48 m: the ribbon turns at most
   0.3 rad per wisp.
+- A persona review (`docs/reviews/persona-review.md`: a calm minimalist, a Journey fan, a daily
+  returner, a curious explorer and a non-gamer) led to five changes:
+  - Hints became saved lessons. "Once per visit" repeated them on nearly every phone launch
+    (phones unload the tab), the second hint taught an optional two-handed boost before
+    steering was ever mentioned, and without a flap the same sentence came back at 14 s. Now
+    steering comes first, boosting once steering is known, never twice in a flight. Toasts moved
+    from the top fifth to below the bird, off each opening's landmark.
+  - The title shows open levels plus the next locked one (it reversed "locked level cards stay
+    visible"); all five reviewers read nine priced cards as a wall of locks.
+  - The late track is spaced 250 light apart (Red Canyons 2300 to the Phoenix 3550): Sea of
+    Clouds, Coral Atolls, Ringmoon and the Phoenix had arrived within about a flight and a half.
+    Granted unlocks are kept, so nobody loses a world.
+  - The score left the in-flight HUD (it stays on pause and the Rest card), "Lantern reached"
+    lost its points and only the first lantern to light gets a toast.
+  - Discoveries v1 (see Progression). The first night finds were low skims (a river village, the
+    cloud sea, a lagoon); the night ribbon test showed the wisps already fly there, so they
+    became the paddies away from the river, the heights, and a turn round the fang. City of
+    Gold's "tower's tip" moved to a turn round a tower's shaft for the same reason (its swings
+    pass over the tips).

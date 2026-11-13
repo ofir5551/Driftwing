@@ -347,6 +347,21 @@ export const Config = {
     trick: 2, // light per landed trick
     bankEvery: 10, // s between saves in flight (pausing and leaving the page save too)
   },
+  discoveries: {
+    every: 0.1, // s between looks for a level's hidden finds (their tests query the layout)
+    night: 0.6, // sky stars (0..1) from which a night-only find can be made
+    light: 25, // journey light a find gives
+    flash: 0.3, // screen flash on a find (a lantern lighting is 0.6)
+  },
+  hints: {
+    // First-flight lessons, each learned by doing it once (saved), so a returning player is
+    // never taught again. Steering first: it is the one thing a newcomer must know.
+    steerAt: 3.4, // s into a flight before "how to steer" (once "Follow the wisps" has faded)
+    steerInput: 0.25, // steering stick magnitude (|x| + |y|) that counts as steering
+    steerLearned: 0.8, // s of steering that teaches it (a brush of the screen doesn't)
+    boostAt: 9, // s into a flight before "how to boost", only once steering is known
+    boostGap: 4, // s after steering was learned before the boost hint (one lesson at a time)
+  },
   unlocks: {
     // Light at which each journey milestone opens (~180 light for a 6-minute flight). A bird
     // joins the track only once it can be flown (the Crane is still to come): see DESIGN.
@@ -360,13 +375,15 @@ export const Config = {
     frostPlumage: 1500,
     crane: 1650, // the second new bird, about flight 9
     jerusalem: 1800,
+    // The late track: about a flight and a half apart, so each of the last worlds gets its own
+    // Rest card instead of three arriving together.
     auroraTrail: 2050,
-    canyon: 2400,
-    gildedPlumage: 2700,
-    peaks: 3000,
-    atoll: 3150,
-    ringmoon: 3230, // the newest level, just before the final bird
-    phoenix: 3300, // the final bird, the end of the track (later birds go before it)
+    canyon: 2300,
+    gildedPlumage: 2550,
+    peaks: 2800,
+    atoll: 3050,
+    ringmoon: 3300, // the newest level, just before the final bird
+    phoenix: 3550, // the final bird, the end of the track (later birds go before it)
   },
   aviary: {
     trailPreview: 0.6, // lowest wingtip-trail opacity while the Aviary is open (the bot glides lazily)

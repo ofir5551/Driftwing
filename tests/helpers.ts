@@ -20,6 +20,8 @@ export function flyBot(
   seconds: number,
   inSolid: (x: number, y: number, z: number) => boolean,
   tune?: FlightTuning,
+  /** Called after every step with the bird's position. */
+  onStep?: (x: number, y: number, z: number) => void,
 ): { got: number; glances: number; inside: number } {
   const s = createFlightState(spawn.x, spawn.y, spawn.z, spawn.yaw, tune);
   const wisps = new Wisps(
@@ -46,6 +48,7 @@ export function flyBot(
     if (hit && !touching) glances++;
     touching = hit;
     wisps.update(1 / 60, s.x, s.y, s.z, s.yaw, () => got++);
+    onStep?.(s.x, s.y, s.z);
     if (i % 30 === 0) for (const v of wisps.list) if (v.alive && inSolid(v.x, v.y, v.z)) inside++;
   }
   world.dispose();

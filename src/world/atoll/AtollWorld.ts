@@ -14,6 +14,8 @@ import { AtollDecor, type AtollChunk } from './AtollDecor';
 import { AtollLayout } from './AtollLayout';
 import { AtollPlanner } from './AtollWisps';
 import { Surf } from './Surf';
+import type { DiscoveryDef } from '../Discoveries';
+import { atollFinds } from './finds';
 
 /**
  * Seabed and land colours. The water over them is nearly clear (the level's water clarity), so
@@ -50,6 +52,7 @@ export class AtollWorld implements World {
   readonly field: HeightField;
   readonly layout: AtollLayout;
   readonly planner: AtollPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   readonly skimColor = SPRAY;
   private readonly chunks: ChunkManager<AtollChunk>;
   private readonly decor: AtollDecor;
@@ -58,6 +61,7 @@ export class AtollWorld implements World {
 
   constructor(seed: number) {
     const L = (this.layout = new AtollLayout(seed));
+    this.discoveries = atollFinds(L);
     const tint = createNoise2D(seed + 720);
     this.field = {
       height: (x, z) => L.height(x, z),

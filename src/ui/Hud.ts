@@ -6,14 +6,14 @@ const NOTICE_SECONDS = 3.5;
 const NOTICE_GAP = 0.9; // s after a toast fades before a waiting notice shows
 
 /**
- * Minimal HUD: a flow ring around the wisp count, the score beneath, lanterns reached beside.
- * It fades away when nothing is happening so the landscape gets the screen.
+ * Minimal HUD: a flow ring around the wisp count, lanterns reached beside it. The score is
+ * kept for the pause menu and the Rest card, out of the sightline while flying. It fades away
+ * when nothing is happening so the landscape gets the screen.
  */
 export class Hud {
   readonly el: HTMLDivElement;
   private readonly arc: SVGCircleElement;
   private readonly count: HTMLSpanElement;
-  private readonly score: HTMLSpanElement;
   private readonly lanterns: HTMLSpanElement;
   private readonly toastEl: HTMLDivElement;
   private toastTimer = 0;
@@ -27,7 +27,6 @@ export class Hud {
   private stoopTenths = -1;
   private opacity = 0;
   private lastCount = -1;
-  private lastScore = -1;
   private lastLanterns = -1;
   visible = false;
 
@@ -43,7 +42,6 @@ export class Hud {
         <span class="hud-count">0</span>
       </div>
       <div class="hud-side">
-        <span class="hud-score">0</span>
         <span class="hud-lanterns" title="Lanterns reached"></span>
       </div>`;
     this.toastEl = document.createElement('div');
@@ -53,8 +51,12 @@ export class Hud {
     ui.append(this.el, this.toastEl, this.trickEl);
     this.arc = this.el.querySelector('.ring-flow')!;
     this.count = this.el.querySelector('.hud-count')!;
-    this.score = this.el.querySelector('.hud-score')!;
     this.lanterns = this.el.querySelector('.hud-lanterns')!;
+  }
+
+  /** A toast is on screen (a hint waits rather than cut it short). */
+  get busy(): boolean {
+    return this.toastTimer > 0;
   }
 
   toast(text: string, seconds = 3): void {
@@ -127,10 +129,6 @@ export class Hud {
     if (p.count !== this.lastCount) {
       this.lastCount = p.count;
       this.count.textContent = String(p.count);
-    }
-    if (p.score !== this.lastScore) {
-      this.lastScore = p.score;
-      this.score.textContent = p.score.toLocaleString();
     }
     if (p.reached !== this.lastLanterns) {
       this.lastLanterns = p.reached;

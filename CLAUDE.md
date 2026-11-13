@@ -50,9 +50,12 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls), `Ringmoon` (Ringmoon Shallows); `index`
   registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
-- `core/Journey.ts`: lifetime light and the unlock track (pure; saved by `Settings`). See DESIGN's
-  Progression.
-- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, unlock) so audio/fx/ui stay decoupled.
+- `core/Journey.ts`: lifetime light, the unlock track and the discoveries found (pure; saved by
+  `Settings`). See DESIGN's Progression.
+- `world/Discoveries.ts`: every level's hidden finds (names, `LEVEL_FINDS`) and the tracker
+  (pure); each level's tests are `world/<level>/finds.ts` (Highlands: `world/highlands/`), handed
+  to Gameplay as `World.discoveries`. Finds must stay off the wisps' ribbons (a test flies them).
+- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, discovery, unlock) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics; a bird's `FlightTuning` (its
   `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,

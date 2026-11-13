@@ -53,7 +53,7 @@ describe('Journey', () => {
   });
 
   it('tracks the light of the current flight separately', () => {
-    const j = new Journey({ v: 1, light: 500, granted: [], revealed: [], seen: ALL });
+    const j = new Journey({ v: 1, light: 500, granted: [], revealed: [], seen: ALL, found: [] });
     j.earn(12);
     expect(j.flightLight).toBe(12);
     j.newFlight();
@@ -72,7 +72,7 @@ describe('Journey', () => {
 
   it('quietly opens milestones a retune lowered below the saved light', () => {
     Config.unlocks.gildedPlumage = 5;
-    const j = new Journey({ v: 1, light: 10, granted: [], revealed: [], seen: ALL });
+    const j = new Journey({ v: 1, light: 10, granted: [], revealed: [], seen: ALL, found: [] });
     expect(j.isUnlocked('gildedPlumage')).toBe(true);
     expect(j.dirty).toBe(true);
     expect(j.unrevealed()).toEqual([]);
@@ -203,13 +203,21 @@ describe('parseJourney', () => {
         seen: ALL.filter(
           (id) => !['swallow', 'crane', 'phoenix', 'peaks', 'atoll', 'ringmoon'].includes(id),
         ),
+        found: [],
       });
   });
 
   it('clamps light and drops unknown or repeated granted ids', () => {
     expect(
       parseJourney({ light: -5, granted: ['city', 'city', 'moon', 7], seen: ['city', 'moon'] }),
-    ).toEqual({ v: 1, light: 0, granted: ['city'], revealed: ['city'], seen: ['city'] });
+    ).toEqual({
+      v: 1,
+      light: 0,
+      granted: ['city'],
+      revealed: ['city'],
+      seen: ['city'],
+      found: [],
+    });
     expect(parseJourney({ light: 12.7 }).light).toBe(12);
   });
 });

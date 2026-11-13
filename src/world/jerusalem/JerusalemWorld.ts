@@ -14,6 +14,8 @@ import { JerusalemDecor, type JerusalemChunk } from './JerusalemDecor';
 import { JerusalemLayout } from './JerusalemLayout';
 import { JerusalemPlanner } from './JerusalemWisps';
 import { createStoneUniforms, type StoneUniforms } from './materials';
+import type { DiscoveryDef } from '../Discoveries';
+import { jerusalemFinds } from './finds';
 
 const C = {
   dry: new THREE.Color('#cdb27c'),
@@ -44,6 +46,7 @@ export class JerusalemWorld implements World {
   readonly field: HeightField;
   readonly layout: JerusalemLayout;
   readonly planner: JerusalemPlanner;
+  readonly discoveries: readonly DiscoveryDef[];
   private readonly uniforms: StoneUniforms;
   private readonly chunks: ChunkManager<JerusalemChunk>;
   private readonly decor: JerusalemDecor;
@@ -51,6 +54,7 @@ export class JerusalemWorld implements World {
 
   constructor(seed: number) {
     const L = (this.layout = new JerusalemLayout(seed));
+    this.discoveries = jerusalemFinds(L);
     this.uniforms = createStoneUniforms();
     this.field = {
       height: (x, z) => L.height(x, z),

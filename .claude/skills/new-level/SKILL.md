@@ -25,7 +25,8 @@ fail state, every collision is a soft glance.
 | `src/levels/World.ts`                      | id in `LevelId`. `World` (the interface to implement) and `LevelDef` live here.                                                                                                                                                                               |
 | `src/levels/<Name>.ts`                     | `LevelDef`: `name`, `blurb` (short, fits a card on a phone), `startPhase`, `dayScale`, `music`, `backdrop` (`none`/`fuji`/`karst`/`aurora`/`hills`/`mesas`, or add one in `Sky.ts`), optional `sky` palettes and `saturation`, `maxAltitude`, `create(seed)`. |
 | `src/levels/index.ts`                      | append to `LEVEL_LIST` (title cards, URL flag and settings follow).                                                                                                                                                                                           |
-| `src/world/<name>/`                        | `<Name>Layout` (pure), `<Name>World`, `<Name>Decor`, `<Name>Wisps`, `geometry`.                                                                                                                                                                               |
+| `src/world/<name>/`                        | `<Name>Layout` (pure), `<Name>World`, `<Name>Decor`, `<Name>Wisps`, `geometry`, `finds` (three discoveries, below).                                                                                                                                           |
+| `src/world/Discoveries.ts`                 | the level's three find names in `NAMES`; `finds.ts` gives each a test via `defineFinds` (`at`, `dwell`, `night`, or `around` / `orbitAny` for a full turn), and the World exposes them as `discoveries`.                                                      |
 | `src/core/Config.ts`                       | a section for every tunable number (shown in `?debug`).                                                                                                                                                                                                       |
 | `src/audio/scales.ts`, `styles.ts`         | `<NAME>_KEYS` (5 keys: dawn, day, golden, dusk, twilight; add modes to `MODES` if needed) and a `<NAME>_MUSIC` style with its own tempo, voice, pad, reverb (no two levels share tempo+voice).                                                                |
 | `tests/<name>.test.ts`                     | layout + flight + music tests (step 5).                                                                                                                                                                                                                       |
@@ -76,7 +77,10 @@ n, layer)` for low banks or extra cloud layers. Per-level palettes: `makePalette
 Copy `tests/karst.test.ts`: determinism per seed; spawn in open space with a clear run ahead;
 props respect their rules; `pushPoint` exits sideways on a wall and upward on a top; and the
 bot flight via `flyBot(world, spawn, seed, 120, inSolid)` from `tests/helpers.ts`:
-`inside === 0`, `got > 150`, `glances <= 2` on two seeds.
+`inside === 0`, `got > 150`, `glances <= 2` on two seeds. Discoveries: `tests/discoveries.test.ts`
+already flies every level in `LEVEL_LIST` by day and night and fails if the ribbons make a find
+(keep finds off the wisps' paths: over a landmark rather than along the ribbon through it, a
+full turn rather than a swing); add a "can be made" case for the new level there.
 
 ## 6. Look at it
 

@@ -64,7 +64,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   decor), `Trees` (instanced), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
   `GroundDetail`: painted terrain detail (patches, strokes, strata, bumps) patched into toon materials.
-- `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; queries), `collide`
+- `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; the waterfront
+  (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; queries), `collide`
   (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
   `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.
 - `world/karst/`: `KarstLayout` (pure: rivers, pillars + shared radius profile, terrain, queries),

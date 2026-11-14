@@ -177,21 +177,27 @@ export const Config = {
     contactWithShadows: 0.2, // ... with the shadow map on too (it is only ambient occlusion then)
     contactRange: 280, // m, contact shadows fade out by this distance
     contactSize: 0.85, // blob radius as a share of a tree's crown radius
+    cloudScale: 0.0035, // 1/m: cloud-shadow patch frequency (smaller = bigger clouds)
+    cloudCover: 0.56, // 0..1 noise threshold: higher = fewer, smaller cloud shadows
+    cloudDriftZ: 1.2, // m/s the shadows drift along z (along x they keep world.cloudDrift)
+    cloudSunMin: 0.03, // sun height where cloud shadows have faded out (dusk, night)
+    cloudSunFull: 0.3, // sun height where they reach full strength
   },
   /**
    * Per-level strengths of the shared lighting (0 = off; the quality preset gates them on top).
    * shadows: how dark a sun shadow is (1 = the sun fully blocked; lower reads as a painted shade).
+   * clouds: how much a drifting cloud shadow dims the direct sun.
    */
   levelLight: {
-    highlands: { shadows: 0.62 },
-    city: { shadows: 0.5 },
-    karst: { shadows: 0.45 },
-    fjord: { shadows: 0.55 },
-    jerusalem: { shadows: 0.6 },
-    canyon: { shadows: 0.6 },
-    peaks: { shadows: 0.5 },
-    atoll: { shadows: 0.55 },
-    ringmoon: { shadows: 0.5 },
+    highlands: { shadows: 0.62, clouds: 0.32 },
+    city: { shadows: 0.5, clouds: 0.22 },
+    karst: { shadows: 0.45, clouds: 0.2 },
+    fjord: { shadows: 0.55, clouds: 0.25 },
+    jerusalem: { shadows: 0.6, clouds: 0.25 },
+    canyon: { shadows: 0.6, clouds: 0.3 },
+    peaks: { shadows: 0.5, clouds: 0.25 },
+    atoll: { shadows: 0.55, clouds: 0.3 },
+    ringmoon: { shadows: 0.5, clouds: 0.2 },
   },
   world: {
     seed: 1337,
@@ -552,6 +558,7 @@ export const Config = {
     treeDetail: 280, // m, trees nearer than this use their detailed shapes
     shadows: 1, // 1 = sun shadow map near the bird (on levels with a shadow strength)
     contactShadows: 1, // 1 = soft contact shadows under trees and props
+    cloudShadows: 1, // multiplier on each level's drifting cloud shadows (0 = off)
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -576,6 +583,7 @@ export const QUALITY: Record<
     treeDetail: number;
     shadows: number;
     contactShadows: number;
+    cloudShadows: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -588,6 +596,7 @@ export const QUALITY: Record<
     treeDetail: 0,
     shadows: 0,
     contactShadows: 0,
+    cloudShadows: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -599,6 +608,7 @@ export const QUALITY: Record<
     treeDetail: 200,
     shadows: 0,
     contactShadows: 1,
+    cloudShadows: 1,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -610,6 +620,7 @@ export const QUALITY: Record<
     treeDetail: 280,
     shadows: 1,
     contactShadows: 1,
+    cloudShadows: 1,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

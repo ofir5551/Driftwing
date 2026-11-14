@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
 import { shadowFade, snapToTexel } from '../src/fx/SunShadows';
+import { cloudShadowStrength } from '../src/world/CloudShadow';
 import { blobFrame } from '../src/world/ContactShadows';
 
 /** The light camera's right and up axes for a sun direction (as THREE's lookAt builds them). */
@@ -87,5 +88,15 @@ describe('contact shadows', () => {
     const f = blobFrame(() => 0, 0, 30, 0, 2, out);
     expect([f.y, f.nx, f.ny, f.nz]).toEqual([30, 0, 1, 0]);
     expect(blobFrame(null, 0, 7, 0, 2, out).y).toBe(7);
+  });
+});
+
+describe('cloud shadows', () => {
+  it('are off at night and on the horizon, full by day, scaled by level and preset', () => {
+    expect(cloudShadowStrength(0.3, 1, -0.5)).toBe(0);
+    expect(cloudShadowStrength(0.3, 1, Config.light.cloudSunMin)).toBe(0);
+    expect(cloudShadowStrength(0.3, 1, 0.9)).toBeCloseTo(0.3);
+    expect(cloudShadowStrength(0.3, 0, 0.9)).toBe(0);
+    expect(cloudShadowStrength(0, 1, 0.9)).toBe(0);
   });
 });

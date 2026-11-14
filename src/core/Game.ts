@@ -23,6 +23,7 @@ import { DAY_SKY, DayCycle, presetPhase, type TimeOfDay } from '../world/DayCycl
 import { Sky } from '../world/Sky';
 import type { HeightField } from '../world/Terrain';
 import { Water } from '../world/Water';
+import { cloudShadowStrength, updateCloudShadows } from '../world/CloudShadow';
 import { contactUniforms } from '../world/ContactShadows';
 import { prepareScenery } from '../world/LitScenery';
 
@@ -179,6 +180,7 @@ export class Game {
     Config.render.treeDetail = q.treeDetail;
     Config.render.shadows = q.shadows;
     Config.render.contactShadows = q.contactShadows;
+    Config.render.cloudShadows = q.cloudShadows;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
     this.applyLightToggles();
@@ -409,6 +411,10 @@ export class Game {
           : L.contactStrength
         : 0;
     contactUniforms.uFar.value = L.contactRange;
+    updateCloudShadows(
+      cloudShadowStrength(this.levelLight.clouds, Config.render.cloudShadows, this.day.sunDir.y),
+      this.time,
+    );
     if (--this.sceneryTimer <= 0) {
       this.sceneryTimer = 60;
       prepareScenery(this.world.group);

@@ -40,6 +40,7 @@ uniform float uDomain;
 uniform vec2 uWind;
 uniform float uSquash;
 uniform float uLift;
+uniform float uChurn;
 varying vec2 vUv;
 varying float vFade;
 varying float vShade;
@@ -47,6 +48,14 @@ void main() {
   vUv = uv;
   vec3 base = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
   float scale = length(instanceMatrix[0].xyz);
+  if (uChurn > 0.0) {
+    // Each puff wanders round its place in the cloud and swells and shrinks on its own slow
+    // clock (phase from its position), so a cloud keeps changing shape as it drifts.
+    float ph = fract(sin(dot(base.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.2832;
+    base += vec3(sin(uTime * 0.11 + ph), 0.4 * sin(uTime * 0.15 + ph * 1.7),
+                 sin(uTime * 0.09 + ph * 2.3)) * scale * 0.22 * uChurn;
+    scale *= 1.0 + 0.18 * uChurn * sin(uTime * 0.13 + ph * 3.1);
+  }
   vec2 rel = base.xz + uWind * uTime - uOrigin.xz;
   rel = mod(rel + 0.5 * uDomain, uDomain) - 0.5 * uDomain;
   vec3 center = vec3(uOrigin.x + rel.x, base.y + uLift, uOrigin.z + rel.y);
@@ -87,6 +96,8 @@ export class Clouds {
   readonly mesh: THREE.InstancedMesh;
   /** Metres the whole layer floats higher (a level on high ground lifts the sky's clouds). */
   lift = 0;
+  /** How much each puff wanders and swells (0: rigid clouds, as the sky's own). */
+  churn = 0;
   private readonly u: Record<string, THREE.IUniform>;
   private readonly layer: CloudLayer;
 
@@ -104,6 +115,7 @@ export class Clouds {
       uOpacity: { value: L.opacity },
       uSquash: { value: L.squash },
       uLift: { value: 0 },
+      uChurn: { value: 0 },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -140,6 +152,7 @@ export class Clouds {
     this.u.uOrigin.value.copy(origin);
     this.u.uTime.value = time;
     this.u.uLift.value = this.lift;
+    this.u.uChurn.value = this.churn;
     this.u.uDomain.value = Config.render.drawDistance * 1.9;
     const w = Config.world.cloudDrift;
     this.u.uWind.value.set(w, w * 0.4);

@@ -301,11 +301,14 @@ tallest. The Sky Gate stands 400 m ahead of the spawn: two great columns 104 m a
 a hanging plank bridge with rope rails and prayer flags (blue, white, red, green, yellow), a
 monastery (a main hall, a side hall and a three-storey tower) on the taller one.
 
-Atmosphere: the cloud sea has its own paint (cauliflower lobes drifting with the wind, tilted
-into the normal so the toon bands break into heaped puffs, lilac in the creases, a glow from the
-sky's light so cloud is never dark). The shared mist rests on the cloud tops (`uMistBase`) and
+Atmosphere: the cloud sea has its own paint (cauliflower lobes riding the wind and slowly
+warped so they boil rather than slide, tilted into the normal so the toon bands break into
+heaped puffs, lilac in the creases, a glow from the sky's light so cloud is never dark) and is
+alive: broad heaps drift with the wind over the fixed swells while each stretch of sea swells and
+sinks on its own ~40 s breath, so the surface keeps changing shape like a time-lapse. The shared mist rests on the cloud tops (`uMistBase`) and
 reaches 30 m up, dissolving the spires' feet; the sea itself takes only the fog. Banks of cloud
-drift round the spires' waists and the bird can fly through them; the sky's own clouds float
+drift round the spires' waists, their puffs wandering and swelling so each bank changes
+shape, and the bird can fly through them; the sky's own clouds float
 140 m higher than usual. Two ranges of great snow peaks are painted round the horizon (jagged
 pyramids, the face toward the sun lit and coloured by it, pink at sunrise), standing out of the
 cloud sea's haze. Lanterns on the temples and the bridge glow after dark.
@@ -954,6 +957,9 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - The shared mist gained a base height (`uMistBase`, 0 for every other level) so it can rest on
   the cloud tops; the cloud sea's own material leaves the low mist out (on the sea it flattened
   every billow to one wash) and takes only the fog.
+- The cloud sea's motion is a vertex heave in its shader, not a moving height field: the flight
+  model, wisps, finds and look-ahead keep a fixed ground. It stays under `groundHeight` (the
+  bird's floor over the sea) and flattens round the camera, whose floor is 1.2 m over the field.
 - Sea of Clouds hands over to the generic wisp patterns only out over open cloud (no spire within
   260 m), and when nothing fits it wheels round with short glides instead: near a spire a
   generic pattern lifts its path straight over the summit, a 100 m jump the bot could not climb

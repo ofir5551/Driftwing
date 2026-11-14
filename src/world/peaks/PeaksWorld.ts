@@ -145,6 +145,10 @@ export class PeaksWorld implements World {
     u.uMistColor.value.copy(p.fog).lerp(p.sun, 0.12).lerp(p.hemiSky, 0.2);
     u.uMistTime.value = time;
     cloudSeaUniforms.uCTime.value = time;
+    // The sea's moving heaps ride the same wind as the banks (Clouds drifts along (1, 0.4)).
+    const drift = (P.seaDrift * time) / Math.hypot(1, 0.4);
+    cloudSeaUniforms.uCDrift.value.set(drift, drift * 0.4);
+    this.banks.churn = P.bankChurn;
     // Cloud is never dark: it glows with the sky's light, faintly blue in the shade.
     this.seaMaterial.emissive
       .copy(p.hemiSky)

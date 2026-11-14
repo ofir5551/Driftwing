@@ -94,7 +94,20 @@ small torii), temples (gate, main hall, five-storey pagoda), grand wooded shrine
 broadcast towers in their own parks. Avenue crossings keep open corner plazas (a koban or a
 tree). Landmarks: a giant torii standing in the bay on the spawn line, elevated expressways
 (north-south decks at 15 m, east-west at 23 m) that cross the bay as bridges, and Fuji painted
-into the sky dome. Dusk lights the city: a hashed share of windows, shop fronts, neon, lanterns
+into the sky dome.
+
+The waterfront: the grid is straight and the shores curve, so the grid stops at a bayside road
+(14 m, two lanes each way) that follows the shore, with a 10 m promenade between it and the
+seawall (a stone coping and railing, lamps every 24 m, a row of pines and cherries left open where
+each avenue ends, so every avenue meets the road on a zebra and ends in a little plaza looking
+out over the bay). Every north-south avenue and street ends there in a T; east-west roads stop
+a green strip short of it rather than run alongside as one wide band of asphalt. Blocks the shore
+cuts into become waterfront parks; every building keeps 3 m back from the road's kerb. Where the
+river meets the bay, the promenade and the road cross its mouth on one wide bridge. The river has
+a 7 m walk along the top of each stone embankment, lined with cherry trees leaning over the water
+(after Meguro river); buildings keep back from it, and the grid crosses on its bridges. North-
+south expressways cross the bay as bridges with no pier on the promenade or the road; east-west
+ones run only on avenues the bay never reaches, so no deck stops in mid-air. Dusk lights the city: a hashed share of windows, shop fronts, neon, lanterns
 and lamp pools on the avenues. Music: night-neon lo-fi at 78 BPM, koto plucks over a mellow
 keys pad and a soft swung beat, in a drier room; yo pentatonic by day, hirajoshi after dusk.
 
@@ -855,6 +868,12 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   neon, lanterns and aviation lights emit after dark (neon and beacons in HDR for bloom). The
   street grid is regular, so the ground shader draws asphalt, sidewalks, lane lines, crossings and
   lamp pools analytically from world position; a vertex attribute turns streets off in parks.
+- The city's waterfront is cut from two distances per ground vertex (`aEdge`): metres inland of
+  the seawall (along z: the shores run east-west and curve gently) and metres back from a river
+  bank's top (the river noise's distance from its bank value over its gradient). Both are smooth,
+  so the shader cuts crisp bands from their interpolation even on the coarse LOD. The layout uses
+  the same two (`shoreDist`, `bankDist`) to keep buildings, trees and expressway piers off the
+  promenade, the bayside road and the river walks, and tests check it.
 - City collisions: boxes bucketed per superblock on an 8x8 grid (covering 24 m around it, since
   avenue structures straddle edges), so a point query checks one cell. The push leaves through the
   nearest face (undersides only for floating decks and beams). A wall contact kicks the turn rate

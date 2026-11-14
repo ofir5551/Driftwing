@@ -184,6 +184,13 @@ export const Config = {
     avenueHalf: 20, // half width of an avenue: 40 m boulevards with 4 m tree-lined sidewalks
     streetHalf: 6, // half width of a local street
     canopy: 7, // m, park and forest canopy counts as soft ground this high
+    // The waterfront (the layout and the ground shader read these when a city is created). The
+    // grid is straight and the shore curves, so the grid stops at a bayside road that follows
+    // the shore, with a promenade between it and the seawall.
+    promenade: 10, // m from the seawall to the bayside road: railing, lamps and a row of trees
+    bayRoad: 14, // m, width of the bayside road (two lanes each way)
+    riverWalk: 7, // m, the walk along the top of each river bank, lined with cherry trees
+    setback: 3, // m every building keeps from the bayside road's kerb and the river walk
     // Flying among buildings.
     avoidLook: 1.1, // s of flight scanned ahead for walls
     avoidSteer: 1.5, // how hard the bird veers toward the open side of a wall ahead

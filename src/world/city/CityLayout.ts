@@ -87,6 +87,15 @@ const INFLATE = 4;
 const CACHE = 400;
 /** Open corner plaza at every avenue crossing (m from the block corner), so turns have room. */
 const CORNER = 16;
+/** The river's noise value at the top of its banks (where `river` reaches 0 and land is flat). */
+const BANK = 0.03;
+/** The shores stay inside these bands of z (their noise is within about [-1, 1]). */
+const NEAR_MIN = 150 - 115;
+const NEAR_MAX = 150 + 115;
+const FAR_MIN = 1750 - 185;
+const FAR_MAX = 1750 + 185;
+/** The bayside road's kerb sidewalk (m), inland of the road. */
+const KERB = 3;
 
 const GLASS = [0x6f8aa3, 0x7f97ad, 0x8ba3b5, 0x5f7891, 0x93a4b0, 0x7d8c9e, 0x9fb5bc, 0x6c7f8f];
 const STONE = [0xd9cfc2, 0xcbbfb0, 0xe3dbd0, 0xbfb6ad, 0xc9c2bb, 0xd6c4ae];
@@ -142,6 +151,14 @@ export class CityLayout {
   readonly hit = new Float64Array(6);
   /** Keep-out rectangle (corner plaza) of the block being generated, or empty. */
   private readonly keep = [0, 0, 0, 0];
+  /** Metres inland of the seawall where the bayside road ends and the street grid begins. */
+  readonly roadIn: number;
+  /** Width of the walk along the top of each river bank. */
+  readonly riverWalk: number;
+  /** East-west roads stop this far inland of the seawall (a green strip off the bayside road). */
+  readonly eastWestIn: number;
+  /** Scratch: the direction a bank distance grows in. */
+  private readonly dir = { x: 0, z: 0 };
 
   constructor(private readonly seed: number) {
     const c = Config.city;
@@ -151,6 +168,9 @@ export class CityLayout {
     this.B = (this.S - 2 * this.AH - 4 * this.SH) / 3;
     this.c1 = this.AH + this.B + this.SH;
     this.c2 = this.AH + 2 * this.B + 3 * this.SH;
+    this.roadIn = c.promenade + c.bayRoad;
+    this.riverWalk = c.riverWalk;
+    this.eastWestIn = this.roadIn + KERB + 12;
     this.nH = createNoise2D(seed + 201);
     this.nR = createNoise2D(seed + 202);
     this.nD = createNoise2D(seed + 203);
@@ -191,6 +211,36 @@ export class CityLayout {
     return z > this.shoreNear(x) && z < this.shoreFar(x);
   }
 
+  /**
+   * Metres inland of the seawall (negative out on the bay). Measured along z: the shores run
+   * east-west and curve gently, so it is within a few per cent of the true distance.
+   */
+  shoreDist(x: number, z: number): number {
+    return Math.max(this.shoreNear(x) - z, z - this.shoreFar(x));
+  }
+
+  /**
+   * Metres back from the top of the nearest river bank (negative down the bank and over the
+   * channel): the river noise's distance from its bank value over its gradient. `dir`, when
+   * given, gets the unit direction in which the distance grows (away from the river).
+   */
+  bankDist(x: number, z: number, dir?: { x: number; z: number }): number {
+    const f = 0.00065;
+    const n = fbm(this.nR, x * f + 3.1, z * f - 1.7, 2);
+    const v = Math.abs(n);
+    if (v > 0.25) return 200; // a couple of hundred metres from any river
+    const e = 2;
+    const gx = (fbm(this.nR, (x + e) * f + 3.1, z * f - 1.7, 2) - n) / e;
+    const gz = (fbm(this.nR, x * f + 3.1, (z + e) * f - 1.7, 2) - n) / e;
+    const g = Math.max(Math.hypot(gx, gz), 1e-7);
+    if (dir) {
+      const k = (n < 0 ? -1 : 1) / g;
+      dir.x = gx * k;
+      dir.z = gz * k;
+    }
+    return Math.min(200, (v - BANK) / g);
+  }
+
   /** 0..1, 1 in the river channel. Like the highlands valleys: where a noise crosses zero. */
   river(x: number, z: number): number {
     const v = Math.abs(fbm(this.nR, x * 0.00065 + 3.1, z * 0.00065 - 1.7, 2));
@@ -201,7 +251,7 @@ export class CityLayout {
   baseHeight(x: number, z: number): number {
     let h = this.land + 1.4 * fbm(this.nH, x * 0.0021, z * 0.0021, 2);
     const r = this.river(x, z);
-    if (r > 0) h = lerp(h, -3.2, r);
+    if (r > 0) h = lerp(h, -3.2, r); // banks from v = 0.016 (the channel) to BANK
     const near = this.shoreNear(x);
     const far = this.shoreFar(x);
     if (z > near - 1 && z < far + 1) {
@@ -220,7 +270,7 @@ export class CityLayout {
     const bi = Math.floor(x / this.S) * 3 + this.blockIndex(x - Math.floor(x / this.S) * this.S);
     const bj = Math.floor(z / this.S) * 3 + this.blockIndex(z - Math.floor(z / this.S) * this.S);
     const s = this.seed;
-    if (hash2(bi, bj, s + 220) > 0.5) return h;
+    if (hash2(bi, bj, s + 220) > 0.5 || this.coastal(bi, bj)) return h;
     const cx = this.blockX0(bi) + this.B / 2 + (hash2(bi, bj, s + 221) - 0.5) * 14;
     const cz = this.blockZ0(bj) + this.B / 2 + (hash2(bi, bj, s + 222) - 0.5) * 14;
     const rx = 10 + hash2(bi, bj, s + 223) * 7;
@@ -240,7 +290,11 @@ export class CityLayout {
     const x0 = this.blockX0(bi);
     const z0 = this.blockZ0(bj);
     const edge = Math.min(x - x0, x0 + this.B - x, z - z0, z0 + this.B - z);
-    return Config.city.canopy * (k === BK.FOREST ? 1 : 0.7) * smoothstep(3, 12, edge);
+    // No trees over the promenade, the bayside road or the river walk.
+    const open =
+      smoothstep(this.roadIn + 2, this.roadIn + 12, this.shoreDist(x, z)) *
+      smoothstep(this.riverWalk, this.riverWalk + 8, this.bankDist(x, z));
+    return Config.city.canopy * (k === BK.FOREST ? 1 : 0.7) * smoothstep(3, 12, edge) * open;
   }
 
   // --- Plan ------------------------------------------------------------------------------------
@@ -287,6 +341,17 @@ export class CityLayout {
     out.bi = I * 3 + k;
     out.bj = J * 3 + l;
     return true;
+  }
+
+  /** On a north-south avenue or street (whatever block kinds say about local streets). */
+  northSouthRoad(x: number): boolean {
+    const u = x - Math.floor(x / this.S) * this.S;
+    return (
+      u < this.AH ||
+      u >= this.S - this.AH ||
+      Math.abs(u - this.c1) < this.SH ||
+      Math.abs(u - this.c2) < this.SH
+    );
   }
 
   /** Superblocks whose local streets are not drawn (one big park or landmark ground). */
@@ -340,7 +405,22 @@ export class CityLayout {
     return 0;
   }
 
+  /**
+   * A block the shore cuts into, or one that would leave only a sliver between the bayside road
+   * and its buildings: it becomes a waterfront park instead of building to the water's edge.
+   */
+  coastal(bi: number, bj: number): boolean {
+    const z0 = this.blockZ0(bj);
+    const z1 = z0 + this.B;
+    const reach = this.roadIn + this.B + 6;
+    if (!(z1 > NEAR_MIN - reach && z0 < NEAR_MAX) && !(z1 > FAR_MIN && z0 < FAR_MAX + reach))
+      return false;
+    const half = this.B / 2;
+    return this.shoreDist(this.blockX0(bi) + half, z0 + half) < this.roadIn + half + 6;
+  }
+
   blockKind(bi: number, bj: number): BlockKind {
+    if (this.coastal(bi, bj)) return BK.PARK;
     const I = Math.floor(bi / 3);
     const J = Math.floor(bj / 3);
     const centre = mod3(bi) === 1 && mod3(bj) === 1;
@@ -376,8 +456,13 @@ export class CityLayout {
     return I === this.nearExpress.I || (I !== 0 && hash2(I, 7, this.seed + 401) < 0.12);
   }
 
-  /** E-W expressway along the avenue at z = J*S. */
+  /**
+   * E-W expressway along the avenue at z = J*S: only on lines the bay never reaches, so a
+   * deck never stops in mid-air where its avenue runs into the water.
+   */
   expressZ(J: number): boolean {
+    const z = J * this.S;
+    if (z >= NEAR_MIN && z <= FAR_MAX) return false;
     return J === this.nearExpress.J || hash2(J, 9, this.seed + 402) < 0.12;
   }
 
@@ -430,6 +515,8 @@ export class CityLayout {
       }
     this.genAvenues(sb, I, J);
     this.genBridges(sb, I, J);
+    this.genWaterfront(sb, I, J);
+    this.genRiverWalk(sb, I, J);
     const S = this.S;
     if (
       this.gate.x >= I * S &&
@@ -519,9 +606,21 @@ export class CityLayout {
     if (solid) this.solid(sb, x0, y0, z0, x1, y1, z1);
   }
 
-  private tree(sb: Superblock, type: number, x: number, z: number, scale: number, r: number): void {
+  /** A tree, unless it would stand on the promenade, the bayside road or the river walk (only
+   * their own rows, placed `free`, go there). */
+  private tree(
+    sb: Superblock,
+    type: number,
+    x: number,
+    z: number,
+    scale: number,
+    r: number,
+    free = false,
+  ): void {
     const y = this.height(x, z);
     if (y < Config.world.waterLevel + 0.4) return;
+    if (!free && (this.shoreDist(x, z) < this.roadIn + 1.5 || this.bankDist(x, z) < this.riverWalk))
+      return;
     sb.trees.push(type, x, y - 0.3, z, scale, r * Math.PI * 2, (r * 7.13) % 1);
   }
 
@@ -550,15 +649,32 @@ export class CityLayout {
     }
   }
 
-  /** Every corner and the centre of a footprint is dry land. */
+  /**
+   * Every corner, edge midpoint and the centre of a footprint is dry land, set back from the
+   * bayside road's kerb and from the river walk.
+   */
   private dry(x0: number, z0: number, x1: number, z1: number): boolean {
-    const w = Config.world.waterLevel + 0.7;
+    const xm = (x0 + x1) / 2;
+    const zm = (z0 + z1) / 2;
     return (
-      this.baseHeight(x0, z0) > w &&
-      this.baseHeight(x1, z0) > w &&
-      this.baseHeight(x0, z1) > w &&
-      this.baseHeight(x1, z1) > w &&
-      this.baseHeight((x0 + x1) / 2, (z0 + z1) / 2) > w
+      this.buildable(x0, z0) &&
+      this.buildable(x1, z0) &&
+      this.buildable(x0, z1) &&
+      this.buildable(x1, z1) &&
+      this.buildable(xm, zm) &&
+      this.buildable(xm, z0) &&
+      this.buildable(xm, z1) &&
+      this.buildable(x0, zm) &&
+      this.buildable(x1, zm)
+    );
+  }
+
+  private buildable(x: number, z: number): boolean {
+    const set = Config.city.setback;
+    return (
+      this.baseHeight(x, z) > Config.world.waterLevel + 0.7 &&
+      this.shoreDist(x, z) > this.roadIn + KERB + set &&
+      this.bankDist(x, z) > this.riverWalk + set
     );
   }
 
@@ -1074,7 +1190,7 @@ export class CityLayout {
       const px = lerp(ix0 + 8, ix1 - 8, rnd());
       const pz = lerp(iz0 + 8, iz1 - 8, rnd());
       const g = this.height(px, pz);
-      if (g > Config.world.waterLevel + 0.6) {
+      if (g > Config.world.waterLevel + 0.6 && this.dry(px - 3, pz - 3, px + 3, pz + 3)) {
         for (const ox of [-2, 2])
           for (const oz of [-2, 2])
             this.part(sb, MESH.CYL, px + ox, g, pz + oz, 0.4, 3, 0.4, 0, 0x8c5f44, STYLE.PLAIN, 0);
@@ -1095,7 +1211,7 @@ export class CityLayout {
     const cx = (ix0 + ix1) / 2;
     const cz = (iz0 + iz1) / 2;
     const g = this.baseHeight(cx, cz);
-    if (g < Config.world.waterLevel + 0.7) return;
+    if (!this.dry(cx - 6, cz - 6, cx + 6, cz + 6)) return;
     this.part(sb, MESH.CYL, cx, g - 0.5, cz, 11, 1.2, 11, 0, 0xc9c2ba, STYLE.PLAIN, 0);
     this.part(sb, MESH.CYL, cx, g, cz, 2, 3.2, 2, 0, 0xd8d2ca, STYLE.PLAIN, 0);
     this.part(sb, MESH.CYL, cx, g + 3.2, cz, 0.6, 1.2, 0.6, 0, LANTERN, STYLE.LAMP, 0);
@@ -1510,9 +1626,13 @@ export class CityLayout {
     for (let a = 20; a < S; a += 40) {
       const px = northSouth ? ax : ax + a;
       const pz = northSouth ? az + a : az;
-      this.part(sb, MESH.CYL, px, -7, pz, 2.6, y0 - 1.2 + 7, 2.6, 0, 0xb4afb6, STYLE.PLAIN, 0);
-      this.solid(sb, px - 1.3, -7, pz - 1.3, px + 1.3, y0, pz + 1.3);
-      rect(a - 1.3, a + 1.3, -6, 6, y0 - 1.4, y0, 0xb4afb6, STYLE.PLAIN, false);
+      // No pillar on the promenade or the bayside road: the deck spans them (80 m there).
+      const sd = this.shoreDist(px, pz);
+      if (sd < -3 || sd > this.roadIn + 3) {
+        this.part(sb, MESH.CYL, px, -7, pz, 2.6, y0 - 1.2 + 7, 2.6, 0, 0xb4afb6, STYLE.PLAIN, 0);
+        this.solid(sb, px - 1.3, -7, pz - 1.3, px + 1.3, y0, pz + 1.3);
+        rect(a - 1.3, a + 1.3, -6, 6, y0 - 1.4, y0, 0xb4afb6, STYLE.PLAIN, false);
+      }
       // Sodium lamps on the barrier.
       rect(a - 0.12, a + 0.12, hw - 0.3, hw - 0.06, y1, y1 + 5, 0x8d8a93, STYLE.PLAIN, false);
       rect(a - 0.35, a + 0.35, hw - 1.4, hw - 0.1, y1 + 5, y1 + 5.4, 0xffb070, STYLE.LAMP, false);
@@ -1567,7 +1687,10 @@ export class CityLayout {
     for (let a = a0; a <= a1; a += step) {
       const px = northSouth ? x : x + a;
       const pz = northSouth ? z + a : z;
-      const wet = this.baseHeight(px, pz) < Config.world.waterLevel + 0.6 && !this.inSea(px, pz);
+      // The grid stops at the bayside road, which has its own bridge over a river mouth.
+      const wet =
+        this.baseHeight(px, pz) < Config.world.waterLevel + 0.6 &&
+        this.shoreDist(px, pz) > this.roadIn;
       if (wet && run < 0) run = a;
       if (!wet && run >= 0) {
         flush(a);
@@ -1575,6 +1698,138 @@ export class CityLayout {
       }
     }
     if (run >= 0) flush(a1);
+  }
+
+  // --- The waterfront and the river walks -----------------------------------------------------
+
+  /**
+   * The promenade along each seawall: a railing at the edge, lamps every 24 m and a row of pines
+   * and cherries between the walk and the bayside road, left open where an avenue meets the road
+   * so every avenue ends in a little plaza looking out over the bay. Where a river runs into
+   * the bay, the promenade and the road cross its mouth on one wide bridge.
+   */
+  private genWaterfront(sb: Superblock, I: number, J: number): void {
+    const S = this.S;
+    const x0 = I * S;
+    const z0 = J * S;
+    const water = Config.world.waterLevel + 0.6;
+    const half = this.roadIn / 2;
+    const deckTop = 3.3;
+    const owns = (x: number, z: number) => x >= x0 && x < x0 + S && z >= z0 && z < z0 + S;
+    for (const side of [1, -1]) {
+      // side 1: the near shore, land toward -z; side -1: the far shore, land toward +z.
+      if (
+        side > 0
+          ? z0 > NEAR_MAX + 2 || z0 + S < NEAR_MIN - this.roadIn - 2
+          : z0 > FAR_MAX + this.roadIn + 2 || z0 + S < FAR_MIN - 2
+      )
+        continue;
+      const edge = (x: number) => (side > 0 ? this.shoreNear(x) : this.shoreFar(x));
+      const wetAt = (x: number) => {
+        const e = edge(x);
+        return (
+          this.baseHeight(x, e - side * 2) < water ||
+          this.baseHeight(x, e - side * half) < water ||
+          this.baseHeight(x, e - side * (this.roadIn - 2)) < water
+        );
+      };
+      // 6 m segments along the shore: railing, and the bridge deck over a river mouth.
+      for (let x = x0; x < x0 + S; x += 6) {
+        const xb = x + 6;
+        const ea = edge(x);
+        const eb = edge(xb);
+        const dz = eb - ea;
+        const len = Math.hypot(6, dz);
+        const rot = Math.atan2(-dz, 6);
+        const wet = wetAt(x) || wetAt(xb) || wetAt(x - 6) || wetAt(xb + 6);
+        const rail = (d: number, y: number) => {
+          const mx = x + 3;
+          const mz = (ea + eb) / 2 - side * d;
+          if (owns(mx, mz))
+            this.part(sb, MESH.BOX, mx, y, mz, len, 1.05, 0.14, rot, 0xd9d4cc, STYLE.PLAIN, 0);
+        };
+        if (!wet) {
+          rail(0.4, this.baseHeight(x + 3, (ea + eb) / 2 - side * 0.4));
+          continue;
+        }
+        const mx = x + 3;
+        const mz = (ea + eb) / 2 - side * half;
+        if (!owns(mx, mz)) continue;
+        // The deck covers the promenade and the road; its collision box is the rotated deck's
+        // bounds (the shore is gentle, so that is only a little larger).
+        this.part(
+          sb,
+          MESH.BOX,
+          mx,
+          1.8,
+          mz,
+          len + 0.3,
+          deckTop - 1.8,
+          this.roadIn + 1,
+          rot,
+          0xb7b0aa,
+          STYLE.PLAIN,
+          0,
+        );
+        const c = Math.abs(Math.cos(rot));
+        const sn = Math.abs(Math.sin(rot));
+        const hx = (c * (len + 0.3) + sn * (this.roadIn + 1)) / 2;
+        const hz = (sn * (len + 0.3) + c * (this.roadIn + 1)) / 2;
+        this.solid(sb, mx - hx, 1.8, mz - hz, mx + hx, deckTop, mz + hz);
+        rail(0.4, deckTop);
+        rail(this.roadIn + 0.2, deckTop);
+      }
+      // Lamps by the railing, every 24 m.
+      for (let x = Math.ceil(x0 / 24) * 24; x < x0 + S; x += 24) {
+        const z = edge(x) - side * 1.6;
+        if (!owns(x, z)) continue;
+        const g = this.baseHeight(x, z);
+        if (g < water) continue;
+        this.part(sb, MESH.CYL, x, g, z, 0.22, 4.8, 0.22, 0, 0x4f535c, STYLE.PLAIN, 0);
+        this.part(sb, MESH.BOX, x, g + 4.8, z, 0.6, 0.4, 0.6, 0, LANTERN, STYLE.LAMP, 0);
+      }
+      // A row of trees between the walk and the road, open where each avenue ends.
+      for (let x = Math.ceil((x0 - 6) / 12) * 12 + 6; x < x0 + S; x += 12) {
+        const z = edge(x) - side * 6.5;
+        if (!owns(x, z)) continue;
+        const toAvenue = Math.abs(x - Math.round(x / S) * S);
+        if (toAvenue < this.AH + 4) continue;
+        const r = hash2(Math.round(x), side, this.seed + 941);
+        this.tree(sb, r < 0.5 ? TREE.PINE : TREE.CHERRY, x, z, 0.62 + r * 0.3, r, true);
+      }
+    }
+  }
+
+  /**
+   * Cherry trees along the top of every river bank, leaning over the water (after Meguro river),
+   * about one per 9 m: each cell's centre is stepped onto the line 2.5 m back from the bank's edge,
+   * and kept only if it lands inside its own cell, so the row has no doubles. Roads and their
+   * bridges cross the walk, so no tree stands on them.
+   */
+  private genRiverWalk(sb: Superblock, I: number, J: number): void {
+    const S = this.S;
+    const cell = 9;
+    const line = 2.5;
+    const dir = this.dir;
+    for (let cz = J * S + cell / 2; cz < (J + 1) * S; cz += cell)
+      for (let cx = I * S + cell / 2; cx < (I + 1) * S; cx += cell) {
+        let d = this.bankDist(cx, cz, dir);
+        if (d > 14 || d < -12) continue;
+        let x = cx;
+        let z = cz;
+        for (let k = 0; k < 2; k++) {
+          x -= (d - line) * dir.x;
+          z -= (d - line) * dir.z;
+          d = this.bankDist(x, z, dir);
+        }
+        if (Math.abs(d - line) > 0.6) continue;
+        if (Math.abs(x - cx) > cell / 2 || Math.abs(z - cz) > cell / 2) continue;
+        const zone = this.zoneAt(x, z);
+        if (zone === ZONE_AVENUE || zone === ZONE_STREET) continue;
+        if (this.shoreDist(x, z) < this.roadIn + 2) continue;
+        const r = hash2(Math.round(x * 4), Math.round(z * 4), this.seed + 951);
+        this.tree(sb, TREE.CHERRY, x, z, 0.7 + r * 0.25, r, true);
+      }
   }
 
   // --- Queries (no allocation) -----------------------------------------------------------------

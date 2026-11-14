@@ -181,7 +181,9 @@ function lin(hex: string): string {
  * Ground material: vertex colours give each block its ground (paving, gravel, grass, water's
  * edge); the street grid is drawn analytically on top from world position, because it is a
  * regular lattice: asphalt, tree-lined sidewalks, dashed lane lines, zebra crossings, and
- * pools of lamplight after dark. `aRoad` switches local streets off inside parks.
+ * pools of lamplight after dark. `aRoad` switches local streets off inside parks; `aEdge` (metres
+ * from the seawall and from the river banks' tops) stops the grid at the bayside road and paints
+ * the promenade, the road, the river walks and the stone embankments.
  */
 export function createGroundMaterial(u: CityUniforms, city: CityLayout): THREE.Material {
   const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() });
@@ -193,14 +195,17 @@ export function createGroundMaterial(u: CityUniforms, city: CityLayout): THREE.M
         '#include <common>',
         /* glsl */ `#include <common>
 attribute float aRoad;
+attribute vec2 aEdge;
 varying float vRoad;
+varying vec2 vEdge;
 varying vec3 vGround;`,
       )
       .replace(
         '#include <project_vertex>',
         /* glsl */ `#include <project_vertex>
 vGround = (modelMatrix * vec4(transformed, 1.0)).xyz;
-vRoad = aRoad;`,
+vRoad = aRoad;
+vEdge = aEdge;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -209,7 +214,13 @@ vRoad = aRoad;`,
 uniform float uCityNight;
 uniform float uCityLights;
 varying float vRoad;
+varying vec2 vEdge;
 varying vec3 vGround;
+#define PROM ${f(Config.city.promenade)}
+#define BR ${f(Config.city.bayRoad)}
+#define RIN ${f(city.roadIn)}
+#define RW ${f(city.riverWalk)}
+#define EWIN ${f(city.eastWestIn)}
 #define CS ${f(city.S)}
 #define AH ${f(city.AH)}
 #define SH ${f(city.SH)}
@@ -228,17 +239,33 @@ vec3 groundEmit = vec3(0.0);
   float aa = max(fwidth(p.x), fwidth(p.y));
   float dry = smoothstep(0.1, 0.5, vGround.y - ${f(Config.world.waterLevel)});
   float avX = 1.0 - smoothstep(AH - aa, AH + aa, da.x);
-  float avZ = 1.0 - smoothstep(AH - aa, AH + aa, da.y);
+  // East-west roads (nearly parallel to the shore) stop short of the bayside road, leaving a
+  // green strip, instead of running alongside it as one wide band of asphalt.
+  float ew = smoothstep(EWIN - aa, EWIN + aa, vEdge.x);
+  float avZ = (1.0 - smoothstep(AH - aa, AH + aa, da.y)) * ew;
   float av = max(avX, avZ);
   float stX = (1.0 - smoothstep(SH - aa, SH + aa, ds.x)) * vRoad * (1.0 - av);
-  float stZ = (1.0 - smoothstep(SH - aa, SH + aa, ds.y)) * vRoad * (1.0 - av);
+  float stZ = (1.0 - smoothstep(SH - aa, SH + aa, ds.y)) * vRoad * (1.0 - av) * ew;
   float st = max(stX, stZ);
   // Avenue sidewalks are the outer 4 m (outside the crossing); street sidewalks 2.5 m into the block.
   float walkX = avX * smoothstep(AH - 4.0 - aa, AH - 4.0 + aa, da.x) * (1.0 - avZ);
   float walkZ = avZ * smoothstep(AH - 4.0 - aa, AH - 4.0 + aa, da.y) * (1.0 - avX);
-  float walkSt = (1.0 - smoothstep(SH + 2.5 - aa, SH + 2.5 + aa, min(ds.x, ds.y))) * vRoad * (1.0 - av) * (1.0 - st);
+  float walkSt = max(1.0 - smoothstep(SH + 2.5 - aa, SH + 2.5 + aa, ds.x),
+    (1.0 - smoothstep(SH + 2.5 - aa, SH + 2.5 + aa, ds.y)) * ew) * vRoad * (1.0 - av) * (1.0 - st);
   float walk = max(max(walkX, walkZ), walkSt);
   float road = max(av, st) * (1.0 - walk);
+  // The waterfront: vEdge.x is metres inland of the seawall, vEdge.y metres back from the top of
+  // a river bank. The grid stops at the bayside road (and leaves the river banks to its bridges).
+  float sd = vEdge.x;
+  float bd = vEdge.y;
+  float grid = smoothstep(RIN - aa, RIN + aa, sd) * smoothstep(-aa, aa, bd);
+  walk *= grid;
+  road *= grid;
+  float prom = smoothstep(-aa, aa, sd) * (1.0 - smoothstep(PROM - aa, PROM + aa, sd));
+  float bay = smoothstep(PROM - aa, PROM + aa, sd) * (1.0 - smoothstep(RIN - aa, RIN + aa, sd));
+  float kerb = smoothstep(RIN - aa, RIN + aa, sd) * (1.0 - smoothstep(RIN + 3.0 - aa, RIN + 3.0 + aa, sd)) * (1.0 - road);
+  float rwalk = smoothstep(-aa, aa, bd) * (1.0 - smoothstep(RW - aa, RW + aa, bd)) * (1.0 - road) * (1.0 - bay);
+  float embank = max(1.0 - smoothstep(-aa, aa, sd), 1.0 - smoothstep(-aa, aa, bd));
   float lineFade = 1.0 - smoothstep(0.12, 0.45, aa);
   // Lanes: dashed dividers 5.5 and 11 m out, a solid centre line, solid edge lines.
   float w = 0.13 + aa * 0.5;
@@ -256,15 +283,37 @@ vec3 groundEmit = vec3(0.0);
   float zz = step(0.5, fract(p.x / 1.5)) * avX * step(AH + 0.6, da.y) * (1.0 - step(AH + 4.4, da.y)) * (1.0 - step(AH - 4.0, da.x));
   float stLine = (1.0 - smoothstep(w, w + aa, min(ds.x, ds.y))) * step(0.5, fract((stX > stZ ? p.y : p.x) / 7.0)) * st;
   float marks = min(1.0, lanes * (1.0 - walk) + max(zx, zz) + stLine) * lineFade;
+  // Each N-S avenue and street crosses the kerb on a zebra where it meets the bayside road.
+  float zb = step(0.5, fract(p.x / 1.5)) * max(avX * (1.0 - avZ), stX) * step(RIN + 0.6, sd) * (1.0 - step(RIN + 4.4, sd));
+  marks = max(marks, zb * lineFade);
+  // The bayside road's lanes: a double centre line, dashed lane lines, solid edges.
+  float bo = abs(sd - (PROM + BR * 0.5));
+  float bayMarks = (1.0 - smoothstep(w, w + aa, abs(bo - 0.25)))
+    + (1.0 - smoothstep(w, w + aa, abs(bo - BR * 0.25))) * dashX
+    + (1.0 - smoothstep(w, w + aa, abs(bo - (BR * 0.5 - 0.5))));
+  bayMarks = min(1.0, bayMarks) * bay * lineFade;
+  // Promenade paving: 3 x 2.5 m flags, and a stone coping along the seawall.
+  float sw = 0.06 + aa * 0.5;
+  float seam = max(
+    1.0 - smoothstep(sw, sw + aa, abs(fract(p.x / 3.0 + 0.5) - 0.5) * 3.0),
+    1.0 - smoothstep(sw, sw + aa, abs(fract(sd / 2.5 + 0.5) - 0.5) * 2.5)) * lineFade;
+  float coping = 1.0 - smoothstep(0.8 - aa, 0.8 + aa, sd);
   vec3 col = diffuseColor.rgb;
-  col = mix(col, ${lin('#b9b2ad')}, walk * dry);
-  col = mix(col, ${lin('#5d5966')}, road * dry);
-  col = mix(col, ${lin('#e8e2d6')}, marks * road * dry * 0.85);
+  col = mix(col, mix(${lin('#d3c7b5')}, ${lin('#b4aa9c')}, max(seam * 0.6, coping)), prom * dry);
+  col = mix(col, ${lin('#d6ccba')}, rwalk * dry);
+  col = mix(col, ${lin('#b9b2ad')}, max(walk, kerb) * dry);
+  col = mix(col, ${lin('#5d5966')}, max(road, bay) * dry);
+  col = mix(col, ${lin('#e8e2d6')}, max(marks * road, bayMarks) * dry * 0.85);
+  // The seawall and the river embankments: dressed stone down to the water.
+  col = mix(col, ${lin('#8f8983')}, embank * dry);
   diffuseColor.rgb = col;
   // Lamplight pools along the avenue sidewalks after dark.
   vec2 qx = vec2(da.x - (AH - 2.5), mod(p.y, 26.0) - 13.0);
   vec2 qz = vec2(da.y - (AH - 2.5), mod(p.x, 26.0) - 13.0);
-  float pool = exp(-dot(qx, qx) / 14.0) * avX * (1.0 - avZ) + exp(-dot(qz, qz) / 14.0) * avZ * (1.0 - avX);
+  float pool = (exp(-dot(qx, qx) / 14.0) * avX * (1.0 - avZ) + exp(-dot(qz, qz) / 14.0) * avZ * (1.0 - avX)) * grid;
+  // And under the promenade's lamps (every 24 m, 1.6 m in from the railing).
+  vec2 qp = vec2(mod(p.x + 12.0, 24.0) - 12.0, sd - 2.6);
+  pool += exp(-dot(qp, qp) / 12.0) * prom;
   groundEmit = ${lin('#ffc98a')} * pool * dry * uCityNight * uCityLights * 0.35;
 }`,
       )

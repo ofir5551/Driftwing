@@ -3,7 +3,14 @@ import { Config } from '../src/core/Config';
 import { angleDelta } from '../src/core/math';
 import { CITY_KEYS, MODES } from '../src/audio/scales';
 import { createFlightState, stepFlight, type FlightInput } from '../src/player/FlightModel';
-import { BK, BOX_STRIDE, CityLayout, PART_STRIDE, ZONE_AVENUE } from '../src/world/city/CityLayout';
+import {
+  BK,
+  BOX_STRIDE,
+  CITY_TREE_STRIDE,
+  CityLayout,
+  PART_STRIDE,
+  ZONE_AVENUE,
+} from '../src/world/city/CityLayout';
 import { avoidSolids, glanceOffWall, type Solids } from '../src/world/city/collide';
 import { CityWorld } from '../src/world/city/CityWorld';
 import { flyBot } from './helpers';
@@ -86,6 +93,66 @@ describe('city layout', () => {
       expect(seen.has(k)).toBe(true);
     // The core sits just inland of the spawn.
     expect(city.density(0, -2)).toBeGreaterThan(0.66);
+  });
+
+  it('ends the grid at a bayside road: nothing is built on it or on the promenade', () => {
+    let boxes = 0;
+    let trees = 0;
+    for (let I = -6; I <= 6; I++)
+      for (const J of [-1, 0, 1, 6, 7, 8]) {
+        const sb = city.superblock(I, J);
+        const B = sb.boxes;
+        for (let k = 0; k < B.length; k += BOX_STRIDE) {
+          const d = city.shoreDist((B[k] + B[k + 3]) / 2, (B[k + 2] + B[k + 5]) / 2);
+          if (d < 0 || d > city.roadIn + 3) continue;
+          // Only the bridge over a river mouth (a low deck) or an expressway deck overhead.
+          expect(B[k + 4] <= 3.4 || B[k + 1] >= 14).toBe(true);
+          boxes++;
+        }
+        const T = sb.trees;
+        for (let k = 0; k < T.length; k += CITY_TREE_STRIDE) {
+          const d = city.shoreDist(T[k + 1], T[k + 3]);
+          // The promenade's own row stands 6.5 m in from the railing; the road is bare.
+          if (d > 8 && d < city.roadIn + 1.5) trees++;
+        }
+      }
+    expect(trees).toBe(0);
+    expect(boxes).toBeGreaterThan(0); // the expressway crossing the bay at least
+    // Blocks the shore cuts into are waterfront parks.
+    for (let bi = -20; bi < 20; bi++)
+      for (let bj = -3; bj < 3; bj++) {
+        const x = city.blockX0(bi) + city.B / 2;
+        const z = city.blockZ0(bj) + city.B / 2;
+        if (city.shoreDist(x, z) < city.roadIn) expect(city.blockKind(bi, bj)).toBe(BK.PARK);
+      }
+  });
+
+  it('sets buildings back from the river walk', () => {
+    let near = 0;
+    for (let I = -6; I <= 6; I++)
+      for (let J = -6; J <= 0; J++) {
+        const B = city.superblock(I, J).boxes;
+        for (let k = 0; k < B.length; k += BOX_STRIDE) {
+          const w = B[k + 3] - B[k];
+          const dz = B[k + 5] - B[k + 2];
+          // Buildings: tall boxes standing on the ground (not decks, pillars or lamps).
+          if (B[k + 4] - B[k + 1] < 6 || B[k + 1] > 5 || Math.min(w, dz) < 4) continue;
+          const d = city.bankDist((B[k] + B[k + 3]) / 2, (B[k + 2] + B[k + 5]) / 2);
+          expect(d).toBeGreaterThan(city.riverWalk);
+          if (d < 40) near++;
+        }
+      }
+    expect(near).toBeGreaterThan(0); // the river does run through these superblocks
+  });
+
+  it('runs east-west expressways only where the bay never reaches their avenue', () => {
+    let lines = 0;
+    for (let J = -20; J <= 20; J++) {
+      if (!city.expressZ(J)) continue;
+      lines++;
+      for (let x = -4000; x <= 4000; x += 40) expect(city.inSea(x, J * city.S)).toBe(false);
+    }
+    expect(lines).toBeGreaterThan(0);
   });
 
   it('pushes a point out of a building through the nearest face', () => {

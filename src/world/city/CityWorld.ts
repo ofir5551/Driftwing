@@ -60,17 +60,27 @@ export class CityWorld implements World {
       createGeometry: (res) => {
         const g = createChunkGeometry(res);
         g.setAttribute('aRoad', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2), 1));
+        g.setAttribute('aEdge', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2 * 2), 2));
         return g;
       },
       fillExtra: (g, ox, oz, size, res) => {
         const a = g.getAttribute('aRoad') as THREE.BufferAttribute;
+        const e = g.getAttribute('aEdge') as THREE.BufferAttribute;
         const A = a.array as Float32Array;
+        const E = e.array as Float32Array;
         const n = res + 1;
         const step = size / res;
         for (let j = 0; j < n; j++)
-          for (let i = 0; i < n; i++)
-            A[j * n + i] = L.hasStreets(ox + i * step, oz + j * step) ? 1 : 0;
+          for (let i = 0; i < n; i++) {
+            const x = ox + i * step;
+            const z = oz + j * step;
+            A[j * n + i] = L.hasStreets(x, z) ? 1 : 0;
+            // Both distances are smooth, so the shader cuts crisp bands from their interpolation.
+            E[(j * n + i) * 2] = Math.max(-60, Math.min(200, L.shoreDist(x, z)));
+            E[(j * n + i) * 2 + 1] = L.bankDist(x, z);
+          }
         a.needsUpdate = true;
+        e.needsUpdate = true;
       },
     });
     this.planner = new CityPlanner(L);
@@ -90,7 +100,11 @@ export class CityWorld implements World {
     const L = this.layout;
     const t = f.tint(x, z);
     const zone = L.zoneAt(x, z);
-    if (zone === ZONE_AVENUE || zone === ZONE_STREET) out.copy(C.road);
+    const road = zone === ZONE_AVENUE || zone === ZONE_STREET;
+    if (road && !L.northSouthRoad(x) && L.shoreDist(x, z) < L.eastWestIn)
+      // An east-west road stopped short of the bayside road: the green strip beside it.
+      out.copy(C.grass).lerp(C.grassDeep, 0.5 + 0.5 * t);
+    else if (road) out.copy(C.road);
     else if (zone === BK.PARK || zone === BK.FOREST)
       out.copy(C.grass).lerp(C.grassDeep, 0.5 + 0.5 * t + (zone === BK.FOREST ? 0.3 : 0));
     else if (zone === BK.SHRINE || zone === BK.TEMPLE) {

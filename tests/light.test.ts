@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
 import { shadowFade, snapToTexel } from '../src/fx/SunShadows';
+import { blobFrame } from '../src/world/ContactShadows';
 
 /** The light camera's right and up axes for a sun direction (as THREE's lookAt builds them). */
 function lightAxes(sun: THREE.Vector3) {
@@ -53,7 +54,38 @@ describe('sun shadows', () => {
   });
 
   it('every level has a lighting entry', () => {
-    for (const id of ['highlands', 'city', 'karst', 'fjord', 'jerusalem', 'canyon', 'peaks', 'atoll', 'ringmoon'] as const)
+    for (const id of [
+      'highlands',
+      'city',
+      'karst',
+      'fjord',
+      'jerusalem',
+      'canyon',
+      'peaks',
+      'atoll',
+      'ringmoon',
+    ] as const)
       expect(Config.levelLight[id].shadows).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('contact shadows', () => {
+  const out = { y: 0, nx: 0, ny: 0, nz: 0 };
+
+  it('lie on a sloping ground, tilted to it', () => {
+    const slope = (x: number) => x * 0.5; // rises 0.5 m per m toward +x
+    const f = blobFrame((x) => slope(x), 10, 4.8, 3, 2, out);
+    expect(f.y).toBeCloseTo(5);
+    // The normal leans away from the uphill side, and is unit length.
+    expect(f.nx).toBeLessThan(0);
+    expect(f.nz).toBeCloseTo(0);
+    expect(Math.hypot(f.nx, f.ny, f.nz)).toBeCloseTo(1);
+    expect(f.nx / f.ny).toBeCloseTo(-0.5);
+  });
+
+  it('lie flat at the foot of something standing off the ground (a ledge, a roof)', () => {
+    const f = blobFrame(() => 0, 0, 30, 0, 2, out);
+    expect([f.y, f.nx, f.ny, f.nz]).toEqual([30, 0, 1, 0]);
+    expect(blobFrame(null, 0, 7, 0, 2, out).y).toBe(7);
   });
 });

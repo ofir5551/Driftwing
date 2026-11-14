@@ -15,7 +15,11 @@ const lup = new THREE.Vector3();
  * with world up, so its right and up axes are cross(up, sunDir) and cross(sunDir, right).
  * Pure (Three math only): unit-tested in Node.
  */
-export function snapToTexel(target: THREE.Vector3, sunDir: THREE.Vector3, texel: number): THREE.Vector3 {
+export function snapToTexel(
+  target: THREE.Vector3,
+  sunDir: THREE.Vector3,
+  texel: number,
+): THREE.Vector3 {
   right.crossVectors(UP, sunDir);
   // A sun straight overhead has no "right": any horizontal axis is as good as another.
   if (right.lengthSq() < 1e-8) right.copy(X);

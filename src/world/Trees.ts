@@ -4,6 +4,7 @@ import { Config } from '../core/Config';
 import { smoothstep } from '../core/math';
 import { getToonGradient, type HeightField } from './Terrain';
 import { hash2 } from './noise';
+import { ContactShadows, type GroundFn } from './ContactShadows';
 import { ShadowCasters } from './ShadowCasters';
 
 /** Floats stored per tree in a chunk's scatter list: type, x, y, z, scale, rotY, tint. */
@@ -320,6 +321,15 @@ export class Trees {
   private readonly near: number[];
   private readonly counts: number[];
   private readonly casters: ShadowCasters[];
+  /** Contact shadows under the trees near the bird (medium and high). */
+  readonly contact: ContactShadows;
+  /** Crown radius of each type at scale 1 (the far shape's footprint): sizes its contact shadow. */
+  private readonly crowns: number[];
+  /**
+   * The level's ground, so contact shadows lie on the slope (set by the level's decor; without
+   * it they lie flat at each tree's foot).
+   */
+  ground: GroundFn | null = null;
   readonly material: THREE.MeshToonMaterial;
 
   constructor(
@@ -379,7 +389,13 @@ export class Trees {
     this.casters = geometries.map(
       (g, i) => new ShadowCasters(near[i] ?? g, mat, Math.ceil(capacity / 3)),
     );
-    this.group.add(...this.meshes, ...this.casters.map((c) => c.mesh));
+    this.crowns = geometries.map((g) => {
+      g.computeBoundingBox();
+      const b = g.boundingBox!;
+      return Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2;
+    });
+    this.contact = new ContactShadows(Math.ceil(capacity / 2));
+    this.group.add(...this.meshes, ...this.casters.map((c) => c.mesh), this.contact.mesh);
   }
 
   rebuild(lists: Iterable<number[]>, px: number, pz: number, maxDist: number): void {
@@ -389,6 +405,8 @@ export class Trees {
     const near2 = Config.render.treeDetail ** 2;
     // The chunk set (and so this refill) changes about once per chunk flown.
     for (const c of this.casters) c.begin(px, pz, Config.world.chunkSize);
+    this.contact.begin(px, pz);
+    const blob = Config.light.contactSize;
     for (const list of lists)
       for (let k = 0; k < list.length; k += TREE_STRIDE) {
         const x = list[k + 1];
@@ -406,6 +424,7 @@ export class Trees {
         m.compose(p.set(x, list[k + 2], z), q, sc.set(s, s * (0.9 + list[k + 6] * 0.3), s));
         mesh.setMatrixAt(idx, m);
         this.casters[type].add(x, z, m);
+        this.contact.add(x, list[k + 2], z, this.crowns[type] * s * blob, this.ground);
         // Per-tree tint: slight hue/brightness drift so groves look painted, not stamped.
         const t = list[k + 6];
         mesh.setColorAt(idx, col.setRGB(0.88 + t * 0.2, 0.92 + t * 0.12, 0.85 + (1 - t) * 0.2));
@@ -418,6 +437,7 @@ export class Trees {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
     for (const c of this.casters) c.end();
+    this.contact.end();
   }
 
   dispose(): void {
@@ -426,6 +446,7 @@ export class Trees {
       m.dispose();
     }
     for (const c of this.casters) c.dispose();
+    this.contact.dispose();
     this.material.dispose();
   }
 }
@@ -439,7 +460,9 @@ export class TreeDecor {
   );
   readonly group = this.trees.group;
 
-  constructor(private readonly field: HeightField) {}
+  constructor(private readonly field: HeightField) {
+    this.trees.ground = (x, z) => field.height(x, z);
+  }
 
   scatter(ox: number, oz: number, size: number): number[] {
     const out: number[] = [];

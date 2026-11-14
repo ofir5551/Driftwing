@@ -23,6 +23,7 @@ import { DAY_SKY, DayCycle, presetPhase, type TimeOfDay } from '../world/DayCycl
 import { Sky } from '../world/Sky';
 import type { HeightField } from '../world/Terrain';
 import { Water } from '../world/Water';
+import { contactUniforms } from '../world/ContactShadows';
 import { prepareScenery } from '../world/LitScenery';
 
 const params = new URLSearchParams(location.search);
@@ -177,6 +178,7 @@ export class Game {
     Config.render.treeDistance = q.treeDistance;
     Config.render.treeDetail = q.treeDetail;
     Config.render.shadows = q.shadows;
+    Config.render.contactShadows = q.contactShadows;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
     this.applyLightToggles();
@@ -397,6 +399,16 @@ export class Game {
     this.sun.position.copy(this.day.sunDir).multiplyScalar(100).add(this.bird.root.position);
     this.sun.target.position.copy(this.bird.root.position);
     this.shadows.update(this.bird.root.position, this.day.sunDir, this.levelLight.shadows);
+    // Contact shadows are lighter when the shadow map draws the real ones (they're only the
+    // occlusion at the foot then).
+    const L = Config.light;
+    contactUniforms.uStrength.value =
+      Config.render.contactShadows > 0
+        ? this.shadows.enabled
+          ? L.contactWithShadows
+          : L.contactStrength
+        : 0;
+    contactUniforms.uFar.value = L.contactRange;
     if (--this.sceneryTimer <= 0) {
       this.sceneryTimer = 60;
       prepareScenery(this.world.group);

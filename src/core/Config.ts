@@ -173,6 +173,10 @@ export const Config = {
     shadowNormalBias: 0.25, // m, pushes the lookup off the surface (no acne on gentle slopes)
     shadowSunMin: 0.06, // sun height (sunDir.y) where shadows have faded out (low sun, night)
     shadowSunFull: 0.18, // sun height where shadows reach full strength
+    contactStrength: 0.34, // darkness of a contact shadow at its centre
+    contactWithShadows: 0.2, // ... with the shadow map on too (it is only ambient occlusion then)
+    contactRange: 280, // m, contact shadows fade out by this distance
+    contactSize: 0.85, // blob radius as a share of a tree's crown radius
   },
   /**
    * Per-level strengths of the shared lighting (0 = off; the quality preset gates them on top).
@@ -547,6 +551,7 @@ export const Config = {
     treeDistance: 800,
     treeDetail: 280, // m, trees nearer than this use their detailed shapes
     shadows: 1, // 1 = sun shadow map near the bird (on levels with a shadow strength)
+    contactShadows: 1, // 1 = soft contact shadows under trees and props
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -570,6 +575,7 @@ export const QUALITY: Record<
     treeDistance: number;
     treeDetail: number;
     shadows: number;
+    contactShadows: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -581,6 +587,7 @@ export const QUALITY: Record<
     treeDistance: 420,
     treeDetail: 0,
     shadows: 0,
+    contactShadows: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -591,6 +598,7 @@ export const QUALITY: Record<
     treeDistance: 620,
     treeDetail: 200,
     shadows: 0,
+    contactShadows: 1,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -601,6 +609,7 @@ export const QUALITY: Record<
     treeDistance: 820,
     treeDetail: 280,
     shadows: 1,
+    contactShadows: 1,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

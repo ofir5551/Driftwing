@@ -98,6 +98,7 @@ export class AtollDecor implements ChunkDecor<AtollChunk> {
   private readonly treeLists: number[][] = [];
 
   constructor(private readonly layout: AtollLayout) {
+    this.trees.ground = (x, z) => layout.height(x, z); // contact shadows lie on the slope
     this.material = withMist(
       new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
     );

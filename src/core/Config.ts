@@ -231,6 +231,10 @@ export const Config = {
     mistRise: 30, // m above the cloud sea that mist reaches
     mistFar: 0.36, // distance haze: far spires fade in layers
     banks: 0.6, // opacity of the cloud banks drifting round the spires' waists
+    bankChurn: 1, // how much the banks' puffs wander and swell, so each bank keeps changing shape
+    seaDrift: 1.4, // m/s, the cloud sea's moving heaps and lobes ride the wind this fast
+    heave: 2.2, // m, the cloud sea's surface swells and sinks this far (visual; under groundHeight)
+    breath: 0.16, // rad/s, how fast a stretch of the cloud sea swells and sinks (~40 s a breath)
     billowDetail: 0.55, // strength of the cauliflower lobes painted on the cloud sea
     glow: 0.3, // how much the cloud sea glows with the sky's light (clouds are never dark)
     summitsDistance: 5000, // m, how far the painted snow peaks on the horizon pretend to be

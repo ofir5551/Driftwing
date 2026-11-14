@@ -164,6 +164,31 @@ export const Config = {
     flood: 1, // floodlight on the walls and landmarks after dark
     lights: 1, // brightness of windows and lamps after dark
   },
+  /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
+  light: {
+    shadowRange: 150, // m, half-size of the shadow map's box round the bird
+    shadowMapSize: 2048, // texels per side
+    shadowSoftness: 3, // PCF blur radius (texels)
+    shadowBias: -0.0004,
+    shadowNormalBias: 0.25, // m, pushes the lookup off the surface (no acne on gentle slopes)
+    shadowSunMin: 0.06, // sun height (sunDir.y) where shadows have faded out (low sun, night)
+    shadowSunFull: 0.18, // sun height where shadows reach full strength
+  },
+  /**
+   * Per-level strengths of the shared lighting (0 = off; the quality preset gates them on top).
+   * shadows: how dark a sun shadow is (1 = the sun fully blocked; lower reads as a painted shade).
+   */
+  levelLight: {
+    highlands: { shadows: 0.62 },
+    city: { shadows: 0.5 },
+    karst: { shadows: 0.45 },
+    fjord: { shadows: 0.55 },
+    jerusalem: { shadows: 0.6 },
+    canyon: { shadows: 0.6 },
+    peaks: { shadows: 0.5 },
+    atoll: { shadows: 0.55 },
+    ringmoon: { shadows: 0.5 },
+  },
   world: {
     seed: 1337,
     chunkSize: 160,
@@ -521,6 +546,7 @@ export const Config = {
     drawDistance: 1100,
     treeDistance: 800,
     treeDetail: 280, // m, trees nearer than this use their detailed shapes
+    shadows: 1, // 1 = sun shadow map near the bird (on levels with a shadow strength)
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -543,6 +569,7 @@ export const QUALITY: Record<
     drawDistance: number;
     treeDistance: number;
     treeDetail: number;
+    shadows: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -553,6 +580,7 @@ export const QUALITY: Record<
     drawDistance: 650,
     treeDistance: 420,
     treeDetail: 0,
+    shadows: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -562,6 +590,7 @@ export const QUALITY: Record<
     drawDistance: 900,
     treeDistance: 620,
     treeDetail: 200,
+    shadows: 0,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -571,6 +600,7 @@ export const QUALITY: Record<
     drawDistance: 1150,
     treeDistance: 820,
     treeDetail: 280,
+    shadows: 1,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

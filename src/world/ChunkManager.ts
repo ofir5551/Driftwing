@@ -29,6 +29,8 @@ export interface ChunkOptions<T> {
   /** Allocate a chunk geometry (extra attributes) and fill them after the terrain pass. */
   createGeometry?: (res: number) => THREE.BufferGeometry;
   fillExtra?: (g: THREE.BufferGeometry, ox: number, oz: number, size: number, res: number) => void;
+  /** Terrain casts sun shadows (hills shade valleys). Default true; receiving is always on. */
+  castShadow?: boolean;
 }
 
 interface Chunk<T> {
@@ -146,6 +148,8 @@ export class ChunkManager<T> {
       this.pools[lod].pop() ??
       new THREE.Mesh((this.opts.createGeometry ?? createChunkGeometry)(res), this.material);
     mesh.userData.lod = lod;
+    mesh.castShadow = this.opts.castShadow ?? true;
+    mesh.receiveShadow = true;
     fillChunkGeometry(mesh.geometry, this.field, ox, oz, size, res, this.color);
     this.opts.fillExtra?.(mesh.geometry, ox, oz, size, res);
     mesh.position.set(ox, 0, oz);

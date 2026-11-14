@@ -4,6 +4,7 @@ import { Config } from '../core/Config';
 import { smoothstep } from '../core/math';
 import { getToonGradient, type HeightField } from './Terrain';
 import { hash2 } from './noise';
+import { ShadowCasters } from './ShadowCasters';
 
 /** Floats stored per tree in a chunk's scatter list: type, x, y, z, scale, rotY, tint. */
 export const TREE_STRIDE = 7;
@@ -318,6 +319,7 @@ export class Trees {
   private readonly far: number[];
   private readonly near: number[];
   private readonly counts: number[];
+  private readonly casters: ShadowCasters[];
   readonly material: THREE.MeshToonMaterial;
 
   constructor(
@@ -372,7 +374,12 @@ export class Trees {
       return g ? make(g, Math.ceil(capacity / 3), 'tree-near') : -1;
     });
     this.counts = this.meshes.map(() => 0);
-    this.group.add(...this.meshes);
+    for (const mesh of this.meshes) mesh.receiveShadow = true;
+    // Sun-shadow casters near the bird, one per type, in the detailed shape where there is one.
+    this.casters = geometries.map(
+      (g, i) => new ShadowCasters(near[i] ?? g, mat, Math.ceil(capacity / 3)),
+    );
+    this.group.add(...this.meshes, ...this.casters.map((c) => c.mesh));
   }
 
   rebuild(lists: Iterable<number[]>, px: number, pz: number, maxDist: number): void {
@@ -380,6 +387,8 @@ export class Trees {
     counts.fill(0);
     const max2 = maxDist * maxDist;
     const near2 = Config.render.treeDetail ** 2;
+    // The chunk set (and so this refill) changes about once per chunk flown.
+    for (const c of this.casters) c.begin(px, pz, Config.world.chunkSize);
     for (const list of lists)
       for (let k = 0; k < list.length; k += TREE_STRIDE) {
         const x = list[k + 1];
@@ -396,6 +405,7 @@ export class Trees {
         q.setFromAxisAngle(up, list[k + 5]);
         m.compose(p.set(x, list[k + 2], z), q, sc.set(s, s * (0.9 + list[k + 6] * 0.3), s));
         mesh.setMatrixAt(idx, m);
+        this.casters[type].add(x, z, m);
         // Per-tree tint: slight hue/brightness drift so groves look painted, not stamped.
         const t = list[k + 6];
         mesh.setColorAt(idx, col.setRGB(0.88 + t * 0.2, 0.92 + t * 0.12, 0.85 + (1 - t) * 0.2));
@@ -407,6 +417,7 @@ export class Trees {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
+    for (const c of this.casters) c.end();
   }
 
   dispose(): void {
@@ -414,6 +425,7 @@ export class Trees {
       m.geometry.dispose();
       m.dispose();
     }
+    for (const c of this.casters) c.dispose();
     this.material.dispose();
   }
 }

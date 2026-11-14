@@ -181,6 +181,7 @@ export class Game {
     Config.render.shadows = q.shadows;
     Config.render.contactShadows = q.contactShadows;
     Config.render.cloudShadows = q.cloudShadows;
+    Config.render.lightShafts = q.lightShafts;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
     this.applyLightToggles();
@@ -411,6 +412,7 @@ export class Game {
           : L.contactStrength
         : 0;
     contactUniforms.uFar.value = L.contactRange;
+    this.composer.shaftStrength = this.levelLight.shafts * Config.render.lightShafts;
     updateCloudShadows(
       cloudShadowStrength(this.levelLight.clouds, Config.render.cloudShadows, this.day.sunDir.y),
       this.time,

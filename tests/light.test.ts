@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
+import { sunOnScreen } from '../src/fx/shaders/shafts';
 import { shadowFade, snapToTexel } from '../src/fx/SunShadows';
 import { cloudShadowStrength } from '../src/world/CloudShadow';
 import { blobFrame } from '../src/world/ContactShadows';
@@ -98,5 +99,14 @@ describe('cloud shadows', () => {
     expect(cloudShadowStrength(0.3, 1, 0.9)).toBeCloseTo(0.3);
     expect(cloudShadowStrength(0.3, 0, 0.9)).toBe(0);
     expect(cloudShadowStrength(0, 1, 0.9)).toBe(0);
+  });
+});
+
+describe('light shafts', () => {
+  it('are full with the sun on screen, fade beyond the edge, and vanish behind the camera', () => {
+    expect(sunOnScreen(0.2, -0.5, 0.99)).toBe(1);
+    expect(sunOnScreen(1.4, 0, 0.99)).toBeCloseTo(0.5);
+    expect(sunOnScreen(0, -2, 0.99)).toBe(0);
+    expect(sunOnScreen(0, 0, 1.2)).toBe(0);
   });
 });

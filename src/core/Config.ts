@@ -182,22 +182,26 @@ export const Config = {
     cloudDriftZ: 1.2, // m/s the shadows drift along z (along x they keep world.cloudDrift)
     cloudSunMin: 0.03, // sun height where cloud shadows have faded out (dusk, night)
     cloudSunFull: 0.3, // sun height where they reach full strength
+    shaftThreshold: 0.82, // luminance a pixel needs to send light down a shaft
+    shaftReach: 0.75, // screen distance (uv) over which shafts fade from the sun
+    shaftDecay: 0.95, // per-sample falloff along a shaft
   },
   /**
    * Per-level strengths of the shared lighting (0 = off; the quality preset gates them on top).
    * shadows: how dark a sun shadow is (1 = the sun fully blocked; lower reads as a painted shade).
    * clouds: how much a drifting cloud shadow dims the direct sun.
+   * shafts: light-shaft brightness when the sun is in view.
    */
   levelLight: {
-    highlands: { shadows: 0.62, clouds: 0.32 },
-    city: { shadows: 0.5, clouds: 0.22 },
-    karst: { shadows: 0.45, clouds: 0.2 },
-    fjord: { shadows: 0.55, clouds: 0.25 },
-    jerusalem: { shadows: 0.6, clouds: 0.25 },
-    canyon: { shadows: 0.6, clouds: 0.3 },
-    peaks: { shadows: 0.5, clouds: 0.25 },
-    atoll: { shadows: 0.55, clouds: 0.3 },
-    ringmoon: { shadows: 0.5, clouds: 0.2 },
+    highlands: { shadows: 0.62, clouds: 0.32, shafts: 0.5 },
+    city: { shadows: 0.5, clouds: 0.22, shafts: 0.35 },
+    karst: { shadows: 0.45, clouds: 0.2, shafts: 0.6 },
+    fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5 },
+    jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
+    canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4 },
+    peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.6 },
+    atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.4 },
+    ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
   },
   world: {
     seed: 1337,
@@ -559,6 +563,7 @@ export const Config = {
     shadows: 1, // 1 = sun shadow map near the bird (on levels with a shadow strength)
     contactShadows: 1, // 1 = soft contact shadows under trees and props
     cloudShadows: 1, // multiplier on each level's drifting cloud shadows (0 = off)
+    lightShafts: 1, // multiplier on each level's light shafts (0 = off)
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -584,6 +589,7 @@ export const QUALITY: Record<
     shadows: number;
     contactShadows: number;
     cloudShadows: number;
+    lightShafts: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -597,6 +603,7 @@ export const QUALITY: Record<
     shadows: 0,
     contactShadows: 0,
     cloudShadows: 0,
+    lightShafts: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -609,6 +616,7 @@ export const QUALITY: Record<
     shadows: 0,
     contactShadows: 1,
     cloudShadows: 1,
+    lightShafts: 0,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -621,6 +629,7 @@ export const QUALITY: Record<
     shadows: 1,
     contactShadows: 1,
     cloudShadows: 1,
+    lightShafts: 1,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
+import { GroundCover, type CoverStyle } from './GroundCover';
 import { withGroundDetail } from './GroundDetail';
 import {
   createChunkGeometry,
@@ -31,6 +32,8 @@ export interface ChunkOptions<T> {
   fillExtra?: (g: THREE.BufferGeometry, ox: number, oz: number, size: number, res: number) => void;
   /** Terrain casts sun shadows (hills shade valleys). Default true; receiving is always on. */
   castShadow?: boolean;
+  /** Grass tufts (and flowers) on the near terrain: the level's opt-in to ground cover. */
+  cover?: CoverStyle;
 }
 
 interface Chunk<T> {
@@ -63,6 +66,7 @@ export class ChunkManager<T> {
   private readonly decorItems: T[] = [];
   private readonly decor: ChunkDecor<T>;
   private readonly color: GroundColorFn;
+  private readonly cover: GroundCover | null;
 
   constructor(
     private readonly field: HeightField,
@@ -79,6 +83,8 @@ export class ChunkManager<T> {
         }),
       );
     this.group.add(this.decor.group);
+    this.cover = opts.cover ? new GroundCover(opts.cover, this.nearGeometry) : null;
+    if (this.cover) this.group.add(this.cover.group);
   }
 
   /** Synchronously build everything near the player (used behind the start screen). */
@@ -105,6 +111,8 @@ export class ChunkManager<T> {
     }
     if (this.decorDirty && this.queue.length === 0) this.refreshDecor(px, pz);
     else if (this.decorDirty && performance.now() - t0 < budgetMs) this.refreshDecor(px, pz);
+    // One new chunk of cover per frame in flight; all of it behind the title (prime).
+    this.cover?.update(px, pz, budgetMs === Infinity ? Infinity : 1);
   }
 
   private plan(px: number, pz: number): void {
@@ -179,6 +187,12 @@ export class ChunkManager<T> {
     this.decor.rebuild(this.decorItems, px, pz);
   }
 
+  /** The near-LOD geometry of chunk (cx, cz) once built: the lattice ground cover grows on. */
+  private readonly nearGeometry = (cx: number, cz: number): THREE.BufferGeometry | null => {
+    const c = this.chunks.get(key(cx, cz));
+    return c && c.lod === 0 ? c.mesh.geometry : null;
+  };
+
   get pending(): number {
     return this.queue.length;
   }
@@ -196,5 +210,6 @@ export class ChunkManager<T> {
     this.chunks.clear();
     this.material.dispose();
     this.decor.dispose?.();
+    this.cover?.dispose();
   }
 }

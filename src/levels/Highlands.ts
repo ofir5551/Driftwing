@@ -4,12 +4,25 @@ import { smoothstep } from '../core/math';
 import { HIGHLANDS_MUSIC } from '../audio/styles';
 import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
+import type { CoverStyle } from '../world/GroundCover';
 import { Islands } from '../world/Islands';
 import { createHeightField, type HeightField } from '../world/Terrain';
 import { TreeDecor } from '../world/Trees';
 import type { LevelDef, World } from './World';
 import type { DiscoveryDef } from '../world/Discoveries';
 import { highlandsFinds } from '../world/highlands/finds';
+
+/**
+ * Meadow grass over the hills, from the beaches (sand gives way to grass by ~2 m) up to where
+ * the high ground pales; wildflowers in drifts: white, buttercup, pink, harebell, poppy.
+ */
+const HIGHLANDS_COVER: CoverStyle = {
+  tint: [1.04, 1.06, 0.95],
+  height: 1,
+  minY: 2,
+  maxY: 100,
+  flowers: { chance: 0.42, colors: ['#fbf7ee', '#f7d34a', '#f3a6c4', '#a9b6f2', '#ef7a5c'] },
+};
 
 /** The original level: endless valleys, lakes, forests and floating islands. */
 class HighlandsWorld implements World {
@@ -22,7 +35,10 @@ class HighlandsWorld implements World {
 
   constructor(seed: number) {
     this.field = createHeightField(seed);
-    this.chunks = new ChunkManager(this.field, { decor: new TreeDecor(this.field) });
+    this.chunks = new ChunkManager(this.field, {
+      decor: new TreeDecor(this.field),
+      cover: HIGHLANDS_COVER,
+    });
     this.islands = new Islands(this.field);
     this.discoveries = highlandsFinds(() => this.islands.active);
     this.group.add(this.chunks.group, this.islands.group);

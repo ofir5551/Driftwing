@@ -203,6 +203,15 @@ export const Config = {
     atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.4 },
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
   },
+  /** Ground cover (GroundCover): grass tufts and flowers on the terrain's own lattice. */
+  cover: {
+    cell: 1.25, // m between tufts at full density
+    sway: 0.22, // m of tuft-tip sway in the wind
+    gustSpeed: 0.9, // how fast the gust fronts roll across the land
+    refresh: 14, // m the bird moves before the ring is refilled
+    rimFade: 0.3, // share of the ring (by area) over which tufts shrink toward its rim
+    steep: 0.75, // lattice height range per lattice step above which ground is rock, not turf
+  },
   world: {
     seed: 1337,
     chunkSize: 160,
@@ -564,6 +573,8 @@ export const Config = {
     contactShadows: 1, // 1 = soft contact shadows under trees and props
     cloudShadows: 1, // multiplier on each level's drifting cloud shadows (0 = off)
     lightShafts: 1, // multiplier on each level's light shafts (0 = off)
+    coverDistance: 95, // m, ground cover (grass, flowers) is drawn within this (0 = off)
+    coverDensity: 1, // 0..1 share of the ground-cover tufts kept
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -590,6 +601,8 @@ export const QUALITY: Record<
     contactShadows: number;
     cloudShadows: number;
     lightShafts: number;
+    coverDistance: number;
+    coverDensity: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -604,6 +617,8 @@ export const QUALITY: Record<
     contactShadows: 0,
     cloudShadows: 0,
     lightShafts: 0,
+    coverDistance: 0,
+    coverDensity: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -617,6 +632,8 @@ export const QUALITY: Record<
     contactShadows: 1,
     cloudShadows: 1,
     lightShafts: 0,
+    coverDistance: 60,
+    coverDensity: 0.6,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -630,6 +647,8 @@ export const QUALITY: Record<
     contactShadows: 1,
     cloudShadows: 1,
     lightShafts: 1,
+    coverDistance: 95,
+    coverDensity: 1,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

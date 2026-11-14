@@ -182,6 +182,8 @@ export class Game {
     Config.render.contactShadows = q.contactShadows;
     Config.render.cloudShadows = q.cloudShadows;
     Config.render.lightShafts = q.lightShafts;
+    Config.render.coverDistance = q.coverDistance;
+    Config.render.coverDensity = q.coverDensity;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
     this.applyLightToggles();

@@ -16,7 +16,7 @@ const PETALS = ['#f7f3ea', '#f1c3cf', '#f2d35a', '#b7a7e6'] as const;
 export function karstCover(): CoverStyle {
   const KC = Config.karst;
   const paint = (x: number, z: number, _y: number, t: CoverTuft): void => {
-    const m = t.more!;
+    const m = t.extras;
     const bank = m[0];
     const pg = m[1];
     const raw = m[2];

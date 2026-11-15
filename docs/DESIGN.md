@@ -82,8 +82,8 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
   gathering bright sky, before bloom; skipped when the sun is down or off screen.
 - **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
   terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
-  in with a `CoverStyle` on its `ChunkManager` (the Highlands and Jade River); `paint` gets every
-  component of the style's `extra` attribute (`t.more`).
+  in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River and City of Gold);
+  `paint` gets every component of the style's `extra` attribute (`t.extras`).
 
 ## Levels
 
@@ -327,6 +327,41 @@ look-ahead and wall glance. Music: an oud (two saws a few cents apart through a 
 lowpass, settling from a touch sharp as on a fretless neck, with the odd risha tremolo) at 66
 BPM over a sine pad and an open-fifth drone, qanun-like ripples with flow, maqsum on a frame
 drum; nahawand at dawn and dusk, major pentatonic by day, hijaz in the golden hour and at night.
+
+The country is lived in (`world/jerusalem/`). Roads leave the gates (Jaffa Road, the Hebron
+and Nablus roads, the Jericho road over the Mount of Olives, the road along the north wall);
+in the hills, roads wind between the towns (a noise's zero lines) and one follows a bank of
+every wadi; footpaths wander and peter out. Every valley floor has a dry bed of pale pebbles
+with oleanders in pink flower along its banks, and the level floors are walled fields (stubble,
+red plough, green crop, fallow) instead of terraces. The orchard slopes step down in terraces
+with a dry-stone wall along every riser (traced along the contour), olives on the flats.
+Limestone breaks out of the steep and high ground in bedded shelves and boulders; grey-green
+garrigue (thorny burnet, sage) grows in drifts; goats and sheep graze with a shepherd;
+cypresses line stretches of road. The ground cover is dry golden grass in patches with bare
+stony ground and cushions of thyme, red anemones under the olives, spring flowers in drifts.
+Roofs carry black water tanks, washing lines and pots; market stalls line David Street, the
+Cardo, the way in from Lions Gate and the town roads; swifts wheel over the roofs.
+
+Light: the stone has rounded arrises painted into its normals and weathering that holds at a
+distance; tree crowns are soft (rounded normals, painted leaf clumps); house domes near the
+bird are rounder. The golden hour keeps a cool sky fill: the hemisphere is blue-lavender,
+stone turned from the sun takes the sky's hue, and the far haze leans toward the sky above
+rather than the horizon, so shade reads blue-violet against the gold. On high the stone,
+walls and big props cast sun shadows; props get contact shadows on medium and high.
+
+- Code: `JerusalemLayout` (pure: also the tracks as signed distances, the walled fields, roof
+  clutter and stalls on the houses), `JerusalemScatter` (pure, per chunk: terrace and field
+  walls, rocks, garrigue, oleanders, flocks, swifts, road cypresses), `props` (records),
+  `land` (the terrain's `aJLand`: road, path and bed distances and the habitat; roads, paths,
+  beds and risers painted in the terrain shader), `cover` (the ground-cover style), `shapes`,
+  `materials` (stone, foliage detail, the props' painted dry stone), `JerusalemDecor`.
+- Per preset: props within `propDistance` 280 / 480 / 650 m (rocks, garrigue, oleanders; low
+  keeps only these), small props within `smallPropDistance` 0 / 200 / 320 m (walls, animals,
+  roof clutter, stalls, swifts), near shapes and round domes within `propDetail` 0 / 110 /
+  160 m, distant tree shapes beyond `treeFar` - / 330 / 470 m, grass ring off / 60 / 80 m.
+- Cost at the review's viewpoints (triangles / draw calls, whole frame, golden hour): medium
+  281-373k / 122-148 (was 301-391k / 108-128), high 561-694k / 159-193 (was 582-680k /
+  143-173), low 147-209k / 82-99 (was 139-210k / 81-95).
 
 Wisps: the opening ribbon glides down off the Mount of Olives across the Kidron, over the east
 wall, swings round the golden dome and runs low along David Street to Jaffa Gate. Then: swoops
@@ -1046,6 +1081,26 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Highlands props get flat contact shadows (no ground lookups at refill: their records carry the
   ground height at their foot); trees keep the slope-laid ones. Bushes and boulders have far
   shapes (~20 triangles) beyond `propDetail`; with the 80 m grass ring that keeps high near 400k.
+- City of Gold's tracks are signed distances (noise contours n / |grad n|, polylines signed
+  by side), not unsigned: a 1.6 m path or a 7 m bed falls between two vertices of the 4 m
+  terrain lattice, where an unsigned distance interpolates to a positive minimum and the line
+  vanishes; a signed one crosses zero exactly. They live outside `at()` (only the ground's
+  paint, the cover and the scatter need them), so flight queries don't pay for them.
+- City of Gold's valley floors stopped being terraced (a terrace on a level floor is no
+  terrace): they hold walled fields instead, and its terrace walls are traced by marching
+  squares on the raw ground's contour through the middle of each riser, one piece per 7 m
+  cell, so they follow the hillside as continuous walls (a 5 m grid cost twice the time for
+  no visible gain). A riser taller than 1.7 steps is skipped: the slope gave up on terracing.
+- City of Gold's props scatter one chunk a frame (the nearest first; all at once behind the
+  title), refilling only the props: a chunk's scatter costs ~4 ms in Node, and crossing into
+  new ground brings in several at once. Road cypresses join at the next full refill.
+- Trees beyond `render.treeFar` take a distant shape (~14 triangles: an octahedral crown with
+  fully rounded normals and a stub of trunk) where a tree is a few pixels across; City of
+  Gold's olive groves were most of its triangles, and this paid for the new scenery (medium
+  stays at today's count). Levels opt in by handing Trees distant shapes.
+- City of Gold's golden hour read as one orange: the fill light, the fog and the haze were all
+  warm. The fill is now a cool lavender (hemisphere), stone faces turned from the sun take the
+  sky's hue (`coolShade`), and the far haze leans toward the sky overhead.
 - Bird plumage: grey mantle and upperwing over a white body, a lighter covert layer with its
   own scalloped edge, a dusky trailing edge, feathers with a raised pale shaft, a dark-tipped
   bill, and a pale underwing (front faces of the wing panels are the undersides).

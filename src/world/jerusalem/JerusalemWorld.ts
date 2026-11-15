@@ -10,10 +10,13 @@ import type { DayCycle } from '../DayCycle';
 import { mistUniforms, withMist } from '../Mist';
 import { hash2 } from '../noise';
 import { getToonGradient, type HeightField } from '../Terrain';
+import { propTime } from '../highlands/materials';
+import { jerusalemCover } from './cover';
 import { JerusalemDecor, type JerusalemChunk } from './JerusalemDecor';
-import { JerusalemLayout } from './JerusalemLayout';
+import { FIELD, JerusalemLayout } from './JerusalemLayout';
 import { JerusalemPlanner } from './JerusalemWisps';
-import { createStoneUniforms, type StoneUniforms } from './materials';
+import { createLandGeometry, fillLand, withLand } from './land';
+import { createStoneUniforms, foliageUniforms, type StoneUniforms } from './materials';
 import type { DiscoveryDef } from '../Discoveries';
 import { jerusalemFinds } from './finds';
 
@@ -32,7 +35,14 @@ const C = {
   lawn: new THREE.Color('#a9ad72'),
   yard: new THREE.Color('#cdbd9c'),
   cemetery: new THREE.Color('#e3ddcf'),
+  garrigue: new THREE.Color('#a2a074'),
+  stubble: new THREE.Color('#dcc07c'),
+  plough: new THREE.Color('#b0714f'),
+  crop: new THREE.Color('#a3b064'),
+  fallow: new THREE.Color('#c6b67e'),
 };
+const FIELD_COLOR = [C.stubble, C.plough, C.crop, C.fallow];
+const SHADE = new THREE.Color();
 const WHITE = new THREE.Color('#fff');
 
 /**
@@ -70,12 +80,17 @@ export class JerusalemWorld implements World {
     this.decor = new JerusalemDecor(L, this.uniforms);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withGroundDetail(
-        withMist(
-          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      material: withLand(
+        withGroundDetail(
+          withMist(
+            new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+          ),
         ),
       ),
       color: (_f, x, z, _y, slope, out) => this.groundColor(x, z, slope, out),
+      createGeometry: createLandGeometry,
+      fillExtra: (g, ox, oz, size, res) => fillLand(L, g, ox, oz, size, res),
+      cover: jerusalemCover(L),
     });
     this.planner = new JerusalemPlanner(L);
     this.group.add(this.chunks.group);
@@ -83,6 +98,8 @@ export class JerusalemWorld implements World {
 
   private groundColor(x: number, z: number, slope: number, out: THREE.Color): THREE.Color {
     const L = this.layout;
+    // Walled fields first (deciding one moves the layout's scratch point).
+    const field = L.fieldAt(x, z);
     L.at(x, z);
     const t = L.tint;
     // Dry summer hills: golden grass and grey-green garrigue, red terra rossa where it's worked.
@@ -94,6 +111,10 @@ export class JerusalemWorld implements World {
     out.lerp(C.orchard, L.olive * 0.6);
     out.lerp(C.soil, L.terrace * (0.35 + 0.15 * t));
     out.lerp(C.needles, L.pine * 0.75);
+    // Grey-green garrigue in drifts on the open hills, so they aren't one gold.
+    const open = (1 - L.olive) * (1 - L.pine) * (1 - L.town) * smoothstep(40, 80, L.sd);
+    out.lerp(C.garrigue, open * smoothstep(-0.1, 0.5, L.tint) * 0.5);
+    if (field >= 0) out.lerp(FIELD_COLOR[field], field === FIELD.FALLOW ? 0.5 : 0.8);
     // Pale limestone breaking through on the steep ground, dry-stone terrace walls.
     out.lerp(C.rock, smoothstep(0.3, 0.55, slope + t * 0.08) * 0.85);
     out.lerp(C.riser, L.riser * 0.6);
@@ -126,17 +147,29 @@ export class JerusalemWorld implements World {
   }
 
   prime(px: number, pz: number): void {
+    this.decor.eager = true;
     this.chunks.prime(px, pz);
+    this.decor.eager = false;
   }
 
   update(px: number, pz: number): void {
     this.chunks.update(px, pz);
+    this.decor.tick();
   }
 
   frame(_dt: number, time: number, day: DayCycle): void {
     const K = Config.jerusalem;
     const p = day.palette;
     const u = this.uniforms;
+    propTime.value = time;
+    u.uJBevel.value = K.bevel;
+    u.uJBevelPx.value = K.bevelPx;
+    u.uJWeather.value = K.weathering;
+    foliageUniforms.uFDetail.value = K.foliageDetail;
+    // Shade takes the sky's hue (normalised to its brightest channel: a tint, not a light).
+    SHADE.copy(p.skyTop);
+    SHADE.multiplyScalar(1 / Math.max(SHADE.r, SHADE.g, SHADE.b, 1e-3));
+    u.uJShade.value.setRGB(1, 1, 1).lerp(SHADE, K.coolShade * (1 - u.uJNight.value * 0.7));
     // Lights come on through dusk and stay on until dawn.
     u.uJNight.value = smoothstep(0.05, 0.55, p.stars);
     u.uJLights.value = K.lights;
@@ -151,7 +184,8 @@ export class JerusalemWorld implements World {
     m.uMist.value = K.mist * (0.25 + 0.75 * morning);
     m.uMistTop.value = K.mistTop;
     m.uMistFar.value = K.mistFar;
-    m.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.4);
+    // The far haze leans toward the sky overhead: distance turns blue-violet, not more orange.
+    m.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.25).lerp(p.skyTop, 0.2);
     m.uMistTime.value = time;
   }
 

@@ -178,6 +178,7 @@ export class Game {
     Config.render.drawDistance = q.drawDistance;
     Config.render.treeDistance = q.treeDistance;
     Config.render.treeDetail = q.treeDetail;
+    Config.render.treeFar = q.treeFar;
     Config.render.shadows = q.shadows;
     Config.render.contactShadows = q.contactShadows;
     Config.render.cloudShadows = q.cloudShadows;

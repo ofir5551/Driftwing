@@ -28,8 +28,8 @@ export interface CoverStyle {
    */
   paint?: (x: number, z: number, y: number, t: CoverTuft) => void;
   /**
-   * A terrain vertex attribute whose first component reaches `paint` as `t.extra` (and all of
-   * its components, up to four, as `t.more`).
+   * A terrain vertex attribute whose first component reaches `paint` as `t.extra` (and every
+   * component, up to four, as `t.extras`).
    */
   extra?: string;
 }
@@ -50,8 +50,8 @@ export interface CoverTuft {
   petal: number;
   /** The style's `extra` attribute here, bilinear in the lattice cell (0 without one). */
   extra: number;
-  /** Every component of the `extra` attribute here, bilinear in the lattice cell. */
-  more?: number[];
+  /** Every component of it (up to four; the rest 0). */
+  extras: [number, number, number, number];
 }
 
 const tuft: CoverTuft = {
@@ -63,7 +63,7 @@ const tuft: CoverTuft = {
   bloom: -1,
   petal: -1,
   extra: 0,
-  more: [0, 0, 0, 0],
+  extras: [0, 0, 0, 0],
 };
 
 /** A terrain chunk's vertex lattice: (res + 1)^2 chunk-local positions and ground colours. */
@@ -150,13 +150,12 @@ export function scatterCover(
       t.bare = false;
       t.bloom = -1;
       t.petal = -1;
-      t.extra = X ? X[a * xs] * w00 + X[b * xs] * w10 + X[c * xs] * w01 + X[d * xs] * w11 : 0;
-      if (X && xs > 1) {
-        const more = t.more!;
-        for (let q = 0; q < xs && q < 4; q++)
-          more[q] =
-            X[a * xs + q] * w00 + X[b * xs + q] * w10 + X[c * xs + q] * w01 + X[d * xs + q] * w11;
-      }
+      for (let q = 0; q < 4; q++)
+        t.extras[q] =
+          X && q < xs
+            ? X[a * xs + q] * w00 + X[b * xs + q] * w10 + X[c * xs + q] * w01 + X[d * xs + q] * w11
+            : 0;
+      t.extra = t.extras[0];
       if (style.paint) {
         style.paint(x, z, y, t);
         if (t.bare) continue;

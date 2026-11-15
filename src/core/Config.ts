@@ -163,6 +163,30 @@ export const Config = {
     hillsDistance: 3200, // m, how far the painted hills on the horizon pretend to be
     flood: 1, // floodlight on the walls and landmarks after dark
     lights: 1, // brightness of windows and lamps after dark
+    // The lived-in country (world/jerusalem/; read when a level is created).
+    roadWidth: 3, // m, half-width of a road
+    pathWidth: 0.8, // m, half-width of a footpath
+    roadScale: 0.0009, // frequency of the noise whose zero lines are the hill roads
+    pathScale: 0.003, // ... and the footpaths (they peter out where pathMask is low)
+    pathMask: 0.05, // noise level under which a footpath fades out
+    wadiRoad: 24, // m from a wadi's floor line to the road along it
+    bedWidth: 3.5, // m, half-width of a valley's dry pebble bed
+    fieldCell: 32, // m, side of a walled field on the valley floors
+    fieldAngle: 0.35, // rad, the field grid's turn off the world axes
+    fields: 0.75, // chance a level, open cell of valley floor is a walled field
+    terraceGrid: 7, // m, the marching grid that traces each terrace wall along its contour
+    flocks: 0.4, // chance a chunk of open hills has a flock of goats or sheep
+    swifts: 0.55, // chance a chunk over the roofs has swifts wheeling
+    clutter: 0.6, // share of flat roofs with water tanks, washing or pots
+    awnings: 0.55, // chance a house on a market street has a stall in front
+    cypressLines: 0.45, // share of road length lined with cypresses
+    // Stone and trees.
+    bevel: 0.45, // m, rounded edge painted into box normals (widens to ~bevelPx px far away)
+    bevelPx: 2, // px, the narrowest a painted bevel gets, so far edges stay soft
+    weathering: 0.12, // brightness swing of the stone's weathering patches and run-off streaks
+    coolShade: 0.6, // stone turned from the sun leans toward the sky's colour (cool shadows)
+    foliageSoft: 0.85, // tree lobe normals: 0 flat facets, 1 a round crown (read at creation)
+    foliageDetail: 1, // painted leaf clumps on tree crowns (colour dabs and a bumped normal)
   },
   /** The Highlands' lived-in landscape: rivers, farms, villages (world/highlands/). */
   highlands: {
@@ -618,15 +642,16 @@ export const Config = {
     drawDistance: 1100,
     treeDistance: 800,
     treeDetail: 280, // m, trees nearer than this use their detailed shapes
+    treeFar: 470, // m, trees beyond this use their distant shapes, if the level has them (0 = never)
     shadows: 1, // 1 = sun shadow map near the bird (on levels with a shadow strength)
     contactShadows: 1, // 1 = soft contact shadows under trees and props
     cloudShadows: 1, // multiplier on each level's drifting cloud shadows (0 = off)
     lightShafts: 1, // multiplier on each level's light shafts (0 = off)
     coverDistance: 80, // m, ground cover (grass, flowers) is drawn within this (0 = off)
     coverDensity: 1, // 0..1 share of the ground-cover tufts kept
-    propDistance: 650, // m, Highlands buildings, rocks and bushes are drawn within this
-    smallPropDistance: 320, // m, walls, fences, hay, sheep, reeds, boats, flocks (0 = none)
-    propDetail: 160, // m, bushes and boulders nearer than this use their detailed shapes
+    propDistance: 650, // m, a lived-in level's buildings, rocks and bushes are drawn within this
+    smallPropDistance: 320, // m, walls, fences, animals, rooftop clutter, flocks (0 = none)
+    propDetail: 160, // m, bushes, rocks and domes nearer than this use their detailed shapes
     heroDetail: 260, // m, hero landmarks (karst pillars) whose flank is nearer use their finest mesh
     rockDetail: 1, // 1 = the karst rock shader's flutes and streaks (a recompile when it changes)
     fogStart: 0.25, // fraction of draw distance where fog begins
@@ -651,6 +676,7 @@ export const QUALITY: Record<
     drawDistance: number;
     treeDistance: number;
     treeDetail: number;
+    treeFar: number;
     shadows: number;
     contactShadows: number;
     cloudShadows: number;
@@ -672,6 +698,7 @@ export const QUALITY: Record<
     drawDistance: 650,
     treeDistance: 420,
     treeDetail: 0,
+    treeFar: 0,
     shadows: 0,
     contactShadows: 0,
     cloudShadows: 0,
@@ -692,6 +719,7 @@ export const QUALITY: Record<
     drawDistance: 900,
     treeDistance: 620,
     treeDetail: 200,
+    treeFar: 330,
     shadows: 0,
     contactShadows: 1,
     cloudShadows: 1,
@@ -712,6 +740,7 @@ export const QUALITY: Record<
     drawDistance: 1150,
     treeDistance: 820,
     treeDetail: 280,
+    treeFar: 470,
     shadows: 1,
     contactShadows: 1,
     cloudShadows: 1,

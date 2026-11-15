@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { Config } from '../../core/Config';
 import { mulberry32 } from '../noise';
 import { colored, limb, lobe, painted, topLit } from '../Trees';
 
@@ -29,9 +30,67 @@ export function boxGeometry(): THREE.BufferGeometry {
   return faceted(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
 }
 
-/** A low hemisphere (a house dome): smooth-shaded so the toon bands sweep round it. */
-export function domeGeometry(): THREE.BufferGeometry {
-  return white(new THREE.SphereGeometry(0.5, 10, 3, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 2, 1));
+/**
+ * A low hemisphere (a house dome): smooth-shaded so the toon bands sweep round it. Near domes
+ * (within render.propDetail) are rounder (14 x 5); the far ones keep 10 x 3.
+ */
+export function domeGeometry(near = false): THREE.BufferGeometry {
+  const g = new THREE.SphereGeometry(
+    0.5,
+    near ? 14 : 10,
+    near ? 5 : 3,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2,
+  );
+  return white(g.scale(1, 2, 1));
+}
+
+/**
+ * Round a faceted mass: lean each vertex normal from its flat facet toward the normal of the
+ * ellipsoid (centre c, radii r) it was built from, so the toon bands sweep across a crown or a
+ * stone like a brushed ball instead of breaking on every facet. Costs no triangles; the lumpy
+ * silhouette stays. `k` defaults to Config.jerusalem.foliageSoft.
+ */
+export function soften(
+  g: THREE.BufferGeometry,
+  cx: number,
+  cy: number,
+  cz: number,
+  rx: number,
+  ry: number,
+  rz: number,
+  k = Config.jerusalem.foliageSoft,
+): THREE.BufferGeometry {
+  const pos = g.getAttribute('position');
+  const nor = g.getAttribute('normal');
+  const v = new THREE.Vector3();
+  const f = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.set(
+      (pos.getX(i) - cx) / (rx * rx),
+      (pos.getY(i) - cy) / (ry * ry),
+      (pos.getZ(i) - cz) / (rz * rz),
+    ).normalize();
+    f.set(nor.getX(i), nor.getY(i), nor.getZ(i));
+    f.lerp(v, k).normalize();
+    nor.setXYZ(i, f.x, f.y, f.z);
+  }
+  return g;
+}
+
+/** `lobe` with soft, rounded normals (see `soften`). */
+function softLobe(
+  r: number,
+  x: number,
+  y: number,
+  z: number,
+  hex: string,
+  seed: number,
+  squash = 0.82,
+): THREE.BufferGeometry {
+  return soften(lobe(r, x, y, z, hex, seed, squash), x, y, z, r, r * squash, r);
 }
 
 /** Lathe a profile of [radius, height] points into a smooth solid of revolution. */
@@ -114,7 +173,37 @@ export function merlonsGeometry(): THREE.BufferGeometry {
   }
   // A low parapet on the walkway side.
   parts.push(colored(new THREE.BoxGeometry(8, 0.6, 0.4).translate(0, 0, -1.4), '#ffffff', 0.3));
-  return mergeGeometries(parts)!;
+  // Every piece stands on stone: its underside never shows (a third fewer triangles).
+  return dropUndersides(mergeGeometries(parts)!);
+}
+
+/** Drop the triangles that face straight down (undersides resting on something). */
+export function dropUndersides(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const ng = g.index ? g.toNonIndexed() : g;
+  const pos = ng.getAttribute('position');
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const keep: number[] = [];
+  for (let t = 0; t < pos.count; t += 3) {
+    a.fromBufferAttribute(pos, t);
+    b.fromBufferAttribute(pos, t + 1);
+    c.fromBufferAttribute(pos, t + 2);
+    c.sub(b);
+    a.sub(b);
+    if (c.cross(a).normalize().y > -0.95) keep.push(t, t + 1, t + 2);
+  }
+  const out = new THREE.BufferGeometry();
+  for (const name of Object.keys(ng.attributes)) {
+    const src = ng.getAttribute(name) as THREE.BufferAttribute;
+    const n = src.itemSize;
+    const arr = new Float32Array(keep.length * n);
+    keep.forEach((v, i) => {
+      for (let k = 0; k < n; k++) arr[i * n + k] = src.array[v * n + k];
+    });
+    out.setAttribute(name, new THREE.BufferAttribute(arr, n));
+  }
+  return out;
 }
 
 /** A rooftop solar water heater: a white tank lying on a frame behind a tilted dark panel. */
@@ -185,8 +274,8 @@ export function oliveGeometry(): THREE.BufferGeometry {
   return topLit(
     mergeGeometries([
       colored(trunk, '#6e6152', 1),
-      colored(crown, '#8e9a6d', 2.9),
-      colored(side, '#a2ab83', 2.9),
+      soften(colored(crown, '#8e9a6d', 2.9), 0, 2.9, 0, 2.9, 1.66, 2.6),
+      soften(colored(side, '#a2ab83', 2.9), 1.2, 3.4, 0.6, 1.65, 1.2, 1.65),
     ])!,
     0.7,
     1.12,
@@ -199,7 +288,7 @@ export function cypressGeometry(): THREE.BufferGeometry {
   return topLit(
     mergeGeometries([
       colored(new THREE.CylinderGeometry(0.15, 0.22, 1.2, 4, 1, true), '#5b4a3c', 0.6),
-      colored(body, '#3c5838', 6.4),
+      soften(colored(body, '#3c5838', 6.4), 0, 6.4, 0, 1.05, 5.6, 1.05),
     ])!,
     0.72,
     1.1,
@@ -216,8 +305,8 @@ export function aleppoPineGeometry(): THREE.BufferGeometry {
   return topLit(
     mergeGeometries([
       colored(trunk, '#76604c'),
-      colored(crown.translate(1, 0, 0), '#5d7a4c', 6.4),
-      colored(top.translate(1, 0, 0), '#6c8a56', 6.4),
+      soften(colored(crown.translate(1, 0, 0), '#5d7a4c', 6.4), 1, 6.4, 0, 3.8, 1.54, 3.5),
+      soften(colored(top.translate(1, 0, 0), '#6c8a56', 6.4), 0.2, 7.3, 0.4, 2.16, 1.08, 1.98),
     ])!,
     0.7,
     1.1,
@@ -254,7 +343,7 @@ export function oliveDetailGeometry(): THREE.BufferGeometry {
     [1.5, -1.3, 2.7, -0.6, '#87946a'],
     [1.2, 0.3, 3.6, -0.9, '#aab38b'],
   ];
-  lobes.forEach(([r, x, y, z, hex], i) => parts.push(lobe(r, x, y, z, hex, 60 + i, 0.62)));
+  lobes.forEach(([r, x, y, z, hex], i) => parts.push(softLobe(r, x, y, z, hex, 60 + i, 0.62)));
   return topLit(mergeGeometries(parts)!, 0.7, 1.12);
 }
 
@@ -267,7 +356,7 @@ export function cypressDetailGeometry(): THREE.BufferGeometry {
     [0.85, 6.8, '#43623e'],
     [0.55, 8.7, '#4b6b44'],
   ];
-  tiers.forEach(([r, y, hex], i) => parts.push(lobe(r, 0, y, 0, hex, 70 + i, 2.1)));
+  tiers.forEach(([r, y, hex], i) => parts.push(softLobe(r, 0, y, 0, hex, 70 + i, 2.1)));
   return topLit(mergeGeometries(parts)!, 0.72, 1.1);
 }
 
@@ -291,7 +380,7 @@ export function aleppoPineDetailGeometry(): THREE.BufferGeometry {
     [1.5, 2.4, 6.6, -1.1, '#668450'],
     [1.2, 1.2, 7.4, -0.2, '#73915c'],
   ];
-  pads.forEach(([r, x, y, z, hex], i) => parts.push(lobe(r, x, y, z, hex, 80 + i, 0.48)));
+  pads.forEach(([r, x, y, z, hex], i) => parts.push(softLobe(r, x, y, z, hex, 80 + i, 0.48)));
   return topLit(mergeGeometries(parts)!, 0.7, 1.1);
 }
 
@@ -325,4 +414,43 @@ export function palmDetailGeometry(): THREE.BufferGeometry {
   }
   parts.push(colored(new THREE.IcosahedronGeometry(0.45, 0).scale(1, 1.3, 1), '#b5733c', 8.5));
   return topLit(mergeGeometries(parts)!, 0.75, 1.08);
+}
+
+// --- Distant trees: a crown and a stub of trunk (~14 triangles), beyond render.treeFar --------
+
+/** A crown as one octahedron with fully rounded normals: a soft blob a few pixels across. */
+function blob(rx: number, ry: number, rz: number, x: number, y: number, hex: string) {
+  const g = colored(new THREE.OctahedronGeometry(1).scale(rx, ry, rz), hex, y).translate(x, 0, 0);
+  return soften(g, x, y, 0, rx, ry, rz, 1);
+}
+
+const stub = (r: number, h: number, hex: string) =>
+  colored(new THREE.CylinderGeometry(r * 0.6, r, h, 3, 1, true), hex, h / 2);
+
+export function oliveDistantGeometry(): THREE.BufferGeometry {
+  return topLit(
+    mergeGeometries([stub(0.35, 1.6, '#6e6152'), blob(2.9, 1.5, 2.6, 0.3, 2.95, '#949f72')])!,
+    0.7,
+    1.12,
+  );
+}
+
+export function cypressDistantGeometry(): THREE.BufferGeometry {
+  return topLit(blob(1.05, 5.6, 1.05, 0, 6.2, '#3c5838'), 0.72, 1.1);
+}
+
+export function aleppoPineDistantGeometry(): THREE.BufferGeometry {
+  return topLit(
+    mergeGeometries([stub(0.3, 5.4, '#76604c'), blob(3.8, 1.5, 3.5, 0.8, 6.6, '#617e4f')])!,
+    0.7,
+    1.1,
+  );
+}
+
+export function palmDistantGeometry(): THREE.BufferGeometry {
+  return topLit(
+    mergeGeometries([stub(0.3, 9, '#8d7454'), blob(2.8, 0.9, 2.8, 0, 9, '#77964f')])!,
+    0.75,
+    1.08,
+  );
 }

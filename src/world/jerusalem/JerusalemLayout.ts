@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { clamp, lerp, smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, mulberry32, type Noise2D } from '../noise';
+import { PROP, PROP_HEIGHT, pushProp } from './props';
 
 /**
  * City of Gold's plan as one pure, seeded function of position (no Three.js, unit-tested),
@@ -47,6 +48,9 @@ export const STYLE = {
   PLAIN: 8,
 } as const;
 
+/** What a walled field on the valley floor holds. */
+export const FIELD = { STUBBLE: 0, PLOUGH: 1, GREEN: 2, FALLOW: 3 } as const;
+
 /** Tree shapes (index into the level's Trees meshes). */
 export const TREE = { OLIVE: 0, CYPRESS: 1, PINE: 2, PALM: 3 } as const;
 
@@ -89,6 +93,8 @@ export interface Landmark {
 export interface Block {
   parts: number[];
   trees: number[];
+  /** Rooftop clutter and market stalls on the block's houses (props.ts records). */
+  props: number[];
   solids: Solid[];
   landmarks: Landmark[];
 }
@@ -131,6 +137,57 @@ const HINNOM: [number, number][] = [
   [-424, -520],
 ];
 const CEMETERY = { x: -605, z: -195, hx: 95, hz: 125 };
+/** Roads out of the gates into the designed land (beyond it the hill roads take over). */
+const ROADS: [number, number][][] = [
+  // Jaffa Road: north-west from Jaffa Gate, over the Hinnom's head into the new city.
+  [
+    [352, -38],
+    [440, 20],
+    [560, 70],
+    [780, 130],
+    [1100, 180],
+    [1500, 240],
+  ],
+  // The Hebron road: south from Jaffa Gate along the Hinnom's west rim.
+  [
+    [352, -50],
+    [470, -260],
+    [500, -520],
+    [560, -820],
+    [620, -1200],
+    [640, -1500],
+  ],
+  // The Nablus road: north from Damascus Gate.
+  [
+    [60, 334],
+    [70, 520],
+    [40, 760],
+    [90, 1050],
+    [60, 1500],
+  ],
+  // The Jericho road: down from Lions Gate, across the Kidron, up over the Mount of Olives.
+  [
+    [-312, 160],
+    [-430, 150],
+    [-560, 190],
+    [-700, 250],
+    [-900, 230],
+    [-1150, 300],
+    [-1500, 320],
+  ],
+  // Along the north wall, outside it.
+  [
+    [-300, 322],
+    [60, 342],
+    [330, 312],
+  ],
+];
+/** The Old City's market streets (souks), as [x0, z0, x1, z1]: stalls line them. */
+const SOUKS: [number, number, number, number][] = [
+  [-110, -42, 315, -42], // David Street, from Jaffa Gate down to the Temple Mount
+  [60, -42, 60, 296], // the Cardo, from Damascus Gate
+  [-280, 160, 60, 160], // in from Lions Gate
+];
 
 interface Rect {
   x: number;
@@ -201,6 +258,14 @@ function lineDist(x: number, z: number, P: [number, number][]): number {
   return best;
 }
 
+/** Distance to a polyline, negative on the left of its nearest segment (facing along it). */
+function lineSigned(x: number, z: number, P: [number, number][]): number {
+  const d = lineDist(x, z, P);
+  const [ax, az] = P[lineSeg];
+  const [bx, bz] = P[lineSeg + 1];
+  return (bx - ax) * (z - az) - (bz - az) * (x - ax) < 0 ? -d : d;
+}
+
 /** Signed distance to the wall polygon: negative inside. */
 function wallSd(x: number, z: number): number {
   let d = Infinity;
@@ -220,6 +285,9 @@ function rectSd(x: number, z: number, r: Rect): number {
   const dz = Math.abs(z - r.z) - r.hz;
   return dx > 0 || dz > 0 ? Math.hypot(Math.max(dx, 0), Math.max(dz, 0)) : Math.max(dx, dz);
 }
+
+const fpt = { x: 0, z: 0 };
+const fco = { u: 0, w: 0 };
 
 /** Valley cross-section: 1 on the floor, easing to 0 at half width w. */
 const trough = (d: number, w: number) => 1 - smoothstep(0.12, 1, d / w);
@@ -263,6 +331,20 @@ export class JerusalemLayout {
   pine = 0;
   /** Soft roof and canopy height over the terrain. */
   canopyH = 0;
+  /** Height before the terraces were cut (their walls follow its contours). */
+  yRaw = 0;
+
+  // Scratch results of `track()`.
+  /** Signed metres from the nearest road's centre line, and outside its edge (negative on it). */
+  roadS = 0;
+  roadE = 0;
+  /** Signed metres from the nearest footpath's centre line, its half-width here, and outside it. */
+  pathS = 0;
+  pathW = 0;
+  pathE = 0;
+  /** Signed metres from the valley floor line (Kidron, Hinnom or a wadi), and unsigned. */
+  bedS = 0;
+  bedD = 0;
 
   private readonly nHill: Noise2D;
   private readonly nDetail: Noise2D;
@@ -273,6 +355,10 @@ export class JerusalemLayout {
   private readonly nOlive: Noise2D;
   private readonly nPine: Noise2D;
   private readonly nNear: Noise2D;
+  private readonly nRoad: Noise2D;
+  private readonly nPath: Noise2D;
+  private readonly nPathMask: Noise2D;
+  private readonly fieldCache = new Map<number, number>();
   private readonly statics = new Map<number, Block>();
   private readonly blocks = new Map<number, Block>();
   private readonly hitCells = new Map<number, Solid[]>();
@@ -288,6 +374,9 @@ export class JerusalemLayout {
     this.nOlive = createNoise2D(seed + 507);
     this.nPine = createNoise2D(seed + 508);
     this.nNear = createNoise2D(seed + 509);
+    this.nRoad = createNoise2D(seed + 510);
+    this.nPath = createNoise2D(seed + 511);
+    this.nPathMask = createNoise2D(seed + 512);
     this.platformY = this.plateau(-210, -120) + 7;
     const Hp = this.platformY;
     this.dome = { x: -205, z: -95, y0: Hp, top: Hp + 32.5, reach: 19 };
@@ -411,8 +500,13 @@ export class JerusalemLayout {
       (1 - smoothstep(0.3, 0.7, valley)) *
       (near ? 1 - this.cemetery(x, z) : 1);
     // Terraced orchards: the slope is cut into level steps with dry-stone risers.
-    this.terrace = smoothstep(0.3, 0.6, this.olive) * (near ? 1 - this.cemetery(x, z) : 1);
+    // The valley floors are level already: farmed in walled fields, not terraced.
+    this.terrace =
+      smoothstep(0.3, 0.6, this.olive) *
+      (near ? 1 - this.cemetery(x, z) : 1) *
+      (1 - smoothstep(0.6, 0.8, valley));
     this.riser = 0;
+    this.yRaw = y;
     if (this.terrace > 0) {
       const step = K.terraceStep;
       const f = y / step;
@@ -525,13 +619,149 @@ export class JerusalemLayout {
     return wallSd(x, z) < -margin;
   }
 
+  // --- Roads, paths, beds and fields -----------------------------------------------------------
+
+  /** Signed distance to a noise's zero line, n / |grad n| (central differences over e metres). */
+  private contour(n: Noise2D, f: number, oct: number, x: number, z: number): number {
+    const e = 4;
+    const v = fbm(n, x * f, z * f, oct);
+    const gx = (fbm(n, (x + e) * f, z * f, oct) - fbm(n, (x - e) * f, z * f, oct)) / (2 * e);
+    const gz = (fbm(n, x * f, (z + e) * f, oct) - fbm(n, x * f, (z - e) * f, oct)) / (2 * e);
+    return v / Math.max(Math.hypot(gx, gz), 1e-6);
+  }
+
+  /**
+   * Fill the track scratch for (x, z): signed distances to the nearest road's and footpath's
+   * centre line and the valley's floor line (signed so that the terrain, which samples them
+   * every 4 m, interpolates narrow lines exactly), and the derived edge distances. Roads: out
+   * of the gates into the designed land; in the hills, winding lines (a noise's zero contours)
+   * and one along a bank of every wadi, so roads run between the towns on the ridges and down
+   * the valleys. Footpaths: finer winding lines that peter out. None inside the walls (the
+   * alleys are the gaps between the houses). Not part of `at()`: only the ground's paint and
+   * the scatter need them.
+   */
+  track(x: number, z: number): void {
+    const K = Config.jerusalem;
+    const r = Math.hypot(x, z);
+    const w = 1 - smoothstep(1000, 1600, r);
+    let road = 1e4;
+    let bed = 1e4;
+    if (w > 0) {
+      for (const P of ROADS) {
+        const d = lineSigned(x, z, P);
+        if (Math.abs(d) < Math.abs(road)) road = d;
+      }
+      const k = lineSigned(x, z, KIDRON);
+      const h = lineSigned(x, z, HINNOM);
+      bed = Math.abs(k) < Math.abs(h) ? k : h;
+    }
+    if (w < 1) {
+      // The wadi's floor line and the road along one bank (its signed distance, as a river's).
+      this.wadiDist(x, z);
+      const sw = this.wv / Math.max(Math.hypot(this.wgx, this.wgz), 1e-6);
+      const c = this.contour(this.nRoad, K.roadScale, 2, x, z);
+      // Toward the designed land the hill roads give way (their distance grows to infinity).
+      const fade = 1 / Math.max(1 - w, 1e-3);
+      const hill = (Math.abs(c) < Math.abs(sw - K.wadiRoad) ? c : sw - K.wadiRoad) * fade;
+      if (Math.abs(hill) < Math.abs(road)) road = hill;
+      if (w < 0.5) bed = sw;
+    }
+    const sd = r < 1300 ? wallSd(x, z) : r - 300;
+    if (sd < 12) road = 1e4;
+    this.roadS = road;
+    this.roadE = Math.abs(road) - K.roadWidth;
+    this.bedS = bed;
+    this.bedD = Math.abs(bed);
+    // Footpaths fade out where their mask is low, and keep out of the walls and the plazas.
+    const mask = smoothstep(K.pathMask, K.pathMask + 0.15, this.nPathMask(x * 0.0016, z * 0.0016));
+    const pw = (this.pathW = K.pathWidth * mask * smoothstep(20, 40, sd));
+    this.pathS = pw > 0.05 ? this.contour(this.nPath, K.pathScale, 1, x, z) : 1e4;
+    this.pathE = Math.abs(this.pathS) - pw;
+  }
+
+  /** Field grid coordinates (in cells) of (x, z). */
+  fieldCoords(x: number, z: number, out: { u: number; w: number }): void {
+    const K = Config.jerusalem;
+    const c = Math.cos(K.fieldAngle);
+    const s = Math.sin(K.fieldAngle);
+    out.u = (x * c - z * s) / K.fieldCell;
+    out.w = (x * s + z * c) / K.fieldCell;
+  }
+
+  /** World position of field grid coordinates (u, w). */
+  fieldPoint(u: number, w: number, out: { x: number; z: number }): void {
+    const K = Config.jerusalem;
+    const c = Math.cos(K.fieldAngle);
+    const s = Math.sin(K.fieldAngle);
+    out.x = (u * c + w * s) * K.fieldCell;
+    out.z = (-u * s + w * c) * K.fieldCell;
+  }
+
+  /**
+   * What field cell (i, j) holds: -1 none, else a FIELD kind. A field is decided whole, at its
+   * centre and corners: level, open valley floor clear of the bed, the towns, the orchards
+   * and the woods. Cached.
+   */
+  fieldKind(i: number, j: number): number {
+    const k = key(i, j);
+    const hit = this.fieldCache.get(k);
+    if (hit !== undefined) return hit;
+    if (this.fieldCache.size > 20000) this.fieldCache.clear();
+    const K = Config.jerusalem;
+    const s = this.seed;
+    let kind = -1;
+    const pt = fpt;
+    if (hash2(i, j, s + 701) < K.fields) {
+      this.fieldPoint(i + 0.5, j + 0.5, pt);
+      const cx = pt.x;
+      const cz = pt.z;
+      this.at(cx, cz);
+      let ok =
+        this.valley > 0.62 &&
+        this.town < 0.1 &&
+        this.pine < 0.25 &&
+        this.terrace < 0.15 &&
+        this.sd > 60 &&
+        this.cemetery(cx, cz) === 0;
+      if (ok) {
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (let c = 0; c < 4 && ok; c++) {
+          this.fieldPoint(i + (c & 1), j + (c >> 1), pt);
+          this.at(pt.x, pt.z);
+          if (this.town > 0.2 || this.terrace > 0.4 || this.sd < 40) ok = false;
+          lo = Math.min(lo, this.y);
+          hi = Math.max(hi, this.y);
+        }
+        if (hi - lo > K.fieldCell * 0.18) ok = false;
+      }
+      if (ok) {
+        this.track(cx, cz);
+        if (this.bedD < K.fieldCell * 0.7 || this.roadE < 2) ok = false;
+      }
+      if (ok) {
+        const h = hash2(i, j, s + 702);
+        kind =
+          h < 0.4 ? FIELD.STUBBLE : h < 0.65 ? FIELD.PLOUGH : h < 0.85 ? FIELD.GREEN : FIELD.FALLOW;
+      }
+    }
+    this.fieldCache.set(k, kind);
+    return kind;
+  }
+
+  /** The field kind at (x, z), or -1. */
+  fieldAt(x: number, z: number): number {
+    this.fieldCoords(x, z, fco);
+    return this.fieldKind(Math.floor(fco.u), Math.floor(fco.w));
+  }
+
   // --- Content ---------------------------------------------------------------------------------
 
   private bucket(x: number, z: number): Block {
     const k = key(Math.floor(x / BLOCK), Math.floor(z / BLOCK));
     let b = this.statics.get(k);
     if (!b) {
-      b = { parts: [], trees: [], solids: [], landmarks: [] };
+      b = { parts: [], trees: [], props: [], solids: [], landmarks: [] };
       this.statics.set(k, b);
     }
     return b;
@@ -852,8 +1082,94 @@ export class JerusalemLayout {
             STYLE.HOUSE,
             rand(),
           );
+        // Life on the flat roofs: tanks, washing, pots (under the soft roof the bird skims).
+        if (r >= 0.32)
+          this.roofClutter(b.props, x, z, roof, sx, sz, yaw, g + K.fabricRoof + 1, i, j);
       }
+    this.souks();
     this.oldCityLandmarks();
+  }
+
+  /**
+   * Clutter on a flat roof (top at y, centre (x, z), footprint sx by sz, turned yaw): black
+   * water tanks on a frame, a washing line or a cluster of potted plants, inset from the
+   * parapet and kept under `cap`. Hashed from the lot (i, j), so it adds no random draws.
+   */
+  private roofClutter(
+    out: number[],
+    x: number,
+    z: number,
+    y: number,
+    sx: number,
+    sz: number,
+    yaw: number,
+    cap: number,
+    i: number,
+    j: number,
+  ): void {
+    const s = this.seed;
+    if (hash2(i, j, s + 91) > Config.jerusalem.clutter) return;
+    const h = hash2(i, j, s + 92);
+    let kind: number = h < 0.42 ? PROP.Tanks : h < 0.72 ? PROP.Laundry : PROP.Pots;
+    if (y + PROP_HEIGHT[kind] > cap) kind = PROP.Pots;
+    if (y + PROP_HEIGHT[kind] > cap) return;
+    const c = Math.cos(yaw);
+    const sn = Math.sin(yaw);
+    const lx = (hash2(i, j, s + 93) - 0.5) * Math.max(sx - 4.2, 0);
+    const lz = (hash2(i, j, s + 94) - 0.5) * Math.max(sz - 4.2, 0);
+    const turn = kind === PROP.Laundry ? (hash2(i, j, s + 95) < 0.5 ? 0 : Math.PI / 2) : 0;
+    pushProp(
+      out,
+      kind,
+      x + lx * c + lz * sn,
+      y,
+      z - lx * sn + lz * c,
+      yaw + turn,
+      0,
+      1,
+      1,
+      1,
+      hash2(i, j, s + 96),
+    );
+  }
+
+  /** Market stalls along the Old City's souks, under the houses on either side. */
+  private souks(): void {
+    const s = this.seed;
+    const gap = 3.4;
+    SOUKS.forEach(([x0, z0, x1, z1], q) => {
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const dx = (x1 - x0) / len;
+      const dz = (z1 - z0) / len;
+      for (let k = 0; k < Math.floor(len / gap); k++)
+        for (const side of [-1, 1]) {
+          if (hash2(k, side + q * 7, s + 97) > Config.jerusalem.awnings) continue;
+          const t = (k + 0.5) * gap;
+          const nx = -dz * side;
+          const nz = dx * side;
+          const x = x0 + dx * t + nx * 3.3;
+          const z = z0 + dz * t + nz * 3.3;
+          // Only where a house stands behind the stall.
+          this.at(x + nx * 4.5, z + nz * 4.5);
+          if (this.fabric < 0.9) continue;
+          this.at(x, z);
+          if (this.fabric < 0.5) continue;
+          // The stall's front (local +z) faces the street.
+          pushProp(
+            this.bucket(x, z).props,
+            PROP.Awning,
+            x,
+            this.height(x, z),
+            z,
+            Math.atan2(-nx, -nz),
+            0,
+            1,
+            1,
+            1,
+            hash2(k, side + q * 7, s + 98),
+          );
+        }
+    });
   }
 
   /** A gatehouse astride the wall: taller than the curtain, merlons, a dark arch outside. */
@@ -1355,6 +1671,7 @@ export class JerusalemLayout {
     b = {
       parts: st ? st.parts.slice() : [],
       trees: st ? st.trees.slice() : [],
+      props: st ? st.props.slice() : [],
       solids: st ? st.solids.slice() : [],
       landmarks: st ? st.landmarks.slice() : [],
     };
@@ -1397,6 +1714,10 @@ export class JerusalemLayout {
         const kind = modern > 0.55 && r < 0.8 ? 0 : red > 0.5 && r < 0.75 ? 2 : 1;
         const sx = kind === 0 ? 11 + 4 * hash2(li, lj, s + 609) : 7.5 + 3 * hash2(li, lj, s + 609);
         const sz = kind === 0 ? 8 + 3 * hash2(li, lj, s + 610) : 7 + 3 * hash2(li, lj, s + 610);
+        // Houses line the roads, never stand on them.
+        this.track(x, z);
+        const roadE = this.roadE;
+        if (roadE < Math.max(sx, sz) * 0.6) continue;
         const base = this.footing(x, z, sx / 2, sz / 2, yaw) - 0.6;
         const want = kind === 0 ? 4 + Math.floor(hash2(li, lj, s + 611) * 4) * 3 : 3.3 + r * 3.5;
         const roof = g + Math.min(want, room - (kind === 2 ? 2.4 : 0));
@@ -1441,6 +1762,9 @@ export class JerusalemLayout {
           this.part(b, MESH.DOME, x, roof, z, dr, dr * 0.42, dr, 0, col, STYLE.STONE);
         } else if (r < 0.6)
           this.part(b, MESH.SOLAR, x, roof, z, 1, 1, 1, yaw, 0xffffff, STYLE.PLAIN);
+        if (kind === 0 || (kind === 1 && r >= 0.35))
+          this.roofClutter(b.props, x, z, roof, sx, sz, yaw, g + room + 1.6, li, lj);
+        if (roadE < 7 && town > 0.55) this.stall(b.props, x, z, sx, sz, yaw, li, lj);
         // Now and then a minaret or a bell tower over the roofs (solid, and a wisp landmark).
         if (!tallDone && town > 0.8 && hash2(li, lj, s + 613) < 0.035) {
           tallDone = true;
@@ -1470,9 +1794,90 @@ export class JerusalemLayout {
         else if (this.town > 0.3 && h < 0.07) type = h < 0.012 ? TREE.PALM : TREE.CYPRESS;
         else if (h < 0.012) type = TREE.CYPRESS;
         if (type < 0) continue;
+        // Off the terrace walls (onto the flat above), the roads, the paths and the fields.
+        let tx = x;
+        let tz = z;
+        if (this.terrace > 0.5 && this.riser > 0.15) {
+          const e = 2;
+          const gx = this.height(x + e, z) - this.height(x - e, z);
+          const gz = this.height(x, z + e) - this.height(x, z - e);
+          const gl = Math.hypot(gx, gz) || 1;
+          tx = x + (gx / gl) * 2.5;
+          tz = z + (gz / gl) * 2.5;
+          this.at(tx, tz);
+          if (this.riser > 0.15) continue;
+        }
+        const ty = this.y;
+        this.track(tx, tz);
+        if (this.roadE < 2.5 || this.pathE < 0.8) continue;
+        if (this.fieldAt(tx, tz) >= 0) continue;
         if (type === TREE.OLIVE) sc *= 0.9;
-        b.trees.push(type, x, this.y - 0.3, z, sc, h * 40, hash2(ti, tj, s + 625));
+        b.trees.push(type, tx, ty - 0.3, tz, sc, h * 40, hash2(ti, tj, s + 625));
       }
+  }
+
+  /**
+   * A market stall in front of a town house beside a road: on the house's face nearest the road,
+   * its canvas over the verge (never out over the road).
+   */
+  private stall(
+    out: number[],
+    x: number,
+    z: number,
+    sx: number,
+    sz: number,
+    yaw: number,
+    i: number,
+    j: number,
+  ): void {
+    const s = this.seed;
+    if (hash2(i, j, s + 631) > Config.jerusalem.awnings * 0.6) return;
+    const e = 3;
+    this.track(x + e, z);
+    const east = this.roadE;
+    this.track(x - e, z);
+    const west = this.roadE;
+    this.track(x, z + e);
+    const north = this.roadE;
+    this.track(x, z - e);
+    // Toward the road: down the road distance's slope.
+    const gx = west - east;
+    const gz = this.roadE - north;
+    if (Math.hypot(gx, gz) < 1e-6) return;
+    // The house's face most nearly toward it (local +-x is world (c, -s), +-z is (s, c)).
+    const c = Math.cos(yaw);
+    const sn = Math.sin(yaw);
+    const ax = gx * c - gz * sn;
+    const az = gx * sn + gz * c;
+    let nx: number;
+    let nz: number;
+    let ext: number;
+    if (Math.abs(ax) > Math.abs(az)) {
+      nx = Math.sign(ax) * c;
+      nz = -Math.sign(ax) * sn;
+      ext = sx / 2;
+    } else {
+      nx = Math.sign(az) * sn;
+      nz = Math.sign(az) * c;
+      ext = sz / 2;
+    }
+    const px = x + nx * (ext + 0.15);
+    const pz = z + nz * (ext + 0.15);
+    this.track(px + nx * 2.4, pz + nz * 2.4);
+    if (this.roadE < 0.3) return;
+    pushProp(
+      out,
+      PROP.Awning,
+      px,
+      this.height(px, pz),
+      pz,
+      Math.atan2(nx, nz),
+      0,
+      1,
+      1,
+      1,
+      hash2(i, j, s + 632),
+    );
   }
 
   /** A hill town's minaret or bell tower. */

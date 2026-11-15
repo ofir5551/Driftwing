@@ -372,7 +372,8 @@ export class AtollDecor implements ChunkDecor<AtollChunk> {
     this.contact.begin(px, pz);
     const rc = this.rocks.map(() => 0);
     const fc = this.rocks.map(() => 0);
-    const near2 = Config.atoll.rockLod ** 2;
+    // Low (no prop detail) keeps the smooth rocks for the nearest only.
+    const near2 = (Config.atoll.rockLod * (R.propDetail > 0 ? 1 : 0.35)) ** 2;
     let bc = 0;
     this.dc = 0;
     this.lc = 0;

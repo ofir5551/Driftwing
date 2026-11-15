@@ -82,9 +82,10 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
   gathering bright sky, before bloom; skipped when the sun is down or off screen.
 - **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
   terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
-  in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River, City of Gold and Red
-  Canyons, whose style adds its own shapes: sagebrush, prickly pear, tumbleweeds); `paint` gets
-  every component of the style's `extra` attribute (`t.extras`).
+  in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River, City of Gold, Red
+  Canyons, whose style adds its own shapes: sagebrush, prickly pear, tumbleweeds, and Coral
+  Atolls: ferns, driftwood, shells, and seagrass under the clear water); `paint` gets every
+  component of the style's `extra` attribute (`t.extras`).
 
 ## Levels
 
@@ -568,6 +569,56 @@ lagoon with rocks: slaloms between them. Swings walk round a high island at a he
 shoulders, as far out as the land needs, for about half a turn. Generic patterns (and their
 thermal spirals) get one pattern in ten. Every pattern is checked 9 m clear of rock and land
 sideways and 2.5 m over the water, palms and roofs before anything spawns.
+
+Lived in. The ground is painted per pixel (`land.ts`) from a per-vertex `aAtoll` (reef-flat
+share, the ocean side of a shore, seagrass, coral): wherever the paint is green above the
+beach, the jungle is a carpet of tree crowns (each its own tint, dark gaps between, a domed
+normal; on steep ground the two wall planes), so the slopes between the trees read as forest,
+not felt, and the mushroom rocks' caps wear the same crowns. Every shore has a band of wet sand
+with a sheen of the sky, and a lace of foam at the waterline that swashes up and back (higher on
+the ocean side of an islet); the outer reef's surf (`Surf`) breaks beyond it. The reef crest
+dries in patches a hand above the sea (`crest`): pale rubble and coralline crust with tide pools
+between. Through the clear water: ripples in the bare sand, seagrass meadows on the sandy
+shallows, and coral gardens of pink, purple, mustard and teal heads on the lagoon knolls, with
+instanced coral heads near the bird. Sand bars wander over the lagoons' sand flats, the zero
+contour of a noise stretched round the ring, rising just clear of the water in stretches.
+
+Life: a fishing village stands off the home island's shore on the spawn's left (across the
+island from the bungalows) and off an islet in about 45 % of the other atolls: a plank walkway
+out over the water with stilt huts either side on gangways (woven walls, tall thatch flaring at
+the eaves, a porch and a ladder), a branch, and huts on the sand behind with cooking fires whose
+smoke drifts downwind. The lagoon floor rises to a sandy shelf under each village, so the huts
+stand on short stilts in light water. Outrigger canoes are pulled up on the beaches (many by a
+village), bows to the water; a few are out paddling; nets hang on poles in the shallows. Schools
+of fish, turtles and eagle rays swim in the lagoons, and frigatebirds hang high over the islands
+while terns work low over the reef. Moving things follow a circle round their instance's origin
+in the vertex shader (radius and direction from a hash of the origin that the scatter shares,
+so every circle is checked to stay in open water); nothing moves on the CPU. Hut roofs and the
+walkways are soft ground (`roofAt`), like the bungalows; rocks keep clear of villages.
+
+Foliage: jungle trees and shrubs are soft lobes whose normals blend their own ellipsoid's with
+the whole crown's, so the toon bands sweep round a tree as one mass instead of a cluster of
+gems; palms have smooth trunks and fronds lit as one arching blade. Jungle trees fill about a
+third of the island's cells (the painted crowns fill the rest), and palms and jungle have cheap
+distant shapes beyond `treeFar`. The mushroom rocks' domes are spaced by arc with the lumps
+calming toward the apex: round crowns, no spikes (the collision profile is unchanged).
+
+Light: on high, palms, huts, bungalows and the high islands cast sun shadows (huts and bungalows
+through ShadowCasters); contact shadows lie under trees, huts on land, beached canoes and fires
+on medium and high; light shafts are brighter (`levelLight.atoll.shafts` 0.55) for the sun
+through the jungle and the palms. The water stays bright and clear.
+
+- Code: `world/atoll/`: `AtollLayout` (pure: reefs, crest, sand bars, seagrass, islands, rocks,
+  piers, villages and their shelf, queries), `AtollScatter` (pure: trees, village sites, the
+  lagoons' life), `AtollDecor` (instancing, LOD, casters, contact shadows, smoke), `land` (the
+  ground's paint), `cover` (the ground-cover style), `materials` (the life's motion, smoke),
+  `shapes` (props), `geometry` (rocks, trees, bungalows, boats), `Surf`, `AtollWisps`.
+- Per preset (`render.*`): villages always; canoes, nets, fires, paddlers and seabirds within
+  `propDistance`; coral heads, fish, turtles and rays within `smallPropDistance` (none on low);
+  beach and jungle cover and seagrass in the shared grass ring (none on low).
+- Cost at the review's viewpoints (triangles / draw calls, whole frame): medium 144-202k / 119-140
+  (was 160-202k / 108-128), high 269-379k / 146-191 (was 257-349k / 133-178), low 98-141k /
+  87-103 (was 93-134k / 86-97). Low keeps the smooth rocks for the nearest 160 m only.
 
 ## Ringmoon Shallows
 
@@ -1339,3 +1390,24 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Vines are straight strands whose instance basis runs from their foot to their top along the
   wall: pushed out over any bulge between, shortened where the wall falls away under them, and
   dropped where a neighbouring pillar's rock is in the way.
+- Coral Atolls lived in (after the Highlands' pattern). The review found faceted jungle and
+  shrubs, flat green slopes between the trees, mushroom rocks with jagged two-pronged crowns and
+  long horizontal stripes on the fang. The stripes were the shared `GroundDetail` wall bump: it
+  sampled one diagonal plane (x + z, y), which is constant across walls facing 45 and 225
+  degrees, so the noise only varied with height there. It now projects on the zy and xy planes
+  by which way the wall faces (every level's cliffs; flat ground skips it). The crown carpet is
+  the atoll's own patch (`land.ts`, after `withGroundDetail`), not a change to the shared shader.
+- Atoll villages first stood over the 7 m lagoon: through the clear water their stilts hung
+  like long sticks. Stilt villages are built over the shallows, so the lagoon floor now rises to
+  a sandy shelf (about 1.7 m deep) under each village; the shelf is in `height`, applied after
+  the village is planned on the plain seabed.
+- The atoll's moving life (fish, turtles, rays, paddled canoes, seabirds) follows circles in the
+  vertex shader whose radius and direction come from a hash of the instance's origin. The
+  scatter computes the same hash (fract of a small linear form, which float32 matches to well
+  under a part in a thousand) and checks the whole circle stays over water deep enough and clear
+  of rock, roofs and villages, so nothing swims through the land or a hut.
+- The atoll's painted coral gardens started as bright polka dots that read as confetti through
+  the water; they are now sparse, half-tinted heads in a darker mottled bed, blurring far off
+  into a faint warm patch. To pay for the cover, huts and life on medium, jungle trees fill a
+  third of the island's cells instead of 45 % (the crowns paint the rest) and palms and jungle
+  have distant shapes beyond `treeFar`.

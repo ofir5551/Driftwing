@@ -45,7 +45,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `core/Game.ts`: renderer, scene, flight, camera, sky/water/clouds, adaptive resolution/quality, and the
   current level's `World` (`setLevel` swaps it in place). Modes: `menu` (bot flies the attract backdrop),
   `playing`, `paused`. `onStep`/`onFrame` hooks.
-- `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, trees, islands), `City`, `Karst`
+- `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, scenery, islands), `City`, `Karst`
   (Jade River, with its own palettes), `Fjord` (Aurora Fjords), `Jerusalem` (City of Gold),
   `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls), `Ringmoon` (Ringmoon Shallows); `index`
   registry.
@@ -64,6 +64,13 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   decor, optional `GroundCover`), `Trees` (instanced; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
   `GroundDetail`: painted terrain detail (patches, strokes, strata, bumps) patched into toon materials.
+- `world/highlands/`: `HighlandsLayout` (pure: rotated field grid, farmed fields (decided whole,
+  at the centre), the road along every river, buildings and `builtLift` for the flight floor),
+  `HighlandsScatter` (pure: forest with glades and birches, rocks, bushes, logs, walls/fences,
+  hay, sheep, reeds, boats, flocks per chunk), `HighlandsDecor` (instancing, near/far props,
+  casters, contact shadows, chimney smoke), `Land` (ground colour; fields and road painted in the
+  terrain shader from `aLand`), `crops` (ground-cover style), `shapes`, `materials`. The rivers and
+  farmland are in `Terrain`'s `LandField`.
 - `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; the waterfront
   (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; queries), `collide`
   (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),

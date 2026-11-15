@@ -116,6 +116,8 @@ function persist(): void {
 }
 
 let switching = false;
+/** How long the veil takes to cover the screen (matches the .veil opacity transition). */
+const VEIL_MS = 380;
 /** Fade to a veil, rebuild the world for the new level behind it, fade back in. */
 function switchLevel(id: LevelId): void {
   if (switching || id === game.level.id || !journey.isLevelOpen(id)) return;
@@ -131,7 +133,7 @@ function switchLevel(id: LevelId): void {
     menu.showStart(gameplay.progress.best, id);
     veil.classList.remove('show');
     switching = false;
-  }, 380);
+  }, VEIL_MS);
 }
 
 let playTime = 0;
@@ -261,13 +263,23 @@ const handlers: MenuHandlers = {
     gameplay.trailPreview = open ? Config.aviary.trailPreview : 0;
   },
   toTitle() {
-    if (game.mode === 'playing') return; // from the pause menu or the Rest card
+    if (game.mode === 'playing' || switching) return; // from the pause menu or the Rest card
+    switching = true;
     persist();
-    game.setMode('menu');
-    document.body.classList.remove('paused');
-    gameplay.hud.visible = false;
-    menu.showStart(gameplay.progress.best, game.level.id);
-    updateIfCalm();
+    // Veil the cut: the frozen pause (or the Rest card's glide) would otherwise snap to the title.
+    veil.classList.add('show');
+    setTimeout(() => {
+      // Resumed (or restarted) behind the veil: the title is no longer wanted.
+      if (game.mode !== 'playing') {
+        game.setMode('menu');
+        document.body.classList.remove('paused');
+        gameplay.hud.visible = false;
+        menu.showStart(gameplay.progress.best, game.level.id);
+      }
+      veil.classList.remove('show');
+      switching = false;
+      updateIfCalm();
+    }, VEIL_MS);
   },
 };
 const menu = new Menu(ui, settings, journey, handlers);

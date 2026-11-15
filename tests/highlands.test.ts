@@ -239,6 +239,8 @@ describe('highlands crops', () => {
     bloom: -1,
     petal: -1,
     extra: 999,
+    ex: new Float64Array(4),
+    shape: 0,
   });
 
   it('ploughs bare, stands wheat tall and golden, leaves the road bare', () => {

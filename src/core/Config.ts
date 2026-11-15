@@ -176,6 +176,11 @@ export const Config = {
     fieldCell: 34, // m, side of a field in the patchwork
     fieldAngle: 0.47, // rad, the patchwork grid's turn off the world axes
     fieldFarm: 0.42, // farmland (Terrain.farm) at a field's centre for it to be farmed
+    village: 0.5, // chance a road plot gets a house (scaled up in a village's heart, down between)
+    farmsteads: 0.1, // chance a pasture or meadow field has a farmstead
+    smokeRise: 2.2, // m/s chimney smoke rises
+    wallPieces: 6, // wall or fence pieces along a field's side (each follows the slope)
+    flocks: 0.22, // chance a chunk has a flock of birds wheeling over it
   },
   /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
   light: {
@@ -588,6 +593,9 @@ export const Config = {
     lightShafts: 1, // multiplier on each level's light shafts (0 = off)
     coverDistance: 95, // m, ground cover (grass, flowers) is drawn within this (0 = off)
     coverDensity: 1, // 0..1 share of the ground-cover tufts kept
+    propDistance: 650, // m, Highlands buildings, rocks and bushes are drawn within this
+    smallPropDistance: 320, // m, walls, fences, hay, sheep, reeds, boats, flocks (0 = none)
+    propDetail: 160, // m, bushes and boulders nearer than this use their detailed shapes
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -616,6 +624,9 @@ export const QUALITY: Record<
     lightShafts: number;
     coverDistance: number;
     coverDensity: number;
+    propDistance: number;
+    smallPropDistance: number;
+    propDetail: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -632,6 +643,9 @@ export const QUALITY: Record<
     lightShafts: 0,
     coverDistance: 0,
     coverDensity: 0,
+    propDistance: 280,
+    smallPropDistance: 0,
+    propDetail: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -647,6 +661,9 @@ export const QUALITY: Record<
     lightShafts: 0,
     coverDistance: 60,
     coverDensity: 0.6,
+    propDistance: 480,
+    smallPropDistance: 200,
+    propDetail: 110,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -662,6 +679,9 @@ export const QUALITY: Record<
     lightShafts: 1,
     coverDistance: 95,
     coverDensity: 1,
+    propDistance: 650,
+    smallPropDistance: 320,
+    propDetail: 160,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

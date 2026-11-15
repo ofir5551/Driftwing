@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
+import { HighlandsWorld } from '../src/levels/Highlands';
 import { createHeightField } from '../src/world/Terrain';
+import { HighlandsScatter } from '../src/world/highlands/HighlandsScatter';
+import { flyBot } from './helpers';
 import {
+  BUILT_SIZE,
+  Field,
   HighlandsLayout,
+  P,
+  PROP_STRIDE,
   fieldCentre,
   fieldCoords,
   fieldKind,
@@ -71,7 +78,7 @@ function glslKind(i: number, j: number): number {
 }
 
 describe('highlands fields', () => {
-  const layout = new HighlandsLayout(createHeightField(SEED));
+  const layout = new HighlandsLayout(createHeightField(SEED), SEED);
 
   it('picks the same crop on the CPU as the shader does in float32', () => {
     for (let j = -300; j <= 300; j += 7)
@@ -106,4 +113,115 @@ describe('highlands fields', () => {
       }
     expect(some).toBeGreaterThan(50);
   });
+});
+
+describe('highlands scenery', () => {
+  const f = createHeightField(SEED);
+  const layout = new HighlandsLayout(f, SEED);
+  const scatter = new HighlandsScatter(layout);
+  const size = Config.world.chunkSize;
+
+  /** Every building within `r` chunks of the origin. */
+  const buildings = (r: number) => {
+    const out: number[][] = [];
+    for (let cz = -r; cz <= r; cz++)
+      for (let cx = -r; cx <= r; cx++) {
+        const b = layout.built(cx, cz);
+        for (let k = 0; k < b.length; k += PROP_STRIDE) out.push(b.slice(k, k + PROP_STRIDE));
+      }
+    return out;
+  };
+
+  it('builds villages along the roads and farmsteads in the fields, on dry, gentle ground', () => {
+    const all = buildings(6);
+    expect(all.length).toBeGreaterThan(40);
+    expect(all.some((b) => b[0] === P.Windmill)).toBe(true);
+    for (const [kind, x, y, z] of all) {
+      expect(kind).toBeLessThanOrEqual(P.Windmill);
+      expect(y).toBeGreaterThan(1);
+      // Never on the road itself.
+      expect(layout.roadDist(x, z)).toBeGreaterThan(Config.highlands.roadWidth + 3);
+    }
+  });
+
+  it('lifts the flight floor (and so the wisps) clear over every roof, and only near them', () => {
+    expect(layout.builtLift(5000.5, 5000.5, -100)).toBe(-100); // open water: no buildings
+    for (const [kind, x, y, z] of buildings(4)) {
+      const roof = y + BUILT_SIZE[kind][1];
+      expect(layout.builtLift(x, z, f.height(x, z))).toBeGreaterThanOrEqual(roof - 1e-6);
+    }
+  });
+
+  it('keeps trees off the roads and out of the houses', () => {
+    const trees: number[] = [];
+    for (let cz = -3; cz <= 3; cz++)
+      for (let cx = -3; cx <= 3; cx++) {
+        const built = layout.built(cx, cz);
+        scatter.trees(cx * size, cz * size, size, built, trees);
+        for (let k = 0; k < trees.length; k += 7) {
+          const x = trees[k + 1];
+          const z = trees[k + 3];
+          expect(layout.roadDist(x, z)).toBeGreaterThan(Config.highlands.roadWidth + 2);
+          for (let b = 0; b < built.length; b += PROP_STRIDE)
+            expect(Math.hypot(x - built[b + 1], z - built[b + 3])).toBeGreaterThan(
+              BUILT_SIZE[built[b]][0],
+            );
+        }
+      }
+  });
+
+  it('walls and fences only round farmed fields, hay and sheep inside them', () => {
+    const props: number[] = [];
+    const hedge: number[] = [];
+    const fc = { u: 0, w: 0 };
+    let walls = 0;
+    let animals = 0;
+    for (let cz = -3; cz <= 3; cz++)
+      for (let cx = -3; cx <= 3; cx++) {
+        scatter.props(cx * size, cz * size, size, layout.built(cx, cz), props, hedge);
+        for (let k = 0; k < props.length; k += PROP_STRIDE) {
+          const kind = props[k];
+          const x = props[k + 1];
+          const z = props[k + 3];
+          if (kind === P.Wall || kind === P.Fence) {
+            walls++;
+            // A wall piece is on the edge of a farmed field: one of the fields either side.
+            layout.fieldAt(x + 0.8, z + 0.8, fc);
+            const a = layout.cellFarmed(fc.u, fc.w);
+            layout.fieldAt(x - 0.8, z - 0.8, fc);
+            expect(a || layout.cellFarmed(fc.u, fc.w)).toBe(true);
+          }
+          if (kind === P.Hay) {
+            animals++;
+            layout.fieldAt(x, z, fc);
+            expect(layout.cellFarmed(fc.u, fc.w)).toBe(true);
+            expect(fieldKind(fc.u, fc.w)).toBe(Field.Wheat);
+          }
+        }
+      }
+    expect(walls).toBeGreaterThan(100);
+    expect(animals).toBeGreaterThan(10);
+  });
+
+  it('an autopilot flies the wisps over villages and roads: none inside a house or the ground', () => {
+    const world = new HighlandsWorld(SEED);
+    const inHouse = (x: number, y: number, z: number) => {
+      const size = Config.world.chunkSize;
+      const b = layout.built(Math.floor(x / size), Math.floor(z / size));
+      for (let k = 0; k < b.length; k += PROP_STRIDE) {
+        const [r, h] = BUILT_SIZE[b[k]];
+        if (Math.hypot(x - b[k + 1], z - b[k + 3]) < r && y < b[k + 2] + h) return true;
+      }
+      return false;
+    };
+    const r = flyBot(
+      world,
+      { x: 0, y: 45, z: 0, yaw: 0 },
+      SEED,
+      90,
+      (x, y, z) => y < f.height(x, z) || inHouse(x, y, z),
+    );
+    expect(r.inside).toBe(0);
+    expect(r.got).toBeGreaterThan(80);
+  }, 60_000);
 });

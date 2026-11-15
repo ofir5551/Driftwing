@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Config } from '../core/Config';
 import { smoothstep } from '../core/math';
-import { getToonGradient, type HeightField } from './Terrain';
+import { getToonGradient } from './Terrain';
 import { hash2 } from './noise';
 import { ContactShadows, type GroundFn } from './ContactShadows';
 import { ShadowCasters } from './ShadowCasters';
@@ -257,50 +257,6 @@ export function cherryDetailGeometry(): THREE.BufferGeometry {
   );
 }
 
-/**
- * Deterministic scatter for one chunk. Cells are enumerated by global index so every cell
- * belongs to exactly one chunk and seams never double up or leave gaps.
- */
-export function scatterTrees(
-  field: HeightField,
-  ox: number,
-  oz: number,
-  size: number,
-  out: number[],
-): number {
-  out.length = 0;
-  const cell = Config.world.treeCell;
-  const seed = Config.world.seed;
-  const i0 = Math.ceil(ox / cell);
-  const i1 = Math.ceil((ox + size) / cell);
-  const j0 = Math.ceil(oz / cell);
-  const j1 = Math.ceil((oz + size) / cell);
-  for (let j = j0; j < j1; j++)
-    for (let i = i0; i < i1; i++) {
-      const r = hash2(i, j, seed);
-      const x = (i + hash2(i, j, seed + 11)) * cell;
-      const z = (j + hash2(i, j, seed + 12)) * cell;
-      const density = field.forest(x, z) * 0.75 + 0.025; // dense groves plus a few lone trees
-      if (r > density) continue;
-      const y = field.height(x, z);
-      if (y < 1.2 || y > 115) continue;
-      const slope = Math.abs(field.height(x + 3, z) - y) + Math.abs(field.height(x, z + 3) - y);
-      if (slope > 3.6) continue;
-      const pine = y > 55 || hash2(i, j, seed + 13) > 0.62 ? 1 : 0;
-      const s = 0.65 + hash2(i, j, seed + 14) * 0.75;
-      out.push(
-        pine,
-        x,
-        y - 0.3,
-        z,
-        s,
-        hash2(i, j, seed + 15) * Math.PI * 2,
-        hash2(i, j, seed + 16),
-      );
-    }
-  return out.length / TREE_STRIDE;
-}
-
 const m = new THREE.Matrix4();
 const q = new THREE.Quaternion();
 const p = new THREE.Vector3();
@@ -448,33 +404,5 @@ export class Trees {
     for (const c of this.casters) c.dispose();
     this.contact.dispose();
     this.material.dispose();
-  }
-}
-
-/** The highlands' chunk decor: the forest scatter feeding the two global tree meshes. */
-export class TreeDecor {
-  readonly trees = new Trees(
-    9000,
-    [roundTreeGeometry(), pineGeometry()],
-    [roundTreeDetailGeometry(), pineDetailGeometry()],
-  );
-  readonly group = this.trees.group;
-
-  constructor(private readonly field: HeightField) {
-    this.trees.ground = (x, z) => field.height(x, z);
-  }
-
-  scatter(ox: number, oz: number, size: number): number[] {
-    const out: number[] = [];
-    scatterTrees(this.field, ox, oz, size, out);
-    return out;
-  }
-
-  rebuild(items: number[][], px: number, pz: number): void {
-    this.trees.rebuild(items, px, pz, Config.render.treeDistance);
-  }
-
-  dispose(): void {
-    this.trees.dispose();
   }
 }

@@ -1,14 +1,13 @@
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { smoothstep } from '../../core/math';
-import { gableGeometry, hipGeometry } from '../city/geometry';
 import { mulberry32 } from '../noise';
 import { colored, jitter, painted, topLit } from '../Trees';
 import { profile } from './KarstLayout';
 import type { PillarSkin } from './skin';
 
 /**
- * Jade River's shapes. Pillars are lathed from the layout's profile in base radii (radius 1,
+ * Jade River's rock and foliage. Pillars are lathed from the layout's profile in base radii (radius 1,
  * height `aspect`; the instance scales them), so collisions match the drawn rock. Everything
  * else is built in metres from primitives and painted with vertex colours.
  */
@@ -158,86 +157,7 @@ export function bambooDetailGeometry(): THREE.BufferGeometry {
   return topLit(mergeGeometries(parts)!, 0.7, 1.1);
 }
 
-/** A village house: whitewashed walls on a stone plinth under a dark tiled gable roof. */
-export function houseGeometry(storeys: 1 | 2): THREE.BufferGeometry {
-  const wall = storeys === 1 ? 4.4 : 7.2;
-  const parts = [
-    colored(new THREE.BoxGeometry(8.3, 0.7, 6.3), '#8f918b', 0.35),
-    colored(new THREE.BoxGeometry(8, wall, 6), '#ebe5d8', wall / 2),
-    colored(gableGeometry().scale(9.4, 2.5, 7.4), '#454c53', wall),
-    colored(new THREE.BoxGeometry(1.3, 2.2, 0.15), '#5d4838', 1.1).translate(0, 0, 3.02),
-  ];
-  for (let s = 0; s < storeys; s++)
-    for (const x of [-2.6, 2.6])
-      parts.push(
-        colored(new THREE.BoxGeometry(1, 0.8, 0.12), '#3b4046', 2.8 + s * 2.9).translate(
-          x,
-          0,
-          3.02,
-        ),
-      );
-  return mergeGeometries(parts)!;
-}
-
-/** A cormorant fisher's bamboo raft: a figure in a straw hat, a pole, two birds, a lantern post. */
-export function raftGeometry(): THREE.BufferGeometry {
-  const pole = new THREE.CylinderGeometry(0.05, 0.05, 5.5, 4).rotateX(0.9);
-  const parts = [
-    colored(new THREE.BoxGeometry(1.7, 0.35, 8), '#c6ae78', 0.1),
-    colored(new THREE.CylinderGeometry(0.3, 0.42, 1.3, 6), '#39475a', 0.95).translate(0, 0, -0.8),
-    colored(new THREE.SphereGeometry(0.24, 6, 4), '#d4b28c', 1.78).translate(0, 0, -0.8),
-    colored(new THREE.ConeGeometry(0.78, 0.4, 8), '#dcc78f', 2.05).translate(0, 0, -0.8),
-    colored(pole, '#8a7350', 1.6).translate(0.45, 0, 1.1),
-    colored(new THREE.CylinderGeometry(0.05, 0.05, 2.7, 4), '#6b5a44', 1.6).translate(0, 0, -3.7),
-  ];
-  for (const [x, z] of [
-    [0.5, 2.2],
-    [-0.45, 1.3],
-  ]) {
-    parts.push(
-      colored(new THREE.IcosahedronGeometry(0.3, 0).scale(0.8, 0.9, 1.6), '#2d3233', 0.6).translate(
-        x,
-        0,
-        z,
-      ),
-      colored(new THREE.CylinderGeometry(0.06, 0.09, 0.55, 4), '#2d3233', 0.95).translate(
-        x,
-        0,
-        z + 0.35,
-      ),
-    );
-  }
-  return mergeGeometries(parts)!;
-}
-
-/** A hilltop pavilion: stone platform, red posts and beams, a flared dark roof, a gilt finial. */
-export function pavilionGeometry(): THREE.BufferGeometry {
-  const parts = [
-    colored(new THREE.CylinderGeometry(4.3, 4.8, 0.9, 8), '#a8a296', 0.45),
-    colored(hipGeometry(0).scale(8.6, 3.6, 8.6), '#3e4746', 4.5),
-    colored(new THREE.ConeGeometry(0.32, 1.3, 6), '#c9a64e', 8.6),
-  ];
-  for (const x of [-2.6, 2.6])
-    for (const z of [-2.6, 2.6])
-      parts.push(
-        colored(new THREE.CylinderGeometry(0.22, 0.24, 3.6, 6), '#ac4239', 2.7).translate(x, 0, z),
-      );
-  for (const z of [-2.6, 2.6]) {
-    parts.push(colored(new THREE.BoxGeometry(5.6, 0.35, 0.3), '#8b3832', 4.35).translate(0, 0, z));
-    parts.push(colored(new THREE.BoxGeometry(0.3, 0.35, 5.6), '#8b3832', 4.35).translate(z, 0, 0));
-  }
-  return mergeGeometries(parts)!;
-}
-
 /** Paper lantern: a slightly tall ball (one shared shape, sized per instance). */
 export function lanternGeometry(): THREE.BufferGeometry {
   return new THREE.SphereGeometry(0.5, 6, 4).scale(1, 1.25, 1);
 }
-
-/** Where things sit on the shapes above, in their local metres. */
-export const RAFT_LANTERN = { x: 0, y: 2.75, z: -3.7 };
-export const HOUSE_LANTERN = { x: 1.3, y: 2.6, z: 3.4 };
-export const PAVILION_LANTERNS = [
-  { x: -2.6, y: 3.6, z: 2.6 },
-  { x: 2.6, y: 3.6, z: 2.6 },
-];

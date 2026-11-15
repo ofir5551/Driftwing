@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
-import { smoothstep } from '../../core/math';
 import type { World } from '../../levels/World';
 import type { FlightInput, FlightState } from '../../player/FlightModel';
 import { avoidSolids, glanceOffWall } from '../city/collide';
@@ -9,28 +8,18 @@ import { withGroundDetail } from '../GroundDetail';
 import { Clouds } from '../Clouds';
 import type { DayCycle } from '../DayCycle';
 import { mistUniforms, withMist } from '../Mist';
-import { createNoise2D, hash2 } from '../noise';
+import { createNoise2D } from '../noise';
 import { getToonGradient, type HeightField } from '../Terrain';
-import { KarstDecor, type KarstChunk } from './KarstDecor';
+import { karstCover } from './cover';
+import { KarstDecor } from './KarstDecor';
 import { KarstLayout } from './KarstLayout';
+import type { KarstChunk } from './KarstScatter';
+import { createKarstGeometry, fillKarst, karstColor, karstLandFrame, withKarstLand } from './Land';
 import { KarstPlanner } from './KarstWisps';
+import { RiverMist } from './RiverMist';
 import type { DiscoveryDef } from '../Discoveries';
 import { karstFinds } from './finds';
 
-const C = {
-  bed: new THREE.Color('#4f7268'),
-  shallows: new THREE.Color('#87a596'),
-  shore: new THREE.Color('#cdc5ae'),
-  grass: new THREE.Color('#98bd78'),
-  meadow: new THREE.Color('#b9c987'),
-  grove: new THREE.Color('#6c9663'),
-  scree: new THREE.Color('#82917a'),
-  earth: new THREE.Color('#c6baa0'),
-  flooded: new THREE.Color('#c3d5d2'),
-  young: new THREE.Color('#a8cd6f'),
-  ripe: new THREE.Color('#d9d08a'),
-  bund: new THREE.Color('#82a160'),
-};
 const WHITE = new THREE.Color('#fff');
 
 /**
@@ -48,6 +37,7 @@ export class KarstWorld implements World {
   private readonly chunks: ChunkManager<KarstChunk>;
   private readonly decor: KarstDecor;
   private readonly banks: Clouds;
+  private readonly riverMist: RiverMist;
   private readonly origin = new THREE.Vector3();
   private readonly n = { x: 0, y: 0, z: 0 };
 
@@ -63,12 +53,17 @@ export class KarstWorld implements World {
     this.decor = new KarstDecor(L);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withGroundDetail(
-        withMist(
-          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      material: withKarstLand(
+        withGroundDetail(
+          withMist(
+            new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+          ),
         ),
       ),
-      color: (f, x, z, y, _slope, out) => this.groundColor(f, x, z, y, out),
+      color: (f, x, z, y, _slope, out) => karstColor(L, f, x, z, y, out),
+      createGeometry: createKarstGeometry,
+      fillExtra: (g, ox, oz, size, res) => fillKarst(L, g, ox, oz, size, res),
+      cover: karstCover(),
     });
     // Low banks of mist that drift between the pillars; the bird can fly through them.
     this.banks = new Clouds(seed + 9, 44, {
@@ -80,45 +75,15 @@ export class KarstWorld implements World {
       share: 0.8,
     });
     this.planner = new KarstPlanner(L);
-    this.group.add(this.chunks.group, this.banks.mesh);
+    this.riverMist = new RiverMist(L);
+    this.group.add(this.chunks.group, this.banks.mesh, this.riverMist.mesh);
   }
 
-  private groundColor(
-    f: HeightField,
-    x: number,
-    z: number,
-    y: number,
-    out: THREE.Color,
-  ): THREE.Color {
-    if (y < -0.4) return out.copy(C.shallows).lerp(C.bed, smoothstep(-0.4, -3, y));
-    const L = this.layout;
-    const t = f.tint(x, z);
-    const scree = y - L.base(x, z); // also leaves the river scratch for (x, z)
-    const bank = L.rd - L.rw;
-    out.copy(C.grass).lerp(C.meadow, 0.5 + 0.5 * t);
-    // Paddies: a patchwork of flooded mirrors, young rice and ripening gold, with green bunds.
-    const p = L.paddy(x, z);
-    if (p > 0.05) {
-      const ci = Math.floor(x / 22);
-      const cj = Math.floor(z / 17);
-      const h = hash2(ci, cj, L.seed + 330);
-      const fx = x / 22 - ci;
-      const fz = z / 17 - cj;
-      const edge = Math.min(fx, 1 - fx, fz, 1 - fz);
-      const field = h < 0.4 ? C.flooded : h < 0.75 ? C.young : C.ripe;
-      out.lerp(edge < 0.08 ? C.bund : field, p);
-    }
-    out.lerp(C.grove, L.grove(x, z) * 0.7);
-    L.river(x, z);
-    out.lerp(C.earth, L.village(x, z) * 0.6);
-    out.lerp(C.scree, smoothstep(0.4, 5, scree));
-    out.lerp(C.shore, 1 - smoothstep(1, 8, bank));
-    return out.multiplyScalar(0.95 + 0.06 * t);
-  }
-
+  /** Terrain, the soft canopy over groves and village roofs, and the bridges' decks. */
   flightGround(x: number, z: number): number {
-    const h = this.layout.height(x, z);
-    return h < 0.5 ? h : h + this.layout.canopy(x, z);
+    const L = this.layout;
+    const h = L.height(x, z);
+    return Math.max(h < 0.5 ? h : h + L.canopy(x, z), L.bridgeTop(x, z));
   }
 
   surfaceBelow(x: number, y: number, z: number): number {
@@ -135,11 +100,13 @@ export class KarstWorld implements World {
   prime(px: number, pz: number): void {
     this.origin.set(px, 0, pz);
     this.chunks.prime(px, pz);
+    this.riverMist.update(px, pz);
   }
 
   update(px: number, pz: number): void {
     this.origin.set(px, 0, pz);
     this.chunks.update(px, pz);
+    this.riverMist.update(px, pz);
   }
 
   frame(_dt: number, time: number, day: DayCycle): void {
@@ -153,6 +120,9 @@ export class KarstWorld implements World {
     u.uMistFar.value = K.mistFar;
     u.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.35);
     u.uMistTime.value = time;
+    // The river breathes its own mist at first light; it burns off long before noon.
+    this.riverMist.frame(u.uMistColor.value, morning * morning, time);
+    karstLandFrame(day, time);
     this.decor.frame(day);
     this.banks.update(day, this.origin, time);
   }
@@ -196,6 +166,7 @@ export class KarstWorld implements World {
 
   dispose(): void {
     this.chunks.dispose();
+    this.riverMist.dispose();
     this.banks.mesh.geometry.dispose();
     (this.banks.mesh.material as THREE.Material).dispose();
     mistUniforms.uMist.value = 0;

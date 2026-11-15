@@ -17,7 +17,7 @@ const GLIDE_TURNS = [0, 0.4, -0.4, 0.8, -0.8, 1.3, -1.3];
 
 /**
  * Jade River's wisp patterns. The river is the spine: low ribbons follow its bends just above
- * the water. Between pillars, slaloms weave through the gaps (the clear candidate passing
+ * the water, hopping over the stone bridges. Between pillars, slaloms weave through the gaps (the clear candidate passing
  * closest to the most rock wins). Now and then a ribbon spirals up round a tall pillar and over
  * its summit, then glides down off the top. Every pattern is planned whole and checked clear of
  * rock and ground before anything spawns, as in the city.
@@ -97,7 +97,13 @@ export class KarstPlanner implements WispPlanner {
       L.toCentre(x, z, this.c2);
       x += clamp(this.c2.x - x, -6, 6) * 0.4;
       z += clamp(this.c2.z - z, -6, 6) * 0.4;
-      y += clamp(alt + 3 * Math.sin(i * 0.7) - y, -4, Config.wisps.maxRise);
+      // Hop over a bridge: climb early enough (a few wisps ahead) to clear its deck.
+      let want = alt + 3 * Math.sin(i * 0.7);
+      for (let a = 0; a <= 4; a++) {
+        const top = L.bridgeTop(x + Math.sin(heading) * sp * a, z + Math.cos(heading) * sp * a);
+        want = Math.max(want, top + MARGIN + 2);
+      }
+      y += clamp(want - y, -4, Config.wisps.maxRise);
       this.pts.push(x, y, z);
     }
   }

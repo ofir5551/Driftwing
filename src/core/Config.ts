@@ -216,7 +216,7 @@ export const Config = {
   levelLight: {
     highlands: { shadows: 0.62, clouds: 0.32, shafts: 0.5 },
     city: { shadows: 0.5, clouds: 0.22, shafts: 0.35 },
-    karst: { shadows: 0.45, clouds: 0.2, shafts: 0.6 },
+    karst: { shadows: 0.5, clouds: 0.22, shafts: 0.6 },
     fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5 },
     jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
     canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4 },
@@ -403,10 +403,33 @@ export const Config = {
     streaks: 0.4, // darkness of the rock shader's rain streaks down the walls
     mossLedges: 0.75, // rock-shader moss on sky-facing rock (ledges, shoulders)
     canopy: 9, // m, bamboo and groves count as soft ground this high
+    roofs: 11, // m, a village's roofs count as soft ground this high (at its heart)
+    terraceStep: 1.1, // m, rise of one paddy terrace
+    terraceHills: 6, // m, the paddy country swells into hills this high, terraced all the way up
+    fieldCell: 26, // m, paddy fields are cut across the terraces on this grid
+    pathScale: 0.0016, // frequency of the footpath noise: a path every ~300 m
+    pathWidth: 1.3, // m, half width of a footpath
+    towpath: 7, // m from the waterline to the towpath along each bank
+    bridgeCell: 620, // m, grid cell that may hold one bridge (where a path crosses the river)
+    bridgeChance: 0.85, // share of the cells that try
+    bridgeMaxHalf: 36, // m, only reaches narrower than this (half width) are bridged
+    bridgeSpawn: 520, // m, the opening run along the river stays open
+    bridgeRise: 8, // m, the deck's crown above the water
+    bridgeWidth: 6, // m, deck width
+    bridgeEase: 16, // m along the river over which the flight floor ramps up over a bridge
+    pagodaChance: 0.12, // share of the modest summits that carry a pagoda
+    boulders: 1, // scree boulders at a pillar's foot (x 4 + radius / 4)
+    vines: 1, // vine curtains down a pillar's walls (x 2 + height / 28, at most 10)
+    paddyMirror: 0.85, // how much a flooded paddy mirrors the sky
+    life: 0.16, // chance a 22 m cell of open valley has a buffalo or a farmer in it
     // Atmosphere.
     mist: 0.85, // valley mist at dawn; it thins through the day and gathers again at dusk
     mistTop: 55, // m, the mist lies below this
     mistFar: 0.42, // distance haze: far pillars fade in layers, like ink washes
+    riverMist: 0.8, // opacity of the mist sheets lying over the river at dawn (gone by midday)
+    riverMistCell: 70, // m, grid cell that may hold one river mist sheet
+    riverMistRange: 700, // m, river mist is laid out (and fades out) within this
+    riverMistRefresh: 40, // m the bird moves before the river mist is laid out again
     ridgeDistance: 2600, // m, how far the painted ridges on the horizon pretend to be
     lanterns: 1, // brightness of lanterns after dark
   },

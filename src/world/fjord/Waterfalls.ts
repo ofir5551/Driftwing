@@ -46,8 +46,9 @@ export function strandPath(L: FjordLayout, f: Fall, strand: number, out: Float32
     const off = onWall ? 2.2 * Math.min(g, 1.5) : 0;
     const o = k * PS;
     out[o] = x - f.nx * off;
-    out[o + 1] = y + (onWall ? 0.4 : 0.18);
     out[o + 2] = z - f.nz * off;
+    // Never under the ground where it hangs (a crag's rib can stand proud of the line).
+    out[o + 1] = Math.max(y, L.height(out[o], out[o + 2])) + (onWall ? 0.4 : 0.18);
     // Wider as it falls and spreads, a narrow stream on the strand.
     out[o + 3] = onWall ? hw * (0.7 + 0.6 * t) : Math.max(1.4, hw * 0.45) * (1 - 0.3 * t);
     out[o + 4] = onWall ? t * 0.86 : 0.86 + t * 0.14;

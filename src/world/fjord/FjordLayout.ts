@@ -238,10 +238,10 @@ export class FjordLayout {
     );
   }
 
-  /** 0..1: the share of birch in the forest here (on the flat strands, in drifts). */
+  /** 0..1: the share of birch in the forest here (in drifts; spruce keep the steepest ground). */
   birch(x: number, z: number, slope: number): number {
     return (
-      smoothstep(-0.1, 0.35, this.nBirch(x * 0.008, z * 0.008)) * (1 - smoothstep(0.3, 0.6, slope))
+      smoothstep(-0.35, 0.2, this.nBirch(x * 0.008, z * 0.008)) * (1 - smoothstep(0.7, 1.2, slope))
     );
   }
 

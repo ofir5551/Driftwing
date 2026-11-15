@@ -118,7 +118,7 @@ export class FjordSites {
    */
   private at(x: number, z: number, bank: number, side: number): typeof pt {
     const L = this.L;
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 5; k++) {
       const b = L.fjord(x, z);
       const g = Math.max(Math.hypot(L.fgx, L.fgz), 1e-9);
       // Inland: away from the centre line, on this side of it.
@@ -254,7 +254,13 @@ export class FjordSites {
       tint: number,
       turn = 0,
     ): boolean => {
-      const p = this.at(v.x + v.ux * along, v.z + v.uz * along, bank, v.side);
+      // Copied out of the shared scratch at once: the height queries below can plan another
+      // village, whose frame reuses it.
+      const q = this.at(v.x + v.ux * along, v.z + v.uz * along, bank, v.side);
+      const p = { x: q.x, z: q.z, nx: q.nx, nz: q.nz };
+      // A tight bend can defeat the shore frame: skip what did not land where it should.
+      if (Math.abs(L.fjord(p.x, p.z) - bank) > 1.5) return false;
+      if (Math.hypot(p.x - v.x - v.ux * along, p.z - v.z - v.uz * along) > 60) return false;
       const yaw = Math.atan2(-p.nx, -p.nz) + turn; // local +z toward the water
       const f = FOOT[kind];
       const c = Math.cos(yaw);

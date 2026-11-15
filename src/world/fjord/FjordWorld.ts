@@ -147,7 +147,7 @@ export class FjordWorld implements World {
     out.copy(C.grass).lerp(C.meadow, 0.5 + 0.5 * t);
     out.lerp(C.heath, smoothstep(6, 40, y) * (0.55 + 0.45 * t));
     out.lerp(C.fell, smoothstep(90, 150, y) * (0.5 - 0.4 * t));
-    out.lerp(C.spruce, f.forest(x, z) * 0.6);
+    out.lerp(C.spruce, this.layout.forestShade(x, z, y) * 0.6);
     out.lerp(C.pebble, 1 - smoothstep(0.9, 1.6, y));
     // Cliffs: bare rock (the shader paints the relief and the snow's ledges over it).
     out.lerp(C.rock, smoothstep(0.3, 0.55, slope));

@@ -83,9 +83,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   with rice), `rock` (limestone shader), `RiverMist`, `KarstWisps` (river/slalom/spiral planner),
   `geometry` (rock, bamboo), `shapes` (props), `KarstWorld`.
   `world/Mist.ts`: shared valley-mist uniforms + `withMist` material patch (also in `Water`).
-- `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain, icebergs, lighthouse;
-  walls are terrain that `solidTop` reports for the look-ahead), `FjordWisps`, `FjordDecor`,
-  `geometry`, `FjordWorld`. The aurora is the `aurora` backdrop in `Sky`.
+- `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain with rounded crags,
+  icebergs, lighthouse, snow climate, the terrain's `aLand`; walls are terrain that `solidTop`
+  reports for the look-ahead; `ground` includes the villages' roofs), `FjordSites` (pure: fishing
+  villages that widen their strand (houses, church, boathouses, jetties, racks; solids that lift
+  the flight floor; streets) and waterfalls), `FjordScatter` (pure: forest, village parts, floes,
+  boulder beaches, seals, boats, gulls and eagles per chunk), `FjordDecor` (instancing, near/far,
+  casters, contact shadows), `rock` (per-pixel cliff relief, ledge snow, beach, streets, spray),
+  `cover`, `Waterfalls` (ribbons and spray), `atmosphere` (dawn fog banks, the aurora reflected
+  near the shore), `materials` (props with lit windows, bobbing boats, circling birds; water),
+  `geometry` (trees, ice, lighthouse), `shapes` (props), `FjordWisps`, `FjordWorld`. The aurora is
+  the `aurora` backdrop in `Sky`.
 - `world/jerusalem/`: `JerusalemLayout` (pure: designed Old City, valleys and landmarks round the
   origin blending into endless hills, wadis, terraces and towns; per-block parts, trees, roof
   clutter and stalls, and solids (oriented boxes, domed drums); low roofs are canopy; roads,

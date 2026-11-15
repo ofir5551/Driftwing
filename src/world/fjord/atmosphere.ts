@@ -261,9 +261,7 @@ export class AuroraReflection {
             glow += c * vv * swell * (1.0 - 0.25 * fi);
           }
           float fres = 0.35 + 0.65 * pow(1.0 - max(v.y, 0.0), 3.0);
-          // Broken into streaks by the ripples, as a reflection on water is.
-          float streak = 0.5 + 0.5 * sin(dot(rp, vec2(-v.z, v.x)) * 0.8 + rip.x * 160.0);
-          gl_FragColor = vec4(glow * uAurora * calm * fres * streak, 1.0);
+          gl_FragColor = vec4(glow * uAurora * calm * fres, 1.0);
           #include <colorspace_fragment>
         }`,
       transparent: true,

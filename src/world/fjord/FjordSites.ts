@@ -207,28 +207,45 @@ export class FjordSites {
     return v;
   }
 
-  /** Calls `fn` with every village whose reach might cover (x, z). */
-  near(x: number, z: number, reach: number, fn: (v: Village) => void): void {
+  /**
+   * Every village whose reach might cover (x, z), written into `out` (cleared first) and
+   * returned. The hot queries (the terrain, the flight floor) each pass their own array, so
+   * nothing allocates and a nested query never clobbers an outer one's list.
+   */
+  gather(x: number, z: number, reach: number, out: Village[]): Village[] {
+    out.length = 0;
     const H = this.homeVillage;
-    if (Math.abs(x - H.x) < reach && Math.abs(z - H.z) < reach) fn(H);
+    if (Math.abs(x - H.x) < reach && Math.abs(z - H.z) < reach) out.push(H);
     const C = Config.fjord.villageCell;
     for (let j = Math.floor((z - reach) / C); j <= Math.floor((z + reach) / C); j++)
       for (let i = Math.floor((x - reach) / C); i <= Math.floor((x + reach) / C); i++) {
         const v = this.village(i, j);
-        if (v && Math.abs(x - v.x) < reach && Math.abs(z - v.z) < reach) fn(v);
+        if (v && Math.abs(x - v.x) < reach && Math.abs(z - v.z) < reach) out.push(v);
       }
+    return out;
   }
+
+  /** Calls `fn` with every village whose reach might cover (x, z) (planning, tests). */
+  near(x: number, z: number, reach: number, fn: (v: Village) => void): void {
+    for (const v of this.gather(x, z, reach, [])) fn(v);
+  }
+
+  private readonly gShelf: Village[] = [];
+  private readonly gBuilt: Village[] = [];
+  private readonly gStreet: Village[] = [];
+  private readonly gFalls: Fall[] = [];
 
   /** Width the strand widens to round a village at (x, z) on side `side` (0 if none). */
   villageShelf(x: number, z: number, side: number): number {
     const K = Config.fjord;
     const R = K.villageReach;
     let w = 0;
-    this.near(x, z, R, (v) => {
-      if (v.side !== side) return;
-      const d = Math.hypot(x - v.x, z - v.z);
-      w = Math.max(w, smoothstep(R, R * 0.5, d));
-    });
+    const list = this.gather(x, z, R, this.gShelf);
+    for (let k = 0; k < list.length; k++) {
+      const v = list[k];
+      if (v.side !== side) continue;
+      w = Math.max(w, smoothstep(R, R * 0.5, Math.hypot(x - v.x, z - v.z)));
+    }
     return K.villageShelf * w;
   }
 
@@ -338,9 +355,11 @@ export class FjordSites {
   built(x: number, z: number): number {
     let top = -Infinity;
     const m = 2;
-    this.near(x, z, Config.fjord.villageReach + 60, (v) => {
-      this.plan(v);
-      const S = v.solids!;
+    const list = this.gather(x, z, Config.fjord.villageReach + 60, this.gBuilt);
+    // Plan first (planning reads heights, which gather villages into their own lists).
+    for (let k = 0; k < list.length; k++) if (!list[k].solids) this.plan(list[k]);
+    for (let q = 0; q < list.length; q++) {
+      const S = list[q].solids!;
       for (let k = 0; k < S.length; k += 7) {
         const dx = x - S[k];
         const dz = z - S[k + 1];
@@ -350,7 +369,7 @@ export class FjordSites {
         if (Math.abs(lx) < S[k + 4] + m && Math.abs(lz) < S[k + 5] + m)
           top = Math.max(top, S[k + 6]);
       }
-    });
+    }
     return top;
   }
 
@@ -360,15 +379,17 @@ export class FjordSites {
    */
   street(x: number, z: number, bank: number): number {
     let d = 99;
-    this.near(x, z, Config.fjord.villageReach, (v) => {
+    const list = this.gather(x, z, Config.fjord.villageReach, this.gStreet);
+    for (let k = 0; k < list.length; k++) {
+      const v = list[k];
       const a = (x - v.x) * v.ux + (z - v.z) * v.uz;
-      if (Math.abs(a) > v.span + 30 || Math.hypot(x - v.x, z - v.z) > v.span + 70) return;
+      if (Math.abs(a) > v.span + 30 || Math.hypot(x - v.x, z - v.z) > v.span + 70) continue;
       // Out past the houses the street narrows to a track and fades.
       const fade = smoothstep(v.span + 4, v.span + 30, Math.abs(a));
       d = Math.min(d, Math.abs(bank - STREET_BANK) / STREET_HALF + fade * 3);
       if (bank > 1 && bank < STREET_BANK)
-        for (const l of v.lanes) d = Math.min(d, Math.abs(a - l) / 1.5);
-    });
+        for (let q = 0; q < v.lanes.length; q++) d = Math.min(d, Math.abs(a - v.lanes[q]) / 1.5);
+    }
     return d;
   }
 
@@ -496,16 +517,18 @@ export class FjordSites {
     return f;
   }
 
-  /** Calls `fn` with every waterfall whose cell lies within `reach` of (x, z). */
-  nearFalls(x: number, z: number, reach: number, fn: (f: Fall) => void): void {
+  /** Every waterfall whose cell lies within `reach` of (x, z), into `out` (cleared first). */
+  gatherFalls(x: number, z: number, reach: number, out: Fall[]): Fall[] {
+    out.length = 0;
     const H = this.homeFall;
-    if (H && Math.abs(x - H.x1) < reach + 200 && Math.abs(z - H.z1) < reach + 200) fn(H);
+    if (H && Math.abs(x - H.x1) < reach + 200 && Math.abs(z - H.z1) < reach + 200) out.push(H);
     const C = Config.fjord.fallCell;
     for (let j = Math.floor((z - reach) / C); j <= Math.floor((z + reach) / C); j++)
       for (let i = Math.floor((x - reach) / C); i <= Math.floor((x + reach) / C); i++) {
         const f = this.fall(i, j);
-        if (f) fn(f);
+        if (f) out.push(f);
       }
+    return out;
   }
 
   /**
@@ -515,14 +538,16 @@ export class FjordSites {
    */
   wet(x: number, z: number): number {
     let d = 99;
-    this.nearFalls(x, z, 200, (f) => {
+    const list = this.gatherFalls(x, z, 200, this.gFalls);
+    for (let k = 0; k < list.length; k++) {
+      const f = list[k];
       const band = f.w * (f.strands > 1 ? 1.4 : 0.8) + 7;
       d = Math.min(
         d,
         segDist(x, z, f.x0, f.z0, f.x1, f.z1) / band,
         segDist(x, z, f.x1, f.z1, f.x2, f.z2) / (band * 0.6),
       );
-    });
+    }
     return d;
   }
 }

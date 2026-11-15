@@ -1,7 +1,7 @@
 import { Config } from '../../core/Config';
 import { lerp, smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, type Noise2D } from '../noise';
-import { FjordSites } from './FjordSites';
+import { FjordSites, type Village } from './FjordSites';
 
 /**
  * Aurora Fjords' plan as one pure, seeded function of position (no Three.js, unit-tested):
@@ -53,6 +53,7 @@ export class FjordLayout {
   private readonly nBirch: Noise2D;
   private readonly nSnow: Noise2D;
   private readonly nField: Noise2D;
+  private readonly gForest: Village[] = [];
   private readonly bergs = new Map<number, Berg | null>();
 
   constructor(seed: number) {
@@ -225,10 +226,12 @@ export class FjordLayout {
     const bank = this.fd - this.fw;
     const n = fbm(this.nForest, x * 0.006, z * 0.006, 2);
     let open = 1;
-    this.sites.near(x, z, Config.fjord.villageReach, (v) => {
+    const list = this.sites.gather(x, z, Config.fjord.villageReach, this.gForest);
+    for (let k = 0; k < list.length; k++) {
+      const v = list[k];
       const d = Math.hypot(x - v.x, z - v.z);
       open = Math.min(open, smoothstep(v.span + 10, v.span + 45, d) + smoothstep(42, 50, bank));
-    });
+    }
     return (
       smoothstep(-0.5, 0.15, n) *
       smoothstep(1.2, 3, y) *
@@ -236,6 +239,13 @@ export class FjordLayout {
       (1 - smoothstep(Config.fjord.treeline - 20, Config.fjord.treeline, y)) *
       Math.min(open, 1)
     );
+  }
+
+  /** Darkening under the forest for the ground's vertex colour (cheap: noise and height only). */
+  forestShade(x: number, z: number, y: number): number {
+    const n = fbm(this.nForest, x * 0.006, z * 0.006, 2);
+    const T = Config.fjord.treeline;
+    return smoothstep(-0.5, 0.15, n) * smoothstep(1.2, 3, y) * (1 - smoothstep(T - 20, T, y));
   }
 
   /** 0..1: the share of birch in the forest here (in drifts; spruce keep the steepest ground). */

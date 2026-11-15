@@ -25,9 +25,10 @@ const uniforms = {
       return K.rockRelief;
     },
   },
+  // The relief is skipped on low (render.rockDetail 0, as Jade River's flutes).
   uRockFar: {
     get value() {
-      return K.rockFar;
+      return Config.render.rockDetail > 0 ? K.rockFar : 1e-3;
     },
   },
   uRockLight: { value: new THREE.Color('#8f949c') },
@@ -57,8 +58,8 @@ float fjRelief(float al, float y, float low) {
   vec2 q = vec2(al * 0.055, y * 0.085);
   q += (vec2(gNoise(q * 0.6 + 3.1), gNoise(q * 0.6 + 7.7)) - 0.5) * 1.6;
   float sl = gNoise(q) * 4.0;
-  float plate = (floor(sl) + smoothstep(0.45, 1.0, fract(sl))) * 0.25;
-  return -fjGully(al, y) * 1.4 + plate * 0.9 * low + 0.3 * gNoise(vec2(al * 0.45, y * 0.3));
+  float plate = (floor(sl) + smoothstep(0.2, 1.0, fract(sl))) * 0.25;
+  return -fjGully(al, y) * 1.4 + plate * 0.45 * low + 0.3 * gNoise(vec2(al * 0.45, y * 0.3));
 }`;
 
 /** Colour pass: after GroundDetail's paint (anchored before alphamap_fragment). */
@@ -105,7 +106,8 @@ if (fRock > 0.0) {
   // Turf, moss and birch scrub cling to the gentler steps and ledges below the treeline, in
   // patches and along the ledges: the green-banded walls of a western fjord.
   float ledge = smoothstep(0.18, 0.5, fWN.y)
-    * smoothstep(0.55, 0.75, gNoise(vec2(al * 0.035, y * 0.05) + 2.0) * 0.7 + gNoise(vec2(al * 0.11, y * 0.09)) * 0.3 + 0.15 * fN1);
+    * smoothstep(0.55, 0.75, gNoise(vec2(al * 0.035, y * 0.05) + 2.0) * 0.7 + gNoise(vec2(al * 0.11, y * 0.09)) * 0.3 + 0.15 * fN1)
+    * smoothstep(0.3, 0.6, gNoise(vec2(al * 0.07, y * 0.02) + 6.0));
   vec3 turf = mix(vec3(0.24, 0.31, 0.18), vec3(0.33, 0.35, 0.2), gNoise(vec2(al * 0.05, y * 0.05)));
   rc = mix(rc, turf, ledge * (1.0 - smoothstep(60.0, 120.0, y + 20.0 * fN2)) * 0.85);
   // Far off the paint calms to the rock's mean (no shimmer).

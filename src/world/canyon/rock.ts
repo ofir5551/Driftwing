@@ -146,7 +146,7 @@ float cRock = 0.0;
     vec2 dir = vec2(cos(ang), sin(ang));
     float xb = dot(vGPos.xz, dir) * 0.3 + gNoise(vGPos.xz * 0.04) * 5.0 + vGPos.y * 0.9;
     float lines = smoothstep(0.7, 0.95, sin(xb * 2.4));
-    vec3 slc = mix(vec3(0.93, 0.76, 0.58), vec3(0.88, 0.56, 0.42), gNoise(vGPos.xz * 0.025 + 3.0));
+    vec3 slc = mix(vec3(0.8, 0.57, 0.38), vec3(0.74, 0.4, 0.27), gNoise(vGPos.xz * 0.025 + 3.0));
     slc *= (1.0 - 0.13 * lines) * (0.95 + 0.1 * n2);
     diffuseColor.rgb = mix(diffuseColor.rgb, slc, sl);
     cRock = sl;
@@ -155,7 +155,7 @@ float cRock = 0.0;
   float wbed = 1.0 - smoothstep(0.55, 1.0, vLand.y + 0.35 * (n1 - 0.5));
   if (wbed > 0.0) {
     float rip = sin(dot(vGPos.xz, vec2(0.8, 0.6)) * 2.2 + n1 * 4.0);
-    vec3 wc = vec3(0.9, 0.78, 0.6) * (0.96 + 0.05 * rip + 0.06 * (n2 - 0.5));
+    vec3 wc = vec3(0.76, 0.57, 0.36) * (0.96 + 0.05 * rip + 0.06 * (n2 - 0.5));
     wc *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.25, vLand.y));
     diffuseColor.rgb = mix(diffuseColor.rgb, wc, wbed * rGentle * (1.0 - cRock));
   }
@@ -163,7 +163,7 @@ float cRock = 0.0;
   float road = 1.0 - smoothstep(0.85, 1.15, vLand.x + 0.3 * (n1 - 0.5) + 0.12 * (n2 - 0.5));
   if (road > 0.0) {
     float rut = smoothstep(0.12, 0.0, abs(vLand.x - 0.5)) * (0.7 + 0.3 * n2);
-    vec3 rc = vec3(0.74, 0.55, 0.4) * (1.0 - 0.2 * rut) * (0.95 + 0.1 * n2);
+    vec3 rc = vec3(0.58, 0.4, 0.26) * (1.0 - 0.2 * rut) * (0.95 + 0.1 * n2);
     diffuseColor.rgb = mix(diffuseColor.rgb, rc, road * rGentle * 0.85);
   }
   // Shade on the cliff and bench under a dwelling's brow.

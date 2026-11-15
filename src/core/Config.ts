@@ -276,7 +276,7 @@ export const Config = {
     // bounce: warm light off the red walls into the canyon's shade; haze: dust in the canyons.
     canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4, bounce: 0.32, haze: 0.16 },
     peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.6 },
-    atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.4 },
+    atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.55 },
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
   },
   /** Ground cover (GroundCover): grass tufts and flowers on the terrain's own lattice. */

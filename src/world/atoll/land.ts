@@ -98,7 +98,7 @@ export const atollLandUniforms = {
     },
   },
   uAGrass: { value: new THREE.Color('#3d7a4e') },
-  uARubble: { value: new THREE.Color('#cdb6a2') },
+  uARubble: { value: new THREE.Color('#e3d3c0') },
   uAPool: { value: new THREE.Color('#2f95a3') },
   uACorals: {
     value: ['#e2809b', '#9c7ccb', '#d8b347', '#4db3a0', '#ea8a5c'].map((h) => new THREE.Color(h)),

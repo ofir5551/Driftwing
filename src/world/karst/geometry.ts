@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { smoothstep } from '../../core/math';
 import { gableGeometry, hipGeometry } from '../city/geometry';
 import { mulberry32 } from '../noise';
 import { colored, jitter, painted, topLit } from '../Trees';
-import { profile, type PillarShape } from './KarstLayout';
+import { profile } from './KarstLayout';
+import type { PillarSkin } from './skin';
 
 /**
  * Jade River's shapes. Pillars are lathed from the layout's profile in base radii (radius 1,
@@ -19,44 +20,39 @@ const MOSS = new THREE.Color('#6d9159');
 const MOSS_DARK = new THREE.Color('#4c6c48');
 
 /**
- * One pillar silhouette: fluted, lumpy limestone with dark vertical washes (rain streaks), moss
- * on every ledge that faces the sky and a green crown. Smooth-shaded so the toon bands sweep
- * round it like brush strokes.
+ * One pillar silhouette, lathed from its skin (profile times smooth flutes and lumps): dark
+ * vertical washes (rain streaks), moss on every ledge that faces the sky and a green crown.
+ * Smooth-shaded so the toon bands sweep round it like brush strokes. The body's rings are even
+ * from the buried foot to the dome; the dome's rings step evenly along its arc and stop short of
+ * the pole, so the summit stays round instead of pinching to a point. `SEG` x `RINGS` sets the
+ * tier (the hero tier near the bird, the mid tier, the coarse one in the haze).
  */
-export function pillarGeometry(
-  sh: PillarShape,
-  seed: number,
-  SEG = 16,
-  RINGS = 22,
-): THREE.BufferGeometry {
-  const rand = mulberry32(seed);
-  const ph = rand() * 10;
-  const ph2 = rand() * 10;
+export function pillarGeometry(skin: PillarSkin, SEG = 16, RINGS = 22): THREE.BufferGeometry {
+  const sh = skin.sh;
+  const rand = mulberry32(Math.round(skin.phase * 1e6));
+  const ph = skin.phase;
+  const ph2 = skin.phase2;
   const pos: number[] = [];
   const col: number[] = [];
   const idx: number[] = [];
   const c = new THREE.Color();
   const g = new THREE.Color();
+  const dome = Math.max(3, Math.round(RINGS * 0.3));
+  const body = RINGS - dome;
   for (let i = 0; i <= RINGS; i++) {
-    // Rings bunch up toward the summit, where the dome curves.
-    const u = i / RINGS;
-    const t = -0.04 + 1.025 * (1 - Math.pow(1 - u, 1.35));
+    const t =
+      i <= body
+        ? -0.04 + (sh.cap + 0.04) * (i / body)
+        : sh.cap + (1 - sh.cap) * Math.sin(((i - body) / (dome + 0.6)) * Math.PI * 0.5);
     const tc = Math.max(t, 0);
-    const rad = profile(sh, tc) * (t < 0 ? 1.04 : 1);
     const off = sh.lean * tc * tc * sh.aspect;
     // Ledges: where the profile narrows quickly going up, the rock faces the sky.
     const ledge = smoothstep(0.02, 0.07, profile(sh, tc) - profile(sh, Math.min(tc + 0.03, 0.999)));
     const crown = smoothstep(sh.cap - 0.1, sh.cap + 0.04, tc);
-    const rough = 1 - 0.6 * crown;
     for (let k = 0; k < SEG; k++) {
       const a = (k / SEG) * Math.PI * 2;
-      const flute =
-        1 +
-        rough *
-          (0.07 * Math.sin(a * 5 + ph + t * 4) +
-            0.04 * Math.sin(a * 11 + ph2 - t * 9) +
-            (rand() - 0.5) * 0.07);
-      pos.push(Math.cos(a) * rad * flute + off, t * sh.aspect, Math.sin(a) * rad * flute);
+      const rad = skin.radius(tc, a) * (t < 0 ? 1.04 : 1);
+      pos.push(Math.cos(a) * rad + off, t * sh.aspect, Math.sin(a) * rad);
       // Ink washes run down the walls in streaks that wander as they fall.
       const streak = 0.5 + 0.5 * Math.sin(a * 7 + ph * 3 + Math.sin(t * 9 + a * 2) * 1.5);
       c.copy(ROCK).lerp(ROCK_DARK, smoothstep(0.5, 0.95, streak) * 0.85 + rand() * 0.12);
@@ -86,6 +82,18 @@ export function pillarGeometry(
   geo.setIndex(idx);
   geo.computeVertexNormals();
   return geo;
+}
+
+/**
+ * Smooth-shaded copy of a low-poly foliage shape: coincident corners (same position and colour)
+ * are welded and the normals averaged, so the toon bands wrap round each lobe like a brush
+ * stroke instead of lighting every facet flat. Costs no triangles.
+ */
+export function soften(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  g.deleteAttribute('normal');
+  const w = mergeVertices(g, 1e-3);
+  w.computeVertexNormals();
+  return w;
 }
 
 /**
@@ -223,7 +231,7 @@ export function pavilionGeometry(): THREE.BufferGeometry {
 
 /** Paper lantern: a slightly tall ball (one shared shape, sized per instance). */
 export function lanternGeometry(): THREE.BufferGeometry {
-  return new THREE.SphereGeometry(0.5, 8, 6).scale(1, 1.25, 1);
+  return new THREE.SphereGeometry(0.5, 6, 4).scale(1, 1.25, 1);
 }
 
 /** Where things sit on the shapes above, in their local metres. */

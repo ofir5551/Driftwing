@@ -25,8 +25,12 @@ import {
   pillarGeometry,
   raftGeometry,
   RAFT_LANTERN,
+  soften,
 } from './geometry';
 import { profile, SHAPES, type KarstLayout, type Pillar } from './KarstLayout';
+import { setRockDetail, withRockDetail } from './rock';
+import { ShadowCasters } from '../ShadowCasters';
+import { SKINS } from './skin';
 
 /** Tree types in the shared Trees meshes. */
 const ROUND = 0;
@@ -84,17 +88,31 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
   private readonly material: THREE.MeshToonMaterial;
   private readonly rockMaterial: THREE.MeshToonMaterial;
   private readonly lanternMaterial: THREE.MeshBasicMaterial;
-  /** Pillar meshes: per shape, a detailed one near the bird and a coarse one in the haze. */
+  /**
+   * Pillar meshes per shape, in three tiers: the finest for the few whose flank is within
+   * render.heroDetail (none on low), a mid one out to pillarLod, a coarse one in the haze.
+   */
+  private readonly heroPillars: THREE.InstancedMesh[];
   private readonly pillars: THREE.InstancedMesh[];
   private readonly farPillars: THREE.InstancedMesh[];
+  /** Sun-shadow proxies of the pillars near the bird (high), in the mid shape. */
+  private readonly pillarCasters: ShadowCasters[];
+  private readonly heroCount = SHAPES.map(() => 0);
+  private readonly midCount = SHAPES.map(() => 0);
+  private readonly farCount = SHAPES.map(() => 0);
   private readonly houses: THREE.InstancedMesh[];
   private readonly rafts: THREE.InstancedMesh;
   private readonly pavilions: THREE.InstancedMesh;
   private readonly lanterns: THREE.InstancedMesh;
+  // Smooth-shaded foliage: the same triangles, but lobes read as rounded paint, not facets.
   readonly trees = new Trees(
     12000,
-    [roundTreeGeometry(), bambooGeometry(), pineGeometry()],
-    [roundTreeDetailGeometry(), bambooDetailGeometry(), pineDetailGeometry()],
+    [soften(roundTreeGeometry()), soften(bambooGeometry()), soften(pineGeometry())],
+    [
+      soften(roundTreeDetailGeometry()),
+      soften(bambooDetailGeometry()),
+      soften(pineDetailGeometry()),
+    ],
   );
   private readonly treeLists: number[][] = [];
 
@@ -105,20 +123,31 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
     );
     withMist(this.trees.material);
     this.lanternMaterial = new THREE.MeshBasicMaterial({ color: DAY_LANTERN.clone() });
-    // The rock carries the terrain's painted detail (strata, dabs of light); houses stay clean.
-    this.rockMaterial = withGroundDetail(
-      withMist(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() })),
+    // The rock carries the terrain's painted detail (strata, dabs of light) and its own
+    // limestone (flutes, streaks, ledge moss); houses stay clean.
+    this.rockMaterial = withRockDetail(
+      withGroundDetail(
+        withMist(
+          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+        ),
+      ),
     );
+    setRockDetail(this.rockMaterial, Config.render.rockDetail > 0);
     const rock = this.rockMaterial;
-    this.pillars = SHAPES.map((sh, i) => this.make(pillarGeometry(sh, 70 + i), 600, rock));
-    this.farPillars = SHAPES.map((sh, i) =>
-      this.make(pillarGeometry(sh, 70 + i, 9, 11), 1600, rock),
+    const K = Config.karst;
+    this.heroPillars = SKINS.map((sk) =>
+      this.make(pillarGeometry(sk, K.pillarSeg, K.pillarRings), 60, rock),
     );
+    const mid = SKINS.map((sk) => pillarGeometry(sk));
+    this.pillars = mid.map((g) => this.make(g, 600, rock));
+    this.farPillars = SKINS.map((sk) => this.make(pillarGeometry(sk, 9, 11), 1600, rock));
+    this.pillarCasters = mid.map((g) => new ShadowCasters(g, rock, 120));
     this.houses = [this.make(houseGeometry(1), 2500), this.make(houseGeometry(2), 1200)];
     this.rafts = this.make(raftGeometry(), 500);
     this.pavilions = this.make(pavilionGeometry(), 300);
     this.lanterns = this.make(lanternGeometry(), 5000, this.lanternMaterial);
     // Names show up in scripts/level-shots.mjs's triangle report.
+    this.heroPillars.forEach((m, i) => (m.name = `pillar-hero-${i}`));
     this.pillars.forEach((m, i) => (m.name = `pillar-${i}`));
     this.farPillars.forEach((m, i) => (m.name = `pillar-far-${i}`));
     this.houses.forEach((m, i) => (m.name = `house-${i + 1}storey`));
@@ -126,7 +155,9 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
     this.pavilions.name = 'pavilion';
     this.lanterns.name = 'lantern';
     this.group.add(
+      ...this.heroPillars,
       ...this.pillars,
+      ...this.pillarCasters.map((c) => c.mesh),
       ...this.farPillars,
       ...this.houses,
       this.rafts,
@@ -269,9 +300,12 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
   }
 
   rebuild(items: KarstChunk[], px: number, pz: number): void {
-    const pc = this.pillars.map(() => 0);
-    const fc = this.pillars.map(() => 0);
     const near2 = Config.karst.pillarLod ** 2;
+    const hero = Config.render.heroDetail;
+    const hc0 = this.heroCount.fill(0);
+    const pc = this.midCount.fill(0);
+    const fc = this.farCount.fill(0);
+    for (const c of this.pillarCasters) c.begin(px, pz, Config.world.chunkSize);
     const hc = [0, 0];
     let rc = 0;
     let vc = 0;
@@ -280,21 +314,34 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
     for (const it of items) {
       this.treeLists.push(it.trees);
       for (const pl of it.pillars) {
-        const near = (pl.x - px) ** 2 + (pl.z - pz) ** 2 < near2;
-        const mesh = (near ? this.pillars : this.farPillars)[pl.shape];
-        const counter = near ? pc : fc;
-        const k = counter[pl.shape];
+        // Distance to the rock's flank, not its axis: a giant's wall is near before its centre.
+        const axis = Math.hypot(pl.x - px, pl.z - pz);
+        const sh = pl.shape;
+        let mesh: THREE.InstancedMesh;
+        let counter: number[];
+        if (axis - pl.reach < hero && hc0[sh] < this.heroPillars[sh].instanceMatrix.count) {
+          mesh = this.heroPillars[sh];
+          counter = hc0;
+        } else if (axis * axis < near2) {
+          mesh = this.pillars[sh];
+          counter = pc;
+        } else {
+          mesh = this.farPillars[sh];
+          counter = fc;
+        }
+        const k = counter[sh];
         if (k >= mesh.instanceMatrix.count) continue;
         q.setFromAxisAngle(up, pl.yaw);
         m.compose(p.set(pl.x, pl.y0, pl.z), q, sc.set(pl.r, pl.r * pl.k, pl.r));
         mesh.setMatrixAt(k, m);
+        this.pillarCasters[sh].add(pl.x, pl.z, m);
         // Each pillar a slightly different stone: greyer, greener or warmer.
         const s = pl.seed;
         mesh.setColorAt(
           k,
           col.setRGB(0.9 + s * 0.14, 0.93 + (1 - s) * 0.1, 0.92 + ((s * 7) % 1) * 0.1),
         );
-        counter[pl.shape]++;
+        counter[sh]++;
       }
       const H = it.houses;
       for (let i = 0; i < H.length; i += 6) {
@@ -325,7 +372,9 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
         this.lanterns.setMatrixAt(lc++, m);
       }
     }
+    for (const c of this.pillarCasters) c.end();
     const counts: [THREE.InstancedMesh, number][] = [
+      ...this.heroPillars.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, hc0[i]]),
       ...this.pillars.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, pc[i]]),
       ...this.farPillars.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, fc[i]]),
       [this.houses[0], hc[0]],
@@ -344,12 +393,15 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
 
   /** Lanterns: red paper by day, glowing warm as the light goes. */
   frame(day: DayCycle): void {
+    setRockDetail(this.rockMaterial, Config.render.rockDetail > 0);
     const night = smoothstep(0.08, 0.6, day.palette.stars) * Config.karst.lanterns;
     this.lanternMaterial.color.copy(DAY_LANTERN).lerp(NIGHT_LANTERN, night);
   }
 
   dispose(): void {
+    for (const c of this.pillarCasters) c.dispose();
     for (const mesh of [
+      ...this.heroPillars,
       ...this.pillars,
       ...this.farPillars,
       ...this.houses,

@@ -397,6 +397,11 @@ export const Config = {
     pillarMax: 34, // m, base radius of the largest (before the dense-cluster boost)
     pillarTop: 250, // m, no summit rises above this (the ceiling is 320)
     pillarLod: 480, // m, beyond this pillars use the coarse mesh (chosen when chunks change)
+    pillarSeg: 32, // radial segments of the hero pillar mesh (within render.heroDetail)
+    pillarRings: 36, // rings of the hero pillar mesh
+    flutes: 1.0, // strength of the rock shader's vertical solution flutes (normal tilt)
+    streaks: 0.4, // darkness of the rock shader's rain streaks down the walls
+    mossLedges: 0.75, // rock-shader moss on sky-facing rock (ledges, shoulders)
     canopy: 9, // m, bamboo and groves count as soft ground this high
     // Atmosphere.
     mist: 0.85, // valley mist at dawn; it thins through the day and gathers again at dusk
@@ -599,6 +604,8 @@ export const Config = {
     propDistance: 650, // m, Highlands buildings, rocks and bushes are drawn within this
     smallPropDistance: 320, // m, walls, fences, hay, sheep, reeds, boats, flocks (0 = none)
     propDetail: 160, // m, bushes and boulders nearer than this use their detailed shapes
+    heroDetail: 260, // m, hero landmarks (karst pillars) whose flank is nearer use their finest mesh
+    rockDetail: 1, // 1 = the karst rock shader's flutes and streaks (a recompile when it changes)
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -630,6 +637,8 @@ export const QUALITY: Record<
     propDistance: number;
     smallPropDistance: number;
     propDetail: number;
+    heroDetail: number;
+    rockDetail: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -649,6 +658,8 @@ export const QUALITY: Record<
     propDistance: 280,
     smallPropDistance: 0,
     propDetail: 0,
+    heroDetail: 0,
+    rockDetail: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -667,6 +678,8 @@ export const QUALITY: Record<
     propDistance: 480,
     smallPropDistance: 200,
     propDetail: 110,
+    heroDetail: 120,
+    rockDetail: 1,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -685,6 +698,8 @@ export const QUALITY: Record<
     propDistance: 650,
     smallPropDistance: 320,
     propDetail: 160,
+    heroDetail: 260,
+    rockDetail: 1,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

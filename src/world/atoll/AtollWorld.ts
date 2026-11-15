@@ -126,7 +126,7 @@ export class AtollWorld implements World {
   flightGround(x: number, z: number): number {
     const L = this.layout;
     const h = L.height(x, z);
-    return Math.max(h + L.canopy(h), L.bungalowAt(x, z));
+    return Math.max(h + L.canopy(h), L.roofAt(x, z));
   }
 
   surfaceBelow(x: number, y: number, z: number): number {

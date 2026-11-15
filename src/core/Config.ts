@@ -392,6 +392,10 @@ export const Config = {
     rockMin: 8, // m, cap radius of the smallest mushroom rocks
     rockMax: 17, // m, of the largest
     rockLod: 450, // m, beyond this rocks use the coarse mesh (chosen when chunks change)
+    crest: 0.75, // m the reef crest rises in patches (bare rubble and tide pools at low water)
+    sandbars: 1, // 0..1 strength of the sand bars on the lagoons' sand flats
+    villageChance: 0.45, // chance an atoll other than home has a fishing village off an islet
+    homeVillage: 2.3, // rad round the home island (from +z) of its village's beach
     // Atmosphere and light.
     clarity: 0.8, // how clear the water is: 0 opaque (other levels), 1 glass-clear over the sand
     surf: 1, // brightness of the surf breaking on the outer reefs

@@ -1,6 +1,6 @@
 import { Config } from '../../core/Config';
 import { angleDelta, lerp, smoothstep } from '../../core/math';
-import { createNoise2D, fbm, hash2, type Noise2D } from '../noise';
+import { createNoise2D, fbm, hash2, mulberry32, type Noise2D } from '../noise';
 
 /**
  * Coral Atolls' plan as one pure, seeded function of position (no Three.js, unit-tested): deep
@@ -51,10 +51,29 @@ export interface Atoll {
   bungalows: number[];
   /** The pier's deck: x, z, yaw, length per straight run. */
   deck: number[];
+  /** A fishing village of stilt huts off a shore, or null (see `Village`). */
+  village: Village | null;
   home: boolean;
   /** Per-atoll random in [0, 1) for decor. */
   seed: number;
   /** Horizontal reach of anything the atoll shapes, from its centre. */
+  reach: number;
+}
+
+/**
+ * A fishing village: stilt huts over the lagoon off a beach, joined by plank walkways to the
+ * shore, with a few more huts on the sand behind.
+ */
+export interface Village {
+  /** Where the walkway leaves the beach, and the way it runs out over the water. */
+  x: number;
+  z: number;
+  yaw: number;
+  /** Huts: x, z, yaw (door toward the walkway), base y (0 over water, the sand on land), scale. */
+  huts: number[];
+  /** Walkway runs: x, z, yaw, length (planks at HUT_FLOOR). */
+  walks: number[];
+  /** Radius round (x, z) that holds every hut and walk (a quick reject for queries). */
   reach: number;
 }
 
@@ -121,6 +140,14 @@ const CELL_CACHE = 6000;
 export const BUNGALOW_TOP = 7.2;
 /** Height of the pier deck above the water. */
 export const DECK_Y = 2.1;
+/** Floor of a stilt hut (and the village walkways) above its base. */
+export const HUT_FLOOR = 2.0;
+/** Height of a stilt hut's roof ridge above its base, at scale 1. */
+export const HUT_TOP = 6.6;
+/** Floats per hut record in `Village.huts`. */
+export const HUT_STRIDE = 5;
+/** Height of a village walkway as soft ground: the bird skims over the planks. */
+const WALK_TOP = 2.7;
 
 export class AtollLayout {
   readonly seed: number;
@@ -139,6 +166,9 @@ export class AtollLayout {
   private readonly nOcean: Noise2D;
   private readonly nRock: Noise2D;
   private readonly nIsland: Noise2D;
+  private readonly nCrest: Noise2D;
+  private readonly nBar: Noise2D;
+  private readonly nGrass: Noise2D;
   private readonly atolls = new Map<number, Atoll | null>();
   private readonly cells = new Map<number, Rock[]>();
   /** Atolls near the last `near()` point (at most four can reach any point). */
@@ -152,6 +182,9 @@ export class AtollLayout {
     this.nOcean = createNoise2D(seed + 704);
     this.nRock = createNoise2D(seed + 705);
     this.nIsland = createNoise2D(seed + 706);
+    this.nCrest = createNoise2D(seed + 707);
+    this.nBar = createNoise2D(seed + 708);
+    this.nGrass = createNoise2D(seed + 709);
   }
 
   // --- Atolls ----------------------------------------------------------------------------------
@@ -206,6 +239,7 @@ export class AtollLayout {
       island: null,
       bungalows: [],
       deck: [],
+      village: null,
       home,
       seed: h(723),
       reach: R * 1.2 + w + 140,
@@ -255,6 +289,7 @@ export class AtollLayout {
       };
     }
     this.planPier(a, h);
+    this.planVillage(a, h);
     return a;
   }
 
@@ -309,6 +344,137 @@ export class AtollLayout {
       z = nz;
       yaw += bend;
     }
+  }
+
+  /**
+   * A fishing village of stilt huts: off the home island's shore on the spawn's left (ahead of
+   * the bird, across the island from the bungalows), elsewhere now and then off the lagoon side
+   * of an islet. A walkway of planks runs out over the water from the beach with huts either
+   * side of it (each on a short gangway) and a branch, and a few more huts stand on the sand
+   * behind. Huts only stand where the water is deep enough for stilts, clear of each other.
+   */
+  private planVillage(a: Atoll, h: (salt: number) => number): void {
+    const A = Config.atoll;
+    // This atoll's own ground (the cache is not filled yet, so not `height`).
+    const ay = (x: number, z: number): number => {
+      const y = this.atollY(a, x, z);
+      return a.island ? Math.max(y, this.islandY(a.island, x, z)) : y;
+    };
+    let sx: number;
+    let sz: number;
+    let yaw: number;
+    if (a.home && a.island) {
+      const I = a.island;
+      const th = A.homeVillage;
+      let d = I.r * 0.9;
+      while (d < I.r * 1.5 && ay(I.x + Math.sin(th) * d, I.z + Math.cos(th) * d) > 0.3) d += 1.5;
+      sx = I.x + Math.sin(th) * d;
+      sz = I.z + Math.cos(th) * d;
+      yaw = th;
+    } else {
+      if (h(760) > A.villageChance) return;
+      // An islet well round the ring from the pier and the island.
+      const pier = a.deck.length ? Math.atan2(a.deck[0] - a.x, a.deck[1] - a.z) : NaN;
+      const isle = a.island ? Math.atan2(a.island.x - a.x, a.island.z - a.z) : NaN;
+      let th = h(761) * Math.PI * 2;
+      let found = false;
+      for (let k = 0; k < 24 && !found; k++, th += 0.26)
+        found =
+          this.motuAt(a, th) > 0.9 &&
+          !(Math.abs(angleDelta(th, pier)) < 0.9) &&
+          !(Math.abs(angleDelta(th, isle)) < 0.8);
+      if (!found) return;
+      th -= 0.26;
+      // From the islet's crown in toward the lagoon until the sand meets the water.
+      let R = this.ringR(a, th) - a.w * 0.15;
+      const stop = R - a.w * 2;
+      while (R > stop && ay(a.x + Math.sin(th) * R, a.z + Math.cos(th) * R) > 0.3) R -= 1.5;
+      sx = a.x + Math.sin(th) * R;
+      sz = a.z + Math.cos(th) * R;
+      yaw = th + Math.PI;
+    }
+    const rnd = mulberry32(Math.floor(h(764) * 1e9));
+    const v: Village = { x: sx, z: sz, yaw, huts: [], walks: [], reach: 0 };
+    const H = v.huts;
+    const clear = (x: number, z: number, gap: number): boolean => {
+      for (let k = 0; k < H.length; k += HUT_STRIDE)
+        if (Math.hypot(x - H[k], z - H[k + 1]) < gap) return false;
+      return true;
+    };
+    // A hut at (x, z), its door toward (tx, tz); over the water it stands on a gangway.
+    const hut = (x: number, z: number, tx: number, tz: number, land: boolean): boolean => {
+      const y = ay(x, z);
+      if (land ? y < 0.7 || y > 3.5 : y > -0.6) return false;
+      if (land && Math.abs(ay(x + 3, z) - y) + Math.abs(ay(x, z + 3) - y) > 1.2) return false;
+      if (!clear(x, z, 9.5)) return false;
+      const s = 0.85 + 0.3 * rnd();
+      const yawH = Math.atan2(tx - x, tz - z);
+      H.push(x, z, yawH, land ? y : 0, s);
+      if (!land) {
+        // The gangway from the porch (3.2 m out at scale 1) to the walkway.
+        const d = Math.hypot(tx - x, tz - z);
+        const p0 = 3.2 * s;
+        const len = d - p0;
+        const mx = x + Math.sin(yawH) * (p0 + len / 2);
+        const mz = z + Math.cos(yawH) * (p0 + len / 2);
+        if (len > 0.3) v.walks.push(mx, mz, yawH, len + 0.3);
+      }
+      return true;
+    };
+    const step = 9;
+    const bend = (rnd() - 0.5) * 0.16;
+    const nodes = 6 + Math.floor(rnd() * 3);
+    let x = sx;
+    let z = sz;
+    let yw = yaw;
+    for (let k = 0; k < nodes; k++) {
+      const nx = x + Math.sin(yw) * step;
+      const nz = z + Math.cos(yw) * step;
+      if (k > 1 && ay(nx, nz) > -0.6) break; // aground on a bar or another shore
+      v.walks.push((x + nx) / 2, (z + nz) / 2, yw, step + 0.4);
+      if (k >= 1)
+        for (const side of [1, -1]) {
+          if (rnd() > 0.8) continue;
+          const c = Math.cos(yw) * side;
+          const sn = Math.sin(yw) * side;
+          hut(nx + c * 7.5, nz - sn * 7.5, nx + c * 0.8, nz - sn * 0.8, false);
+        }
+      if (k === 3) {
+        // A branch off to one side with a hut at its end.
+        const side = rnd() < 0.5 ? 1 : -1;
+        const by = yw + side * 1.25;
+        let bx = nx;
+        let bz = nz;
+        for (let b = 0; b < 2; b++) {
+          const ex = bx + Math.sin(by) * step;
+          const ez = bz + Math.cos(by) * step;
+          if (ay(ex, ez) > -0.6) break;
+          v.walks.push((bx + ex) / 2, (bz + ez) / 2, by, step + 0.4);
+          bx = ex;
+          bz = ez;
+        }
+        if (bx !== nx) hut(bx + Math.sin(by) * 6.5, bz + Math.cos(by) * 6.5, bx, bz, false);
+      }
+      x = nx;
+      z = nz;
+      yw += bend;
+    }
+    // Huts on the sand behind the beach, doors to the water.
+    for (let k = 0; k < 10; k++) {
+      const back = 9 + rnd() * 16;
+      const off = (rnd() - 0.5) * 44;
+      const hx = sx - Math.sin(yaw) * back + Math.cos(yaw) * off;
+      const hz = sz - Math.cos(yaw) * back - Math.sin(yaw) * off;
+      hut(hx, hz, hx + Math.sin(yaw) * 10, hz + Math.cos(yaw) * 10, true);
+    }
+    if (H.length === 0) return;
+    let reach = 0;
+    for (let k = 0; k < H.length; k += HUT_STRIDE)
+      reach = Math.max(reach, Math.hypot(H[k] - sx, H[k + 1] - sz) + 6);
+    for (let k = 0; k < v.walks.length; k += 4)
+      reach = Math.max(reach, Math.hypot(v.walks[k] - sx, v.walks[k + 1] - sz) + v.walks[k + 3]);
+    v.reach = reach;
+    a.village = v;
   }
 
   /** Reef centre-line radius at angle th round the atoll. */
@@ -409,11 +575,22 @@ export class AtollLayout {
     const W = a.w;
     // The reef flat, a hand under the water, rising to its crest on the ocean side.
     let y = -0.8 + 0.45 * smoothstep(-W, W * 0.8, s);
+    // The crest dries in patches at low water: rubble and coral bared a hand above the sea, with
+    // tide pools left between them (the terrain shader paints those).
+    if (s > -W * 0.3 && s < W * 0.8) {
+      const band = smoothstep(-W * 0.3, W * 0.15, s) * (1 - smoothstep(W * 0.5, W * 0.8, s));
+      const e = smoothstep(0.52, 0.72, 0.5 + fbm(this.nCrest, x * 0.025, z * 0.025, 2));
+      y += Config.atoll.crest * band * e;
+    }
     // Outside: the reef wall drops steeply, then the slope eases onto the ocean floor.
     if (s > W * 0.8)
       y = lerp(y, this.oceanY(x, z), Math.pow(smoothstep(W * 0.8, W * 0.8 + 150, s), 0.55));
     // Inside: pale sand flats deepening into the lagoon.
-    else if (s < -W) y = lerp(y, this.lagoonY(x, z), smoothstep(0, 110, -s - W));
+    else if (s < -W) {
+      y = lerp(y, this.lagoonY(x, z), smoothstep(0, 110, -s - W));
+      const sb = -s - W;
+      if (sb > 8 && sb < 105) y = this.sandBar(a, x, z, th, s, sb, y);
+    }
     const near = 1 - smoothstep(W, W + 60, Math.abs(s));
     if (near > 0) {
       // A pass: a channel through the reef, deep enough to read blue.
@@ -428,6 +605,43 @@ export class AtollLayout {
       }
     }
     return y;
+  }
+
+  /**
+   * Sand bars on the lagoon's sand flats: long, low ridges that wander roughly along the reef
+   * (the zero contour of a noise stretched round the ring), rising just clear of the water in
+   * stretches. They break the flats into channels and spits of white sand.
+   */
+  private sandBar(
+    a: Atoll,
+    x: number,
+    z: number,
+    th: number,
+    s: number,
+    sb: number,
+    y: number,
+  ): number {
+    const k = a.R / 150;
+    const n = fbm(
+      this.nBar,
+      Math.sin(th) * k + s * 0.012 + a.motuSeed,
+      Math.cos(th) * k - s * 0.009,
+      2,
+    );
+    const ridge = 1 - smoothstep(0.07, 0.17, Math.abs(n));
+    if (ridge <= 0) return y;
+    const keep = smoothstep(0.5, 0.62, 0.5 + fbm(this.nBar, x * 0.003 + 40, z * 0.003, 2));
+    const zone = smoothstep(8, 30, sb) * (1 - smoothstep(70, 105, sb));
+    const b = ridge * keep * zone * Config.atoll.sandbars;
+    return b > 0 ? Math.max(y, lerp(y, 0.35, b)) : y;
+  }
+
+  /** 0..1: seagrass meadows on the sandy shallows (painted on the seabed, grown near the bird). */
+  seagrass(x: number, z: number, y: number): number {
+    if (y > -0.4 || y < -4.5) return 0;
+    const m = smoothstep(0.5, 0.64, 0.5 + fbm(this.nGrass, x * 0.012, z * 0.012, 2));
+    if (m <= 0) return 0;
+    return m * smoothstep(-0.4, -1, y) * (1 - smoothstep(-3.2, -4.5, y)) * (1 - this.bommie(x, z));
   }
 
   /** A high island's height at (x, z), or -Infinity beyond its coast. */
@@ -483,6 +697,49 @@ export class AtollLayout {
     return -Infinity;
   }
 
+  /** Top of a village's hut roofs, or its walkways (soft ground), over (x, z), or -Infinity. */
+  villageAt(x: number, z: number): number {
+    let top = -Infinity;
+    for (const a of this.near(x, z)) {
+      const v = a.village;
+      if (!v) continue;
+      const dx = x - v.x;
+      const dz = z - v.z;
+      if (dx * dx + dz * dz > v.reach * v.reach) continue;
+      const H = v.huts;
+      for (let k = 0; k < H.length; k += HUT_STRIDE) {
+        const r = 4.4 * H[k + 4];
+        const hx = x - H[k];
+        const hz = z - H[k + 1];
+        if (hx * hx + hz * hz < r * r) top = Math.max(top, H[k + 3] + HUT_TOP * H[k + 4]);
+      }
+      const W = v.walks;
+      for (let k = 0; k < W.length; k += 4) {
+        const wx = x - W[k];
+        const wz = z - W[k + 1];
+        const ux = Math.sin(W[k + 2]);
+        const uz = Math.cos(W[k + 2]);
+        if (Math.abs(wx * ux + wz * uz) < W[k + 3] / 2 + 0.5 && Math.abs(wz * ux - wx * uz) < 1.4)
+          top = Math.max(top, WALK_TOP);
+      }
+    }
+    return top;
+  }
+
+  /** Bungalow roofs and the village's roofs and walkways: soft ground over the water. */
+  roofAt(x: number, z: number): number {
+    return Math.max(this.bungalowAt(x, z), this.villageAt(x, z));
+  }
+
+  /** Whether (x, z) is within `pad` of an atoll's village (its huts and walkways). */
+  nearVillage(x: number, z: number, pad: number): boolean {
+    for (const a of this.near(x, z)) {
+      const v = a.village;
+      if (v && Math.hypot(x - v.x, z - v.z) < v.reach + pad) return true;
+    }
+    return false;
+  }
+
   /** Soft canopy: palms on the islets and the coasts, jungle up the high islands. */
   canopy(y: number): number {
     return smoothstep(0.9, 1.9, y) * Config.atoll.canopy;
@@ -515,6 +772,8 @@ export class AtollLayout {
     if (this.height(x, z) > -3) return list;
     for (let k = 0; k < a.bungalows.length; k += 3)
       if (Math.hypot(x - a.bungalows[k], z - a.bungalows[k + 1]) < 40 + r) return list;
+    if (a.village && Math.hypot(x - a.village.x, z - a.village.z) < a.village.reach + 30 + r)
+      return list;
     // The spawn's opening run across the home lagoon stays open water.
     if (this.nearOpening(x, z, 45 + r)) return list;
     const shape = Math.floor(cellHash(i, j, s + 755) * ROCK_SHAPES.length);
@@ -746,7 +1005,7 @@ export class AtollLayout {
   /** Clearance for planning: `above` over ground, canopy and water, `margin` from rock and land. */
   clear(x: number, y: number, z: number, margin: number, above: number): boolean {
     const g = this.height(x, z);
-    const top = Math.max(g + this.canopy(g), this.bungalowAt(x, z), Config.world.waterLevel);
+    const top = Math.max(g + this.canopy(g), this.roofAt(x, z), Config.world.waterLevel);
     if (y < top + above) return false;
     if (this.solidTop(x, y, z, margin) !== -Infinity) return false;
     // Steep land beside the path (a high island's flank).

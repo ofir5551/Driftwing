@@ -8,6 +8,7 @@ import { highlandsCover } from '../world/highlands/crops';
 import { Islands } from '../world/Islands';
 import { createHeightField, getToonGradient, type LandField } from '../world/Terrain';
 import { withGroundDetail } from '../world/GroundDetail';
+import { mistUniforms, withMist } from '../world/Mist';
 import { HighlandsDecor, type HighlandsChunk } from '../world/highlands/HighlandsDecor';
 import { HighlandsLayout } from '../world/highlands/HighlandsLayout';
 import { propTime } from '../world/highlands/materials';
@@ -38,10 +39,13 @@ export class HighlandsWorld implements World {
     this.layout = new HighlandsLayout(this.field, seed);
     const ground = withLand(
       withGroundDetail(
-        new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+        withMist(
+          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+        ),
       ),
     );
     this.decor = new HighlandsDecor(this.layout);
+    withMist(this.decor.trees.material);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
       color: landColor,
@@ -86,6 +90,17 @@ export class HighlandsWorld implements World {
 
   frame(_dt: number, time: number, day: DayCycle): void {
     propTime.value = time;
+    // Mist lies in the valleys at first light and lifts by mid-morning; a thin far haze stays
+    // all day, so the ridges layer into the distance.
+    const H = Config.highlands;
+    const morning = Math.pow(0.5 + 0.5 * Math.cos(day.phase * Math.PI * 2), 3);
+    const mu = mistUniforms;
+    mu.uMist.value = H.mist * morning;
+    mu.uMistBase.value = 0;
+    mu.uMistTop.value = H.mistTop;
+    mu.uMistFar.value = H.mistFar;
+    mu.uMistColor.value.copy(day.palette.fog).lerp(day.palette.skyHorizon, 0.3);
+    mu.uMistTime.value = time;
     // Chimney smoke takes the sky's light and fades into the fog with distance.
     const p = day.palette;
     const u = this.decor.smokeMaterial.uniforms;
@@ -121,6 +136,9 @@ export class HighlandsWorld implements World {
   dispose(): void {
     this.chunks.dispose();
     this.islands.dispose();
+    mistUniforms.uMist.value = 0;
+    mistUniforms.uMistFar.value = 0;
+    mistUniforms.uMistColor.value.copy(WHITE);
   }
 }
 

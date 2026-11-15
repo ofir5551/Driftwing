@@ -181,6 +181,9 @@ export const Config = {
     smokeRise: 2.2, // m/s chimney smoke rises
     wallPieces: 6, // wall or fence pieces along a field's side (each follows the slope)
     flocks: 0.22, // chance a chunk has a flock of birds wheeling over it
+    mist: 0.5, // valley mist at dawn (it lifts through the morning)
+    mistTop: 26, // m, height the valley mist thins out by
+    mistFar: 0.06, // far haze, all day: layers the distant ridges
   },
   /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
   light: {

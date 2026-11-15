@@ -187,6 +187,7 @@ export class Game {
     Config.render.propDistance = q.propDistance;
     Config.render.smallPropDistance = q.smallPropDistance;
     Config.render.propDetail = q.propDetail;
+    Config.render.rockDetail = q.rockDetail;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
     this.applyLightToggles();

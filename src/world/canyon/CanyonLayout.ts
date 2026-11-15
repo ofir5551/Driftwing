@@ -1,14 +1,18 @@
 import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp, smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, type Noise2D } from '../noise';
+import { CanyonSites, browTop } from './CanyonSites';
 
 /**
  * Red Canyons' plan as one pure, seeded function of position (no Three.js, unit-tested):
  * canyons along the zero contours of a low-frequency noise, each a sandy floor with a green
  * river down its middle, walled by bands of rock (a cliff over a bench, four times) up to a
- * desert plateau that throws up flat-topped mesas away from the rims. Stone arches stand
- * across the canyon floors (the Great Arch ahead of the spawn) and out on the plateau, and
- * hoodoos crowd the rims and benches. The terrain, collisions and wisp planner all read it.
+ * desert plateau that throws up flat-topped mesas away from the rims. Scree piles at the foot
+ * of every cliff, dry washes wind across the floors and cut gullies into the plateau, and
+ * slickrock swells on the benches. Stone arches stand across the canyon floors (the Great Arch
+ * ahead of the spawn) and out on the plateau, and hoodoos crowd the rims and benches. Ranches
+ * and cliff dwellings (CanyonSites) level their ground. The terrain, collisions, scatter and
+ * wisp planner all read it.
  */
 
 /**
@@ -56,18 +60,37 @@ const cellHash = (i: number, j: number, seed: number) => hash2(i + 7919, j + 451
 /** Floor heights reach this at most (dunes included): anything higher is wall, rim or mesa. */
 const FLOOR_TOP = 4.8;
 
+/** Smooth maximum: max(a, b) with the corner rounded over `k`. */
+function smax(a: number, b: number, k: number): number {
+  const h = Math.max(k - Math.abs(a - b), 0) / k;
+  return Math.max(a, b) + h * h * k * 0.25;
+}
+
+/** A wash bed's cross-section: 1 in the middle of the bed, easing to 0 at its banks. */
+function washShape(d: number, w: number): number {
+  const t = 1 - smoothstep(0, w, d);
+  return t * t * (3 - 2 * t);
+}
+
 export class CanyonLayout {
   readonly seed: number;
   readonly spawn = { x: 0, y: 26, z: 0, yaw: 0 };
   readonly great: Arch = { x: 0, z: 0, y0: 0, yaw: 0, r: 1, h: 1, d: 1, seed: 0, canyon: true };
   /** The last solid a query hit, as a box: x0, y0, z0, x1, y1, z1 (y0 = base, y1 = top). */
   readonly hit = new Float64Array(6);
-  /** Scratch results of `canyon()`: noise value, its gradient (per metre), distance, half width. */
+  /**
+   * Scratch results of `canyon()`: noise value, its gradient (per metre), distance from the
+   * centre line, the floor's half width, and the signed distance (+ on the road's side).
+   */
   cv = 0;
   cgx = 0;
   cgz = 0;
   cd = 0;
   cw = 0;
+  cs = 0;
+  /** Scratch results of `terrain()`: distance to the nearest wash's bed (m), slickrock 0..1. */
+  wd = Infinity;
+  slick = 0;
   private greatOn = false;
   private widen = 0;
   private readonly nCanyon: Noise2D;
@@ -79,6 +102,9 @@ export class CanyonLayout {
   private readonly nDune: Noise2D;
   private readonly nScrub: Noise2D;
   private readonly nHoodoo: Noise2D;
+  private readonly nWash: Noise2D;
+  private readonly nSlick: Noise2D;
+  private sitesOrNull: CanyonSites | null = null;
   private readonly arches = new Map<number, Arch | null>();
   private readonly hoodoos = new Map<number, Hoodoo | null>();
   /** Scratch list of the arches near the last `nearArches` query (great arch included). */
@@ -95,8 +121,27 @@ export class CanyonLayout {
     this.nDune = createNoise2D(seed + 607);
     this.nScrub = createNoise2D(seed + 608);
     this.nHoodoo = createNoise2D(seed + 609);
+    this.nWash = createNoise2D(seed + 630);
+    this.nSlick = createNoise2D(seed + 631);
     this.findSpawn();
     this.placeGreat();
+    this.sitesOrNull = new CanyonSites(this);
+  }
+
+  /** The ranches and cliff dwellings. */
+  get sites(): CanyonSites {
+    return this.sitesOrNull!;
+  }
+
+  /**
+   * Run `fn` and put back the scratch results of `canyon()` and `terrain()`: a site placed
+   * lazily inside a query must not change what the caller reads after it.
+   */
+  preserving<T>(fn: () => T): T {
+    const { cv, cgx, cgz, cd, cw, cs, wd, slick } = this;
+    const out = fn();
+    Object.assign(this, { cv, cgx, cgz, cd, cw, cs, wd, slick });
+    return out;
   }
 
   // --- Canyons ---------------------------------------------------------------------------------
@@ -122,6 +167,7 @@ export class CanyonLayout {
     this.cgx = gx;
     this.cgz = gz;
     this.cd = Math.abs(v) / g;
+    this.cs = v / g;
     const K = Config.canyon;
     let w = K.floorMin + (K.floorMax - K.floorMin) * (0.5 + 0.5 * this.nWidth(x * 7e-4, z * 7e-4));
     // The floor opens out round the Great Arch so its legs stand on sand, not in the wall.
@@ -226,17 +272,67 @@ export class CanyonLayout {
 
   // --- Ground ----------------------------------------------------------------------------------
 
-  /** 0..1 rock band profile up a wall: four cliffs, each over a bench, at uneven heights. */
+  /** 0..1 height of band edge `i` up a wall (uneven bands). */
+  private band(i: number): number {
+    const n = Config.canyon.bands;
+    return i <= 0 ? 0 : i >= n ? 1 : (i + 0.22 * Math.sin(i * 2.3 + 1)) / n;
+  }
+
+  /** Bench share at the last `stepped()` point (0 on a cliff, 1 out on a bench). */
+  private benchness = 0;
+
+  /**
+   * 0..1 rock band profile up a wall: four cliffs, each over a bench, at uneven heights, with
+   * scree piled at the foot of every cliff. `t` may be a little below 0: the floor just short
+   * of the wall, where the lowest apron starts.
+   */
   private stepped(t: number): number {
     const K = Config.canyon;
     const n = K.bands;
     const tt = t * n;
     const k = Math.min(Math.floor(tt), n - 1);
     const f = tt - k;
-    const band = (i: number) => (i <= 0 ? 0 : i >= n ? 1 : (i + 0.22 * Math.sin(i * 2.3 + 1)) / n);
-    const lo = band(k);
-    const hi = band(k + 1);
-    return lo + (hi - lo) * (smoothstep(0, K.cliff, f) * 0.88 + 0.12 * smoothstep(K.cliff, 1, f));
+    const lo = this.band(k);
+    const hi = this.band(k + 1);
+    let y = lo + (hi - lo) * (smoothstep(0, K.cliff, f) * 0.88 + 0.12 * smoothstep(K.cliff, 1, f));
+    // Talus against this band's cliff and the next one's (which starts at f = 1).
+    y = smax(y, this.apron(k, f), 0.012);
+    if (k + 1 < n) y = smax(y, this.apron(k + 1, f - 1), 0.012);
+    this.benchness =
+      k < 0 ? 0 : smoothstep(K.cliff + 0.05, K.cliff + 0.2, f) * smoothstep(1, 0.8, f);
+    return y;
+  }
+
+  /**
+   * Scree at the foot of cliff `k`, `u` band runs from its foot (negative: out on the bench
+   * below): a concave apron at about the angle of repose, climbing K.talus of the cliff's rise.
+   * It starts below the bench it lies on, so the two meet without a step.
+   */
+  private apron(k: number, u: number): number {
+    const K = Config.canyon;
+    const run = K.talusRun;
+    if (k < 0 || u < -run) return -1;
+    const lo = this.band(k);
+    const rise = (this.band(k + 1) - lo) * 0.88;
+    const s = Math.min((u + run) / (run + 0.12), 1);
+    return lo + rise * (-0.1 + (K.talus + 0.1) * s ** 1.6);
+  }
+
+  /** A wall's band coordinate here (0 at its foot, 1 at the rim; negative on the floor). */
+  wallT(x: number, z: number): number {
+    const K = Config.canyon;
+    const t0 = this.canyon(x, z) / K.wall;
+    return t0 + fbm(this.nLedge, x * 0.011, z * 0.011, 2) * 0.07 * smoothstep(0, 0.12, t0);
+  }
+
+  /** Distance (m) from (x, z) to the nearest dry wash's bed line (first order, as the canyons). */
+  private washDist(x: number, z: number): number {
+    const f = Config.canyon.washScale;
+    const e = 3;
+    const v = this.nWash(x * f, z * f);
+    const gx = (this.nWash((x + e) * f, z * f) - v) / e;
+    const gz = (this.nWash(x * f, (z + e) * f) - v) / e;
+    return Math.abs(v) / Math.max(Math.hypot(gx, gz), 1e-6);
   }
 
   /** Height of the rim (and the plateau behind it, before mesas) here. */
@@ -257,11 +353,23 @@ export class CanyonLayout {
   }
 
   /**
-   * Terrain: a river bed, a sandy floor rising gently to the wall's foot, then the wall's rock
-   * bands up to the rim. The ledges meander (the band profile is read at a shifted distance,
-   * so the strata stay level), and beyond the rim the plateau swells into mesas.
+   * The ground as drawn: the terrain, levelled for the ranches' pads and cut back at the cliff
+   * dwellings' feet (CanyonSites).
    */
   height(x: number, z: number): number {
+    const y = this.terrain(x, z);
+    const S = this.sitesOrNull;
+    return S ? S.shape(x, z, y) : y;
+  }
+
+  /**
+   * Terrain before the sites: a river bed, a sandy floor rising gently to the wall's foot, then
+   * the wall's rock bands up to the rim, with scree at the foot of each cliff. The ledges
+   * meander (the band profile is read at a shifted distance, so the strata stay level), dry
+   * washes dip across the floor and cut gullies into the plateau, slickrock swells on the
+   * benches and the plateau, and beyond the rim the plateau rises into mesas.
+   */
+  terrain(x: number, z: number): number {
     const K = Config.canyon;
     const bank = this.canyon(x, z);
     const d = this.cd;
@@ -269,25 +377,92 @@ export class CanyonLayout {
     const rw = this.river(x, z);
     const s = d - rw;
     const dune = this.nDune(x * 0.02, z * 0.02);
-    const floor =
+    let floor =
       0.6 + 2.6 * smoothstep(0, Math.max(w - rw, 1), s) + 0.7 * dune * smoothstep(3, 12, s);
+    this.wd = Infinity;
+    this.slick = 0;
+    // Dry washes wander across the floor to the river, fading out before the wall's scree.
+    if (s > 4 && bank < -2) {
+      this.wd = this.washDist(x, z);
+      floor -=
+        K.washDepth *
+        washShape(this.wd, K.washWidth) *
+        smoothstep(4, 10, s) *
+        smoothstep(-2, -14, bank);
+    }
     let y = lerp(-5 + 1.5 * this.nDune(x * 0.01, z * 0.01), floor, smoothstep(-7, 1.5, s));
-    if (bank > 0) {
+    const pre = (K.talusRun * K.wall) / K.bands; // the lowest apron reaches out this far
+    if (bank > -pre) {
       const t0 = bank / K.wall;
       const wob = fbm(this.nLedge, x * 0.011, z * 0.011, 2) * 0.07 * smoothstep(0, 0.12, t0);
-      const t = clamp(t0 + wob, 0, 1);
+      const t = Math.min(t0 + wob, 1);
       y = floor + (this.rim(x, z) - floor) * this.stepped(t);
+      const tc = clamp(t, 0, 1);
       // Fallen blocks and gullies roughen the cliffs a little without tilting the strata.
-      y += 2.2 * this.nLedge(x * 0.06, z * 0.06) * Math.sin(Math.PI * t);
+      y += 2.2 * this.nLedge(x * 0.06, z * 0.06) * Math.sin(Math.PI * tc);
+      // Slickrock: bare sandstone swelling into low domes on the benches and the plateau.
+      const flat = Math.max(this.benchness * 0.45, smoothstep(K.wall + 5, K.wall + 30, bank));
+      if (flat > 0 && t0 > 0.2) {
+        const m = smoothstep(0.05, 0.45, this.nSlick(x * 0.005, z * 0.005)) * flat;
+        if (m > 0) {
+          const dome = this.nSlick(x * 0.035 + 9.1, z * 0.035 - 3.7);
+          y += K.slickrock * m * (0.55 + 0.45 * dome);
+          this.slick = m;
+        }
+      }
+      // Washes cut gullies into the plateau, stopping short of the rim.
+      if (bank > K.wall + 10) {
+        this.wd = this.washDist(x, z);
+        y -=
+          K.gullyDepth *
+          washShape(this.wd, K.washWidth * 1.8) *
+          smoothstep(K.wall + 10, K.wall + 40, bank);
+      }
       if (bank > K.wall + 50)
         y += this.mesaShape(x, z) * K.mesa * smoothstep(K.wall + 50, K.wall + 240, bank);
     }
     return y;
   }
 
-  /** What the bird flies over: the terrain (scrub and juniper are too small to skim). */
+  /**
+   * What rock.ts paints on the ground at (x, z), height y, into out[o..o+3]: the distance from
+   * the road's centre line over its half width, from a wash's bed line over its half width
+   * (large where the wash has faded out), slickrock 0..1, and the shade under a dwelling's brow.
+   */
+  landAt(x: number, z: number, y: number, out: Float32Array, o: number): void {
+    const K = Config.canyon;
+    const bank = this.canyon(x, z);
+    out[o] = bank < -1 ? Math.abs(this.cs - K.roadOffset) / K.roadWidth : 99;
+    const s = this.cd - this.river(x, z);
+    let wash = 99;
+    if (s > 4 && bank < -2) {
+      const fade = smoothstep(4, 10, s) * smoothstep(-2, -14, bank);
+      if (fade > 0.05) wash = this.washDist(x, z) / (K.washWidth * fade);
+    } else if (bank > K.wall + 10) {
+      const fade = smoothstep(K.wall + 10, K.wall + 40, bank);
+      if (fade > 0.05) wash = this.washDist(x, z) / (K.washWidth * 1.8 * fade);
+    }
+    out[o + 1] = Math.min(wash, 99);
+    out[o + 2] =
+      bank > K.wall * 0.2 ? smoothstep(0.05, 0.45, this.nSlick(x * 0.005, z * 0.005)) : 0;
+    out[o + 3] = this.sitesOrNull?.shade(x, z, y) ?? 0;
+  }
+
+  /**
+   * What the bird flies over: the terrain, lifted over the ranches' roofs and the dwellings'
+   * brows (scrub, juniper and the rooms under a brow are too small to skim).
+   */
   ground(x: number, z: number): number {
-    return this.height(x, z);
+    const y = this.height(x, z);
+    const S = this.sitesOrNull;
+    return S ? S.lift(x, z, y) : y;
+  }
+
+  /** The rock here: terrain, or a dwelling's brow over it. */
+  private rockTop(x: number, z: number): number {
+    const y = this.height(x, z);
+    const a = this.sitesOrNull?.alcoveNear(x, z);
+    return a ? Math.max(y, browTop(a, x, z)) : y;
   }
 
   /** 0..1 sagebrush and juniper cover: patchy everywhere dry, thickest on the plateau. */
@@ -488,9 +663,11 @@ export class CanyonLayout {
       yaw: cellHash(i, j, s + 626) * Math.PI * 2,
       slim: cellHash(i, j, s + 627) < 0.5,
     };
-    // Never inside an arch's rock.
+    // Never inside an arch's rock, nor in a cliff dwelling's shelter.
     for (const a of this.nearArches(x, z))
       if (this.inArch(a, x, hd.y0 + hd.h * 0.5, z, r + 4)) return null;
+    const al = this.sites.alcoveNear(x, z);
+    if (al && Math.hypot(x - al.x, z - al.z) < al.w + al.reach + 6) return null;
     return hd;
   }
 
@@ -555,7 +732,7 @@ export class CanyonLayout {
     for (const a of this.nearArches(x, z)) if (this.inArch(a, x, y, z, margin)) return this.hit[4];
     if (y < Config.canyon.plateau + Config.canyon.mesa + 60 && this.hoodooAt(x, y, z, margin))
       return this.hit[4];
-    const g = this.height(x, z);
+    const g = this.rockTop(x, z);
     if (g < FLOOR_TOP || y > g + margin) return -Infinity;
     const H = this.hit;
     H[0] = x - 1;

@@ -75,8 +75,13 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; queries), `collide`
   (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
   `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.
-- `world/karst/`: `KarstLayout` (pure: rivers, pillars + shared radius profile, terrain, queries),
-  `KarstWisps` (river/slalom/spiral planner), `KarstDecor`, `geometry`, `KarstWorld`.
+- `world/karst/`: `KarstLayout` (pure: rivers, terraced paddies, footpaths and bridges, pillars +
+  shared radius profile, terrain, queries), `skin` (pure: the rock surface every pillar tier is
+  lathed from), `KarstScatter` (pure: trees, villages, pagodas, bridges, boats, boulders, vines,
+  buffalo per chunk), `KarstDecor` (instancing, LOD, casters, contact shadows), `Land` (ground
+  colour; paddies and paths painted in the terrain shader from `aKarst`), `cover` (ground cover
+  with rice), `rock` (limestone shader), `RiverMist`, `KarstWisps` (river/slalom/spiral planner),
+  `geometry` (rock, bamboo), `shapes` (props), `KarstWorld`.
   `world/Mist.ts`: shared valley-mist uniforms + `withMist` material patch (also in `Water`).
 - `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain, icebergs, lighthouse;
   walls are terrain that `solidTop` reports for the look-ahead), `FjordWisps`, `FjordDecor`,

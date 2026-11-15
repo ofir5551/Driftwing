@@ -82,7 +82,9 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
   gathering bright sky, before bloom; skipped when the sun is down or off screen.
 - **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
   terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
-  in with a `CoverStyle` on its `ChunkManager`; the Highlands for now.
+  in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River, City of Gold and Red
+  Canyons, whose style adds its own shapes: sagebrush, prickly pear, tumbleweeds); `paint` gets
+  every component of the style's `extra` attribute (`t.extras`).
 
 ## Levels
 
@@ -199,14 +201,41 @@ along it. Limestone pillars stand on a 72 m jittered grid (up to two per cell, d
 clustering noise, giants in the dense clusters), never within reach of a river. Five
 silhouettes (sugarloaf, dome, needle, leaning, pot-bellied) are lathed from one radius profile
 (flared foot, belly, narrowing neck, round summit dome, lean) that the collisions use as well.
-Each has fluted rock with dark rain streaks, moss on ledges, pines on the crown, shrubs on the
-walls and a scree mound in the terrain; some summits carry a red pavilion. The valley floor has
-terraced paddies (flooded, young, ripening), bamboo along the banks, broadleaf groves,
-whitewashed villages with dark gable roofs, and cormorant fishers' rafts on the water.
+Every mesh tier (hero within `render.heroDetail`, mid, far) is lathed from one shared skin
+(the profile times smooth noise lumps), so tiers match and vines can sit on the stone; the
+summit dome's rings step along its arc (no pinched apex). The limestone shader (`rock.ts`) adds
+vertical flutes, rain streaks and moss on every sky-facing ledge; pines crown the summits,
+shrubs and vine curtains cling to the walls, mossy boulders lie on the scree mound at the foot.
+Some summits carry a red pavilion, some lower ones a seven-storey pagoda.
 
-Atmosphere: a valley mist (shared uniforms, patched into the level's toon materials and the
-water shader) lies below ~55 m, drifts in slow banks, clears near the bird and thickens with
-distance; it is thickest at dawn and thins by midday. A distance haze fades far pillars in
+The lived-in valley: the paddy country swells into low hills cut into level terraces (1.1 m
+steps); the terrain shader paints each field along the terrace contours (flooded mirrors of the
+sky with a sun glint, young green rice, ripening gold) with bunds between, and the ground cover
+grows the rice in them. Footpaths wander between the villages along the zero contours of their
+own noise, a towpath follows each bank, and where a path meets the river a multi-arch stone
+bridge crosses it. Villages of whitewashed houses and halls under upturned eaves (every roof
+under the village's soft flight floor), cormorant fishers' rafts, sampans moored off the
+villages, water buffalo in the paddies and wallowing in the shallows, farmers in conical hats.
+Reeds stand at the water's edge, bamboo and broadleaf groves (with undergrowth) line the banks
+and the inland woods; the paddies stay open fields.
+
+- Code: `world/karst/`: `KarstLayout` (pure: rivers, terraces, paths, bridges, pillars and
+  queries), `skin` (the shared rock surface), `KarstScatter` (pure: trees, buildings, boats,
+  boulders, vines, life per chunk), `KarstDecor` (instancing, LOD, shadows), `Land` (ground
+  colour and the paddy/path shader), `cover`, `rock`, `RiverMist`, `geometry` (rock, bamboo),
+  `shapes` (props), `KarstWisps`, `KarstWorld`.
+- Per preset: hero pillars off / 120 / 260 m, rock flutes and streaks off / on / on, houses and
+  boats out to the tree distance (near shapes within twice `propDetail`), boulders, buffalo and
+  farmers within `smallPropDistance`, vines within 1.6x that, grass and rice off / 60 / 80 m.
+  Pillars, buildings, bridges, boats and boulders cast sun shadows on high; props get contact
+  shadows on medium and high.
+- Cost (whole frame, 390x844, three views): medium 325-372k / ~132 calls (was 385-405k / ~115),
+  high 626-714k / ~168 (was 664-684k / ~148), low 170-178k / ~92 (was 205-224k / ~90).
+
+Atmosphere: a valley mist (shared uniforms, patched into the level's toon materials, the
+ground and the water shader) lies below ~55 m, drifts in slow banks, clears near the bird and thickens with
+distance; it is thickest at dawn and thins by midday. At first light long sheets of river mist
+lie a few metres over the water near the bird, gone by mid-morning. A distance haze fades far pillars in
 layers. Low billboard mist banks drift between the pillars. Three rings of karst peaks are
 painted round the horizon in the sky dome, each layer a deeper wash with mist at its foot.
 Lanterns (houses, rafts, pavilions) are red paper by day and glow (HDR, bloomed) after dark.
@@ -215,8 +244,9 @@ falling grace notes, over a sine pad, a root-and-fifth drone and deep reverb, no
 walks the Chinese modes: shang at dawn, gong by day, zhi at golden hour, jue at dusk, yu at night.
 
 Flight: pillars are solid but soft, flown with the city's look-ahead and wall glance; the
-summit dome pushes up (skim it), the walls push straight out from the axis. Wisps: the river
-is the spine (low ribbons following its bends); slaloms weave between pillars (of the clear
+summit dome pushes up (skim it), the walls push straight out from the axis. Village roofs and
+bridge decks are soft ground (the floor rises over them, eased along the river at a bridge).
+Wisps: the river is the spine (low ribbons following its bends, hopping over the bridges); slaloms weave between pillars (of the clear
 candidates, the one passing most rock wins); now and then a spiral climbs the last ~100 m of a
 tall pillar and crosses its summit. Every pattern is checked 9 m clear of rock and ground, and
 a slowly updated trend heading keeps the ribbon from doubling back.
@@ -299,6 +329,41 @@ lowpass, settling from a touch sharp as on a fretless neck, with the odd risha t
 BPM over a sine pad and an open-fifth drone, qanun-like ripples with flow, maqsum on a frame
 drum; nahawand at dawn and dusk, major pentatonic by day, hijaz in the golden hour and at night.
 
+The country is lived in (`world/jerusalem/`). Roads leave the gates (Jaffa Road, the Hebron
+and Nablus roads, the Jericho road over the Mount of Olives, the road along the north wall);
+in the hills, roads wind between the towns (a noise's zero lines) and one follows a bank of
+every wadi; footpaths wander and peter out. Every valley floor has a dry bed of pale pebbles
+with oleanders in pink flower along its banks, and the level floors are walled fields (stubble,
+red plough, green crop, fallow) instead of terraces. The orchard slopes step down in terraces
+with a dry-stone wall along every riser (traced along the contour), olives on the flats.
+Limestone breaks out of the steep and high ground in bedded shelves and boulders; grey-green
+garrigue (thorny burnet, sage) grows in drifts; goats and sheep graze with a shepherd;
+cypresses line stretches of road. The ground cover is dry golden grass in patches with bare
+stony ground and cushions of thyme, red anemones under the olives, spring flowers in drifts.
+Roofs carry black water tanks, washing lines and pots; market stalls line David Street, the
+Cardo, the way in from Lions Gate and the town roads; swifts wheel over the roofs.
+
+Light: the stone has rounded arrises painted into its normals and weathering that holds at a
+distance; tree crowns are soft (rounded normals, painted leaf clumps); house domes near the
+bird are rounder. The golden hour keeps a cool sky fill: the hemisphere is blue-lavender,
+stone turned from the sun takes the sky's hue, and the far haze leans toward the sky above
+rather than the horizon, so shade reads blue-violet against the gold. On high the stone,
+walls and big props cast sun shadows; props get contact shadows on medium and high.
+
+- Code: `JerusalemLayout` (pure: also the tracks as signed distances, the walled fields, roof
+  clutter and stalls on the houses), `JerusalemScatter` (pure, per chunk: terrace and field
+  walls, rocks, garrigue, oleanders, flocks, swifts, road cypresses), `props` (records),
+  `land` (the terrain's `aJLand`: road, path and bed distances and the habitat; roads, paths,
+  beds and risers painted in the terrain shader), `cover` (the ground-cover style), `shapes`,
+  `materials` (stone, foliage detail, the props' painted dry stone), `JerusalemDecor`.
+- Per preset: props within `propDistance` 280 / 480 / 650 m (rocks, garrigue, oleanders; low
+  keeps only these), small props within `smallPropDistance` 0 / 200 / 320 m (walls, animals,
+  roof clutter, stalls, swifts), near shapes and round domes within `propDetail` 0 / 110 /
+  160 m, distant tree shapes beyond `treeFar` - / 330 / 470 m, grass ring off / 60 / 80 m.
+- Cost at the review's viewpoints (triangles / draw calls, whole frame, golden hour): medium
+  281-373k / 122-148 (was 301-391k / 108-128), high 561-694k / 159-193 (was 582-680k /
+  143-173), low 147-209k / 82-99 (was 139-210k / 81-95).
+
 Wisps: the opening ribbon glides down off the Mount of Olives across the Kidron, over the east
 wall, swings round the golden dome and runs low along David Street to Jaffa Gate. Then: swoops
 that hug the land (12 m over roofs, 16 m elsewhere), weaving gently either side of a slowly
@@ -318,12 +383,32 @@ Plan: canyons run along the zero contour of a low-frequency noise (as the fjords
 9-16 m either side of the centre line, a sandy floor rising gently to the wall's foot (38-82 m
 from the centre), then a wall of four rock bands, each a cliff over a bench, at uneven heights,
 up to a rim ~125 m above the river, over a 120 m run. The band profile is read at a distance
-shifted by noise, so the ledges meander while the strata stay level. Beyond the rim the plateau
-swells gently and throws up flat-topped mesas (a talus skirt, sheer walls, now and then a butte
-stepped on top) away from the canyons. The ground is painted in level bands of deep red, rust,
-orange and pale sandstone with desert varnish streaking the steepest faces and cream caprock on
-the mesa tops. Cottonwoods line the river, sagebrush and juniper scatter the floors and plateau,
-and banded hoodoos with darker cap stones crowd the rims and the wider benches.
+shifted by noise, so the ledges meander while the strata stay level. Scree piles at the foot of
+every cliff (a concave apron at about the angle of repose, a fifth of the cliff's rise), dry washes
+wander across the floors as sandy beds and cut gullies into the plateau, and slickrock swells into
+low bare domes on the plateau (and a little on the benches). Beyond the rim the plateau swells
+gently and throws up flat-topped mesas (a talus skirt, sheer walls, now and then a butte stepped on
+top) away from the canyons. The rock is painted per pixel from world height (`rock.ts`): uneven
+level layers of deep red, rust, orange and pale sandstone pulled toward one family, a dark seam
+under each ledge, fine laminations, desert varnish hanging in streaks down the steep faces and
+vertical flutes (a tilt of the normal) down the cliffs; the arches, hoodoos, boulders and the
+dwellings' brows wear the same layers at the same heights. The floor's ground is painted from a
+per-vertex field (`aLand`): the road with its wheel ruts, rippled wash beds, cross-bedded
+slickrock in cream and salmon, rubble on the scree. A green corridor follows the river: lush grass,
+cottonwoods, coyote willow at the water's edge; sagebrush, bunchgrass, rabbitbrush in yellow bloom,
+prickly pear and tumbleweeds scatter the dry floors and plateau, wildflowers fill the washes as if
+after rain, junipers stand on the benches and plateau, and banded hoodoos with darker cap stones
+crowd the rims and the wider benches.
+
+Life: a dirt road runs along every canyon floor on one side, a post-and-wire fence beside it in
+stretches. Ranches stand on the wide stretches of floor beside the road (one ~150 m on from the
+spawn): a red barn, a house with a porch, a lattice windmill whose fan turns over a stock tank, a
+corral with horses, hay, cottonwoods by the house and cattle grazing out on the floor; their pad is
+levelled and the flight floor lifts over the roofs. Cliff dwellings (generic, not any real site):
+masonry rooms and a round tower on the first bench, tucked under a brow of rock that juts from the
+cliff over a darkened hollow; the first stands past the Great Arch on the bend's wall, framed in
+the opening on the way in. Hawks circle on the thermals (now and then a pair of ravens) and the odd
+dust devil wanders across the floor or the plateau, lives for a while and fades.
 
 Arches: one shape for all of them, a band between two half ellipses (the opening, and the back
 1.3x as wide and 1.24x as high) with legs running into the ground, scaled per arch. The Great
@@ -334,7 +419,11 @@ through them stand on level ground out on the plateau. Painted mesas and buttes 
 in three washes of the rock's shade.
 
 Atmosphere: a dust haze layers the far rims and mesas all day; a little mist lies in the canyons
-at first light and burns off by mid-morning. Music: a desert guitar (a saw and a square an octave
+at first light and burns off by mid-morning, and by day a thinner warm dust haze fills them
+(`levelLight.canyon.haze`). The sunlit red walls bounce warm light into the canyon's shade, low
+between the walls and under the arches (`bounce`). On high, arches, hoodoos, boulders and the
+sites cast through ShadowCasters; contact shadows lie under rocks, shrubs, hoodoos and stock.
+Music: a desert guitar (a saw and a square an octave
 apart through a slowly closing lowpass, picked up into pitch from a quarter tone flat, a slow
 vibrato blooming on long notes) at 84 BPM over a triangle pad and an open-fifth drone, a galloping
 arpeggio with flow and a long canyon echo; suspended at dawn, a wide major by day, a mixolydian
@@ -347,7 +436,20 @@ climbs, and a touch pushes the bird the shortest way out (over the back, under t
 leg or a face). Wisps: the canyon is the spine (low ribbons following its bends and swinging
 across the floor); near an arch a ribbon pulls to the middle and to 0.42 of the opening's height
 so it threads it, the Great Arch first. Glides carry on over the rims and the plateau, and
-generic patterns run only far out in the desert.
+generic patterns run only far out in the desert. A dwelling's brow is solid (the look-ahead sees
+it as wall); ranch roofs only lift the flight floor.
+
+- Code: `world/canyon/`: `CanyonLayout` (pure: canyons, walls with scree, washes, slickrock,
+  arches, hoodoos, queries), `CanyonSites` (pure: ranches and cliff dwellings, their levelled
+  ground and flight floor), `CanyonScatter` (pure: trees, sites and small props per chunk),
+  `CanyonDecor` (instancing, LOD, shadows), `rock` (the strata, land and bounce shader patch),
+  `cover` (the ground-cover style), `geometry` (rock and trees), `shapes` (props), `materials`.
+- Per preset (`render.*`): hoodoos smooth within `hoodooDetail` 0 / 220 / 320 m; ranches, dwellings
+  and brows always; boulders, sagebrush, stock and fences within `smallPropDistance`; hawks and
+  dust devils within `propDistance`; desert cover in the shared grass ring.
+- Cost at the pilot's viewpoints (triangles / draw calls, whole frame): medium 155-178k / ~118
+  (was 163-177k / ~100), high 328-378k / ~150 (was 308-340k / ~127), low 80-89k / ~81 (was
+  97-105k / ~78).
 
 ## Sea of Clouds
 
@@ -1017,6 +1119,46 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Highlands props get flat contact shadows (no ground lookups at refill: their records carry the
   ground height at their foot); trees keep the slope-laid ones. Bushes and boulders have far
   shapes (~20 triangles) beyond `propDetail`; with the 80 m grass ring that keeps high near 400k.
+- City of Gold's tracks are signed distances (noise contours n / |grad n|, polylines signed
+  by side), not unsigned: a 1.6 m path or a 7 m bed falls between two vertices of the 4 m
+  terrain lattice, where an unsigned distance interpolates to a positive minimum and the line
+  vanishes; a signed one crosses zero exactly. They live outside `at()` (only the ground's
+  paint, the cover and the scatter need them), so flight queries don't pay for them.
+- City of Gold's valley floors stopped being terraced (a terrace on a level floor is no
+  terrace): they hold walled fields instead, and its terrace walls are traced by marching
+  squares on the raw ground's contour through the middle of each riser, one piece per 7 m
+  cell, so they follow the hillside as continuous walls (a 5 m grid cost twice the time for
+  no visible gain). A riser taller than 1.7 steps is skipped: the slope gave up on terracing.
+- City of Gold's props scatter one chunk a frame (the nearest first; all at once behind the
+  title), refilling only the props: a chunk's scatter costs ~4 ms in Node, and crossing into
+  new ground brings in several at once. Road cypresses join at the next full refill.
+- Trees beyond `render.treeFar` take a distant shape (~14 triangles: an octahedral crown with
+  fully rounded normals and a stub of trunk) where a tree is a few pixels across; City of
+  Gold's olive groves were most of its triangles, and this paid for the new scenery (medium
+  stays at today's count). Levels opt in by handing Trees distant shapes.
+- City of Gold's golden hour read as one orange: the fill light, the fog and the haze were all
+  warm. The fill is now a cool lavender (hemisphere), stone faces turned from the sun take the
+  sky's hue (`coolShade`), and the far haze leans toward the sky overhead.
+- Red Canyons lived in (after the Highlands): the rock strata and varnish moved from vertex
+  colours (4 m apart, 11 m far; they smeared into zigzags on 30 m cliffs) into a per-pixel patch
+  shared by the walls, arches, hoodoos and boulders. Arches are a swept tube of rounded sections
+  inside the collision band (lumps only shrink it) instead of a 14-segment extrusion; hoodoos are
+  smooth lathes with a cheaper far cut, slim ones narrowed per instance (one mesh, not two).
+- Each canyon chunk owns its index and splits each quad along the diagonal whose corners are
+  nearer in height, so a cliff's foot and lip follow the split instead of zigzagging across it.
+  The zigzag had faked fluting on the cliffs; flutes are now a normal tilt across steep rock.
+- Ground cover gained optional extra shapes per style (shrubs, cacti, tumbleweeds; one draw each)
+  and the whole extra attribute (`t.extras`): the canyon's paint reads road, wash, slickrock and a
+  brow's shade from its `aLand` without calling the layout per tuft (that was ~30 ms a chunk).
+- Ranches and cliff dwellings sit in their own grid cells, well inside them, so the terrain asks
+  one cell per query; a site being placed marks its cell empty first (placing reads heights,
+  which ask for the site) and puts back the layout's scratch results.
+- Cliff dwellings are a brow (half dome, solid) jutting over rooms on a levelled bench, with the
+  cliff behind darkened through `aLand`: a heightfield can't hold an overhang, and carving one
+  would need a per-site mesh. The brow's dome is `browTop`, shared by the flight floor.
+- Sagebrush left the Trees (it was drawn to 620 m on medium, ~34k triangles of specks) for the
+  small props and the cover ring; that paid for the near trees, smooth hoodoos and the sites.
+  Medium stays at its old cost, high grew ~10 %, low fell ~15 %.
 - Bird plumage: grey mantle and upperwing over a white body, a lighter covert layer with its
   own scalloped edge, a dusky trailing edge, feathers with a raised pale shaft, a dark-tipped
   bill, and a pale underwing (front faces of the wing panels are the undersides).
@@ -1179,3 +1321,21 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   row has room for the blurbs again.
 - The Aviary is called "Birds" on screen (the title button, its card and the unlock cards'
   "pick them in Birds"): a plainer word. The code keeps the `aviary` names.
+- Jade River lived in (after the Highlands' pattern). The pillars' per-vertex random jitter
+  became smooth noise on one shared skin: every tier is the same rock, and things placed on the
+  walls (vines, shrubs) read the same surface. The paddies are terraces cut into low hills, and
+  the shader paints them from the land's height before the cut (passed per vertex with the bank
+  distance, the paddy share and the path distance), so the fields follow the contours at pixel
+  sharpness on a 4 m lattice; the field kind is an integer hash exact in float32, shared with the
+  rice in the ground cover. Groves no longer grow on the paddies: open fields read as farmed
+  land, and the ~25 % fewer trees paid for the ground cover, hero pillars and props (medium is
+  8-16 % cheaper than before at three views, with ~17 more draw calls).
+- Bridges stand where a footpath's contour crosses a river's (a two-dimensional Newton step from
+  each cell's centre), only on narrower reaches, away from the opening run and the pillars. They
+  are soft ground rather than solids: the floor ramps up over 16 m either side along the river,
+  and river ribbons look four wisps ahead to climb over the deck.
+- A house's roof must fit under the village's soft floor at its centre and its corners; a hall
+  or two-storey house that does not becomes a cottage (checked again at its own footprint).
+- Vines are straight strands whose instance basis runs from their foot to their top along the
+  wall: pushed out over any bulge between, shortened where the wall falls away under them, and
+  dropped where a neighbouring pillar's rock is in the way.

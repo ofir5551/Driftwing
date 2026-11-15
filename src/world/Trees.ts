@@ -275,6 +275,8 @@ export class Trees {
   /** Per type: index into `meshes` of its far and near mesh (-1: no near shape). */
   private readonly far: number[];
   private readonly near: number[];
+  /** Per type: index into `meshes` of its distant shape (-1: none), beyond render.treeFar. */
+  private readonly distant: number[];
   private readonly counts: number[];
   private readonly casters: ShadowCasters[];
   /** Contact shadows under the trees near the bird (medium and high). */
@@ -292,6 +294,8 @@ export class Trees {
     capacity = 9000,
     geometries = [roundTreeGeometry(), pineGeometry()],
     near: (THREE.BufferGeometry | undefined)[] = [],
+    /** Optional cheaper shapes for trees beyond Config.render.treeFar (a level opts in). */
+    distant: (THREE.BufferGeometry | undefined)[] = [],
   ) {
     const mat = (this.material = new THREE.MeshToonMaterial({
       vertexColors: true,
@@ -339,6 +343,10 @@ export class Trees {
       const g = near[i];
       return g ? make(g, Math.ceil(capacity / 3), 'tree-near') : -1;
     });
+    this.distant = geometries.map((_, i) => {
+      const g = distant[i];
+      return g ? make(g, capacity, 'tree-distant') : -1;
+    });
     this.counts = this.meshes.map(() => 0);
     for (const mesh of this.meshes) mesh.receiveShadow = true;
     // Sun-shadow casters near the bird, one per type, in the detailed shape where there is one.
@@ -359,6 +367,8 @@ export class Trees {
     counts.fill(0);
     const max2 = maxDist * maxDist;
     const near2 = Config.render.treeDetail ** 2;
+    const tf = Config.render.treeFar;
+    const far2 = tf > 0 ? tf * tf : Infinity;
     // The chunk set (and so this refill) changes about once per chunk flown.
     for (const c of this.casters) c.begin(px, pz, Config.world.chunkSize);
     this.contact.begin(px, pz);
@@ -371,6 +381,7 @@ export class Trees {
         if (d2 > max2) continue;
         const type = list[k];
         let mi = this.near[type] >= 0 && d2 < near2 ? this.near[type] : this.far[type];
+        if (d2 > far2 && this.distant[type] >= 0) mi = this.distant[type];
         if (counts[mi] >= this.meshes[mi].instanceMatrix.count) mi = this.far[type];
         const mesh = this.meshes[mi];
         const idx = counts[mi];

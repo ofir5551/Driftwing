@@ -239,6 +239,8 @@ describe('highlands crops', () => {
     bloom: -1,
     petal: -1,
     extra: 999,
+    extras: [999, 0, 0, 0] as [number, number, number, number],
+    shape: 0,
   });
 
   it('ploughs bare, stands wheat tall and golden, leaves the road bare', () => {

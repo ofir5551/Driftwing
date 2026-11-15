@@ -61,7 +61,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
   plumage, tuning). `ChaseCamera.ts` polar springs. `fx/TrailStyle.ts`: wingtip trail colours.
 - `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
-  decor, optional `GroundCover`), `Trees` (instanced; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
+  decor, optional `GroundCover`), `Trees` (instanced; near, far and optional distant shapes; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
   `GroundDetail`: painted terrain detail (patches, strokes, strata, bumps) patched into toon materials.
 - `world/highlands/`: `HighlandsLayout` (pure: rotated field grid, farmed fields (decided whole,
@@ -75,21 +75,38 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; queries), `collide`
   (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
   `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.
-- `world/karst/`: `KarstLayout` (pure: rivers, pillars + shared radius profile, terrain, queries),
-  `KarstWisps` (river/slalom/spiral planner), `KarstDecor`, `geometry`, `KarstWorld`.
+- `world/karst/`: `KarstLayout` (pure: rivers, terraced paddies, footpaths and bridges, pillars +
+  shared radius profile, terrain, queries), `skin` (pure: the rock surface every pillar tier is
+  lathed from), `KarstScatter` (pure: trees, villages, pagodas, bridges, boats, boulders, vines,
+  buffalo per chunk), `KarstDecor` (instancing, LOD, casters, contact shadows), `Land` (ground
+  colour; paddies and paths painted in the terrain shader from `aKarst`), `cover` (ground cover
+  with rice), `rock` (limestone shader), `RiverMist`, `KarstWisps` (river/slalom/spiral planner),
+  `geometry` (rock, bamboo), `shapes` (props), `KarstWorld`.
   `world/Mist.ts`: shared valley-mist uniforms + `withMist` material patch (also in `Water`).
 - `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain, icebergs, lighthouse;
   walls are terrain that `solidTop` reports for the look-ahead), `FjordWisps`, `FjordDecor`,
   `geometry`, `FjordWorld`. The aurora is the `aurora` backdrop in `Sky`.
 - `world/jerusalem/`: `JerusalemLayout` (pure: designed Old City, valleys and landmarks round the
-  origin blending into endless hills, wadis, terraces and towns; per-block parts, trees and
-  solids (oriented boxes, domed drums); low roofs are canopy), `JerusalemWisps` (opening ribbon,
-  land-hugging swoops, valley runs, landmark swings), `JerusalemDecor` (instanced unit shapes),
-  `materials` (the stone shader), `geometry`, `JerusalemWorld`. Hills are the `hills` backdrop.
-- `world/canyon/`: `CanyonLayout` (pure: canyons, stepped strata walls, plateau and mesas, arches
-  (half-elliptical bands, the Great Arch ahead of the spawn) and hoodoos; walls are terrain that
-  `solidTop` reports, arches report their span's underside), `CanyonWisps` (canyon runs that
-  thread arches, glides), `CanyonDecor`, `geometry`, `CanyonWorld`. Mesas are the `mesas` backdrop.
+  origin blending into endless hills, wadis, terraces and towns; per-block parts, trees, roof
+  clutter and stalls, and solids (oriented boxes, domed drums); low roofs are canopy; roads,
+  paths and dry beds as signed distances (`track`), walled fields on the valley floors),
+  `JerusalemScatter` (pure, per chunk: terrace walls by marching squares, field walls, rocks,
+  garrigue, oleanders, flocks, swifts, road cypresses), `props` (records), `land` (terrain
+  `aJLand` + roads/paths/beds/risers in the shader), `cover` (ground-cover style),
+  `JerusalemWisps` (opening ribbon, land-hugging swoops, valley runs, landmark swings),
+  `JerusalemDecor` (instanced stone, trees in three distances, props near/far, casters,
+  contact shadows; scatters one chunk a frame), `materials` (stone shader with bevels,
+  weathering and cool shade; foliage detail; painted dry stone), `shapes` (props), `geometry`,
+  `JerusalemWorld`. Hills are the `hills` backdrop.
+- `world/canyon/`: `CanyonLayout` (pure: canyons, stepped walls with scree at each cliff's foot,
+  dry washes, slickrock, plateau and mesas, arches (half-elliptical bands, the Great Arch ahead
+  of the spawn) and hoodoos; walls are terrain that `solidTop` reports, arches report their
+  span's underside), `CanyonSites` (pure: ranches and cliff dwellings under a solid brow; pads,
+  flight floor), `CanyonScatter` (pure: trees, sites, small props per chunk), `CanyonWisps`
+  (canyon runs that thread arches, glides), `CanyonDecor` (instancing, near/far, casters,
+  contact shadows), `rock` (per-pixel strata, varnish, flutes, the road/wash/slickrock paint from
+  `aLand`, bounce light), `cover`, `geometry`, `shapes`, `materials`, `CanyonWorld` (per-chunk
+  diagonals, haze). Mesas are the `mesas` backdrop.
 - `world/peaks/`: `PeaksLayout` (pure: the cloud sea as terrain (|noise| heaps), granite spires
   lathed from one stepped profile, the Sky Gate (two spires, a bridge solid with an underside,
   a monastery)), `PeaksWisps` (gate ribbon, cloud skims, slaloms, tangent swings over summits),

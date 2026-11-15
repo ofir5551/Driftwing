@@ -127,10 +127,40 @@ export const Config = {
     greatSpan: 46, // m, half span of the Great Arch's opening
     greatRise: 62, // m, height of its opening
     hoodooCell: 24, // m, grid cell that may hold one hoodoo near the rim
+    // Ground (pure layout, read when a level is created).
+    talus: 0.2, // share of a cliff's rise its scree apron climbs at the foot
+    talusRun: 0.22, // the apron's run out from the cliff foot, as a share of a band's run
+    washScale: 0.0035, // frequency of the dry-wash noise: a wash every ~250 m
+    washWidth: 4.5, // m, half width of a sandy wash bed
+    washDepth: 0.8, // m, how deep a wash dips into the canyon floor
+    gullyDepth: 3.5, // m, how deep a wash cuts into the plateau
+    slickrock: 2.4, // m, swell of the bare slickrock domes on the benches and plateau
+    roadOffset: 27, // m from a canyon's centre line to its dirt road (on one side)
+    roadWidth: 2.3, // m, half width of the road
+    ranchCell: 1100, // m, grid cell that may hold one ranch, on a wide stretch of floor
+    ranchChance: 0.6, // chance a cell's wide stretch has a ranch
+    ranchAhead: 150, // m along the canyon from the spawn where the first ranch is sought
+    alcoveCell: 760, // m, grid cell that may hold one cliff dwelling in an alcove
+    alcoveChance: 0.6, // chance a cell's wall has one
+    alcoveAhead: 300, // m along the canyon from the spawn where the first is sought
+    // Life (scatter).
+    cattle: 6, // head of cattle grazing round a ranch
+    hawks: 0.3, // chance a chunk has a hawk (or a pair of ravens) circling over it
+    dustDevils: 0.1, // chance a chunk of open ground raises a dust devil now and then
+    fences: 0.35, // share of the road (in stretches) with a post-and-wire fence beside it
+    // Rock: per-pixel strata over the walls, arches and hoodoos (rock.ts).
+    rockBand: 7.5, // m, height of one rock layer
+    rockContrast: 0.5, // 0 every layer the same mean rock colour .. 1 the full palette
+    rockSeam: 0.12, // darkening of the weathered seam under each ledge
+    rockVarnish: 0.55, // desert varnish streaks hanging from the lip of each cliff
+    archRings: 44, // rings along an arch's band (legs and span); smooth normals
+    archSides: 14, // points round an arch's rounded cross-section
+    hoodooSides: 12, // radial segments of a near hoodoo (far ones have 7)
     // Atmosphere and light.
     mist: 0.3, // dawn mist in the canyons (it burns off by day)
     mistTop: 30, // m, the dawn mist lies below this
     mistFar: 0.24, // dust haze: far mesas fade in layers
+    hazeTop: 80, // m, by day a warm dust haze lies in the canyons below this
     mesasDistance: 3000, // m, how far the painted mesas on the horizon pretend to be
   },
   ground: {
@@ -163,6 +193,30 @@ export const Config = {
     hillsDistance: 3200, // m, how far the painted hills on the horizon pretend to be
     flood: 1, // floodlight on the walls and landmarks after dark
     lights: 1, // brightness of windows and lamps after dark
+    // The lived-in country (world/jerusalem/; read when a level is created).
+    roadWidth: 3, // m, half-width of a road
+    pathWidth: 0.8, // m, half-width of a footpath
+    roadScale: 0.0009, // frequency of the noise whose zero lines are the hill roads
+    pathScale: 0.003, // ... and the footpaths (they peter out where pathMask is low)
+    pathMask: 0.05, // noise level under which a footpath fades out
+    wadiRoad: 24, // m from a wadi's floor line to the road along it
+    bedWidth: 3.5, // m, half-width of a valley's dry pebble bed
+    fieldCell: 32, // m, side of a walled field on the valley floors
+    fieldAngle: 0.35, // rad, the field grid's turn off the world axes
+    fields: 0.75, // chance a level, open cell of valley floor is a walled field
+    terraceGrid: 7, // m, the marching grid that traces each terrace wall along its contour
+    flocks: 0.4, // chance a chunk of open hills has a flock of goats or sheep
+    swifts: 0.55, // chance a chunk over the roofs has swifts wheeling
+    clutter: 0.6, // share of flat roofs with water tanks, washing or pots
+    awnings: 0.55, // chance a house on a market street has a stall in front
+    cypressLines: 0.45, // share of road length lined with cypresses
+    // Stone and trees.
+    bevel: 0.45, // m, rounded edge painted into box normals (widens to ~bevelPx px far away)
+    bevelPx: 2, // px, the narrowest a painted bevel gets, so far edges stay soft
+    weathering: 0.12, // brightness swing of the stone's weathering patches and run-off streaks
+    coolShade: 0.6, // stone turned from the sun leans toward the sky's colour (cool shadows)
+    foliageSoft: 0.85, // tree lobe normals: 0 flat facets, 1 a round crown (read at creation)
+    foliageDetail: 1, // painted leaf clumps on tree crowns (colour dabs and a bumped normal)
   },
   /** The Highlands' lived-in landscape: rivers, farms, villages (world/highlands/). */
   highlands: {
@@ -216,10 +270,11 @@ export const Config = {
   levelLight: {
     highlands: { shadows: 0.62, clouds: 0.32, shafts: 0.5 },
     city: { shadows: 0.5, clouds: 0.22, shafts: 0.35 },
-    karst: { shadows: 0.45, clouds: 0.2, shafts: 0.6 },
+    karst: { shadows: 0.5, clouds: 0.22, shafts: 0.6 },
     fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5 },
     jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
-    canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4 },
+    // bounce: warm light off the red walls into the canyon's shade; haze: dust in the canyons.
+    canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4, bounce: 0.32, haze: 0.16 },
     peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.6 },
     atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.4 },
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
@@ -397,11 +452,39 @@ export const Config = {
     pillarMax: 34, // m, base radius of the largest (before the dense-cluster boost)
     pillarTop: 250, // m, no summit rises above this (the ceiling is 320)
     pillarLod: 480, // m, beyond this pillars use the coarse mesh (chosen when chunks change)
+    pillarSeg: 32, // radial segments of the hero pillar mesh (within render.heroDetail)
+    pillarRings: 36, // rings of the hero pillar mesh
+    flutes: 1.0, // strength of the rock shader's vertical solution flutes (normal tilt)
+    streaks: 0.4, // darkness of the rock shader's rain streaks down the walls
+    mossLedges: 0.75, // rock-shader moss on sky-facing rock (ledges, shoulders)
     canopy: 9, // m, bamboo and groves count as soft ground this high
+    roofs: 11, // m, a village's roofs count as soft ground this high (at its heart)
+    terraceStep: 1.1, // m, rise of one paddy terrace
+    terraceHills: 6, // m, the paddy country swells into hills this high, terraced all the way up
+    fieldCell: 26, // m, paddy fields are cut across the terraces on this grid
+    pathScale: 0.0016, // frequency of the footpath noise: a path every ~300 m
+    pathWidth: 1.3, // m, half width of a footpath
+    towpath: 7, // m from the waterline to the towpath along each bank
+    bridgeCell: 620, // m, grid cell that may hold one bridge (where a path crosses the river)
+    bridgeChance: 0.85, // share of the cells that try
+    bridgeMaxHalf: 36, // m, only reaches narrower than this (half width) are bridged
+    bridgeSpawn: 520, // m, the opening run along the river stays open
+    bridgeRise: 8, // m, the deck's crown above the water
+    bridgeWidth: 6, // m, deck width
+    bridgeEase: 16, // m along the river over which the flight floor ramps up over a bridge
+    pagodaChance: 0.12, // share of the modest summits that carry a pagoda
+    boulders: 1, // scree boulders at a pillar's foot (x 4 + radius / 4)
+    vines: 1, // vine curtains down a pillar's walls (x 2 + height / 28, at most 10)
+    paddyMirror: 0.85, // how much a flooded paddy mirrors the sky
+    life: 0.16, // chance a 22 m cell of open valley has a buffalo or a farmer in it
     // Atmosphere.
     mist: 0.85, // valley mist at dawn; it thins through the day and gathers again at dusk
     mistTop: 55, // m, the mist lies below this
     mistFar: 0.42, // distance haze: far pillars fade in layers, like ink washes
+    riverMist: 0.8, // opacity of the mist sheets lying over the river at dawn (gone by midday)
+    riverMistCell: 70, // m, grid cell that may hold one river mist sheet
+    riverMistRange: 700, // m, river mist is laid out (and fades out) within this
+    riverMistRefresh: 40, // m the bird moves before the river mist is laid out again
     ridgeDistance: 2600, // m, how far the painted ridges on the horizon pretend to be
     lanterns: 1, // brightness of lanterns after dark
   },
@@ -590,15 +673,19 @@ export const Config = {
     drawDistance: 1100,
     treeDistance: 800,
     treeDetail: 280, // m, trees nearer than this use their detailed shapes
+    treeFar: 470, // m, trees beyond this use their distant shapes, if the level has them (0 = never)
     shadows: 1, // 1 = sun shadow map near the bird (on levels with a shadow strength)
     contactShadows: 1, // 1 = soft contact shadows under trees and props
     cloudShadows: 1, // multiplier on each level's drifting cloud shadows (0 = off)
     lightShafts: 1, // multiplier on each level's light shafts (0 = off)
     coverDistance: 80, // m, ground cover (grass, flowers) is drawn within this (0 = off)
     coverDensity: 1, // 0..1 share of the ground-cover tufts kept
-    propDistance: 650, // m, Highlands buildings, rocks and bushes are drawn within this
-    smallPropDistance: 320, // m, walls, fences, hay, sheep, reeds, boats, flocks (0 = none)
-    propDetail: 160, // m, bushes and boulders nearer than this use their detailed shapes
+    propDistance: 650, // m, a lived-in level's buildings, rocks and bushes are drawn within this
+    smallPropDistance: 320, // m, walls, fences, animals, rooftop clutter, flocks (0 = none)
+    propDetail: 160, // m, bushes, rocks and domes nearer than this use their detailed shapes
+    heroDetail: 260, // m, hero landmarks (karst pillars) whose flank is nearer use their finest mesh
+    rockDetail: 1, // 1 = the karst rock shader's flutes and streaks (a recompile when it changes)
+    hoodooDetail: 320, // m, Red Canyons' hoodoos nearer than this use their smooth 12-sided shape
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -621,6 +708,7 @@ export const QUALITY: Record<
     drawDistance: number;
     treeDistance: number;
     treeDetail: number;
+    treeFar: number;
     shadows: number;
     contactShadows: number;
     cloudShadows: number;
@@ -630,6 +718,9 @@ export const QUALITY: Record<
     propDistance: number;
     smallPropDistance: number;
     propDetail: number;
+    heroDetail: number;
+    hoodooDetail: number;
+    rockDetail: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -640,6 +731,7 @@ export const QUALITY: Record<
     drawDistance: 650,
     treeDistance: 420,
     treeDetail: 0,
+    treeFar: 0,
     shadows: 0,
     contactShadows: 0,
     cloudShadows: 0,
@@ -649,6 +741,9 @@ export const QUALITY: Record<
     propDistance: 280,
     smallPropDistance: 0,
     propDetail: 0,
+    heroDetail: 0,
+    hoodooDetail: 0,
+    rockDetail: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -658,6 +753,7 @@ export const QUALITY: Record<
     drawDistance: 900,
     treeDistance: 620,
     treeDetail: 200,
+    treeFar: 330,
     shadows: 0,
     contactShadows: 1,
     cloudShadows: 1,
@@ -667,6 +763,9 @@ export const QUALITY: Record<
     propDistance: 480,
     smallPropDistance: 200,
     propDetail: 110,
+    heroDetail: 120,
+    rockDetail: 1,
+    hoodooDetail: 220,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -676,6 +775,7 @@ export const QUALITY: Record<
     drawDistance: 1150,
     treeDistance: 820,
     treeDetail: 280,
+    treeFar: 470,
     shadows: 1,
     contactShadows: 1,
     cloudShadows: 1,
@@ -685,6 +785,9 @@ export const QUALITY: Record<
     propDistance: 650,
     smallPropDistance: 320,
     propDetail: 160,
+    heroDetail: 260,
+    rockDetail: 1,
+    hoodooDetail: 320,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

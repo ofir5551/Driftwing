@@ -482,3 +482,46 @@ totalEmissiveRadiance += groundEmit;`,
   mat.customProgramCacheKey = () => 'city-ground';
   return mat;
 }
+
+/**
+ * The props' material (street furniture, rooftop clutter, boats, traffic): toon with vertex
+ * colours over the instance tint. `aProp.x` glows (lamp heads, signals, signs, vending fronts:
+ * faintly by day, HDR after dark so bloom picks them up); `aProp.yz` pulls a parapet's inner
+ * wall in by a fixed 0.3 m against the instance's scale. Double-sided for the cable ribbons.
+ */
+export function createPropMaterial(u: CityUniforms): THREE.MeshToonMaterial {
+  const mat = new THREE.MeshToonMaterial({
+    vertexColors: true,
+    gradientMap: getToonGradient(),
+    side: THREE.DoubleSide,
+  });
+  mat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, u);
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nattribute vec3 aProp;\nvarying float vPropGlow;',
+      )
+      .replace(
+        '#include <begin_vertex>',
+        /* glsl */ `#include <begin_vertex>
+vPropGlow = aProp.x;
+#ifdef USE_INSTANCING
+  vec2 pScale = vec2(length(instanceMatrix[0].xyz), length(instanceMatrix[2].xyz));
+  transformed.xz += aProp.yz * 0.3 / max(pScale, vec2(0.5));
+#endif`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform float uCityNight;\nuniform float uCityLights;\nvarying float vPropGlow;',
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        /* glsl */ `#include <emissivemap_fragment>
+totalEmissiveRadiance += diffuseColor.rgb * vPropGlow * (0.12 + uCityNight * uCityLights * 2.4);`,
+      );
+  };
+  mat.customProgramCacheKey = () => 'city-prop';
+  return mat;
+}

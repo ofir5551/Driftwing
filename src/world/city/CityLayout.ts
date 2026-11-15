@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { clamp, lerp, smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, mulberry32, type Noise2D } from '../noise';
+import { PROP } from './props';
 
 /**
  * The bay city as pure data: one seeded function of space, no Three.js, so it is unit-tested
@@ -68,6 +69,8 @@ export interface Superblock {
   readonly cells: number[][];
   /** Tall towers for wisp spirals: x, z, half diagonal, top. */
   readonly towers: number[];
+  /** Street furniture, rooftop clutter and moored boats (props.ts records). */
+  readonly props: number[];
 }
 
 export interface Tower {
@@ -111,6 +114,8 @@ const INK = 0x2b2833;
 const STONE_GREY = 0xb9b3a8;
 const LANTERN = 0xffc978;
 const CONCRETE = 0xa9a4ad;
+/** Shop awnings: canvas in shop-front colours. */
+const AWNINGS = [0xc8423a, 0x2f6f8f, 0x3c7a4e, 0xe0a33a, 0x7a4a8c, 0xe9e3d6, 0x34404f];
 
 const pick = <T>(a: readonly T[], r: number): T =>
   a[Math.min(a.length - 1, Math.floor(r * a.length))];
@@ -506,7 +511,16 @@ export class CityLayout {
   }
 
   private generate(I: number, J: number): Superblock {
-    const sb: Superblock = { I, J, parts: [], trees: [], boxes: [], cells: [], towers: [] };
+    const sb: Superblock = {
+      I,
+      J,
+      parts: [],
+      trees: [],
+      boxes: [],
+      cells: [],
+      towers: [],
+      props: [],
+    };
     for (let l = 0; l < 3; l++)
       for (let k = 0; k < 3; k++) {
         const bi = I * 3 + k;
@@ -514,6 +528,7 @@ export class CityLayout {
         this.genBlock(sb, bi, bj, this.blockKind(bi, bj));
       }
     this.genAvenues(sb, I, J);
+    if (this.superKind(I, J) === 0) this.genPowerLines(sb, I, J);
     this.genBridges(sb, I, J);
     this.genWaterfront(sb, I, J);
     this.genRiverWalk(sb, I, J);
@@ -616,12 +631,109 @@ export class CityLayout {
     scale: number,
     r: number,
     free = false,
-  ): void {
+  ): boolean {
     const y = this.height(x, z);
-    if (y < Config.world.waterLevel + 0.4) return;
+    if (y < Config.world.waterLevel + 0.4) return false;
     if (!free && (this.shoreDist(x, z) < this.roadIn + 1.5 || this.bankDist(x, z) < this.riverWalk))
-      return;
+      return false;
     sb.trees.push(type, x, y - 0.3, z, scale, r * Math.PI * 2, (r * 7.13) % 1);
+    return true;
+  }
+
+  /** A prop record (props.ts): kind, base, yaw, size, tint. */
+  private prop(
+    sb: Superblock,
+    kind: number,
+    x: number,
+    y: number,
+    z: number,
+    rot: number,
+    sx: number,
+    sy: number,
+    sz: number,
+    tint: number,
+  ): void {
+    sb.props.push(kind, x, y, z, rot, sx, sy, sz, tint);
+  }
+
+  /** A stable 0..1 hash of a place (props draw from it, so the buildings' dice are untouched). */
+  private ph(x: number, z: number, k: number): number {
+    return hash2(Math.round(x * 4), Math.round(z * 4), this.seed + k);
+  }
+
+  /**
+   * A flat roof's life: a parapet round it, then a water tank or an antenna and a row of
+   * air conditioners where there is room. (xa, za)-(xb, zb) is the roof, `top` its height.
+   */
+  private roofKit(
+    sb: Superblock,
+    xa: number,
+    za: number,
+    xb: number,
+    zb: number,
+    top: number,
+    parapet = true,
+  ): void {
+    const w = xb - xa;
+    const d = zb - za;
+    if (w < 4 || d < 4) return;
+    const cx = (xa + xb) / 2;
+    const cz = (za + zb) / 2;
+    const r = this.ph(cx, cz, 601);
+    if (parapet) this.prop(sb, PROP.Parapet, cx, top, cz, 0, w, 1 + r * 0.25, d, r);
+    if (w < 7 || d < 7) return;
+    // The kit is about 5 x 4 m: tuck it toward a corner, turned a quarter at random.
+    const rot = Math.floor(r * 4) * (Math.PI / 2);
+    const fx = xa + 3.2 + this.ph(cx, cz, 602) * (w - 6.4);
+    const fz = za + 3.2 + this.ph(cx, cz, 603) * (d - 6.4);
+    this.prop(sb, r < 0.55 ? PROP.RoofA : PROP.RoofB, fx, top, fz, rot, 1, 1, 1, r);
+    if (w * d > 900) {
+      // A big roof: a second kit in the opposite quarter.
+      const gx = xa + xb - fx;
+      const gz = za + zb - fz;
+      this.prop(sb, r < 0.55 ? PROP.RoofB : PROP.RoofA, gx, top, gz, rot + Math.PI / 2, 1, 1, 1, r);
+    }
+  }
+
+  /** A rooftop garden: a lawn over part of a flat roof, with a few small trees. */
+  private roofGarden(
+    sb: Superblock,
+    xa: number,
+    za: number,
+    xb: number,
+    zb: number,
+    top: number,
+  ): void {
+    if (xb - xa < 6 || zb - za < 6) return;
+    this.part(
+      sb,
+      MESH.BOX,
+      (xa + xb) / 2,
+      top,
+      (za + zb) / 2,
+      xb - xa - 2,
+      0.45,
+      zb - za - 2,
+      0,
+      0x86b46a,
+      STYLE.PLAIN,
+      0,
+    );
+    const n = Math.min(4, Math.floor(((xb - xa) * (zb - za)) / 60));
+    for (let i = 0; i < n; i++) {
+      const r = this.ph(xa + i * 3.1, za, 611 + i);
+      const x = xa + 2.5 + this.ph(xa, za + i, 612) * (xb - xa - 5);
+      const z = za + 2.5 + this.ph(xa + i, za, 613) * (zb - za - 5);
+      sb.trees.push(
+        r < 0.3 ? TREE.CHERRY : TREE.ROUND,
+        x,
+        top + 0.3,
+        z,
+        0.32 + r * 0.18,
+        r * 6.28,
+        r,
+      );
+    }
   }
 
   /** Dry land and clear of the block's corner plaza. */
@@ -742,6 +854,20 @@ export class CityLayout {
   ): void {
     if (!this.dry(cx - 4, cz - 4, cx + 4, cz + 4)) return;
     const g = this.baseHeight(cx, cz);
+    // Vending machines on the corner, facing the avenue, and a planter by the crossing.
+    if (this.ph(cx, cz, 621) < 0.6)
+      this.prop(
+        sb,
+        PROP.Vending,
+        cx - sx * 2,
+        g,
+        cz - sz * 4.5,
+        -sx * (Math.PI / 2),
+        1,
+        1,
+        1,
+        this.ph(cx, cz, 622),
+      );
     if (rnd() < 0.35) {
       const bx = cx + sx * 3;
       const bz = cz + sz * 3;
@@ -758,6 +884,7 @@ export class CityLayout {
         rnd(),
       );
       this.part(sb, MESH.HIP, bx, g + 3.4, bz, 5, 0.8, 5, 0, 0x5a6270, STYLE.PLAIN, 0);
+      this.prop(sb, PROP.Planter, bx - sx * 3.4, g, bz + sz * 1.2, 0, 1, 1, 1, 0.5);
       this.part(
         sb,
         MESH.BOX,
@@ -920,6 +1047,36 @@ export class CityLayout {
           );
       }
       sb.towers.push(cx, cz, Math.hypot(w, dd) / 2, top);
+      // The podium's roof: a garden on its widest strip beside the tower, or plant and a parapet.
+      const px0 = lx0 + 1;
+      const pz0 = lz0 + 1;
+      const px1 = lx1 - 1;
+      const pz1 = lz1 - 1;
+      const strips = [
+        [px0, pz0, cx - w / 2, pz1],
+        [cx + w / 2, pz0, px1, pz1],
+        [px0, pz0, px1, cz - dd / 2],
+        [px0, cz + dd / 2, px1, pz1],
+      ];
+      let best = strips[0];
+      for (const st of strips)
+        if ((st[2] - st[0]) * (st[3] - st[1]) > (best[2] - best[0]) * (best[3] - best[1]))
+          best = st;
+      if (this.ph(cx, cz, 631) < 0.5)
+        this.roofGarden(sb, best[0], best[1], best[2], best[3], g + podium);
+      else this.roofKit(sb, best[0], best[1], best[2], best[3], g + podium, false);
+      this.prop(
+        sb,
+        PROP.Parapet,
+        (px0 + px1) / 2,
+        g + podium,
+        (pz0 + pz1) / 2,
+        0,
+        px1 - px0,
+        1.1,
+        pz1 - pz0,
+        0.5,
+      );
     }
   }
 
@@ -960,6 +1117,8 @@ export class CityLayout {
         const h = (11 + 34 * Math.pow(rnd(), 1.3)) * tall;
         const seed = rnd();
         this.box(sb, xa, za, xb, zb, g - 3, g + h, pick(SHOPS, rnd()), STYLE.OFFICE, seed);
+        this.shopFront(sb, xa, xb, front, facing, g);
+        this.roofKit(sb, xa, za, xb, zb, g + h);
         if (rnd() < signP) {
           const sx = rnd() < 0.5 ? xa + 1 : xb - 1;
           const sh = clamp(h * (0.45 + rnd() * 0.3), 5, 16);
@@ -1072,6 +1231,7 @@ export class CityLayout {
         if (r > 0.92) {
           // A narrow three-storey flat-roofed house.
           this.box(sb, xa, za, xb, zb, g - 3, g + 9, pick(FLATS, rnd()), STYLE.APART, seed);
+          this.roofKit(sb, xa, za, xb, zb, g + 9);
           continue;
         }
         const floors = rnd() < 0.2 ? 1 : 2;
@@ -1132,6 +1292,12 @@ export class CityLayout {
       const ez = (za + zb) / 2;
       const h = (5 + Math.floor(rnd() * 10)) * 2.9 + 1;
       this.box(sb, xa, za, xb, zb, g - 3, g + h, pick(FLATS, rnd()), STYLE.APART, rnd());
+      // Half the roof a garden (or plant), the other half round the stair hut.
+      const half = alongX ? (xb - xa) / 2 : (zb - za) / 2;
+      const ga = alongX ? [xa, za, xa + half - 3, zb] : [xa, za, xb, za + half - 3];
+      if (this.ph(ex, ez, 641) < 0.35) this.roofGarden(sb, ga[0], ga[1], ga[2], ga[3], g + h);
+      else this.roofKit(sb, ga[0], ga[1], ga[2], ga[3], g + h, false);
+      this.prop(sb, PROP.Parapet, ex, g + h, ez, 0, xb - xa, 1.1, zb - za, 0.3);
       this.box(
         sb,
         ex - 2,
@@ -1581,14 +1747,64 @@ export class CityLayout {
     const rnd = mulberry32((hash2(I, J, this.seed + 888) * 4294967296) >>> 0);
     const ax = I * S; // this superblock owns the N-S avenue on its west edge...
     const az = J * S; // ...and the E-W avenue on its south edge
-    // Ginkgo rows on the avenue sidewalks.
+    // Ginkgo rows on the avenue sidewalks, each in a kerbed tree pit; one slot per side of each
+    // avenue holds a bus stop instead.
+    const busNS = AH + 6 + 11 * (2 + Math.floor(hash2(I, J, this.seed + 651) * 14));
+    const busEW = AH + 6 + 11 * (2 + Math.floor(hash2(I, J, this.seed + 652) * 14));
     for (let t = AH + 6; t < S - AH - 4; t += 11)
       for (const side of [-1, 1]) {
         const off = side * (AH - 2);
-        if (this.baseHeight(ax + off, az + t) > 1.2)
-          this.tree(sb, TREE.ROUND, ax + off, az + t, 0.5 + rnd() * 0.2, rnd());
-        if (this.baseHeight(ax + t, az + off) > 1.2)
-          this.tree(sb, TREE.ROUND, ax + t, az + off, 0.5 + rnd() * 0.2, rnd());
+        const s1 = rnd();
+        const r1 = rnd();
+        if (this.baseHeight(ax + off, az + t) > 1.2) {
+          if (t === busNS) this.busStop(sb, ax + side * (AH - 2.4), az + t, -side * (Math.PI / 2));
+          else if (this.tree(sb, TREE.ROUND, ax + off, az + t, 0.5 + s1 * 0.2, r1))
+            this.prop(
+              sb,
+              PROP.Pit,
+              ax + off,
+              this.baseHeight(ax + off, az + t),
+              az + t,
+              0,
+              1,
+              1,
+              1,
+              r1,
+            );
+        }
+        const s2 = rnd();
+        const r2 = rnd();
+        if (this.baseHeight(ax + t, az + off) > 1.2) {
+          if (t === busEW) this.busStop(sb, ax + t, az + side * (AH - 2.4), side > 0 ? Math.PI : 0);
+          else if (this.tree(sb, TREE.ROUND, ax + t, az + off, 0.5 + s2 * 0.2, r2))
+            this.prop(
+              sb,
+              PROP.Pit,
+              ax + t,
+              this.baseHeight(ax + t, az + off),
+              az + off,
+              0,
+              1,
+              1,
+              1,
+              r2,
+            );
+        }
+      }
+    // Street lamps at the kerb, over the pools of lamplight the ground shader paints (every
+    // 26 m, on the 13 m mark), their arms reaching over the road.
+    for (let t = Math.ceil((az + AH + 2 - 13) / 26) * 26 + 13; t < az + S - AH - 2; t += 26)
+      for (const side of [-1, 1]) this.lamp(sb, ax + side * (AH - 3.7), t, -side * (Math.PI / 2));
+    for (let t = Math.ceil((ax + AH + 2 - 13) / 26) * 26 + 13; t < ax + S - AH - 2; t += 26)
+      for (const side of [-1, 1]) this.lamp(sb, t, az + side * (AH - 3.7), side > 0 ? Math.PI : 0);
+    // Traffic signals on the four corners of the crossing, arms over alternate avenues.
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) {
+        const x = ax + sx * (AH + 1.2);
+        const z = az + sz * (AH + 1.2);
+        if (!this.streetSpot(x, z)) continue;
+        const rot = sx * sz > 0 ? -sx * (Math.PI / 2) : sz > 0 ? Math.PI : 0;
+        this.prop(sb, PROP.Signal, x, this.baseHeight(x, z), z, rot, 1, 1, 1, 0);
       }
     if (this.expressX(I)) this.expressway(sb, ax, az, true);
     if (this.expressZ(J)) {
@@ -1596,6 +1812,123 @@ export class CityLayout {
       for (let t = 0; t <= S; t += S / 4) wet ||= this.inSea(ax + t, az);
       if (!wet) this.expressway(sb, ax, az, false);
     }
+  }
+
+  /** Dry pavement for street furniture: off the water, the bayside road and the river walk. */
+  private streetSpot(x: number, z: number): boolean {
+    return (
+      this.baseHeight(x, z) > 1.2 &&
+      this.shoreDist(x, z) > this.roadIn + KERB &&
+      this.bankDist(x, z) > this.riverWalk + 1
+    );
+  }
+
+  private lamp(sb: Superblock, x: number, z: number, rot: number): void {
+    if (!this.streetSpot(x, z)) return;
+    this.prop(sb, PROP.Lamp, x, this.baseHeight(x, z), z, rot, 1, 1, 1, 0);
+  }
+
+  /** A bus shelter facing the road (rot turns its open side, local +z, to it). */
+  private busStop(sb: Superblock, x: number, z: number, rot: number): void {
+    if (!this.streetSpot(x, z)) return;
+    this.prop(sb, PROP.BusStop, x, this.baseHeight(x, z), z, rot, 1, 1, 1, this.ph(x, z, 655));
+  }
+
+  /**
+   * A shop front on a pencil building: a striped awning over the door and, on most, a lit
+   * signboard above it (part boxes in the facade material: no extra draws).
+   */
+  private shopFront(
+    sb: Superblock,
+    xa: number,
+    xb: number,
+    front: number,
+    facing: number,
+    g: number,
+  ): void {
+    const r = this.ph(xa, front, 661);
+    const w = (xb - xa) * (0.6 + 0.25 * r);
+    const cx = (xa + xb) / 2;
+    if (r < 0.75)
+      this.part(
+        sb,
+        MESH.BOX,
+        cx,
+        g + 3.1,
+        front + facing * 0.6,
+        w,
+        0.3,
+        1.2,
+        0,
+        pick(AWNINGS, this.ph(xa, front, 662)),
+        STYLE.PLAIN,
+        0,
+      );
+    if (r > 0.25)
+      this.part(
+        sb,
+        MESH.BOX,
+        cx,
+        g + 3.7,
+        front + facing * 0.15,
+        w * 0.9,
+        1.1,
+        0.3,
+        0,
+        pick(NEON, this.ph(xa, front, 663)),
+        STYLE.SIGN,
+        r,
+      );
+  }
+
+  /**
+   * Overhead lines along the local streets of the low-rise blocks (houses, shopping streets,
+   * apartments), after every Japanese side street: a concrete pole every ~30 m on the sidewalk
+   * and three cables sagging between. Poles and the cable runs are thin solids, so the
+   * look-ahead sees them like any wall.
+   */
+  private genPowerLines(sb: Superblock, I: number, J: number): void {
+    const S = this.S;
+    const ox = I * S;
+    const oz = J * S;
+    const off = this.SH + 1.2;
+    for (const c of [this.c1, this.c2])
+      for (const ns of [true, false]) {
+        // Three poles along each block's side (its ends and middle, ~27 m apart), cables
+        // between; the block on the pole side must be low-rise.
+        let prev = -Infinity;
+        let prevY = 0;
+        for (let q = 0; q < 9; q++) {
+          const start = this.AH + Math.floor(q / 3) * (this.B + 2 * this.SH) + 2.5;
+          const a = start + ((q % 3) / 2) * (this.B - 5);
+          if (q % 3 === 0) prev = -Infinity;
+          const x = ns ? ox + c + off : ox + a;
+          const z = ns ? oz + a : oz + c + off;
+          const bx = ns ? x + 4 : x;
+          const bz = ns ? z : z + 4;
+          const kind = this.zoneAt(bx, bz);
+          const low = kind === BK.HOUSES || kind === BK.MIDRISE || kind === BK.APARTMENTS;
+          if (!low || !this.streetSpot(x, z)) {
+            prev = -Infinity;
+            continue;
+          }
+          const g = this.baseHeight(x, z);
+          const r = this.ph(x, z, 671);
+          this.prop(sb, PROP.Pole, x, g, z, ns ? 0 : Math.PI / 2, 1, 1, 1, r);
+          this.solid(sb, x - 0.3, g - 1, z - 0.3, x + 0.3, g + 10.2, z + 0.3);
+          if (prev > -Infinity) {
+            const ma = (prev + a) / 2;
+            const y = Math.min(g, prevY) + 9.3;
+            const mx = ns ? x : ox + ma;
+            const mz = ns ? oz + ma : z;
+            this.prop(sb, PROP.Wire, mx, y, mz, ns ? Math.PI / 2 : 0, a - prev, 1, 1, r);
+            if (ns) this.solid(sb, x - 0.3, y - 0.9, oz + prev, x + 0.3, y + 0.5, oz + a);
+            else this.solid(sb, ox + prev, y - 0.9, z - 0.3, ox + a, y + 0.5, z + 0.3);
+          }
+          prev = a;
+          prevY = g;
+        }
+      }
   }
 
   /** One superblock-long expressway segment: deck, barriers, lamps and T-pillars. */
@@ -1788,6 +2121,14 @@ export class CityLayout {
         this.part(sb, MESH.CYL, x, g, z, 0.22, 4.8, 0.22, 0, 0x4f535c, STYLE.PLAIN, 0);
         this.part(sb, MESH.BOX, x, g + 4.8, z, 0.6, 0.4, 0.6, 0, LANTERN, STYLE.LAMP, 0);
       }
+      // Benches between the lamps, facing the bay.
+      for (let x = Math.ceil((x0 - 12) / 24) * 24 + 12; x < x0 + S; x += 24) {
+        const e = edge(x);
+        const z = e - side * 2.6;
+        if (!owns(x, z) || this.baseHeight(x, z) < water) continue;
+        const rot = Math.atan2(-(edge(x + 3) - edge(x - 3)), 6) + (side > 0 ? 0 : Math.PI);
+        this.prop(sb, PROP.Bench, x, this.baseHeight(x, z), z, rot, 1, 1, 1, 0.5);
+      }
       // A row of trees between the walk and the road, open where each avenue ends.
       for (let x = Math.ceil((x0 - 6) / 12) * 12 + 6; x < x0 + S; x += 12) {
         const z = edge(x) - side * 6.5;
@@ -1828,7 +2169,60 @@ export class CityLayout {
         if (zone === ZONE_AVENUE || zone === ZONE_STREET) continue;
         if (this.shoreDist(x, z) < this.roadIn + 2) continue;
         const r = hash2(Math.round(x * 4), Math.round(z * 4), this.seed + 951);
-        this.tree(sb, TREE.CHERRY, x, z, 0.7 + r * 0.25, r, true);
+        if (!this.tree(sb, TREE.CHERRY, x, z, 0.7 + r * 0.25, r, true)) continue;
+        // The walk's railing along the bank's edge (along the tangent), a bench under every
+        // third tree facing the water, a lamp by every fourth.
+        const tx = -dir.z;
+        const tz = dir.x;
+        const ex = x - dir.x * (line - 0.35);
+        const ez = z - dir.z * (line - 0.35);
+        const g = this.baseHeight(ex, ez);
+        if (g > Config.world.waterLevel + 1)
+          this.part(
+            sb,
+            MESH.BOX,
+            ex,
+            g,
+            ez,
+            10,
+            1.05,
+            0.12,
+            Math.atan2(-tz, tx),
+            0xd9d4cc,
+            STYLE.PLAIN,
+            0,
+          );
+        const bx = x + dir.x * 2.1;
+        const bz = z + dir.z * 2.1;
+        if (r < 0.34)
+          this.prop(
+            sb,
+            PROP.Bench,
+            bx,
+            this.baseHeight(bx, bz),
+            bz,
+            Math.atan2(-dir.x, -dir.z),
+            1,
+            1,
+            1,
+            r,
+          );
+        else if (r > 0.75) {
+          const lx = x - dir.x * 1.4 + tx * 3;
+          const lz = z - dir.z * 1.4 + tz * 3;
+          this.prop(
+            sb,
+            PROP.Lamp,
+            lx,
+            this.baseHeight(lx, lz),
+            lz,
+            Math.atan2(-dir.x, -dir.z),
+            0.8,
+            0.75,
+            0.6,
+            r,
+          );
+        }
       }
   }
 

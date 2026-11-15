@@ -6,28 +6,29 @@ import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
 import type { CoverStyle } from '../world/GroundCover';
 import { Islands } from '../world/Islands';
-import { createHeightField, type HeightField } from '../world/Terrain';
+import { createHeightField, type LandField } from '../world/Terrain';
+import { landColor } from '../world/highlands/Land';
 import { TreeDecor } from '../world/Trees';
 import type { LevelDef, World } from './World';
 import type { DiscoveryDef } from '../world/Discoveries';
 import { highlandsFinds } from '../world/highlands/finds';
 
 /**
- * Meadow grass over the hills, from the beaches (sand gives way to grass by ~2 m) up to where
+ * Meadow grass over the hills, from the beaches (sand gives way to grass by ~1.5 m) up to where
  * the high ground pales; wildflowers in drifts: white, buttercup, pink, harebell, poppy.
  */
 const HIGHLANDS_COVER: CoverStyle = {
   tint: [1.04, 1.06, 0.95],
   height: 1,
-  minY: 2,
+  minY: 1.4,
   maxY: 100,
   flowers: { chance: 0.42, colors: ['#fbf7ee', '#f7d34a', '#f3a6c4', '#a9b6f2', '#ef7a5c'] },
 };
 
-/** The original level: endless valleys, lakes, forests and floating islands. */
+/** The original level: endless valleys, rivers and lakes, forests and floating islands. */
 class HighlandsWorld implements World {
   readonly group = new THREE.Group();
-  readonly field: HeightField;
+  readonly field: LandField;
   readonly planner = null;
   readonly discoveries: readonly DiscoveryDef[];
   private readonly chunks: ChunkManager<number[]>;
@@ -37,6 +38,7 @@ class HighlandsWorld implements World {
     this.field = createHeightField(seed);
     this.chunks = new ChunkManager(this.field, {
       decor: new TreeDecor(this.field),
+      color: landColor,
       cover: HIGHLANDS_COVER,
     });
     this.islands = new Islands(this.field);

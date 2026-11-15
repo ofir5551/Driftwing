@@ -15,13 +15,38 @@ export interface HeightField {
   tint(x: number, z: number): number;
 }
 
-export function createHeightField(seed: number): HeightField {
+/**
+ * The Highlands' field: the plain height field plus where its rivers and farms are, so the
+ * ground shader (roads, fields), the scatter (villages, walls, reeds) and the terrain agree.
+ */
+export interface LandField extends HeightField {
+  /** Signed distance (m) from the nearest river's centre line; the road runs at +roadOffset. */
+  riverDist(x: number, z: number): number;
+  /** 0..1 farmland (fields, walls, farmsteads) at x,z. */
+  farm(x: number, z: number): number;
+}
+
+export function createHeightField(seed: number): LandField {
   const nC = createNoise2D(seed);
   const nH = createNoise2D(seed + 1);
   const nR = createNoise2D(seed + 2);
   const nV = createNoise2D(seed + 3);
   const nF = createNoise2D(seed + 4);
   const nT = createNoise2D(seed + 5);
+  const nW = createNoise2D(seed + 6);
+  const nA = createNoise2D(seed + 7);
+  const L = Config.highlands;
+
+  // The valley noise's zero line is each valley's floor, and a river runs along it. Its distance
+  // in metres is the noise over its gradient (first order), so widths read as metres everywhere.
+  const valleyNoise = (x: number, z: number) => fbm(nV, x * 0.0011, z * 0.0011, 2);
+  const riverDist = (x: number, z: number): number => {
+    const v = valleyNoise(x, z);
+    const e = 3;
+    const gx = (valleyNoise(x + e, z) - v) / e;
+    const gz = (valleyNoise(x, z + e) - v) / e;
+    return v / Math.max(Math.hypot(gx, gz), 0.00025);
+  };
 
   const height = (x: number, z: number): number => {
     const c = fbm(nC, x * 0.0009, z * 0.0009, 3); // broad lowlands vs highlands
@@ -31,21 +56,41 @@ export function createHeightField(seed: number): HeightField {
     let y = 22 + c * 40 + h * 20 + r * r * r * mountain * 100;
     // Meandering valleys: where a low-frequency noise crosses zero, carve a soft trough.
     // These become the natural flight corridors (and lakes where they dip below water).
-    const v = Math.abs(fbm(nV, x * 0.0011, z * 0.0011, 2));
+    const v = Math.abs(valleyNoise(x, z));
     const trough = 1 - smoothstep(0, 0.28, v);
     y -= trough * trough * (3 - 2 * trough) * (30 + mountain * 18);
+    // A river along the valley floor: a flood plain a little above the water, then banks down
+    // into a channel below it. In high valleys the plain cuts bluffs, as if the river carved them.
+    if (trough > 0.3) {
+      const d = Math.abs(riverDist(x, z));
+      const rw = L.riverWidth * (1 + L.riverWander * nW(x * 0.004, z * 0.004));
+      const plain = 1 - smoothstep(L.plainWidth * 0.45, L.plainWidth, d);
+      y = lerp(y, Math.min(y, L.plainHeight + h * 2.5), plain * plain * (3 - 2 * plain));
+      const bank = smoothstep(rw * 0.45, rw * 1.35, d);
+      y = lerp(Math.min(y, -2.4), y, bank);
+    }
     // Keep a gentle meadow basin at the spawn so the first seconds feel open and calm.
     const d = Math.sqrt(x * x + z * z);
     const spawn = 1 - smoothstep(150, 500, d);
     return lerp(y, Math.min(y, 14 + h * 8), spawn);
   };
 
+  // Farmland: patches of the low, gentle country above the water (where people would farm).
+  const farm = (x: number, z: number): number => {
+    const a = smoothstep(-0.05, 0.3, nA(x * 0.0019, z * 0.0019));
+    if (a <= 0) return 0;
+    const y = height(x, z);
+    return a * smoothstep(0.8, 2.2, y) * (1 - smoothstep(24, 40, y));
+  };
+
+  // Woods give way to the farms: fields are cleared land.
   const forest = (x: number, z: number): number =>
-    smoothstep(0.05, 0.45, fbm(nF, x * 0.004, z * 0.004, 3));
+    smoothstep(0.05, 0.45, fbm(nF, x * 0.004, z * 0.004, 3)) *
+    (1 - smoothstep(0.15, 0.45, farm(x, z)));
 
   const tint = (x: number, z: number): number => nT(x * 0.002, z * 0.002);
 
-  return { height, forest, tint };
+  return { height, forest, tint, riverDist, farm };
 }
 
 // Terrain palette (linear-ish sRGB values; the toon material and fog tint them per time of day).

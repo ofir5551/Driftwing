@@ -164,6 +164,14 @@ export const Config = {
     flood: 1, // floodlight on the walls and landmarks after dark
     lights: 1, // brightness of windows and lamps after dark
   },
+  /** The Highlands' lived-in landscape: rivers, farms, villages (world/highlands/). */
+  highlands: {
+    riverWidth: 7, // m, half-width of a river channel at its centre line
+    riverWander: 0.45, // +- share the width swells and narrows along the river
+    plainWidth: 46, // m from the river's centre where its flood plain ends
+    plainHeight: 2.6, // m, the flood plain's height above the water
+    clearings: 0.35, // share of the forest opened into glades
+  },
   /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
   light: {
     shadowRange: 150, // m, half-size of the shadow map's box round the bird

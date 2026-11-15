@@ -9,24 +9,27 @@ import { withGroundDetail } from '../GroundDetail';
 import type { DayCycle } from '../DayCycle';
 import { mistUniforms, withMist } from '../Mist';
 import { createNoise2D } from '../noise';
-import { getToonGradient, type HeightField } from '../Terrain';
+import { createChunkGeometry, getToonGradient, type HeightField } from '../Terrain';
 import { FjordDecor, type FjordChunk } from './FjordDecor';
 import { FjordLayout } from './FjordLayout';
 import { FjordPlanner } from './FjordWisps';
 import { beamGeometry, lampGeometry, lighthouseGeometry } from './geometry';
 import type { DiscoveryDef } from '../Discoveries';
 import { fjordFinds } from './finds';
+import { withFjordRock } from './rock';
 
 const C = {
   bed: new THREE.Color('#1d3442'),
   shallows: new THREE.Color('#4f7480'),
   pebble: new THREE.Color('#8d8f94'),
-  moss: new THREE.Color('#5f7a62'),
-  spruce: new THREE.Color('#3f5e52'),
-  rock: new THREE.Color('#5d6470'),
-  rockDark: new THREE.Color('#40454f'),
+  grass: new THREE.Color('#6d8a4e'),
+  meadow: new THREE.Color('#8a9150'),
+  heath: new THREE.Color('#7d6448'),
+  fell: new THREE.Color('#8a8a64'),
+  spruce: new THREE.Color('#3f5e44'),
+  rock: new THREE.Color('#646a74'),
+  rockDark: new THREE.Color('#474c56'),
   snow: new THREE.Color('#eef3fa'),
-  snowShade: new THREE.Color('#c9d6ea'),
 };
 const WHITE = new THREE.Color('#fff');
 const DAY_LAMP = new THREE.Color('#d8dde2');
@@ -64,12 +67,23 @@ export class FjordWorld implements World {
     this.decor = new FjordDecor(L);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withGroundDetail(
-        withMist(
-          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      material: withFjordRock(
+        withGroundDetail(
+          withMist(
+            new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+          ),
         ),
       ),
       color: (f, x, z, y, slope, out) => this.groundColor(f, x, z, y, slope, out),
+      createGeometry: (res) => {
+        const g = createChunkGeometry(res);
+        const n = res + 1;
+        g.setAttribute('aLand', new THREE.BufferAttribute(new Float32Array(n * n * 4), 4));
+        // Its own index (the shared one alternates diagonals): see fillExtra.
+        g.setIndex(new THREE.BufferAttribute(new Uint32Array(res * res * 6), 1));
+        return g;
+      },
+      fillExtra: (g, ox, oz, size, res) => this.fillExtra(g, ox, oz, size, res),
     });
     this.planner = new FjordPlanner(L);
 
@@ -110,20 +124,69 @@ export class FjordWorld implements World {
     out: THREE.Color,
   ): THREE.Color {
     if (y < -0.3) return out.copy(C.shallows).lerp(C.bed, smoothstep(-0.3, -8, y));
-    const K = Config.fjord;
     const t = f.tint(x, z);
-    out.copy(C.pebble).lerp(C.moss, smoothstep(1.5, 3, y) * (0.6 + 0.3 * t));
-    out.lerp(C.spruce, f.forest(x, z) * 0.8);
-    // Cliffs: bare dark rock, streaked lighter and darker by the noise.
-    out.lerp(C.rock, smoothstep(0.35, 0.6, slope));
-    out.lerp(C.rockDark, smoothstep(0.55, 0.8, slope) * (0.5 + 0.5 * t));
-    // Snow lies above the snowline on anything but sheer rock, and dusts the ledges lower down.
-    const line = K.snowline + t * 18;
-    const snow = smoothstep(line - 15, line + 10, y) * (1 - smoothstep(0.45, 0.7, slope));
-    out.lerp(C.snow, Math.max(snow, smoothstep(0.62, 0.9, -slope + 1) * smoothstep(8, 30, y)));
-    // Wind-shadowed snow in the hollows reads blue.
-    out.lerp(C.snowShade, snow * smoothstep(0.1, 0.4, slope) * 0.7);
+    // Pebbles at the water, turf on the strand (greener low, the heath's russet and olive
+    // higher up and out on the fell), darker under the forest.
+    out.copy(C.grass).lerp(C.meadow, 0.5 + 0.5 * t);
+    out.lerp(C.heath, smoothstep(6, 40, y) * (0.55 + 0.45 * t));
+    out.lerp(C.fell, smoothstep(90, 150, y) * (0.5 - 0.4 * t));
+    out.lerp(C.spruce, f.forest(x, z) * 0.6);
+    out.lerp(C.pebble, 1 - smoothstep(0.9, 1.6, y));
+    // Cliffs: bare rock (the shader paints the relief and the snow's ledges over it).
+    out.lerp(C.rock, smoothstep(0.3, 0.55, slope));
+    out.lerp(C.rockDark, smoothstep(0.5, 0.8, slope) * (0.5 + 0.5 * t));
+    // Snow, as the shader lays it on the flat (the cover leaves it bare, and samples this).
+    const s = y > 20 ? this.layout.snow(x, z, y) : 0;
+    out.lerp(C.snow, smoothstep(0.4, 0.55, s * 1.15) * (1 - smoothstep(0.3, 0.5, slope)));
     return out.multiplyScalar(0.96 + 0.05 * t);
+  }
+
+  /**
+   * After a chunk's heights: its `aLand` (rock.ts) and its triangles. Each quad is split along
+   * the diagonal whose ends are nearer in height, so the split runs along a wall's foot or lip
+   * instead of across it: no sawtooth where the strand meets the wall (as in Red Canyons).
+   */
+  private fillExtra(g: THREE.BufferGeometry, ox: number, oz: number, size: number, res: number) {
+    const L = this.layout;
+    const n = res + 1;
+    const step = size / res;
+    const P = g.getAttribute('position').array as Float32Array;
+    const landAttr = g.getAttribute('aLand') as THREE.BufferAttribute;
+    const land = landAttr.array as Float32Array;
+    for (let j = 0; j < n; j++)
+      for (let i = 0; i < n; i++) {
+        const k = j * n + i;
+        L.landAt(ox + i * step, oz + j * step, P[k * 3 + 1], land, k * 4);
+      }
+    landAttr.needsUpdate = true;
+    const index = g.getIndex()!;
+    const idx = index.array as Uint32Array;
+    let w = 0;
+    for (let j = 0; j < res; j++)
+      for (let i = 0; i < res; i++) {
+        const a = j * n + i;
+        const b = a + 1;
+        const c = a + n;
+        const d = c + 1;
+        const ad = Math.abs(P[a * 3 + 1] - P[d * 3 + 1]);
+        const bc = Math.abs(P[b * 3 + 1] - P[c * 3 + 1]);
+        if (bc < ad) {
+          idx[w++] = a;
+          idx[w++] = c;
+          idx[w++] = b;
+          idx[w++] = b;
+          idx[w++] = c;
+          idx[w++] = d;
+        } else {
+          idx[w++] = a;
+          idx[w++] = c;
+          idx[w++] = d;
+          idx[w++] = a;
+          idx[w++] = d;
+          idx[w++] = b;
+        }
+      }
+    index.needsUpdate = true;
   }
 
   flightGround(x: number, z: number): number {
@@ -161,9 +224,11 @@ export class FjordWorld implements World {
     const night = smoothstep(0.08, 0.6, p.stars);
     // Sea smoke: frost mist on the water, thickest in the cold of the night.
     const u = mistUniforms;
-    u.uMist.value = K.seaSmoke * (0.35 + 0.65 * night);
+    // By day the air clears (dayHaze): the walls keep their layers but read as rock, not ghosts.
+    const clear = K.dayHaze + (1 - K.dayHaze) * night;
+    u.uMist.value = K.seaSmoke * (0.35 + 0.65 * night) * clear;
     u.uMistTop.value = K.mistTop;
-    u.uMistFar.value = K.mistFar;
+    u.uMistFar.value = K.mistFar * clear;
     u.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.3);
     u.uMistTime.value = time;
     this.decor.frame(day);

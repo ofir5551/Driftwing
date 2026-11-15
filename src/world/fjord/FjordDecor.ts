@@ -111,7 +111,7 @@ export class FjordDecor implements ChunkDecor<FjordChunk> {
       for (let i = Math.ceil(ox / hc); i < Math.ceil((ox + size) / hc); i++) {
         const x = (i + 0.2 + hash2(i, j, seed + 21) * 0.6) * hc;
         const z = (j + 0.2 + hash2(i, j, seed + 22) * 0.6) * hc;
-        if (L.hamlet(x, z) < 0.5 || hash2(i, j, seed + 23) > 0.7) continue;
+        if (hash2(i, j, seed + 23) >= 0) continue;
         const bank = L.fjord(x, z);
         if (bank < 3 || bank > L.shelf(x, z) - 4) continue;
         // Face the water: the fjord noise falls toward the centre line.

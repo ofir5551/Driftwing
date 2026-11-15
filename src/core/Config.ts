@@ -98,9 +98,27 @@ export const Config = {
     plateauVar: 55, // m, plateau swell either way
     peaks: 110, // m, ridged peaks rising off the plateau, away from the walls
     treeline: 75, // m, spruce stop climbing here
-    snowline: 55, // m, snow lies above this on anything but cliffs
+    snowline: 185, // m, snow lies above this (on cliffs only on the ledges); ragged by noise
+    snowRag: 45, // m the snowline wanders up and down
+    snowfields: 0.5, // share of the plateau's hollows below the snowline that hold snowfields
+    crag: 12, // m, ridged crags that buttress the walls
+    crease: 0.04, // rounding of the crag and peak ridges (a sharp crease saws the skyline)
     bergCell: 110, // m, grid cell that may hold one iceberg
     lighthouseAhead: 260, // m along the fjord from the spawn to the lighthouse
+    // Villages and waterfalls (pure layout, read when a level is created).
+    villageCell: 900, // m, grid cell that may hold one fishing village on a strand
+    villageChance: 0.75, // chance a cell's strand has a village
+    villageAhead: 170, // m along the fjord from the spawn to the home village (on the right)
+    villageShelf: 56, // m, the strand a village widens to
+    villageReach: 140, // m along the shore over which the village's strand widens
+    fallCell: 480, // m, grid cell that may hold one waterfall down a wall
+    fallChance: 0.6, // chance a cell's wall has a waterfall
+    fallAhead: 470, // m along the fjord from the spawn to the first waterfall
+    fallDrop: 85, // m, the least drop a waterfall needs
+    boatCell: 240, // m, grid cell that may hold a fishing boat out on the water
+    boatChance: 0.22, // chance a boat cell has a boat
+    seals: 0.3, // share of the big floes with a seal hauled out on them
+    eagleCell: 700, // m, grid cell that may hold a sea eagle soaring over the walls
     // Atmosphere.
     aurora: 1, // brightness of the aurora curtains (they show as the stars come out)
     seaSmoke: 0.5, // low mist over the water, thickest at night
@@ -108,6 +126,13 @@ export const Config = {
     mistFar: 0.32, // distance haze: far walls fade in layers
     windows: 1, // brightness of hut windows and the lighthouse after dark
     beamSpeed: 0.5, // rad/s, the lighthouse beam's sweep
+    dayHaze: 0.45, // share of the night's sea smoke and far haze left by day (clearer walls)
+    fogCell: 150, // m, grid cell along the fjords that may hold a fog bank
+    fogRange: 700, // m round the bird that fog banks are drawn
+    // Painted ground and rock (rock.ts; live).
+    rockRelief: 1, // strength of the walls' gullies and slabs (tilts the light)
+    rockFar: 650, // m, the relief fades out by this distance (flat paint beyond)
+    falls: 1, // brightness of the waterfalls (and their spray)
   },
   canyon: {
     // Plan (read when a level is created).
@@ -271,7 +296,9 @@ export const Config = {
     highlands: { shadows: 0.62, clouds: 0.32, shafts: 0.5 },
     city: { shadows: 0.5, clouds: 0.22, shafts: 0.35 },
     karst: { shadows: 0.5, clouds: 0.22, shafts: 0.6 },
-    fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5 },
+    // fog: banks lying low on the water at first light; reflect: the aurora in calm water
+    // near the shore at night.
+    fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5, fog: 0.75, reflect: 0.55 },
     jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
     // bounce: warm light off the red walls into the canyon's shade; haze: dust in the canyons.
     canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4, bounce: 0.32, haze: 0.16 },

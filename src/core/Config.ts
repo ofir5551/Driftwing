@@ -322,6 +322,17 @@ export const Config = {
     glance: 0.9, // fraction of the angle into a wall turned away on contact
     glanceSlow: 0.25, // speed lost against a wall, scaled by how head-on (about 0.04 per step head-on)
     lights: 1, // brightness of windows, neon and lamps after dark
+    // Painterly facade pass (building shader, boxes only; no vertices). Hides the box facets.
+    bevel: 1.5, // m, corners and roof edges are shaded as if rounded over this width (never < ~2 px)
+    wash: 0.12, // brightness swing of the paint wash over walls and roofs
+    streaks: 0.06, // darkening of the vertical weathering streaks (near only)
+    baseShade: 0.28, // darkening at the foot of a wall (contact shadow from the street)
+    skyGrade: 0.1, // walls lighten toward their tops (sky light), darken toward the street
+    windowDepth: 0.45, // lintel shadow inside each window, light sill under it
+    glassSky: 0.55, // glass towers mirror the sky at grazing angles and up high
+    edgeLight: 0.1, // corners, rims and the painted cornice catch this much extra light
+    cylinderSegments: 16, // sides of the shared cylinder (pillars, lanterns, tanks), smooth-shaded
+    treeSoftness: 0.85, // how far tree normals lean from facets to a smooth crown (build time)
     // Wisp ribbons (CityWisps). Long straight avenue runs in one lane let a player line up once
     // and hold (over half the wisps with no turning at all), so runs change lanes and turn more:
     // the city should ask for steering about half the time. Every line is still checked clear

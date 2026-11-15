@@ -1,18 +1,11 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
 import type { ChunkDecor } from '../ChunkManager';
-import {
-  cherryDetailGeometry,
-  cherryGeometry,
-  pineDetailGeometry,
-  pineGeometry,
-  roundTreeDetailGeometry,
-  roundTreeGeometry,
-  Trees,
-} from '../Trees';
+import { Trees } from '../Trees';
 import { CITY_TREE_STRIDE, MESH, PART_STRIDE, STYLE, type CityLayout } from './CityLayout';
 import {
   boxGeometry,
+  cityTreeShapes,
   cylinderGeometry,
   gableGeometry,
   hipGeometry,
@@ -38,13 +31,10 @@ export class CityDecor implements ChunkDecor<CityChunk> {
   readonly group = new THREE.Group();
   private readonly geometries: THREE.BufferGeometry[];
   private readonly material: THREE.Material;
+  private readonly boxMaterial: THREE.Material;
   private readonly latticeMaterial: THREE.Material;
   private readonly meshes: THREE.InstancedMesh[] = [];
-  private readonly trees = new Trees(
-    12000,
-    [roundTreeGeometry(), pineGeometry(), cherryGeometry()],
-    [roundTreeDetailGeometry(), pineDetailGeometry(), cherryDetailGeometry()],
-  );
+  private readonly trees: Trees;
   private readonly counts = CAPACITY.map(() => 0);
   private readonly colors = new Map<number, THREE.Color>();
   private readonly treeLists: number[][] = [];
@@ -53,8 +43,11 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     private readonly city: CityLayout,
     uniforms: CityUniforms,
   ) {
+    const shapes = cityTreeShapes();
+    this.trees = new Trees(12000, shapes.far, shapes.near, shapes.distant);
     this.trees.ground = (x, z) => city.height(x, z); // contact shadows lie on the slope
     this.material = createBuildingMaterial(uniforms);
+    this.boxMaterial = createBuildingMaterial(uniforms, THREE.FrontSide, true);
     this.latticeMaterial = createBuildingMaterial(uniforms, THREE.DoubleSide);
     this.geometries = [
       boxGeometry(),
@@ -73,7 +66,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     geo.setAttribute('aStyle', new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2));
     const mesh = new THREE.InstancedMesh(
       geo,
-      m === MESH.LATTICE ? this.latticeMaterial : this.material,
+      m === MESH.LATTICE ? this.latticeMaterial : m === MESH.BOX ? this.boxMaterial : this.material,
       cap,
     );
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
@@ -212,6 +205,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     for (const m of this.meshes) m.dispose();
     for (const g of this.geometries) g.dispose();
     this.material.dispose();
+    this.boxMaterial.dispose();
     this.latticeMaterial.dispose();
     this.trees.dispose();
   }

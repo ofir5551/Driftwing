@@ -6,8 +6,10 @@ import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
 import type { CoverStyle } from '../world/GroundCover';
 import { Islands } from '../world/Islands';
-import { createHeightField, type LandField } from '../world/Terrain';
-import { landColor } from '../world/highlands/Land';
+import { createHeightField, getToonGradient, type LandField } from '../world/Terrain';
+import { withGroundDetail } from '../world/GroundDetail';
+import { HighlandsLayout } from '../world/highlands/HighlandsLayout';
+import { createLandGeometry, fillLand, landColor, withLand } from '../world/highlands/Land';
 import { TreeDecor } from '../world/Trees';
 import type { LevelDef, World } from './World';
 import type { DiscoveryDef } from '../world/Discoveries';
@@ -26,19 +28,29 @@ const HIGHLANDS_COVER: CoverStyle = {
 };
 
 /** The original level: endless valleys, rivers and lakes, forests and floating islands. */
-class HighlandsWorld implements World {
+export class HighlandsWorld implements World {
   readonly group = new THREE.Group();
   readonly field: LandField;
   readonly planner = null;
   readonly discoveries: readonly DiscoveryDef[];
   private readonly chunks: ChunkManager<number[]>;
   private readonly islands: Islands;
+  readonly layout: HighlandsLayout;
 
   constructor(seed: number) {
     this.field = createHeightField(seed);
+    this.layout = new HighlandsLayout(this.field);
+    const ground = withLand(
+      withGroundDetail(
+        new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      ),
+    );
     this.chunks = new ChunkManager(this.field, {
       decor: new TreeDecor(this.field),
       color: landColor,
+      material: ground,
+      createGeometry: createLandGeometry,
+      fillExtra: (g, ox, oz, size, res) => fillLand(this.layout, g, ox, oz, size, res),
       cover: HIGHLANDS_COVER,
     });
     this.islands = new Islands(this.field);

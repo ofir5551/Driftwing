@@ -171,6 +171,11 @@ export const Config = {
     plainWidth: 46, // m from the river's centre where its flood plain ends
     plainHeight: 2.6, // m, the flood plain's height above the water
     clearings: 0.35, // share of the forest opened into glades
+    roadOffset: 24, // m from the river's centre to the dirt road along one bank
+    roadWidth: 2.6, // m, half-width of the road
+    fieldCell: 34, // m, side of a field in the patchwork
+    fieldAngle: 0.47, // rad, the patchwork grid's turn off the world axes
+    fieldFarm: 0.42, // farmland (Terrain.farm) at a field's centre for it to be farmed
   },
   /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
   light: {

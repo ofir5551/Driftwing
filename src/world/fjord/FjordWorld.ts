@@ -17,6 +17,9 @@ import { beamGeometry, lampGeometry, lighthouseGeometry } from './geometry';
 import type { DiscoveryDef } from '../Discoveries';
 import { fjordFinds } from './finds';
 import { withFjordRock } from './rock';
+import { fjordCover } from './cover';
+import { AuroraReflection, FogBanks } from './atmosphere';
+import { fallUniforms, fjordUniforms } from './materials';
 
 const C = {
   bed: new THREE.Color('#1d3442'),
@@ -32,6 +35,7 @@ const C = {
   snow: new THREE.Color('#eef3fa'),
 };
 const WHITE = new THREE.Color('#fff');
+const tmp = new THREE.Color();
 const DAY_LAMP = new THREE.Color('#d8dde2');
 const NIGHT_LAMP = new THREE.Color(5, 4.2, 2.6);
 const BEAM = new THREE.Color('#ffe6b0');
@@ -54,6 +58,8 @@ export class FjordWorld implements World {
   private readonly lamp: THREE.Mesh;
   private readonly beam: THREE.Mesh;
   private readonly n = { x: 0, y: 0, z: 0 };
+  private readonly fog: FogBanks;
+  private readonly reflection: AuroraReflection;
 
   constructor(seed: number) {
     const L = (this.layout = new FjordLayout(seed));
@@ -84,7 +90,10 @@ export class FjordWorld implements World {
         return g;
       },
       fillExtra: (g, ox, oz, size, res) => this.fillExtra(g, ox, oz, size, res),
+      cover: fjordCover(),
     });
+    this.fog = new FogBanks(L);
+    this.reflection = new AuroraReflection(L);
     this.planner = new FjordPlanner(L);
 
     const H = L.lighthouse;
@@ -109,10 +118,18 @@ export class FjordWorld implements World {
       }),
     );
     this.tower.name = 'lighthouse';
+    this.tower.castShadow = true;
     this.beam.name = 'lighthouse-beam';
     for (const m of [this.tower, this.lamp]) m.position.set(H.x, H.y0, H.z);
     this.beam.position.set(H.x, H.y0 + H.h - 2.85, H.z);
-    this.group.add(this.chunks.group, this.tower, this.lamp, this.beam);
+    this.group.add(
+      this.chunks.group,
+      this.tower,
+      this.lamp,
+      this.beam,
+      this.fog.mesh,
+      this.reflection.mesh,
+    );
   }
 
   private groundColor(
@@ -216,6 +233,8 @@ export class FjordWorld implements World {
 
   update(px: number, pz: number): void {
     this.chunks.update(px, pz);
+    this.fog.update(px, pz);
+    this.reflection.update(px, pz);
   }
 
   frame(_dt: number, time: number, day: DayCycle): void {
@@ -231,6 +250,30 @@ export class FjordWorld implements World {
     u.uMistFar.value = K.mistFar * clear;
     u.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.3);
     u.uMistTime.value = time;
+    // Fog banks lie low on the water at first light (phase ~0), gone by mid-morning.
+    const LL = Config.levelLight.fjord;
+    const dp = Math.min(day.phase, 1 - day.phase);
+    const dawn = smoothstep(0.17, 0.03, dp);
+    u.uMist.value += LL.fog * dawn * 0.35;
+    tmp.copy(p.fog).lerp(p.skyHorizon, 0.45).lerp(WHITE, 0.15);
+    this.fog.frame(tmp, LL.fog * dawn, time);
+    // The aurora in the calm water near the shore, as bright as the sky's own (Sky's rule).
+    this.reflection.frame(Math.max(0, (p.stars - 0.25) / 0.75) * K.aurora * LL.reflect, time);
+    fjordUniforms.uFjTime.value = time;
+    // Waterfalls: white water lit by the hour (the sun and the sky), shaded by the sky alone.
+    const F = fallUniforms;
+    tmp.copy(p.sun).multiplyScalar(p.sunIntensity * 0.35 * smoothstep(-0.05, 0.25, day.sunDir.y));
+    F.uLight.value
+      .copy(p.hemiSky)
+      .multiplyScalar(p.hemiIntensity * 0.55)
+      .add(tmp);
+    F.uShade.value
+      .copy(p.hemiSky)
+      .multiplyScalar(p.hemiIntensity * 0.42)
+      .lerp(p.water, 0.3);
+    F.uFogColor.value.copy(p.fog);
+    F.uFogFar.value = Config.render.drawDistance;
+    F.uFalls.value = K.falls;
     this.decor.frame(day);
     (this.lamp.material as THREE.MeshBasicMaterial).color
       .copy(DAY_LAMP)
@@ -291,6 +334,8 @@ export class FjordWorld implements World {
 
   dispose(): void {
     this.chunks.dispose();
+    this.fog.dispose();
+    this.reflection.dispose();
     for (const m of [this.tower, this.lamp, this.beam]) {
       m.geometry.dispose();
       (m.material as THREE.Material).dispose();

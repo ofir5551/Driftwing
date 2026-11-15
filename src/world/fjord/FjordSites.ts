@@ -14,8 +14,9 @@ export const P = {
   Boulder: 6,
   Seal: 7,
   Bird: 8,
+  Floe: 9,
 } as const;
-export const PROP_KINDS = 9;
+export const PROP_KINDS = 10;
 
 /**
  * Floats per prop: kind, x, y, z, yaw, move (a boat's or bird's circle radius, 0 = still),
@@ -340,7 +341,8 @@ export class FjordSites {
         if (Math.abs(dx) > 24 || Math.abs(dz) > 24) continue;
         const lx = dx * S[k + 2] - dz * S[k + 3];
         const lz = dx * S[k + 3] + dz * S[k + 2];
-        if (Math.abs(lx) < S[k + 4] + m && Math.abs(lz) < S[k + 5] + m) top = Math.max(top, S[k + 6]);
+        if (Math.abs(lx) < S[k + 4] + m && Math.abs(lz) < S[k + 5] + m)
+          top = Math.max(top, S[k + 6]);
       }
     });
     return top;

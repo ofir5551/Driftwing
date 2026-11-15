@@ -93,7 +93,7 @@ if (fRock > 0.0) {
   tone += (gNoise(vec2(al * 0.004, y * 0.005) + 5.0) - 0.5) * 0.8;
   // Pale water-washed streaks down the face.
   tone += 0.35 * smoothstep(0.6, 0.9, gNoise(vec2(al * 0.09, y * 0.006 + 2.0)));
-  vec3 rc = mix(uRockDark, uRockLight, clamp(tone * 0.95 + r0 * 0.1 + 0.05, 0.0, 1.0));
+  vec3 rc = mix(uRockDark, uRockLight, clamp(tone * 0.95 + 0.08, 0.0, 1.0));
   rc = mix(rc, uRockWarm, smoothstep(0.55, 0.9, gNoise(vec2(al * 0.008, y * 0.006) + 11.0)) * 0.5);
   rc *= 1.0 - 0.22 * gully;
   // Meltwater stains: dark streaks hanging down the face from the ledges, thinning downward.
@@ -104,8 +104,9 @@ if (fRock > 0.0) {
   rc *= 1.0 - 0.45 * (1.0 - smoothstep(0.4, 3.5 + 1.5 * fN1, y));
   // Turf, moss and birch scrub cling to the gentler steps and ledges below the treeline, in
   // patches and along the ledges: the green-banded walls of a western fjord.
-  float ledge = smoothstep(0.12, 0.45, fWN.y) * smoothstep(0.5, 0.72, gNoise(vec2(al * 0.025, y * 0.11) + 2.0) + 0.2 * fN1);
-  vec3 turf = mix(vec3(0.29, 0.36, 0.2), vec3(0.42, 0.4, 0.22), gNoise(vec2(al * 0.05, y * 0.05)));
+  float ledge = smoothstep(0.18, 0.5, fWN.y)
+    * smoothstep(0.55, 0.75, gNoise(vec2(al * 0.035, y * 0.05) + 2.0) * 0.7 + gNoise(vec2(al * 0.11, y * 0.09)) * 0.3 + 0.15 * fN1);
+  vec3 turf = mix(vec3(0.24, 0.31, 0.18), vec3(0.33, 0.35, 0.2), gNoise(vec2(al * 0.05, y * 0.05)));
   rc = mix(rc, turf, ledge * (1.0 - smoothstep(60.0, 120.0, y + 20.0 * fN2)) * 0.85);
   // Far off the paint calms to the rock's mean (no shimmer).
   rc = mix(mix(uRockDark, uRockLight, 0.55), rc, 0.35 + 0.65 * fNear);

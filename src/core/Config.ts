@@ -298,7 +298,7 @@ export const Config = {
     karst: { shadows: 0.5, clouds: 0.22, shafts: 0.6 },
     // fog: banks lying low on the water at first light; reflect: the aurora in calm water
     // near the shore at night.
-    fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5, fog: 0.75, reflect: 0.55 },
+    fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5, fog: 0.75, reflect: 0.3 },
     jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
     // bounce: warm light off the red walls into the canyon's shade; haze: dust in the canyons.
     canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4, bounce: 0.32, haze: 0.16 },

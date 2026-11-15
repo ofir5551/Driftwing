@@ -591,7 +591,7 @@ export const Config = {
     contactShadows: 1, // 1 = soft contact shadows under trees and props
     cloudShadows: 1, // multiplier on each level's drifting cloud shadows (0 = off)
     lightShafts: 1, // multiplier on each level's light shafts (0 = off)
-    coverDistance: 95, // m, ground cover (grass, flowers) is drawn within this (0 = off)
+    coverDistance: 80, // m, ground cover (grass, flowers) is drawn within this (0 = off)
     coverDensity: 1, // 0..1 share of the ground-cover tufts kept
     propDistance: 650, // m, Highlands buildings, rocks and bushes are drawn within this
     smallPropDistance: 320, // m, walls, fences, hay, sheep, reeds, boats, flocks (0 = none)
@@ -677,7 +677,7 @@ export const QUALITY: Record<
     contactShadows: 1,
     cloudShadows: 1,
     lightShafts: 1,
-    coverDistance: 95,
+    coverDistance: 80,
     coverDensity: 1,
     propDistance: 650,
     smallPropDistance: 320,

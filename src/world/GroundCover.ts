@@ -22,7 +22,34 @@ export interface CoverStyle {
   flowers?: { chance: number; colors: readonly string[] };
   /** Extra rule (roads, fields, paved ground): false keeps the spot bare. */
   accept?: (x: number, z: number, y: number) => boolean;
+  /**
+   * Per-tuft look (crops, bare soil): called with the tuft's place and its default look in `t`
+   * (ground-tinted colour, scale), which it may change, or set `t.bare` to skip the tuft.
+   */
+  paint?: (x: number, z: number, y: number, t: CoverTuft) => void;
+  /** A terrain vertex attribute whose first component reaches `paint` as `t.extra`. */
+  extra?: string;
 }
+
+/** One tuft's look, handed to CoverStyle.paint (a reused scratch object). */
+export interface CoverTuft {
+  /** Linear rgb (instance colour over the blade's own shading). */
+  r: number;
+  g: number;
+  b: number;
+  /** Size (1 = the style's height). */
+  scale: number;
+  /** Leave the spot bare. */
+  bare: boolean;
+  /** Chance of a flower here (-1: the drifts decide). */
+  bloom: number;
+  /** Petal colour index (-1: the drifts' hue decides). */
+  petal: number;
+  /** The style's `extra` attribute here, bilinear in the lattice cell (0 without one). */
+  extra: number;
+}
+
+const tuft: CoverTuft = { r: 0, g: 0, b: 0, scale: 1, bare: false, bloom: -1, petal: -1, extra: 0 };
 
 /** A terrain chunk's vertex lattice: (res + 1)^2 chunk-local positions and ground colours. */
 export interface CoverLattice {
@@ -32,6 +59,9 @@ export interface CoverLattice {
   res: number;
   positions: ArrayLike<number>;
   colors: ArrayLike<number>;
+  /** The style's `extra` attribute, if it has one, and its item size. */
+  extra?: ArrayLike<number>;
+  extraSize?: number;
 }
 
 /** Floats per cover item: x, y, z, scale, r, g, b, keep (0..1, tested against coverDensity). */
@@ -58,6 +88,8 @@ export function scatterCover(
   flowers.length = 0;
   const tint = style.tint;
   const chance = style.flowers?.chance ?? 0;
+  const X = lat.extra;
+  const xs = lat.extraSize ?? 1;
   const { ox, oz, size, res } = lat;
   const P = lat.positions;
   const C = lat.colors;
@@ -95,18 +127,30 @@ export function scatterCover(
       const b3 = b * 3;
       const c3 = c * 3;
       const d3 = d * 3;
-      const r = (C[a3] * w00 + C[b3] * w10 + C[c3] * w01 + C[d3] * w11) * tint[0];
-      const g = (C[a3 + 1] * w00 + C[b3 + 1] * w10 + C[c3 + 1] * w01 + C[d3 + 1] * w11) * tint[1];
-      const bl = (C[a3 + 2] * w00 + C[b3 + 2] * w10 + C[c3 + 2] * w01 + C[d3 + 2] * w11) * tint[2];
+      const t = tuft;
+      t.r = (C[a3] * w00 + C[b3] * w10 + C[c3] * w01 + C[d3] * w11) * tint[0];
+      t.g = (C[a3 + 1] * w00 + C[b3 + 1] * w10 + C[c3 + 1] * w01 + C[d3 + 1] * w11) * tint[1];
+      t.b = (C[a3 + 2] * w00 + C[b3 + 2] * w10 + C[c3 + 2] * w01 + C[d3 + 2] * w11) * tint[2];
+      t.scale = (0.7 + hash2(i, j, seed + 3) * 0.55) * style.height;
+      t.bare = false;
+      t.bloom = -1;
+      t.petal = -1;
+      t.extra = X ? X[a * xs] * w00 + X[b * xs] * w10 + X[c * xs] * w01 + X[d * xs] * w11 : 0;
+      if (style.paint) {
+        style.paint(x, z, y, t);
+        if (t.bare) continue;
+      }
       const keep = hash2(i, j, seed + 2);
-      const s = (0.7 + hash2(i, j, seed + 3) * 0.55) * style.height;
-      tufts.push(x, y - 0.06, z, s, r, g, bl, keep);
+      tufts.push(x, y - 0.06, z, t.scale, t.r, t.g, t.b, keep);
       if (petalRgb.length === 0) continue;
-      // Drifts: one colour family per drift, densest at its heart.
+      // Drifts: one colour family per drift, densest at its heart (or the style's own bloom).
       const heart = Math.max(0, drift(x * 0.03, z * 0.03) - 0.15) * 2.2;
-      if (hash2(i, j, seed + 4) >= chance * heart) continue;
+      if (hash2(i, j, seed + 4) >= (t.bloom >= 0 ? t.bloom : chance * heart)) continue;
       const nc = petalRgb.length / 3;
-      const pi = Math.min(nc - 1, Math.floor((hue(x * 0.012, z * 0.012) * 0.5 + 0.5) * nc)) * 3;
+      const pi =
+        (t.petal >= 0
+          ? Math.min(nc - 1, t.petal)
+          : Math.min(nc - 1, Math.floor((hue(x * 0.012, z * 0.012) * 0.5 + 0.5) * nc))) * 3;
       const fs = 0.9 + hash2(i, j, seed + 5) * 0.5;
       flowers.push(x, y - 0.05, z, fs, petalRgb[pi], petalRgb[pi + 1], petalRgb[pi + 2], keep);
     }
@@ -369,6 +413,9 @@ export class GroundCover {
     lattice.res = res;
     lattice.positions = g.getAttribute('position').array;
     lattice.colors = g.getAttribute('color').array;
+    const ex = this.style.extra ? g.getAttribute(this.style.extra) : undefined;
+    lattice.extra = ex?.array;
+    lattice.extraSize = ex?.itemSize ?? 1;
     scatterCover(
       lattice,
       this.style,

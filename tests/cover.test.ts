@@ -173,3 +173,32 @@ describe('ground cover', () => {
       expect([r, g, b]).toSatisfy((c: number[]) => c.join() === '1,0,0' || c.join() === '0,0,1');
   });
 });
+
+describe('ground cover paint hook', () => {
+  it('lets a style leave spots bare, recolour, resize and read its extra attribute', () => {
+    const lat = lattice(0, 0, 40, 10, () => 5);
+    // An extra attribute that runs 0..40 along x (one component per vertex).
+    const n = 11;
+    const extra = new Float32Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) extra[j * n + i] = i * 4;
+    const painted: CoverStyle = {
+      ...style,
+      paint: (x, _z, _y, t) => {
+        expect(t.extra).toBeCloseTo(Math.min(x, 40), 3);
+        if (x < 20) t.bare = true;
+        else {
+          t.r = 0.9;
+          t.scale = 2;
+        }
+      },
+    };
+    const t: number[] = [];
+    scatterCover({ ...lat, extra, extraSize: 1 }, painted, 4, drift, hue, [], t, []);
+    expect(t.length).toBeGreaterThan(0);
+    for (const [x, , , s, r] of items(t)) {
+      expect(x).toBeGreaterThanOrEqual(20);
+      expect(s).toBe(2);
+      expect(r).toBe(0.9);
+    }
+  });
+});

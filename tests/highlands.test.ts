@@ -3,6 +3,7 @@ import { Config } from '../src/core/Config';
 import { HighlandsWorld } from '../src/levels/Highlands';
 import { createHeightField } from '../src/world/Terrain';
 import { HighlandsScatter } from '../src/world/highlands/HighlandsScatter';
+import { highlandsCover } from '../src/world/highlands/crops';
 import { flyBot } from './helpers';
 import {
   BUILT_SIZE,
@@ -224,4 +225,42 @@ describe('highlands scenery', () => {
     expect(r.inside).toBe(0);
     expect(r.got).toBeGreaterThan(80);
   }, 60_000);
+});
+
+describe('highlands crops', () => {
+  const layout = new HighlandsLayout(createHeightField(SEED), SEED);
+  const style = highlandsCover(layout);
+  const tuft = () => ({
+    r: 0.3,
+    g: 0.5,
+    b: 0.2,
+    scale: 1,
+    bare: false,
+    bloom: -1,
+    petal: -1,
+    extra: 999,
+  });
+
+  it('ploughs bare, stands wheat tall and golden, leaves the road bare', () => {
+    const at = { x: 0, z: 0 };
+    const seen = new Set<number>();
+    for (let j = -30; j <= 30; j++)
+      for (let i = -30; i <= 30; i++) {
+        if (!layout.cellFarmed(i, j)) continue;
+        const kind = fieldKind(i, j);
+        fieldCentre(i, j, at);
+        const t = tuft();
+        style.paint!(at.x, at.z, 5, t);
+        if (kind === Field.Plough) expect(t.bare).toBe(true);
+        if (kind === Field.Wheat)
+          expect([t.bare, t.scale > 1.3, t.r > t.b]).toEqual([false, true, true]);
+        if (kind === Field.Meadow) expect(t).toEqual(tuft());
+        seen.add(kind);
+      }
+    expect(seen.size).toBe(6);
+    const road = tuft();
+    road.extra = Config.highlands.roadOffset + 0.5;
+    style.paint!(9999.5, 9999.5, 5, road);
+    expect(road.bare).toBe(true);
+  });
 });

@@ -4,7 +4,7 @@ import { smoothstep } from '../core/math';
 import { HIGHLANDS_MUSIC } from '../audio/styles';
 import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
-import type { CoverStyle } from '../world/GroundCover';
+import { highlandsCover } from '../world/highlands/crops';
 import { Islands } from '../world/Islands';
 import { createHeightField, getToonGradient, type LandField } from '../world/Terrain';
 import { withGroundDetail } from '../world/GroundDetail';
@@ -16,18 +16,6 @@ import { createLandGeometry, fillLand, landColor, withLand } from '../world/high
 import type { LevelDef, World } from './World';
 import type { DiscoveryDef } from '../world/Discoveries';
 import { highlandsFinds } from '../world/highlands/finds';
-
-/**
- * Meadow grass over the hills, from the beaches (sand gives way to grass by ~1.5 m) up to where
- * the high ground pales; wildflowers in drifts: white, buttercup, pink, harebell, poppy.
- */
-const HIGHLANDS_COVER: CoverStyle = {
-  tint: [1.04, 1.06, 0.95],
-  height: 1,
-  minY: 1.4,
-  maxY: 100,
-  flowers: { chance: 0.42, colors: ['#fbf7ee', '#f7d34a', '#f3a6c4', '#a9b6f2', '#ef7a5c'] },
-};
 
 const WHITE = new THREE.Color('#fff');
 
@@ -60,7 +48,7 @@ export class HighlandsWorld implements World {
       material: ground,
       createGeometry: createLandGeometry,
       fillExtra: (g, ox, oz, size, res) => fillLand(this.layout, g, ox, oz, size, res),
-      cover: HIGHLANDS_COVER,
+      cover: highlandsCover(this.layout),
     });
     this.islands = new Islands(this.field);
     this.discoveries = highlandsFinds(() => this.islands.active);

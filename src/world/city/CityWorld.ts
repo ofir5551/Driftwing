@@ -6,6 +6,7 @@ import type { FlightInput, FlightState } from '../../player/FlightModel';
 import { ChunkManager } from '../ChunkManager';
 import type { DayCycle } from '../DayCycle';
 import { createChunkGeometry, type HeightField } from '../Terrain';
+import { mistUniforms, withMist } from '../Mist';
 import { createNoise2D } from '../noise';
 import { CityDecor, type CityChunk } from './CityDecor';
 import { BK, CityLayout, ZONE_AVENUE, ZONE_STREET } from './CityLayout';
@@ -55,7 +56,7 @@ export class CityWorld implements World {
     this.decor = new CityDecor(L, this.uniforms);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: createGroundMaterial(this.uniforms, L),
+      material: withMist(createGroundMaterial(this.uniforms, L)),
       color: (f, x, z, y, _slope, out) => this.groundColor(f, x, z, y, out),
       createGeometry: (res) => {
         const g = createChunkGeometry(res);
@@ -158,6 +159,16 @@ export class CityWorld implements World {
     u.uCityLights.value = Config.city.lights;
     u.uCitySky.value.copy(p.skyHorizon);
     u.uCityTime.value = time;
+    // Haze in the street canyons: a thin layer low between the towers that thickens with
+    // distance (clear round the bird), warmer by day and bluer at dusk, plus a far haze.
+    const L = Config.levelLight.city;
+    const m = mistUniforms;
+    m.uMist.value = L.haze;
+    m.uMistTop.value = L.hazeTop;
+    m.uMistBase.value = 0;
+    m.uMistFar.value = L.hazeFar;
+    m.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.35);
+    m.uMistTime.value = time;
   }
 
   assist(s: FlightState, input: FlightInput): void {
@@ -205,5 +216,7 @@ export class CityWorld implements World {
 
   dispose(): void {
     this.chunks.dispose();
+    mistUniforms.uMist.value = 0;
+    mistUniforms.uMistFar.value = 0;
   }
 }

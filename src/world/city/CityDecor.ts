@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
 import type { ChunkDecor } from '../ChunkManager';
+import { withMist } from '../Mist';
+import { ShadowCasters } from '../ShadowCasters';
 import { Trees } from '../Trees';
 import { CITY_TREE_STRIDE, MESH, PART_STRIDE, STYLE, type CityLayout } from './CityLayout';
 import {
@@ -20,6 +22,10 @@ export interface CityChunk {
 
 /** Starting instance capacities per mesh (grown on demand). */
 const CAPACITY = [30000, 6000, 12000, 3000, 1500, 8];
+/** Building casters' capacity per mesh near the bird, on high (0: casts no shadow). The
+ * lattice is cut in its shader, so its solid shell would cast a slab: it casts none. */
+const CASTS = [9000, 2000, 2500, 400, 300, 0];
+const mat4 = new THREE.Matrix4();
 
 /**
  * The city's scenery as a handful of global instanced meshes (box, cylinder, gable roof, hip
@@ -34,6 +40,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
   private readonly boxMaterial: THREE.Material;
   private readonly latticeMaterial: THREE.Material;
   private readonly meshes: THREE.InstancedMesh[] = [];
+  private readonly casters: (ShadowCasters | null)[] = [];
   private readonly trees: Trees;
   private readonly counts = CAPACITY.map(() => 0);
   private readonly colors = new Map<number, THREE.Color>();
@@ -46,9 +53,10 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     const shapes = cityTreeShapes();
     this.trees = new Trees(12000, shapes.far, shapes.near, shapes.distant);
     this.trees.ground = (x, z) => city.height(x, z); // contact shadows lie on the slope
-    this.material = createBuildingMaterial(uniforms);
-    this.boxMaterial = createBuildingMaterial(uniforms, THREE.FrontSide, true);
-    this.latticeMaterial = createBuildingMaterial(uniforms, THREE.DoubleSide);
+    withMist(this.trees.material);
+    this.material = withMist(createBuildingMaterial(uniforms));
+    this.boxMaterial = withMist(createBuildingMaterial(uniforms, THREE.FrontSide, true));
+    this.latticeMaterial = withMist(createBuildingMaterial(uniforms, THREE.DoubleSide));
     this.geometries = [
       boxGeometry(),
       cylinderGeometry(),
@@ -57,7 +65,13 @@ export class CityDecor implements ChunkDecor<CityChunk> {
       hipGeometry(0.35),
       latticeGeometry(),
     ];
-    for (let m = 0; m < this.geometries.length; m++) this.meshes.push(this.make(m, CAPACITY[m]));
+    for (let m = 0; m < this.geometries.length; m++) {
+      this.meshes.push(this.make(m, CAPACITY[m]));
+      // Towers cast across the streets on high (shadow-only copies of the parts near the bird).
+      const c = CASTS[m] ? new ShadowCasters(this.geometries[m], this.material, CASTS[m]) : null;
+      this.casters.push(c);
+      if (c) this.group.add(c.mesh);
+    }
     this.group.add(...this.meshes, this.trees.group);
   }
 
@@ -143,6 +157,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
       this.group.add(this.meshes[m]);
     }
     counts.fill(0);
+    for (const c of this.casters) c?.begin(px, pz, Config.world.chunkSize);
     for (const it of items) {
       const P = it.parts;
       for (let k = 0; k < P.length; k += PART_STRIDE) {
@@ -174,6 +189,8 @@ export class CityDecor implements ChunkDecor<CityChunk> {
         M[o + 13] = P[k + 2];
         M[o + 14] = P[k + 3];
         M[o + 15] = 1;
+        const caster = this.casters[m];
+        if (caster) caster.add(P[k + 1], P[k + 3], mat4.fromArray(M, o));
         const col = this.color(P[k + 8]);
         const C = mesh.instanceColor!.array as Float32Array;
         C[i * 3] = col.r;
@@ -190,6 +207,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
       mesh.instanceMatrix.needsUpdate = true;
       mesh.instanceColor!.needsUpdate = true;
       mesh.geometry.getAttribute('aStyle').needsUpdate = true;
+      this.casters[m]?.end();
     }
     this.treeLists.length = 0;
     for (const it of items) this.treeLists.push(it.trees);
@@ -203,6 +221,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
 
   dispose(): void {
     for (const m of this.meshes) m.dispose();
+    for (const c of this.casters) c?.dispose();
     for (const g of this.geometries) g.dispose();
     this.material.dispose();
     this.boxMaterial.dispose();

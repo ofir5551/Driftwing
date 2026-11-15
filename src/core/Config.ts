@@ -269,7 +269,8 @@ export const Config = {
    */
   levelLight: {
     highlands: { shadows: 0.62, clouds: 0.32, shafts: 0.5 },
-    city: { shadows: 0.5, clouds: 0.22, shafts: 0.35 },
+    // haze: the low layer in the street canyons (up to hazeTop m); hazeFar: the distance haze.
+    city: { shadows: 0.5, clouds: 0.22, shafts: 0.35, haze: 0.16, hazeTop: 30, hazeFar: 0.03 },
     karst: { shadows: 0.5, clouds: 0.22, shafts: 0.6 },
     fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5 },
     jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },

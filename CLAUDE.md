@@ -61,7 +61,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
   plumage, tuning). `ChaseCamera.ts` polar springs. `fx/TrailStyle.ts`: wingtip trail colours.
 - `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
-  decor, optional `GroundCover`), `Trees` (instanced; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
+  decor, optional `GroundCover`), `Trees` (instanced; near, far and optional distant shapes; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
   `GroundDetail`: painted terrain detail (patches, strokes, strata, bumps) patched into toon materials.
 - `world/highlands/`: `HighlandsLayout` (pure: rotated field grid, farmed fields (decided whole,
@@ -82,10 +82,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   walls are terrain that `solidTop` reports for the look-ahead), `FjordWisps`, `FjordDecor`,
   `geometry`, `FjordWorld`. The aurora is the `aurora` backdrop in `Sky`.
 - `world/jerusalem/`: `JerusalemLayout` (pure: designed Old City, valleys and landmarks round the
-  origin blending into endless hills, wadis, terraces and towns; per-block parts, trees and
-  solids (oriented boxes, domed drums); low roofs are canopy), `JerusalemWisps` (opening ribbon,
-  land-hugging swoops, valley runs, landmark swings), `JerusalemDecor` (instanced unit shapes),
-  `materials` (the stone shader), `geometry`, `JerusalemWorld`. Hills are the `hills` backdrop.
+  origin blending into endless hills, wadis, terraces and towns; per-block parts, trees, roof
+  clutter and stalls, and solids (oriented boxes, domed drums); low roofs are canopy; roads,
+  paths and dry beds as signed distances (`track`), walled fields on the valley floors),
+  `JerusalemScatter` (pure, per chunk: terrace walls by marching squares, field walls, rocks,
+  garrigue, oleanders, flocks, swifts, road cypresses), `props` (records), `land` (terrain
+  `aJLand` + roads/paths/beds/risers in the shader), `cover` (ground-cover style),
+  `JerusalemWisps` (opening ribbon, land-hugging swoops, valley runs, landmark swings),
+  `JerusalemDecor` (instanced stone, trees in three distances, props near/far, casters,
+  contact shadows; scatters one chunk a frame), `materials` (stone shader with bevels,
+  weathering and cool shade; foliage detail; painted dry stone), `shapes` (props), `geometry`,
+  `JerusalemWorld`. Hills are the `hills` backdrop.
 - `world/canyon/`: `CanyonLayout` (pure: canyons, stepped strata walls, plateau and mesas, arches
   (half-elliptical bands, the Great Arch ahead of the spawn) and hoodoos; walls are terrain that
   `solidTop` reports, arches report their span's underside), `CanyonWisps` (canyon runs that

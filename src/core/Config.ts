@@ -396,12 +396,31 @@ export const Config = {
     sandbars: 1, // 0..1 strength of the sand bars on the lagoons' sand flats
     villageChance: 0.45, // chance an atoll other than home has a fishing village off an islet
     homeVillage: 2.3, // rad round the home island (from +z) of its village's beach
+    jungle: 0.32, // share of island cells that hold a jungle tree (the ground paints the rest)
+    // Life (scatter, within prop distance).
+    canoes: 0.05, // chance an 18 m cell of beach has an outrigger canoe pulled up on it
+    villageCanoes: 0.5, // ... near a village
+    nets: 0.03, // chance a cell of the shallows has a fishing net on poles (near a village 0.35)
+    fires: 0.012, // chance a cell of an islet's beach has a cooking fire (villages have two or three)
+    smokeRise: 1.1, // m/s, how fast the cooking fires' smoke rises
+    coral: 0.6, // density of the coral heads on the lagoon knolls
+    fish: 0.3, // chance an 80 m cell of lagoon has a school of fish
+    turtles: 0.08, // ... a turtle
+    rays: 0.08, // ... an eagle ray
+    paddlers: 0.07, // ... a canoe out paddling
+    seabirds: 0.3, // chance a chunk has frigatebirds or terns overhead
     // Atmosphere and light.
     clarity: 0.8, // how clear the water is: 0 opaque (other levels), 1 glass-clear over the sand
     surf: 1, // brightness of the surf breaking on the outer reefs
     glow: 1, // bioluminescence in the surf after dark
     windows: 1, // brightness of bungalow windows and boat lanterns after dark
     mistFar: 0.16, // sea haze: far atolls fade into the horizon
+    // The painted ground (land.ts).
+    crowns: 1, // strength of the painted crown carpet on the jungle (tint, dark gaps, domes)
+    crownSize: 5, // m, spacing of the painted crowns
+    crownFar: 1400, // m, beyond this the crowns have faded out
+    foam: 1, // the shore's swash: height of its reach and strength of its lace of foam
+    tidePools: 1, // the reef flat's rubble, coralline crust and tide pools
     cumulusDistance: 25000, // m, how far the painted cumulus towers on the horizon pretend to be
     cumulusBase: 600, // m, their flat bases' height
   },

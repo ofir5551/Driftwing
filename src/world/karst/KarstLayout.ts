@@ -1,5 +1,5 @@
 import { Config } from '../../core/Config';
-import { lerp, smoothstep } from '../../core/math';
+import { clamp, lerp, smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, type Noise2D } from '../noise';
 
 /**
@@ -67,11 +67,58 @@ export interface Pillar {
   /** Horizontal reach from (x, z) of any part of the rock. */
   reach: number;
   pavilion: boolean;
+  /** A pagoda on a lower summit (never with a pavilion). */
+  pagoda: boolean;
   /** Per-pillar random in [0, 1) for decor. */
   seed: number;
 }
 
 const CELL_CACHE = 6000;
+/** Silhouettes whose summits are broad enough for a pagoda (sugarloaf, dome, pot-bellied). */
+const PAGODA_SHAPES = [true, true, false, false, true];
+/** Height of the pagoda from the summit it stands on (m). */
+export const PAGODA_HEIGHT = 17;
+
+/**
+ * A stone bridge where a footpath crosses the river: centre, the direction it spans (unit
+ * vector, across the river), half length, the deck's crown and end heights, half width.
+ */
+export interface Bridge {
+  x: number;
+  z: number;
+  /** Unit vector along the span. */
+  ux: number;
+  uz: number;
+  yaw: number;
+  /** Half length, end to end (m). */
+  half: number;
+  /** Deck height at the crown and at the two ends (m). */
+  crown: number;
+  ends: number;
+  /** Half width of the deck (m). */
+  width: number;
+}
+
+/** Deck top of a bridge at u in [-1, 1] along its span: a hump, flattening at the ends. */
+export function deckY(b: Bridge, u: number): number {
+  const w = 1 - u * u;
+  return b.ends + (b.crown - b.ends) * w * (2 - w);
+}
+
+/**
+ * Field kind of a paddy (integer arithmetic, exact in float32, so the terrain shader picks the
+ * same): below FLOODED a flooded mirror, below RIPE young rice, else ripening.
+ */
+export function paddyKind(terrace: number, cx: number, cz: number): number {
+  const m = (v: number, d: number) => v - d * Math.floor(v / d);
+  const t = m(terrace, 64);
+  const a = m(cx, 64);
+  const b = m(cz, 64);
+  const n = t * 31 + a * 17 + b * 13 + t * a * 7 + a * b * 3 + t * b * 5;
+  return m(m(n, 97), 20);
+}
+export const FLOODED = 9;
+export const RIPE = 16;
 
 export class KarstLayout {
   readonly seed: number;
@@ -87,6 +134,9 @@ export class KarstLayout {
   /** Scratch result of `axisAt()`: the rock's centre at that height. */
   ax = 0;
   az = 0;
+  /** Scratch results of `base()`: the land before the terraces cut it, and the paddy share. */
+  raw = 0;
+  pw = 0;
   private readonly nRiver: Noise2D;
   private readonly nWidth: Noise2D;
   private readonly nHills: Noise2D;
@@ -95,7 +145,9 @@ export class KarstLayout {
   private readonly nGrove: Noise2D;
   private readonly nVillage: Noise2D;
   private readonly nPaddy: Noise2D;
+  private readonly nPath: Noise2D;
   private readonly cells = new Map<number, Pillar[]>();
+  private readonly bridgeCells = new Map<number, Bridge | null>();
 
   constructor(seed: number) {
     this.seed = seed;
@@ -107,6 +159,7 @@ export class KarstLayout {
     this.nGrove = createNoise2D(seed + 306);
     this.nVillage = createNoise2D(seed + 307);
     this.nPaddy = createNoise2D(seed + 308);
+    this.nPath = createNoise2D(seed + 309);
     this.findSpawn();
   }
 
@@ -185,16 +238,25 @@ export class KarstLayout {
 
   // --- Ground ----------------------------------------------------------------------------------
 
-  /** Valley floor without the pillars' scree skirts. */
+  /**
+   * Valley floor without the pillars' scree skirts. Where paddies are, the land swells into low
+   * hills and is cut into level terraces stepping up them (each tread a flat field, each riser a
+   * short grassy wall); the land before the cut goes in `raw`, the paddy share in `pw`.
+   */
   base(x: number, z: number): number {
+    const K = Config.karst;
     const bank = this.river(x, z);
     const hills = fbm(this.nHills, x * 0.003, z * 0.003, 3);
     const land = 0.5 + 0.5 * fbm(this.nLand, x * 0.0012, z * 0.0012, 2);
     let y = 3 + hills * 1.4 + smoothstep(10, 420, bank) * (2 + 9 * land);
-    // Paddies: shallow terraces stepping up from the river, each a level field.
-    const p = this.paddy(x, z);
+    const pn = fbm(this.nPaddy, x * 0.0035, z * 0.0035, 2);
+    const p = this.paddyOf(pn, bank, x, z);
+    this.pw = p;
+    // Terraced hills: the paddy country rises in rounded swells, so the steps climb them.
+    y += K.terraceHills * smoothstep(0.05, 0.65, pn) * smoothstep(16, 60, bank);
+    this.raw = y;
     if (p > 0) {
-      const step = 0.8;
+      const step = K.terraceStep;
       const f = y / step;
       const i = Math.floor(f);
       y = lerp(y, (i + smoothstep(0.82, 1, f - i)) * step, p);
@@ -225,24 +287,58 @@ export class KarstLayout {
     return y;
   }
 
-  /** 0..1: how much of a terraced paddy field (x, z) is. */
+  /** 0..1: how much of a terraced paddy field (x, z) is. Uses river() scratch. */
   paddy(x: number, z: number): number {
-    const bank = this.rd - this.rw; // river() was just called by base()
-    return (
-      smoothstep(0.05, 0.25, fbm(this.nPaddy, x * 0.0035, z * 0.0035, 2)) *
-      smoothstep(16, 40, bank) *
-      (1 - this.village(x, z))
+    return this.paddyOf(
+      fbm(this.nPaddy, x * 0.0035, z * 0.0035, 2),
+      this.rd - this.rw, // river() was just called
+      x,
+      z,
     );
   }
 
-  /** 0..1 grove density: bamboo lining the river banks, broadleaf woods inland. */
+  private paddyOf(pn: number, bank: number, x: number, z: number): number {
+    return smoothstep(0.05, 0.25, pn) * smoothstep(16, 40, bank) * (1 - this.village(x, z));
+  }
+
+  /**
+   * 0..1 grove density: bamboo lining the river banks, broadleaf woods inland; none in the
+   * paddies or the villages. Leaves the river scratch for (x, z).
+   */
   grove(x: number, z: number): number {
-    const bank = this.river(x, z);
     const n = fbm(this.nGrove, x * 0.005, z * 0.005, 3);
+    const pn = fbm(this.nPaddy, x * 0.0035, z * 0.0035, 2);
+    const bank = this.river(x, z);
+    return this.groveOf(n, bank, this.village(x, z), this.paddyOf(pn, bank, x, z));
+  }
+
+  private groveOf(n: number, bank: number, village: number, paddy: number): number {
     const bamboo =
       smoothstep(-3, 2, bank) * (1 - smoothstep(10, 28, bank)) * smoothstep(-0.35, 0, n);
     const wood = smoothstep(0.2, 0.5, n) * smoothstep(30, 60, bank);
-    return Math.max(bamboo, wood) * (1 - this.village(x, z));
+    return Math.max(bamboo, wood) * (1 - village) * (1 - paddy);
+  }
+
+  /** Scratch results of `land()`. */
+  lBase = 0;
+  lBank = 0;
+  lVillage = 0;
+  lGrove = 0;
+  lPath = 0;
+
+  /**
+   * Everything the ground's colour and its painted land need at (x, z), in one pass (each noise
+   * once): the valley floor (and `raw`, `pw`), the bank distance, village, grove and the
+   * distance to the nearest path, left in the l* scratch fields.
+   */
+  land(x: number, z: number): void {
+    this.lBase = this.base(x, z);
+    const bank = this.rd - this.rw;
+    this.lBank = bank;
+    const v = this.village(x, z);
+    this.lVillage = v;
+    this.lGrove = this.groveOf(fbm(this.nGrove, x * 0.005, z * 0.005, 3), bank, v, this.pw);
+    this.lPath = Math.min(this.pathContour(x, z), Math.abs(bank - Config.karst.towpath));
   }
 
   /** 0..1 village: small clusters of houses near the water. Uses river() scratch. */
@@ -257,8 +353,139 @@ export class KarstLayout {
 
   /** Soft canopy over groves and villages: the bird skims treetops and roofs. */
   canopy(x: number, z: number): number {
-    const g = this.grove(x, z);
-    return Math.max(smoothstep(0.45, 0.8, g) * Config.karst.canopy, this.village(x, z) * 8);
+    const g = this.grove(x, z); // leaves the river scratch for village()
+    return Math.max(
+      smoothstep(0.45, 0.8, g) * Config.karst.canopy,
+      smoothstep(0.25, 0.6, this.village(x, z)) * Config.karst.roofs,
+    );
+  }
+
+  // --- Paths and bridges -----------------------------------------------------------------------
+
+  private pathNoise(x: number, z: number): number {
+    const f = Config.karst.pathScale;
+    return this.nPath(x * f, z * f) + 0.35 * this.nPath(x * f * 2.3 + 17, z * f * 2.3 - 9);
+  }
+
+  /**
+   * Metres from (x, z) to the nearest footpath: a towpath along each bank, and paths that wander
+   * across the valley between the villages along the zero contours of their own noise (as the
+   * rivers do, at a finer scale), crossing the river at the bridges. Leaves the river scratch.
+   */
+  pathDist(x: number, z: number): number {
+    const tow = Math.abs(this.river(x, z) - Config.karst.towpath);
+    return Math.min(this.pathContour(x, z), tow);
+  }
+
+  /** Metres to the nearest cross-country path (|n| / |grad n|, first order). */
+  private pathContour(x: number, z: number): number {
+    const e = 3;
+    const v = this.pathNoise(x, z);
+    const gx = (this.pathNoise(x + e, z) - v) / e;
+    const gz = (this.pathNoise(x, z + e) - v) / e;
+    return Math.abs(v) / Math.max(Math.hypot(gx, gz), 1e-6);
+  }
+
+  /**
+   * The bridge of bridge cell (i, j), or null: where a footpath's contour crosses a river's
+   * (two-dimensional Newton from the cell centre), on a reach narrow enough to span, away from
+   * the spawn's opening run and clear of the pillars. Cached; pure.
+   */
+  bridgeIn(i: number, j: number): Bridge | null {
+    const key = (i + 0x8000) * 0x10000 + (j + 0x8000);
+    const hit = this.bridgeCells.get(key);
+    if (hit !== undefined) return hit;
+    const b = this.findBridge(i, j);
+    this.bridgeCells.set(key, b);
+    return b;
+  }
+
+  private findBridge(i: number, j: number): Bridge | null {
+    const K = Config.karst;
+    const C = K.bridgeCell;
+    if (hash2(i, j, this.seed + 340) > K.bridgeChance) return null;
+    let x = (i + 0.5) * C;
+    let z = (j + 0.5) * C;
+    const e = 3;
+    for (let it = 0; it < 14; it++) {
+      const r = this.riverNoise(x, z);
+      const rx = (this.riverNoise(x + e, z) - r) / e;
+      const rz = (this.riverNoise(x, z + e) - r) / e;
+      const q = this.pathNoise(x, z);
+      const qx = (this.pathNoise(x + e, z) - q) / e;
+      const qz = (this.pathNoise(x, z + e) - q) / e;
+      const det = rx * qz - rz * qx;
+      if (Math.abs(det) < 1e-12) return null;
+      x -= clamp((r * qz - q * rz) / det, -120, 120);
+      z -= clamp((q * rx - r * qx) / det, -120, 120);
+    }
+    if (x < i * C || x >= (i + 1) * C || z < j * C || z >= (j + 1) * C) return null;
+    // Converged onto both contours?
+    this.river(x, z);
+    const rw = this.rw;
+    if (this.rd > 2 || Math.abs(this.pathNoise(x, z)) > 0.01) return null;
+    if (rw > K.bridgeMaxHalf) return null;
+    if (Math.hypot(x - this.spawn.x, z - this.spawn.z) < K.bridgeSpawn) return null;
+    const g = Math.hypot(this.rgx, this.rgz);
+    const ux = this.rgx / g;
+    const uz = this.rgz / g;
+    const half = rw + 16;
+    // Clear of the rock at both ends and along the span.
+    for (const f of [-1, -0.5, 0, 0.5, 1])
+      if (this.skyline(x + ux * half * f, z + uz * half * f, 20) !== -Infinity) return null;
+    const ends = Math.max(
+      this.base(x + ux * half, z + uz * half),
+      this.base(x - ux * half, z - uz * half),
+      1,
+    );
+    return {
+      x,
+      z,
+      ux,
+      uz,
+      yaw: Math.atan2(ux, uz),
+      half,
+      crown: Math.max(K.bridgeRise, ends + 2.5),
+      ends,
+      width: K.bridgeWidth / 2,
+    };
+  }
+
+  /** The nearest bridge whose span may reach (x, z), or null. */
+  bridgeNear(x: number, z: number): Bridge | null {
+    const C = Config.karst.bridgeCell;
+    const R = Config.karst.riverMax + 20 + Config.karst.bridgeEase;
+    let best: Bridge | null = null;
+    let bd = Infinity;
+    for (let j = Math.floor((z - R) / C); j <= Math.floor((z + R) / C); j++)
+      for (let i = Math.floor((x - R) / C); i <= Math.floor((x + R) / C); i++) {
+        const b = this.bridgeIn(i, j);
+        if (!b) continue;
+        const d = Math.hypot(x - b.x, z - b.z);
+        if (d < bd) {
+          bd = d;
+          best = b;
+        }
+      }
+    return best;
+  }
+
+  /**
+   * Flight floor over a bridge (deck and parapet), eased up and down along the river so the
+   * bird is lifted over it rather than stopped; -Infinity away from every bridge.
+   */
+  bridgeTop(x: number, z: number): number {
+    const b = this.bridgeNear(x, z);
+    if (!b) return -Infinity;
+    const dx = x - b.x;
+    const dz = z - b.z;
+    const a = (dx * b.ux + dz * b.uz) / b.half;
+    if (a <= -1 || a >= 1) return -Infinity;
+    const c = Math.abs(dx * b.uz - dz * b.ux);
+    const ease = Config.karst.bridgeEase;
+    if (c > b.width + ease) return -Infinity;
+    const top = deckY(b, a) + 1.2;
+    return top - (top + 4) * (1 - smoothstep(b.width + ease, b.width, c));
   }
 
   // --- Pillars ---------------------------------------------------------------------------------
@@ -299,6 +526,13 @@ export class KarstLayout {
       const yaw = hash2(ii, j, s + 317) * Math.PI * 2;
       const lean = sh.lean * sh.aspect * r;
       const pavilion = h > 75 && hash2(ii, j, s + 318) < 0.2;
+      const pagoda =
+        !pavilion &&
+        PAGODA_SHAPES[shape] &&
+        r >= 14 &&
+        h > 35 &&
+        h < 95 &&
+        hash2(ii, j, s + 320) < K.pagodaChance;
       list.push({
         x,
         z,
@@ -310,9 +544,10 @@ export class KarstLayout {
         k: k2,
         lx: Math.cos(yaw) * lean,
         lz: -Math.sin(yaw) * lean,
-        top: y0 + h + (pavilion ? 10 : 4),
+        top: y0 + h + (pagoda ? PAGODA_HEIGHT + 1 : pavilion ? 10 : 4),
         reach: r * (1.15 + sh.bulge) + lean,
         pavilion,
+        pagoda,
         seed: hash2(ii, j, s + 319),
       });
     }
@@ -518,7 +753,7 @@ export class KarstLayout {
   /** Clearance check for planning: is the point at least `margin` from rock and ground? */
   clear(x: number, y: number, z: number, margin: number): boolean {
     return (
-      y > Math.max(this.height(x, z), Config.world.waterLevel) + margin &&
+      y > Math.max(this.height(x, z), Config.world.waterLevel, this.bridgeTop(x, z)) + margin &&
       this.solidTop(x, y, z, margin) === -Infinity
     );
   }

@@ -82,7 +82,8 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
   gathering bright sky, before bloom; skipped when the sun is down or off screen.
 - **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
   terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
-  in with a `CoverStyle` on its `ChunkManager`; the Highlands for now.
+  in with a `CoverStyle` on its `ChunkManager` (the Highlands and Jade River); `paint` gets every
+  component of the style's `extra` attribute (`t.more`).
 
 ## Levels
 
@@ -199,14 +200,41 @@ along it. Limestone pillars stand on a 72 m jittered grid (up to two per cell, d
 clustering noise, giants in the dense clusters), never within reach of a river. Five
 silhouettes (sugarloaf, dome, needle, leaning, pot-bellied) are lathed from one radius profile
 (flared foot, belly, narrowing neck, round summit dome, lean) that the collisions use as well.
-Each has fluted rock with dark rain streaks, moss on ledges, pines on the crown, shrubs on the
-walls and a scree mound in the terrain; some summits carry a red pavilion. The valley floor has
-terraced paddies (flooded, young, ripening), bamboo along the banks, broadleaf groves,
-whitewashed villages with dark gable roofs, and cormorant fishers' rafts on the water.
+Every mesh tier (hero within `render.heroDetail`, mid, far) is lathed from one shared skin
+(the profile times smooth noise lumps), so tiers match and vines can sit on the stone; the
+summit dome's rings step along its arc (no pinched apex). The limestone shader (`rock.ts`) adds
+vertical flutes, rain streaks and moss on every sky-facing ledge; pines crown the summits,
+shrubs and vine curtains cling to the walls, mossy boulders lie on the scree mound at the foot.
+Some summits carry a red pavilion, some lower ones a seven-storey pagoda.
 
-Atmosphere: a valley mist (shared uniforms, patched into the level's toon materials and the
-water shader) lies below ~55 m, drifts in slow banks, clears near the bird and thickens with
-distance; it is thickest at dawn and thins by midday. A distance haze fades far pillars in
+The lived-in valley: the paddy country swells into low hills cut into level terraces (1.1 m
+steps); the terrain shader paints each field along the terrace contours (flooded mirrors of the
+sky with a sun glint, young green rice, ripening gold) with bunds between, and the ground cover
+grows the rice in them. Footpaths wander between the villages along the zero contours of their
+own noise, a towpath follows each bank, and where a path meets the river a multi-arch stone
+bridge crosses it. Villages of whitewashed houses and halls under upturned eaves (every roof
+under the village's soft flight floor), cormorant fishers' rafts, sampans moored off the
+villages, water buffalo in the paddies and wallowing in the shallows, farmers in conical hats.
+Reeds stand at the water's edge, bamboo and broadleaf groves (with undergrowth) line the banks
+and the inland woods; the paddies stay open fields.
+
+- Code: `world/karst/`: `KarstLayout` (pure: rivers, terraces, paths, bridges, pillars and
+  queries), `skin` (the shared rock surface), `KarstScatter` (pure: trees, buildings, boats,
+  boulders, vines, life per chunk), `KarstDecor` (instancing, LOD, shadows), `Land` (ground
+  colour and the paddy/path shader), `cover`, `rock`, `RiverMist`, `geometry` (rock, bamboo),
+  `shapes` (props), `KarstWisps`, `KarstWorld`.
+- Per preset: hero pillars off / 120 / 260 m, rock flutes and streaks off / on / on, houses and
+  boats out to the tree distance (near shapes within twice `propDetail`), boulders, buffalo and
+  farmers within `smallPropDistance`, vines within 1.6x that, grass and rice off / 60 / 80 m.
+  Pillars, buildings, bridges, boats and boulders cast sun shadows on high; props get contact
+  shadows on medium and high.
+- Cost (whole frame, 390x844, three views): medium 325-372k / ~132 calls (was 385-405k / ~115),
+  high 626-714k / ~168 (was 664-684k / ~148), low 170-178k / ~92 (was 205-224k / ~90).
+
+Atmosphere: a valley mist (shared uniforms, patched into the level's toon materials, the
+ground and the water shader) lies below ~55 m, drifts in slow banks, clears near the bird and thickens with
+distance; it is thickest at dawn and thins by midday. At first light long sheets of river mist
+lie a few metres over the water near the bird, gone by mid-morning. A distance haze fades far pillars in
 layers. Low billboard mist banks drift between the pillars. Three rings of karst peaks are
 painted round the horizon in the sky dome, each layer a deeper wash with mist at its foot.
 Lanterns (houses, rafts, pavilions) are red paper by day and glow (HDR, bloomed) after dark.
@@ -215,8 +243,9 @@ falling grace notes, over a sine pad, a root-and-fifth drone and deep reverb, no
 walks the Chinese modes: shang at dawn, gong by day, zhi at golden hour, jue at dusk, yu at night.
 
 Flight: pillars are solid but soft, flown with the city's look-ahead and wall glance; the
-summit dome pushes up (skim it), the walls push straight out from the axis. Wisps: the river
-is the spine (low ribbons following its bends); slaloms weave between pillars (of the clear
+summit dome pushes up (skim it), the walls push straight out from the axis. Village roofs and
+bridge decks are soft ground (the floor rises over them, eased along the river at a bridge).
+Wisps: the river is the spine (low ribbons following its bends, hopping over the bridges); slaloms weave between pillars (of the clear
 candidates, the one passing most rock wins); now and then a spiral climbs the last ~100 m of a
 tall pillar and crosses its summit. Every pattern is checked 9 m clear of rock and ground, and
 a slowly updated trend heading keeps the ribbon from doubling back.
@@ -1179,3 +1208,21 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   row has room for the blurbs again.
 - The Aviary is called "Birds" on screen (the title button, its card and the unlock cards'
   "pick them in Birds"): a plainer word. The code keeps the `aviary` names.
+- Jade River lived in (after the Highlands' pattern). The pillars' per-vertex random jitter
+  became smooth noise on one shared skin: every tier is the same rock, and things placed on the
+  walls (vines, shrubs) read the same surface. The paddies are terraces cut into low hills, and
+  the shader paints them from the land's height before the cut (passed per vertex with the bank
+  distance, the paddy share and the path distance), so the fields follow the contours at pixel
+  sharpness on a 4 m lattice; the field kind is an integer hash exact in float32, shared with the
+  rice in the ground cover. Groves no longer grow on the paddies: open fields read as farmed
+  land, and the ~25 % fewer trees paid for the ground cover, hero pillars and props (medium is
+  8-16 % cheaper than before at three views, with ~17 more draw calls).
+- Bridges stand where a footpath's contour crosses a river's (a two-dimensional Newton step from
+  each cell's centre), only on narrower reaches, away from the opening run and the pillars. They
+  are soft ground rather than solids: the floor ramps up over 16 m either side along the river,
+  and river ribbons look four wisps ahead to climb over the deck.
+- A house's roof must fit under the village's soft floor at its centre and its corners; a hall
+  or two-storey house that does not becomes a cottage (checked again at its own footprint).
+- Vines are straight strands whose instance basis runs from their foot to their top along the
+  wall: pushed out over any bulge between, shortened where the wall falls away under them, and
+  dropped where a neighbouring pillar's rock is in the way.

@@ -141,7 +141,7 @@ export function tuftGeometry(): THREE.BufferGeometry {
       h,
       bz + sa * lean,
     );
-    col.push(0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 1.2, 1.2, 1.12);
+    col.push(0.7, 0.72, 0.68, 0.7, 0.72, 0.68, 1.24, 1.24, 1.12);
   }
   return upright(pos, col);
 }
@@ -225,6 +225,12 @@ function coverMaterial(): THREE.MeshToonMaterial {
 }
 #endif`,
       );
+    // Double-sided blades would flip the normal on their back faces and go dark (lit from
+    // below); every blade face keeps the up normal, lit like the ground it grows from.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <normal_fragment_begin>',
+      '#include <normal_fragment_begin>\nnormal = normalize(vNormal);',
+    );
   };
   m.customProgramCacheKey = () => 'ground-cover';
   return withMist(m);

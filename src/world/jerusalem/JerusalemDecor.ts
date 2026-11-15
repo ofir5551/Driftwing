@@ -88,6 +88,7 @@ export class JerusalemDecor implements ChunkDecor<JerusalemChunk> {
     private readonly layout: JerusalemLayout,
     uniforms: StoneUniforms,
   ) {
+    this.trees.ground = (x, z) => layout.height(x, z); // contact shadows lie on the slope
     this.material = createStoneMaterial(uniforms);
     withMist(this.trees.material);
     this.geometries = [

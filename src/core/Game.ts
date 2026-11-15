@@ -15,6 +15,7 @@ import {
   type FlightInput,
 } from '../player/FlightModel';
 import { Composer } from '../fx/Composer';
+import { SunShadows } from '../fx/SunShadows';
 import { LEVELS } from '../levels';
 import type { LevelDef, LevelId, Spawn, World } from '../levels/World';
 import { Clouds } from '../world/Clouds';
@@ -22,6 +23,9 @@ import { DAY_SKY, DayCycle, presetPhase, type TimeOfDay } from '../world/DayCycl
 import { Sky } from '../world/Sky';
 import type { HeightField } from '../world/Terrain';
 import { Water } from '../world/Water';
+import { cloudShadowStrength, updateCloudShadows } from '../world/CloudShadow';
+import { contactUniforms } from '../world/ContactShadows';
+import { prepareScenery } from '../world/LitScenery';
 
 const params = new URLSearchParams(location.search);
 
@@ -72,6 +76,9 @@ export class Game {
   private readonly clouds: Clouds;
   private readonly sun = new THREE.DirectionalLight('#fff', 2);
   private readonly hemi = new THREE.HemisphereLight('#fff', '#888', 1.4);
+  private readonly shadows: SunShadows;
+  /** Frames until the next pass that lets newly streamed meshes receive shadows. */
+  private sceneryTimer = 0;
   private readonly loop: Loop;
   private readonly env: FlightEnv;
   /** Systems that want a fixed-step tick or a per-frame update hook in (M3+). */
@@ -114,6 +121,7 @@ export class Game {
     this.input = new Input(this.renderer.domElement, ui);
     this.clouds = new Clouds(Config.world.seed, QUALITY.high.clouds);
     this.composer = new Composer(this.renderer, this.scene, this.chase.camera);
+    this.shadows = new SunShadows(this.renderer, this.sun);
     this.env = {
       groundAt: (x, z) => this.world.flightGround(x, z),
       thermalAt: () => 0,
@@ -170,8 +178,18 @@ export class Game {
     Config.render.drawDistance = q.drawDistance;
     Config.render.treeDistance = q.treeDistance;
     Config.render.treeDetail = q.treeDetail;
+    Config.render.shadows = q.shadows;
+    Config.render.contactShadows = q.contactShadows;
+    Config.render.cloudShadows = q.cloudShadows;
+    Config.render.lightShafts = q.lightShafts;
+    Config.render.coverDistance = q.coverDistance;
+    Config.render.coverDensity = q.coverDensity;
+    Config.render.propDistance = q.propDistance;
+    Config.render.smallPropDistance = q.smallPropDistance;
+    Config.render.propDetail = q.propDetail;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);
+    this.applyLightToggles();
     this.pixelRatio = Math.min(devicePixelRatio, q.maxPixelRatio);
     this.renderScale = 1;
     this.resize();
@@ -215,6 +233,8 @@ export class Game {
     this.setTimeOfDay(this.timeOfDay);
     this.sky.backdrop = this.level.backdrop;
     this.clouds.lift = this.level.cloudLift ?? 0;
+    this.applyLightToggles();
+    prepareScenery(world.group);
     this.events.emit('level', { id });
   }
 
@@ -227,6 +247,21 @@ export class Game {
     if (params.has('time')) return;
     this.day.frozen = t !== 'auto';
     this.day.setPhase(t === 'auto' ? this.level.startPhase : presetPhase(t));
+  }
+
+  /** This level's strengths of the shared lighting (Config.levelLight). */
+  private get levelLight() {
+    return Config.levelLight[this.level.id];
+  }
+
+  /**
+   * Switch the shared lighting on or off for the preset and level. Turning the shadow map on
+   * or off recompiles lit materials, so this runs only on a preset or level change (the sun
+   * fades shadows in and out by intensity, see SunShadows).
+   */
+  private applyLightToggles(): void {
+    if (!this.level) return;
+    this.shadows.setEnabled(Config.render.shadows > 0 && this.levelLight.shadows > 0);
   }
 
   /** Bare terrain of the current level. */
@@ -371,6 +406,26 @@ export class Game {
     this.sun.intensity = pal.sunIntensity;
     this.sun.position.copy(this.day.sunDir).multiplyScalar(100).add(this.bird.root.position);
     this.sun.target.position.copy(this.bird.root.position);
+    this.shadows.update(this.bird.root.position, this.day.sunDir, this.levelLight.shadows);
+    // Contact shadows are lighter when the shadow map draws the real ones (they're only the
+    // occlusion at the foot then).
+    const L = Config.light;
+    contactUniforms.uStrength.value =
+      Config.render.contactShadows > 0
+        ? this.shadows.enabled
+          ? L.contactWithShadows
+          : L.contactStrength
+        : 0;
+    contactUniforms.uFar.value = L.contactRange;
+    this.composer.shaftStrength = this.levelLight.shafts * Config.render.lightShafts;
+    updateCloudShadows(
+      cloudShadowStrength(this.levelLight.clouds, Config.render.cloudShadows, this.day.sunDir.y),
+      this.time,
+    );
+    if (--this.sceneryTimer <= 0) {
+      this.sceneryTimer = 60;
+      prepareScenery(this.world.group);
+    }
     this.hemi.color.copy(pal.hemiSky);
     this.hemi.groundColor.copy(pal.hemiGround);
     this.hemi.intensity = pal.hemiIntensity;

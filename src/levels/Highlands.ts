@@ -4,35 +4,70 @@ import { smoothstep } from '../core/math';
 import { HIGHLANDS_MUSIC } from '../audio/styles';
 import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
+import { highlandsCover } from '../world/highlands/crops';
 import { Islands } from '../world/Islands';
-import { createHeightField, type HeightField } from '../world/Terrain';
-import { TreeDecor } from '../world/Trees';
+import { createHeightField, getToonGradient, type LandField } from '../world/Terrain';
+import { withGroundDetail } from '../world/GroundDetail';
+import { mistUniforms, withMist } from '../world/Mist';
+import { HighlandsDecor, type HighlandsChunk } from '../world/highlands/HighlandsDecor';
+import { HighlandsLayout } from '../world/highlands/HighlandsLayout';
+import { propTime } from '../world/highlands/materials';
+import type { DayCycle } from '../world/DayCycle';
+import { createLandGeometry, fillLand, landColor, withLand } from '../world/highlands/Land';
 import type { LevelDef, World } from './World';
 import type { DiscoveryDef } from '../world/Discoveries';
 import { highlandsFinds } from '../world/highlands/finds';
 
-/** The original level: endless valleys, lakes, forests and floating islands. */
-class HighlandsWorld implements World {
+const WHITE = new THREE.Color('#fff');
+
+/**
+ * The original level, lived in: valleys with rivers, roads and a patchwork of farms, villages
+ * along the roads, forests with glades, lakes with boats, and the floating islands above.
+ */
+export class HighlandsWorld implements World {
   readonly group = new THREE.Group();
-  readonly field: HeightField;
+  readonly field: LandField;
   readonly planner = null;
   readonly discoveries: readonly DiscoveryDef[];
-  private readonly chunks: ChunkManager<number[]>;
+  private readonly chunks: ChunkManager<HighlandsChunk>;
+  private readonly decor: HighlandsDecor;
   private readonly islands: Islands;
+  readonly layout: HighlandsLayout;
 
   constructor(seed: number) {
     this.field = createHeightField(seed);
-    this.chunks = new ChunkManager(this.field, { decor: new TreeDecor(this.field) });
+    this.layout = new HighlandsLayout(this.field, seed);
+    const ground = withLand(
+      withGroundDetail(
+        withMist(
+          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+        ),
+      ),
+    );
+    this.decor = new HighlandsDecor(this.layout);
+    withMist(this.decor.trees.material);
+    this.chunks = new ChunkManager(this.field, {
+      decor: this.decor,
+      color: landColor,
+      material: ground,
+      createGeometry: createLandGeometry,
+      fillExtra: (g, ox, oz, size, res) => fillLand(this.layout, g, ox, oz, size, res),
+      cover: highlandsCover(this.layout),
+    });
     this.islands = new Islands(this.field);
     this.discoveries = highlandsFinds(() => this.islands.active);
     this.group.add(this.chunks.group, this.islands.group);
   }
 
-  /** Terrain plus a soft "canopy" over dense forest, so the bird skims treetops instead of clipping trees. */
+  /**
+   * Terrain plus a soft "canopy" over dense forest (the bird skims treetops instead of clipping
+   * trees) and over buildings (it glides over roofs and windmills; wisps keep clear of them).
+   */
   flightGround(x: number, z: number): number {
     const h = this.field.height(x, z);
     if (h < 1.2 || h > 115) return h;
-    return h + smoothstep(0.45, 0.8, this.field.forest(x, z)) * Config.world.canopyHeight;
+    const g = h + smoothstep(0.45, 0.8, this.field.forest(x, z)) * Config.world.canopyHeight;
+    return this.layout.builtLift(x, z, g);
   }
 
   surfaceBelow(x: number, _y: number, z: number): number {
@@ -53,7 +88,26 @@ class HighlandsWorld implements World {
     this.islands.update(px, pz);
   }
 
-  frame(): void {}
+  frame(_dt: number, time: number, day: DayCycle): void {
+    propTime.value = time;
+    // Mist lies in the valleys at first light and lifts by mid-morning; a thin far haze stays
+    // all day, so the ridges layer into the distance.
+    const H = Config.highlands;
+    const morning = Math.pow(0.5 + 0.5 * Math.cos(day.phase * Math.PI * 2), 3);
+    const mu = mistUniforms;
+    mu.uMist.value = H.mist * morning;
+    mu.uMistBase.value = 0;
+    mu.uMistTop.value = H.mistTop;
+    mu.uMistFar.value = H.mistFar;
+    mu.uMistColor.value.copy(day.palette.fog).lerp(day.palette.skyHorizon, 0.3);
+    mu.uMistTime.value = time;
+    // Chimney smoke takes the sky's light and fades into the fog with distance.
+    const p = day.palette;
+    const u = this.decor.smokeMaterial.uniforms;
+    (u.uColor.value as THREE.Color).copy(p.hemiSky).lerp(WHITE, 0.6);
+    (u.uFogColor.value as THREE.Color).copy(p.fog);
+    u.uFogFar.value = Config.render.drawDistance * 0.95;
+  }
 
   assist(): void {}
 
@@ -82,6 +136,9 @@ class HighlandsWorld implements World {
   dispose(): void {
     this.chunks.dispose();
     this.islands.dispose();
+    mistUniforms.uMist.value = 0;
+    mistUniforms.uMistFar.value = 0;
+    mistUniforms.uMistColor.value.copy(WHITE);
   }
 }
 

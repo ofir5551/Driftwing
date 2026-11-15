@@ -53,6 +53,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     private readonly city: CityLayout,
     uniforms: CityUniforms,
   ) {
+    this.trees.ground = (x, z) => city.height(x, z); // contact shadows lie on the slope
     this.material = createBuildingMaterial(uniforms);
     this.latticeMaterial = createBuildingMaterial(uniforms, THREE.DoubleSide);
     this.geometries = [

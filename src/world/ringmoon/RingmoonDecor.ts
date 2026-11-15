@@ -119,6 +119,7 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
   private readonly plantLists: number[][] = [];
 
   constructor(private readonly layout: RingmoonLayout) {
+    this.trees.ground = (x, z) => layout.height(x, z); // contact shadows lie on the slope
     withMist(this.trees.material);
     this.spireMaterial = withGroundDetail(
       withMist(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() })),

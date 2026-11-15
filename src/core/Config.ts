@@ -164,6 +164,75 @@ export const Config = {
     flood: 1, // floodlight on the walls and landmarks after dark
     lights: 1, // brightness of windows and lamps after dark
   },
+  /** The Highlands' lived-in landscape: rivers, farms, villages (world/highlands/). */
+  highlands: {
+    riverWidth: 7, // m, half-width of a river channel at its centre line
+    riverWander: 0.45, // +- share the width swells and narrows along the river
+    plainWidth: 46, // m from the river's centre where its flood plain ends
+    plainHeight: 2.6, // m, the flood plain's height above the water
+    clearings: 0.35, // share of the forest opened into glades
+    roadOffset: 24, // m from the river's centre to the dirt road along one bank
+    roadWidth: 2.6, // m, half-width of the road
+    fieldCell: 34, // m, side of a field in the patchwork
+    fieldAngle: 0.47, // rad, the patchwork grid's turn off the world axes
+    fieldFarm: 0.42, // farmland (Terrain.farm) at a field's centre for it to be farmed
+    village: 0.5, // chance a road plot gets a house (scaled up in a village's heart, down between)
+    farmsteads: 0.1, // chance a pasture or meadow field has a farmstead
+    smokeRise: 2.2, // m/s chimney smoke rises
+    wallPieces: 6, // wall or fence pieces along a field's side (each follows the slope)
+    flocks: 0.22, // chance a chunk has a flock of birds wheeling over it
+    mist: 0.5, // valley mist at dawn (it lifts through the morning)
+    mistTop: 26, // m, height the valley mist thins out by
+    mistFar: 0.06, // far haze, all day: layers the distant ridges
+  },
+  /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
+  light: {
+    shadowRange: 150, // m, half-size of the shadow map's box round the bird
+    shadowMapSize: 2048, // texels per side
+    shadowSoftness: 3, // PCF blur radius (texels)
+    shadowBias: -0.0004,
+    shadowNormalBias: 0.25, // m, pushes the lookup off the surface (no acne on gentle slopes)
+    shadowSunMin: 0.06, // sun height (sunDir.y) where shadows have faded out (low sun, night)
+    shadowSunFull: 0.18, // sun height where shadows reach full strength
+    contactStrength: 0.34, // darkness of a contact shadow at its centre
+    contactWithShadows: 0.2, // ... with the shadow map on too (it is only ambient occlusion then)
+    contactRange: 280, // m, contact shadows fade out by this distance
+    contactSize: 0.85, // blob radius as a share of a tree's crown radius
+    cloudScale: 0.0035, // 1/m: cloud-shadow patch frequency (smaller = bigger clouds)
+    cloudCover: 0.56, // 0..1 noise threshold: higher = fewer, smaller cloud shadows
+    cloudDriftZ: 1.2, // m/s the shadows drift along z (along x they keep world.cloudDrift)
+    cloudSunMin: 0.03, // sun height where cloud shadows have faded out (dusk, night)
+    cloudSunFull: 0.3, // sun height where they reach full strength
+    shaftThreshold: 0.82, // luminance a pixel needs to send light down a shaft
+    shaftReach: 0.75, // screen distance (uv) over which shafts fade from the sun
+    shaftDecay: 0.95, // per-sample falloff along a shaft
+  },
+  /**
+   * Per-level strengths of the shared lighting (0 = off; the quality preset gates them on top).
+   * shadows: how dark a sun shadow is (1 = the sun fully blocked; lower reads as a painted shade).
+   * clouds: how much a drifting cloud shadow dims the direct sun.
+   * shafts: light-shaft brightness when the sun is in view.
+   */
+  levelLight: {
+    highlands: { shadows: 0.62, clouds: 0.32, shafts: 0.5 },
+    city: { shadows: 0.5, clouds: 0.22, shafts: 0.35 },
+    karst: { shadows: 0.45, clouds: 0.2, shafts: 0.6 },
+    fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5 },
+    jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
+    canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4 },
+    peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.6 },
+    atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.4 },
+    ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
+  },
+  /** Ground cover (GroundCover): grass tufts and flowers on the terrain's own lattice. */
+  cover: {
+    cell: 1.25, // m between tufts at full density
+    sway: 0.22, // m of tuft-tip sway in the wind
+    gustSpeed: 0.9, // how fast the gust fronts roll across the land
+    refresh: 14, // m the bird moves before the ring is refilled
+    rimFade: 0.3, // share of the ring (by area) over which tufts shrink toward its rim
+    steep: 0.75, // lattice height range per lattice step above which ground is rock, not turf
+  },
   world: {
     seed: 1337,
     chunkSize: 160,
@@ -521,6 +590,15 @@ export const Config = {
     drawDistance: 1100,
     treeDistance: 800,
     treeDetail: 280, // m, trees nearer than this use their detailed shapes
+    shadows: 1, // 1 = sun shadow map near the bird (on levels with a shadow strength)
+    contactShadows: 1, // 1 = soft contact shadows under trees and props
+    cloudShadows: 1, // multiplier on each level's drifting cloud shadows (0 = off)
+    lightShafts: 1, // multiplier on each level's light shafts (0 = off)
+    coverDistance: 80, // m, ground cover (grass, flowers) is drawn within this (0 = off)
+    coverDensity: 1, // 0..1 share of the ground-cover tufts kept
+    propDistance: 650, // m, Highlands buildings, rocks and bushes are drawn within this
+    smallPropDistance: 320, // m, walls, fences, hay, sheep, reeds, boats, flocks (0 = none)
+    propDetail: 160, // m, bushes and boulders nearer than this use their detailed shapes
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -543,6 +621,15 @@ export const QUALITY: Record<
     drawDistance: number;
     treeDistance: number;
     treeDetail: number;
+    shadows: number;
+    contactShadows: number;
+    cloudShadows: number;
+    lightShafts: number;
+    coverDistance: number;
+    coverDensity: number;
+    propDistance: number;
+    smallPropDistance: number;
+    propDetail: number;
     clouds: number;
     bloom: boolean;
     maxPixelRatio: number;
@@ -553,6 +640,15 @@ export const QUALITY: Record<
     drawDistance: 650,
     treeDistance: 420,
     treeDetail: 0,
+    shadows: 0,
+    contactShadows: 0,
+    cloudShadows: 0,
+    lightShafts: 0,
+    coverDistance: 0,
+    coverDensity: 0,
+    propDistance: 280,
+    smallPropDistance: 0,
+    propDetail: 0,
     clouds: 22,
     bloom: false,
     maxPixelRatio: 1,
@@ -562,6 +658,15 @@ export const QUALITY: Record<
     drawDistance: 900,
     treeDistance: 620,
     treeDetail: 200,
+    shadows: 0,
+    contactShadows: 1,
+    cloudShadows: 1,
+    lightShafts: 0,
+    coverDistance: 60,
+    coverDensity: 0.6,
+    propDistance: 480,
+    smallPropDistance: 200,
+    propDetail: 110,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -571,6 +676,15 @@ export const QUALITY: Record<
     drawDistance: 1150,
     treeDistance: 820,
     treeDetail: 280,
+    shadows: 1,
+    contactShadows: 1,
+    cloudShadows: 1,
+    lightShafts: 1,
+    coverDistance: 80,
+    coverDensity: 1,
+    propDistance: 650,
+    smallPropDistance: 320,
+    propDetail: 160,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

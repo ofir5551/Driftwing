@@ -51,6 +51,39 @@ Endless chunks from seeded noise: valleys, lakes, instanced low-poly forests, fl
 drifting clouds. Day cycle dawn -> day -> golden hour -> dusk drives sky gradient, fog and light.
 Post: bloom, paper grain, vignette, colour grade.
 
+## Rendering
+
+Shared lighting and ground detail every level gets (a level only sets strengths). The aim is
+believable places in the same cartoon style: things sit on the ground, light has direction,
+the ground has texture up close. Every number is in `Config.light`, `Config.cover` and
+`Config.levelLight` (per level), gated by the quality preset (`render.*`):
+
+| Preset key                                   | low | medium     | high        |
+| -------------------------------------------- | --- | ---------- | ----------- |
+| `shadows`: sun shadow map                    | off | off        | on          |
+| `contactShadows`: blobs under trees          | off | on         | on          |
+| `cloudShadows`: drifting cloud shadows       | off | on         | on          |
+| `lightShafts`: screen-space sun shafts       | off | off        | on          |
+| `coverDistance` / `coverDensity`: grass ring | off | 60 m, 60 % | 80 m, 100 % |
+
+- **Sun shadows** (`fx/SunShadows`): a 2048 PCF map in a ±150 m box that follows the bird,
+  snapped to the light-space texel grid so its edges don't crawl. Partial (`levelLight.*.shadows`
+  is the darkness, ~0.5-0.6) so a shadow reads as painted shade. Terrain chunks cast and receive;
+  trees cast through `ShadowCasters`, near-only copies on a shadow-only layer (an instanced mesh
+  is never culled, so the real one would draw every tree into the map). `LitScenery` makes every
+  lit mesh of a level receive. A low sun fades shadows by intensity and skips the pass (by
+  night the moon is the light, and casts faint ones).
+- **Contact shadows** (`world/ContactShadows`): one instanced draw of soft blobs, laid on the
+  slope (or flat at the foot of anything on a ledge or roof). Trees own one; any decor can.
+  Lighter when the shadow map is on (they're the occlusion at the foot then).
+- **Cloud shadows** (`world/CloudShadow`): value-noise patches drifting with the cloud wind,
+  dimming only the direct sun; applied by `LitScenery` to every lit material, off at night.
+- **Light shafts** (`fx/shaders/shafts`): a 24-tap march toward the sun's screen position
+  gathering bright sky, before bloom; skipped when the sun is down or off screen.
+- **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
+  terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
+  in with a `CoverStyle` on its `ChunkManager`; the Highlands for now.
+
 ## Levels
 
 Chosen on the title screen as cards (a grid on wide screens; on phones one row that swipes
@@ -60,7 +93,7 @@ title. The pick and a best score per level persist. A level is a `LevelDef` (nam
 day, day length, music keys, sky mountain, ceiling) that creates a `World`: terrain, streamed scenery,
 what counts as solid, a steering assist, and hooks for wisp patterns and thermal placement.
 
-- **Highlands**: the original endless landscape (see World).
+- **Highlands**: the original endless landscape, lived in (see Highlands below).
 - **Neon Bay**: an endless Japanese bay city, a Tokyo/Osaka blend, opening at dusk.
 - **Jade River**: misty limestone pillars along a jade river (the Li River at Guilin), opening
   at dawn. The quiet one: Highlands is open and bright, Neon Bay buzzes at dusk, Jade River is
@@ -79,6 +112,32 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
 - **Ringmoon Shallows**: a shallow jade sea on a moon of a ringed gas giant, with two suns and an
   old ship standing in the water, opening in the afternoon. The vast one: another world, the
   giant filling the sky, slow and strange and enormous.
+
+## Highlands
+
+The open, bright one: a real highland country in the cartoon style. Rivers run along every
+valley floor (a channel below the water, banks, a flood plain a couple of metres up, bluffs
+where a high valley is cut), with a dirt road along one bank. The low, gentle country is
+farmed: a rotated patchwork of fields (wheat, pasture, plough, crop rows, rapeseed, meadow)
+with hedge margins, dry-stone walls and fences with gates, hay on the wheat, sheep on the
+pasture. Villages string along the roads (cottages facing the road, barns, windmills with
+turning sails, chimney smoke), clustering at a few hubs; farmsteads stand alone in the fields.
+Forests have edges against the fields, glades and birches; rocks crop out on steep and high
+ground and along the rivers; reeds line every shore, rowing boats bob off it, flocks wheel
+overhead. Grass and wildflower drifts grow round the bird, wheat stands tall, the plough is
+bare. Dawn has mist in the valleys; a thin haze layers the ridges all day.
+
+- Code: `Terrain` (`LandField`: rivers, farmland), `world/highlands/`: `HighlandsLayout` (pure:
+  the field grid, farmed fields, the road, buildings and the flight floor over them),
+  `HighlandsScatter` (pure: trees and small scenery per chunk), `HighlandsDecor` (instancing,
+  LOD, shadows, smoke), `Land` (ground colour; fields and road in the terrain shader),
+  `crops` (the ground-cover style), `shapes`, `materials`.
+- Per preset (`render.*`): `propDistance` 280 / 480 / 650 m (buildings, rocks, bushes; low keeps
+  only these), `smallPropDistance` 0 / 200 / 320 m (walls, fences, hay, sheep, reeds, logs,
+  boats, flocks), `propDetail` 0 / 110 / 160 m (bushes and boulders swap to far shapes beyond),
+  grass ring off / 60 m / 80 m. Rivers, roads, fields, mist: every preset (free on the GPU).
+- Cost at the pilot's viewpoints (triangles / draw calls, whole frame): medium 146-201k / ~132
+  (was 135-180k / ~114), high 311-426k / ~165 (was 317-470k / ~145), low 68-76k / ~93.
 
 ## Neon Bay
 
@@ -920,6 +979,44 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   chosen when the chunk set changes. High-preset frames grew ~20% in the Highlands (220k ->
   265k triangles) and under 10% elsewhere.
 - Tree crowns sway in the vertex shader (height squared, phase from position): no CPU cost.
+- More believable places, same cartoon style (players asked for detail, not smoother facets):
+  first the shared layer every level gets (see Rendering), then each level's own life (fields,
+  villages, animals, paths), a few levels at a time. A Highlands prototype of the whole look was
+  approved as the reference.
+- Shadow map on high only, soft and partial: a full-strength map turns shade into black cut-outs on the
+  toon bands; ~0.55-0.6 reads as painted shade. Casters are near-only proxies on layer 1, since
+  instanced meshes are never culled. `castShadow` changes only with the preset or level (a
+  one-off recompile of lit materials, a short hitch when Auto steps the preset down); the sun's
+  height fades shadows by intensity and skips the pass at low sun, so dawn and dusk never
+  recompile. At night the moon is the light, so moonlit shadows stay (faint) and so does the pass.
+- Contact shadows everywhere trees stand (medium and high) instead of the shadow map on medium:
+  one 2-triangle blob per tree near the bird costs nothing next to a second scene pass.
+- Cloud shadows and receiving shadows are applied by walking a level's scenery (`LitScenery`,
+  on a level switch and once a second for streamed meshes) rather than by each level opting in:
+  every lit built-in material gets them; custom shaders (water, the cloud sea, facades) don't.
+- Ground cover reads the terrain chunk's own vertex lattice (heights, ground colours) instead of
+  sampling the height field: tufts sit exactly on the drawn surface and match its colour, and a
+  chunk's scatter costs ~1-3 ms (one chunk per frame). Its blades keep the up normal on both
+  faces (double-sided blades flipped it on the back and went dark, specks from altitude).
+  Cost on high: ~160k triangles in the 95 m ring (Highlands 205k -> 378k at the spawn view);
+  medium ~28k (127k -> 155k). The ring on high is now 80 m (~115k), to make room for the
+  Highlands' scenery.
+- Highlands rivers follow the valley noise's zero line; distance from it is the noise over its
+  gradient (first order), so widths read in metres anywhere without a river network. Saddles,
+  where the gradient vanishes, become lakes or gaps, which reads naturally.
+- Highlands fields are farmed or not as a whole, decided at each field's centre (`cellFarmed`).
+  Painting a smooth per-vertex farmland mask left faceted wedges where it crossed its threshold
+  inside terrain triangles. Each vertex now carries its field's 3x3 farmed mask as an exact
+  integer, read through a `flat` varying: a fragment finds its own field's bit, so field edges
+  are the grid's straight lines, and walls, crops and hay follow the same answer. The crop hash
+  is integer arithmetic exact in float32 (tested against a float32 emulation of the GLSL).
+- Highlands buildings are placed eagerly per chunk (cached, pure) because the flight floor and
+  the wisps need them everywhere; everything small scatters lazily within prop distance. The
+  flight floor scans only the chunks within a building's reach of the point (usually one):
+  ~0.1 us a call against ~0.7 us for the height itself, so no further cache was needed.
+- Highlands props get flat contact shadows (no ground lookups at refill: their records carry the
+  ground height at their foot); trees keep the slope-laid ones. Bushes and boulders have far
+  shapes (~20 triangles) beyond `propDetail`; with the 80 m grass ring that keeps high near 400k.
 - Bird plumage: grey mantle and upperwing over a white body, a lighter covert layer with its
   own scalloped edge, a dusky trailing edge, feathers with a raised pale shaft, a dark-tipped
   bill, and a pale underwing (front faces of the wing panels are the undersides).

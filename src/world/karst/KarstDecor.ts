@@ -99,6 +99,7 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
   private readonly treeLists: number[][] = [];
 
   constructor(private readonly layout: KarstLayout) {
+    this.trees.ground = (x, z) => layout.height(x, z); // contact shadows lie on the slope
     this.material = withMist(
       new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
     );

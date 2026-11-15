@@ -61,7 +61,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
   plumage, tuning). `ChaseCamera.ts` polar springs. `fx/TrailStyle.ts`: wingtip trail colours.
 - `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
-  decor), `Trees` (instanced), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
+  decor, optional `GroundCover`), `Trees` (instanced; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
   `GroundDetail`: painted terrain detail (patches, strokes, strata, bumps) patched into toon materials.
 - `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; the waterfront
@@ -103,7 +103,13 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   (soft, under the canopy) and beacon towers (solid; rings spun in the shader)), `RingmoonWisps` (the run under the ship, grove
   slaloms, skims, swings round tall spires), `RingmoonDecor`, `geometry`, `RingmoonWorld`. The
   ringed giant and the second sun are the `giant` backdrop in `Sky`.
-- `fx/`: `Composer` (render -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
+- Shared lighting (see DESIGN's Rendering): `fx/SunShadows` (shadow map round the bird, high),
+  `world/ShadowCasters` (near-only caster proxies on layer 1), `world/ContactShadows` (blobs under
+  trees/props), `world/CloudShadow` (drifting cloud shadows patch), `world/LitScenery` (gives every
+  lit mesh of a level shadows and cloud shadows), `fx/shaders/shafts` (light shafts),
+  `world/GroundCover` (grass and flowers on the chunk lattice; a level opts in with a `CoverStyle`).
+  Strengths per level in `Config.levelLight`.
+- `fx/`: `Composer` (render -> light shafts -> bloom -> painterly -> output), `Particles` (ring-buffer pools), `Trails`,
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),
   `Sfx`, `scales` (pure theory + `StepScheduler`), `GameAudio` (event wiring).

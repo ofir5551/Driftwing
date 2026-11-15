@@ -51,6 +51,39 @@ Endless chunks from seeded noise: valleys, lakes, instanced low-poly forests, fl
 drifting clouds. Day cycle dawn -> day -> golden hour -> dusk drives sky gradient, fog and light.
 Post: bloom, paper grain, vignette, colour grade.
 
+## Rendering
+
+Shared lighting and ground detail every level gets (a level only sets strengths). The aim is
+believable places in the same cartoon style: things sit on the ground, light has direction,
+the ground has texture up close. Every number is in `Config.light`, `Config.cover` and
+`Config.levelLight` (per level), gated by the quality preset (`render.*`):
+
+| Preset key                                   | low | medium     | high        |
+| -------------------------------------------- | --- | ---------- | ----------- |
+| `shadows`: sun shadow map                    | off | off        | on          |
+| `contactShadows`: blobs under trees          | off | on         | on          |
+| `cloudShadows`: drifting cloud shadows       | off | on         | on          |
+| `lightShafts`: screen-space sun shafts       | off | off        | on          |
+| `coverDistance` / `coverDensity`: grass ring | off | 60 m, 60 % | 95 m, 100 % |
+
+- **Sun shadows** (`fx/SunShadows`): a 2048 PCF map in a ±150 m box that follows the bird,
+  snapped to the light-space texel grid so its edges don't crawl. Partial (`levelLight.*.shadows`
+  is the darkness, ~0.5-0.6) so a shadow reads as painted shade. Terrain chunks cast and receive;
+  trees cast through `ShadowCasters`, near-only copies on a shadow-only layer (an instanced mesh
+  is never culled, so the real one would draw every tree into the map). `LitScenery` makes every
+  lit mesh of a level receive. A low sun fades shadows by intensity and skips the pass (by
+  night the moon is the light, and casts faint ones).
+- **Contact shadows** (`world/ContactShadows`): one instanced draw of soft blobs, laid on the
+  slope (or flat at the foot of anything on a ledge or roof). Trees own one; any decor can.
+  Lighter when the shadow map is on (they're the occlusion at the foot then).
+- **Cloud shadows** (`world/CloudShadow`): value-noise patches drifting with the cloud wind,
+  dimming only the direct sun; applied by `LitScenery` to every lit material, off at night.
+- **Light shafts** (`fx/shaders/shafts`): a 24-tap march toward the sun's screen position
+  gathering bright sky, before bloom; skipped when the sun is down or off screen.
+- **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
+  terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
+  in with a `CoverStyle` on its `ChunkManager`; the Highlands for now.
+
 ## Levels
 
 Chosen on the title screen as cards (a grid on wide screens; on phones one row that swipes
@@ -920,6 +953,27 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   chosen when the chunk set changes. High-preset frames grew ~20% in the Highlands (220k ->
   265k triangles) and under 10% elsewhere.
 - Tree crowns sway in the vertex shader (height squared, phase from position): no CPU cost.
+- More believable places, same cartoon style (players asked for detail, not smoother facets):
+  first the shared layer every level gets (see Rendering), then each level's own life (fields,
+  villages, animals, paths), a few levels at a time. A Highlands prototype of the whole look was
+  approved as the reference.
+- Shadow map on high only, soft and partial: a full-strength map turns shade into black cut-outs on the
+  toon bands; ~0.55-0.6 reads as painted shade. Casters are near-only proxies on layer 1, since
+  instanced meshes are never culled. `castShadow` changes only with the preset or level (a
+  one-off recompile of lit materials, a short hitch when Auto steps the preset down); the sun's
+  height fades shadows by intensity and skips the pass at low sun, so dawn and dusk never
+  recompile. At night the moon is the light, so moonlit shadows stay (faint) and so does the pass.
+- Contact shadows everywhere trees stand (medium and high) instead of the shadow map on medium:
+  one 2-triangle blob per tree near the bird costs nothing next to a second scene pass.
+- Cloud shadows and receiving shadows are applied by walking a level's scenery (`LitScenery`,
+  on a level switch and once a second for streamed meshes) rather than by each level opting in:
+  every lit built-in material gets them; custom shaders (water, the cloud sea, facades) don't.
+- Ground cover reads the terrain chunk's own vertex lattice (heights, ground colours) instead of
+  sampling the height field: tufts sit exactly on the drawn surface and match its colour, and a
+  chunk's scatter costs ~1-3 ms (one chunk per frame). Its blades keep the up normal on both
+  faces (double-sided blades flipped it on the back and went dark, specks from altitude).
+  Cost on high: ~160k triangles in the 95 m ring (Highlands 205k -> 378k at the spawn view);
+  medium ~28k (127k -> 155k).
 - Bird plumage: grey mantle and upperwing over a white body, a lighter covert layer with its
   own scalloped edge, a dusky trailing edge, feathers with a raised pale shaft, a dark-tipped
   bill, and a pale underwing (front faces of the wing panels are the undersides).

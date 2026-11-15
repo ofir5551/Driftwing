@@ -127,10 +127,40 @@ export const Config = {
     greatSpan: 46, // m, half span of the Great Arch's opening
     greatRise: 62, // m, height of its opening
     hoodooCell: 24, // m, grid cell that may hold one hoodoo near the rim
+    // Ground (pure layout, read when a level is created).
+    talus: 0.2, // share of a cliff's rise its scree apron climbs at the foot
+    talusRun: 0.22, // the apron's run out from the cliff foot, as a share of a band's run
+    washScale: 0.0035, // frequency of the dry-wash noise: a wash every ~250 m
+    washWidth: 4.5, // m, half width of a sandy wash bed
+    washDepth: 0.8, // m, how deep a wash dips into the canyon floor
+    gullyDepth: 3.5, // m, how deep a wash cuts into the plateau
+    slickrock: 2.4, // m, swell of the bare slickrock domes on the benches and plateau
+    roadOffset: 27, // m from a canyon's centre line to its dirt road (on one side)
+    roadWidth: 2.3, // m, half width of the road
+    ranchCell: 1100, // m, grid cell that may hold one ranch, on a wide stretch of floor
+    ranchChance: 0.6, // chance a cell's wide stretch has a ranch
+    ranchAhead: 150, // m along the canyon from the spawn where the first ranch is sought
+    alcoveCell: 760, // m, grid cell that may hold one cliff dwelling in an alcove
+    alcoveChance: 0.6, // chance a cell's wall has one
+    alcoveAhead: 300, // m along the canyon from the spawn where the first is sought
+    // Life (scatter).
+    cattle: 6, // head of cattle grazing round a ranch
+    hawks: 0.3, // chance a chunk has a hawk (or a pair of ravens) circling over it
+    dustDevils: 0.1, // chance a chunk of open ground raises a dust devil now and then
+    fences: 0.35, // share of the road (in stretches) with a post-and-wire fence beside it
+    // Rock: per-pixel strata over the walls, arches and hoodoos (rock.ts).
+    rockBand: 7.5, // m, height of one rock layer
+    rockContrast: 0.5, // 0 every layer the same mean rock colour .. 1 the full palette
+    rockSeam: 0.12, // darkening of the weathered seam under each ledge
+    rockVarnish: 0.55, // desert varnish streaks hanging from the lip of each cliff
+    archRings: 44, // rings along an arch's band (legs and span); smooth normals
+    archSides: 14, // points round an arch's rounded cross-section
+    hoodooSides: 12, // radial segments of a near hoodoo (far ones have 7)
     // Atmosphere and light.
     mist: 0.3, // dawn mist in the canyons (it burns off by day)
     mistTop: 30, // m, the dawn mist lies below this
     mistFar: 0.24, // dust haze: far mesas fade in layers
+    hazeTop: 80, // m, by day a warm dust haze lies in the canyons below this
     mesasDistance: 3000, // m, how far the painted mesas on the horizon pretend to be
   },
   ground: {
@@ -243,7 +273,8 @@ export const Config = {
     karst: { shadows: 0.5, clouds: 0.22, shafts: 0.6 },
     fjord: { shadows: 0.55, clouds: 0.25, shafts: 0.5 },
     jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
-    canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4 },
+    // bounce: warm light off the red walls into the canyon's shade; haze: dust in the canyons.
+    canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4, bounce: 0.32, haze: 0.16 },
     peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.6 },
     atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.4 },
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
@@ -654,6 +685,7 @@ export const Config = {
     propDetail: 160, // m, bushes, rocks and domes nearer than this use their detailed shapes
     heroDetail: 260, // m, hero landmarks (karst pillars) whose flank is nearer use their finest mesh
     rockDetail: 1, // 1 = the karst rock shader's flutes and streaks (a recompile when it changes)
+    hoodooDetail: 320, // m, Red Canyons' hoodoos nearer than this use their smooth 12-sided shape
     fogStart: 0.25, // fraction of draw distance where fog begins
     bloomStrength: 0.35,
     bloomRadius: 0.6,
@@ -687,6 +719,7 @@ export const QUALITY: Record<
     smallPropDistance: number;
     propDetail: number;
     heroDetail: number;
+    hoodooDetail: number;
     rockDetail: number;
     clouds: number;
     bloom: boolean;
@@ -709,6 +742,7 @@ export const QUALITY: Record<
     smallPropDistance: 0,
     propDetail: 0,
     heroDetail: 0,
+    hoodooDetail: 0,
     rockDetail: 0,
     clouds: 22,
     bloom: false,
@@ -731,6 +765,7 @@ export const QUALITY: Record<
     propDetail: 110,
     heroDetail: 120,
     rockDetail: 1,
+    hoodooDetail: 220,
     clouds: 34,
     bloom: true,
     maxPixelRatio: 1.5,
@@ -752,6 +787,7 @@ export const QUALITY: Record<
     propDetail: 160,
     heroDetail: 260,
     rockDetail: 1,
+    hoodooDetail: 320,
     clouds: 46,
     bloom: true,
     maxPixelRatio: 2,

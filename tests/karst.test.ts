@@ -196,6 +196,7 @@ describe('karst land', () => {
       petal: -1,
       extra: bank,
       extras: [bank, pg, raw, path],
+      shape: 0,
     });
     const step = Config.karst.terraceStep;
     const fc = Config.karst.fieldCell;

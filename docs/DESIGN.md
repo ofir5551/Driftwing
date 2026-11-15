@@ -82,8 +82,9 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
   gathering bright sky, before bloom; skipped when the sun is down or off screen.
 - **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
   terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
-  in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River and City of Gold);
-  `paint` gets every component of the style's `extra` attribute (`t.extras`).
+  in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River, City of Gold and Red
+  Canyons, whose style adds its own shapes: sagebrush, prickly pear, tumbleweeds); `paint` gets
+  every component of the style's `extra` attribute (`t.extras`).
 
 ## Levels
 
@@ -382,12 +383,32 @@ Plan: canyons run along the zero contour of a low-frequency noise (as the fjords
 9-16 m either side of the centre line, a sandy floor rising gently to the wall's foot (38-82 m
 from the centre), then a wall of four rock bands, each a cliff over a bench, at uneven heights,
 up to a rim ~125 m above the river, over a 120 m run. The band profile is read at a distance
-shifted by noise, so the ledges meander while the strata stay level. Beyond the rim the plateau
-swells gently and throws up flat-topped mesas (a talus skirt, sheer walls, now and then a butte
-stepped on top) away from the canyons. The ground is painted in level bands of deep red, rust,
-orange and pale sandstone with desert varnish streaking the steepest faces and cream caprock on
-the mesa tops. Cottonwoods line the river, sagebrush and juniper scatter the floors and plateau,
-and banded hoodoos with darker cap stones crowd the rims and the wider benches.
+shifted by noise, so the ledges meander while the strata stay level. Scree piles at the foot of
+every cliff (a concave apron at about the angle of repose, a fifth of the cliff's rise), dry washes
+wander across the floors as sandy beds and cut gullies into the plateau, and slickrock swells into
+low bare domes on the plateau (and a little on the benches). Beyond the rim the plateau swells
+gently and throws up flat-topped mesas (a talus skirt, sheer walls, now and then a butte stepped on
+top) away from the canyons. The rock is painted per pixel from world height (`rock.ts`): uneven
+level layers of deep red, rust, orange and pale sandstone pulled toward one family, a dark seam
+under each ledge, fine laminations, desert varnish hanging in streaks down the steep faces and
+vertical flutes (a tilt of the normal) down the cliffs; the arches, hoodoos, boulders and the
+dwellings' brows wear the same layers at the same heights. The floor's ground is painted from a
+per-vertex field (`aLand`): the road with its wheel ruts, rippled wash beds, cross-bedded
+slickrock in cream and salmon, rubble on the scree. A green corridor follows the river: lush grass,
+cottonwoods, coyote willow at the water's edge; sagebrush, bunchgrass, rabbitbrush in yellow bloom,
+prickly pear and tumbleweeds scatter the dry floors and plateau, wildflowers fill the washes as if
+after rain, junipers stand on the benches and plateau, and banded hoodoos with darker cap stones
+crowd the rims and the wider benches.
+
+Life: a dirt road runs along every canyon floor on one side, a post-and-wire fence beside it in
+stretches. Ranches stand on the wide stretches of floor beside the road (one ~150 m on from the
+spawn): a red barn, a house with a porch, a lattice windmill whose fan turns over a stock tank, a
+corral with horses, hay, cottonwoods by the house and cattle grazing out on the floor; their pad is
+levelled and the flight floor lifts over the roofs. Cliff dwellings (generic, not any real site):
+masonry rooms and a round tower on the first bench, tucked under a brow of rock that juts from the
+cliff over a darkened hollow; the first stands past the Great Arch on the bend's wall, framed in
+the opening on the way in. Hawks circle on the thermals (now and then a pair of ravens) and the odd
+dust devil wanders across the floor or the plateau, lives for a while and fades.
 
 Arches: one shape for all of them, a band between two half ellipses (the opening, and the back
 1.3x as wide and 1.24x as high) with legs running into the ground, scaled per arch. The Great
@@ -398,7 +419,11 @@ through them stand on level ground out on the plateau. Painted mesas and buttes 
 in three washes of the rock's shade.
 
 Atmosphere: a dust haze layers the far rims and mesas all day; a little mist lies in the canyons
-at first light and burns off by mid-morning. Music: a desert guitar (a saw and a square an octave
+at first light and burns off by mid-morning, and by day a thinner warm dust haze fills them
+(`levelLight.canyon.haze`). The sunlit red walls bounce warm light into the canyon's shade, low
+between the walls and under the arches (`bounce`). On high, arches, hoodoos, boulders and the
+sites cast through ShadowCasters; contact shadows lie under rocks, shrubs, hoodoos and stock.
+Music: a desert guitar (a saw and a square an octave
 apart through a slowly closing lowpass, picked up into pitch from a quarter tone flat, a slow
 vibrato blooming on long notes) at 84 BPM over a triangle pad and an open-fifth drone, a galloping
 arpeggio with flow and a long canyon echo; suspended at dawn, a wide major by day, a mixolydian
@@ -411,7 +436,20 @@ climbs, and a touch pushes the bird the shortest way out (over the back, under t
 leg or a face). Wisps: the canyon is the spine (low ribbons following its bends and swinging
 across the floor); near an arch a ribbon pulls to the middle and to 0.42 of the opening's height
 so it threads it, the Great Arch first. Glides carry on over the rims and the plateau, and
-generic patterns run only far out in the desert.
+generic patterns run only far out in the desert. A dwelling's brow is solid (the look-ahead sees
+it as wall); ranch roofs only lift the flight floor.
+
+- Code: `world/canyon/`: `CanyonLayout` (pure: canyons, walls with scree, washes, slickrock,
+  arches, hoodoos, queries), `CanyonSites` (pure: ranches and cliff dwellings, their levelled
+  ground and flight floor), `CanyonScatter` (pure: trees, sites and small props per chunk),
+  `CanyonDecor` (instancing, LOD, shadows), `rock` (the strata, land and bounce shader patch),
+  `cover` (the ground-cover style), `geometry` (rock and trees), `shapes` (props), `materials`.
+- Per preset (`render.*`): hoodoos smooth within `hoodooDetail` 0 / 220 / 320 m; ranches, dwellings
+  and brows always; boulders, sagebrush, stock and fences within `smallPropDistance`; hawks and
+  dust devils within `propDistance`; desert cover in the shared grass ring.
+- Cost at the pilot's viewpoints (triangles / draw calls, whole frame): medium 155-178k / ~118
+  (was 163-177k / ~100), high 328-378k / ~150 (was 308-340k / ~127), low 80-89k / ~81 (was
+  97-105k / ~78).
 
 ## Sea of Clouds
 
@@ -1101,6 +1139,26 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - City of Gold's golden hour read as one orange: the fill light, the fog and the haze were all
   warm. The fill is now a cool lavender (hemisphere), stone faces turned from the sun take the
   sky's hue (`coolShade`), and the far haze leans toward the sky overhead.
+- Red Canyons lived in (after the Highlands): the rock strata and varnish moved from vertex
+  colours (4 m apart, 11 m far; they smeared into zigzags on 30 m cliffs) into a per-pixel patch
+  shared by the walls, arches, hoodoos and boulders. Arches are a swept tube of rounded sections
+  inside the collision band (lumps only shrink it) instead of a 14-segment extrusion; hoodoos are
+  smooth lathes with a cheaper far cut, slim ones narrowed per instance (one mesh, not two).
+- Each canyon chunk owns its index and splits each quad along the diagonal whose corners are
+  nearer in height, so a cliff's foot and lip follow the split instead of zigzagging across it.
+  The zigzag had faked fluting on the cliffs; flutes are now a normal tilt across steep rock.
+- Ground cover gained optional extra shapes per style (shrubs, cacti, tumbleweeds; one draw each)
+  and the whole extra attribute (`t.extras`): the canyon's paint reads road, wash, slickrock and a
+  brow's shade from its `aLand` without calling the layout per tuft (that was ~30 ms a chunk).
+- Ranches and cliff dwellings sit in their own grid cells, well inside them, so the terrain asks
+  one cell per query; a site being placed marks its cell empty first (placing reads heights,
+  which ask for the site) and puts back the layout's scratch results.
+- Cliff dwellings are a brow (half dome, solid) jutting over rooms on a levelled bench, with the
+  cliff behind darkened through `aLand`: a heightfield can't hold an overhang, and carving one
+  would need a per-site mesh. The brow's dome is `browTop`, shared by the flight floor.
+- Sagebrush left the Trees (it was drawn to 620 m on medium, ~34k triangles of specks) for the
+  small props and the cover ring; that paid for the near trees, smooth hoodoos and the sites.
+  Medium stays at its old cost, high grew ~10 %, low fell ~15 %.
 - Bird plumage: grey mantle and upperwing over a white body, a lighter covert layer with its
   own scalloped edge, a dusky trailing edge, feathers with a raised pale shaft, a dark-tipped
   bill, and a pale underwing (front faces of the wing panels are the undersides).

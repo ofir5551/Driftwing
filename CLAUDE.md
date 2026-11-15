@@ -98,10 +98,15 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   contact shadows; scatters one chunk a frame), `materials` (stone shader with bevels,
   weathering and cool shade; foliage detail; painted dry stone), `shapes` (props), `geometry`,
   `JerusalemWorld`. Hills are the `hills` backdrop.
-- `world/canyon/`: `CanyonLayout` (pure: canyons, stepped strata walls, plateau and mesas, arches
-  (half-elliptical bands, the Great Arch ahead of the spawn) and hoodoos; walls are terrain that
-  `solidTop` reports, arches report their span's underside), `CanyonWisps` (canyon runs that
-  thread arches, glides), `CanyonDecor`, `geometry`, `CanyonWorld`. Mesas are the `mesas` backdrop.
+- `world/canyon/`: `CanyonLayout` (pure: canyons, stepped walls with scree at each cliff's foot,
+  dry washes, slickrock, plateau and mesas, arches (half-elliptical bands, the Great Arch ahead
+  of the spawn) and hoodoos; walls are terrain that `solidTop` reports, arches report their
+  span's underside), `CanyonSites` (pure: ranches and cliff dwellings under a solid brow; pads,
+  flight floor), `CanyonScatter` (pure: trees, sites, small props per chunk), `CanyonWisps`
+  (canyon runs that thread arches, glides), `CanyonDecor` (instancing, near/far, casters,
+  contact shadows), `rock` (per-pixel strata, varnish, flutes, the road/wash/slickrock paint from
+  `aLand`, bounce light), `cover`, `geometry`, `shapes`, `materials`, `CanyonWorld` (per-chunk
+  diagonals, haze). Mesas are the `mesas` backdrop.
 - `world/peaks/`: `PeaksLayout` (pure: the cloud sea as terrain (|noise| heaps), granite spires
   lathed from one stepped profile, the Sky Gate (two spires, a bridge solid with an underside,
   a monastery)), `PeaksWisps` (gate ribbon, cloud skims, slaloms, tangent swings over summits),

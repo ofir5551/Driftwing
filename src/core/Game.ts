@@ -189,6 +189,7 @@ export class Game {
     Config.render.smallPropDistance = q.smallPropDistance;
     Config.render.propDetail = q.propDetail;
     Config.render.heroDetail = q.heroDetail;
+    Config.render.hoodooDetail = q.hoodooDetail;
     Config.render.rockDetail = q.rockDetail;
     Config.render.clouds = q.clouds;
     this.composer.setBloomEnabled(q.bloom);

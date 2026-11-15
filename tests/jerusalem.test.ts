@@ -322,6 +322,7 @@ describe('jerusalem country', () => {
       petal: -1,
       extra: road,
       extras: [road, path, bed, hab],
+      shape: 0,
     });
     const K = Config.jerusalem;
     const bare = (t: CoverTuft, x = 5000.5, z = 5000.5, y = 80) => {

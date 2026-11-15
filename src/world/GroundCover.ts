@@ -32,6 +32,20 @@ export interface CoverStyle {
    * component, up to four, as `t.extras`).
    */
   extra?: string;
+  /**
+   * Other things that grow in the cover beside the grass tuft (shrubs, cacti): `paint` picks
+   * one per spot with `t.shape` (1 = the first). Each is one more instanced draw, turned at
+   * random, coloured by `t.r/g/b` over its own vertex colours.
+   */
+  shapes?: readonly CoverShape[];
+}
+
+/** A cover shape beside the grass tuft (see CoverStyle.shapes). */
+export interface CoverShape {
+  name: string;
+  geometry: () => THREE.BufferGeometry;
+  /** Most instances drawn at once. */
+  cap: number;
 }
 
 /** One tuft's look, handed to CoverStyle.paint (a reused scratch object). */
@@ -52,6 +66,8 @@ export interface CoverTuft {
   extra: number;
   /** Every component of it (up to four; the rest 0). */
   extras: [number, number, number, number];
+  /** 0: the grass tuft; k: the style's k-th shape (no flowers grow on a shape). */
+  shape: number;
 }
 
 const tuft: CoverTuft = {
@@ -64,6 +80,7 @@ const tuft: CoverTuft = {
   petal: -1,
   extra: 0,
   extras: [0, 0, 0, 0],
+  shape: 0,
 };
 
 /** A terrain chunk's vertex lattice: (res + 1)^2 chunk-local positions and ground colours. */
@@ -79,8 +96,11 @@ export interface CoverLattice {
   extraSize?: number;
 }
 
-/** Floats per cover item: x, y, z, scale, r, g, b, keep (0..1, tested against coverDensity). */
-export const COVER_STRIDE = 8;
+/**
+ * Floats per cover item: x, y, z, scale, r, g, b, keep (0..1, tested against coverDensity),
+ * shape (0 the grass tuft, k the style's k-th shape).
+ */
+export const COVER_STRIDE = 9;
 
 /**
  * Scatter one chunk's cover from its lattice (pure: unit-tested). Cells are enumerated by
@@ -156,13 +176,14 @@ export function scatterCover(
             ? X[a * xs + q] * w00 + X[b * xs + q] * w10 + X[c * xs + q] * w01 + X[d * xs + q] * w11
             : 0;
       t.extra = t.extras[0];
+      t.shape = 0;
       if (style.paint) {
         style.paint(x, z, y, t);
         if (t.bare) continue;
       }
       const keep = hash2(i, j, seed + 2);
-      tufts.push(x, y - 0.06, z, t.scale, t.r, t.g, t.b, keep);
-      if (petalRgb.length === 0) continue;
+      tufts.push(x, y - 0.06, z, t.scale, t.r, t.g, t.b, keep, t.shape);
+      if (petalRgb.length === 0 || t.shape !== 0) continue;
       // Drifts: one colour family per drift, densest at its heart (or the style's own bloom).
       const heart = Math.max(0, drift(x * 0.03, z * 0.03) - 0.15) * 2.2;
       if (hash2(i, j, seed + 4) >= (t.bloom >= 0 ? t.bloom : chance * heart)) continue;
@@ -172,7 +193,7 @@ export function scatterCover(
           ? Math.min(nc - 1, t.petal)
           : Math.min(nc - 1, Math.floor((hue(x * 0.012, z * 0.012) * 0.5 + 0.5) * nc))) * 3;
       const fs = 0.9 + hash2(i, j, seed + 5) * 0.5;
-      flowers.push(x, y - 0.05, z, fs, petalRgb[pi], petalRgb[pi + 1], petalRgb[pi + 2], keep);
+      flowers.push(x, y - 0.05, z, fs, petalRgb[pi], petalRgb[pi + 1], petalRgb[pi + 2], keep, 0);
     }
 }
 
@@ -324,6 +345,9 @@ export class GroundCover {
   readonly group = new THREE.Group();
   private readonly tufts: THREE.InstancedMesh;
   private readonly flowers: THREE.InstancedMesh;
+  /** The style's other shapes (index k - 1 for shape k) and their counts this refill. */
+  private readonly shapes: THREE.InstancedMesh[];
+  private readonly ns: number[];
   private readonly material = coverMaterial();
   private readonly cache = new Map<number, CoverChunk>();
   private readonly drift: Noise2D;
@@ -360,6 +384,8 @@ export class GroundCover {
     }
     this.tufts = this.make(tuftGeometry(), 36000, 'cover-grass');
     this.flowers = this.make(flowersGeometry(), style.flowers ? 8000 : 1, 'cover-flowers');
+    this.shapes = (style.shapes ?? []).map((sh) => this.make(sh.geometry(), sh.cap, sh.name));
+    this.ns = this.shapes.map(() => 0);
     const time = this.material.userData.time as { value: number };
     this.tufts.onBeforeRender = () => (time.value = performance.now() / 1000);
   }
@@ -383,6 +409,7 @@ export class GroundCover {
     const D = Config.render.coverDensity;
     if (R <= 0 || D <= 0) {
       this.tufts.count = this.flowers.count = 0;
+      for (const m of this.shapes) m.count = 0;
       this.lastR = R;
       this.lastD = D;
       return;
@@ -411,6 +438,7 @@ export class GroundCover {
     this.cache.forEach(this.evict);
     this.nt = 0;
     this.nf = 0;
+    this.ns.fill(0);
     for (let cz = c0z; cz <= c1z; cz++)
       for (let cx = c0x; cx <= c1x; cx++) {
         const c = this.cache.get(key(cx, cz));
@@ -418,6 +446,7 @@ export class GroundCover {
       }
     this.finish(this.tufts, this.nt);
     this.finish(this.flowers, this.nf);
+    for (let k = 0; k < this.shapes.length; k++) this.finish(this.shapes[k], this.ns[k]);
     // Keep trying every frame until every chunk in the ring has its cover.
     this.lastX = missing ? NaN : px;
     this.lastZ = pz;
@@ -460,13 +489,33 @@ export class GroundCover {
     const tm = this.tufts.instanceMatrix.array as Float32Array;
     const tc = this.tufts.instanceColor!.array as Float32Array;
     const capT = this.tufts.instanceMatrix.count;
-    for (let k = 0; k < t.length && this.nt < capT; k += COVER_STRIDE) {
+    for (let k = 0; k < t.length; k += COVER_STRIDE) {
       if (t[k + 7] > D) continue;
       const d2 = (t[k] - px) ** 2 + (t[k + 2] - pz) ** 2;
       if (d2 > R2) continue;
       // Tufts shrink toward the rim so the ring has no hard edge.
       const fade = Math.min(1, (R2 - d2) / rim);
-      write(tm, tc, this.nt++, t, k, t[k + 3] * (0.35 + 0.65 * fade));
+      const sh = t[k + 8];
+      if (sh === 0) {
+        if (this.nt < capT) write(tm, tc, this.nt++, t, k, t[k + 3] * (0.35 + 0.65 * fade));
+        continue;
+      }
+      const mesh = this.shapes[sh - 1];
+      const n = this.ns[sh - 1];
+      if (!mesh || n >= mesh.instanceMatrix.count) continue;
+      const M = mesh.instanceMatrix.array as Float32Array;
+      const C = mesh.instanceColor!.array as Float32Array;
+      write(M, C, n, t, k, t[k + 3] * (0.35 + 0.65 * fade));
+      // Shapes are turned at random (keep is a uniform hash): no two cacti stand alike.
+      const a = t[k + 7] * 40;
+      const s = t[k + 3] * (0.35 + 0.65 * fade);
+      const o = n * 16;
+      M[o] = Math.cos(a) * s;
+      M[o + 2] = -Math.sin(a) * s;
+      M[o + 5] = s;
+      M[o + 8] = Math.sin(a) * s;
+      M[o + 10] = Math.cos(a) * s;
+      this.ns[sh - 1] = n + 1;
     }
     const f = c.flowers;
     const fm = this.flowers.instanceMatrix.array as Float32Array;
@@ -490,6 +539,10 @@ export class GroundCover {
     this.flowers.geometry.dispose();
     this.tufts.dispose();
     this.flowers.dispose();
+    for (const m of this.shapes) {
+      m.geometry.dispose();
+      m.dispose();
+    }
     this.material.dispose();
   }
 }

@@ -3,7 +3,10 @@ import { CANYON_KEYS, MODES } from '../src/audio/scales';
 import { CANYON_MUSIC } from '../src/audio/styles';
 import { Config } from '../src/core/Config';
 import { ARCH_OUT_X, CanyonLayout } from '../src/world/canyon/CanyonLayout';
+import { CanyonScatter, P, PROP_STRIDE, T } from '../src/world/canyon/CanyonScatter';
+import { RANCH_PARTS, browTop } from '../src/world/canyon/CanyonSites';
 import { CanyonWorld } from '../src/world/canyon/CanyonWorld';
+import { canyonCover } from '../src/world/canyon/cover';
 import { flyBot } from './helpers';
 
 const L = new CanyonLayout(1337);
@@ -133,6 +136,253 @@ describe('canyon wisps', () => {
       expect(r.got).toBeGreaterThan(150);
       expect(r.glances).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+describe('canyon geography', () => {
+  it('piles scree at each cliff foot without a step, and washes dip into the floor', () => {
+    const s = L.spawn;
+    for (const side of [1, -1]) {
+      let prev = L.height(s.x, s.z);
+      for (let d = 0.5; d < 260; d += 0.5) {
+        const y = L.height(s.x + Math.cos(s.yaw) * d * side, s.z - Math.sin(s.yaw) * d * side);
+        // A cliff is steep, but the terrain never jumps (the aprons meet their benches).
+        expect(Math.abs(y - prev)).toBeLessThan(4);
+        prev = y;
+      }
+    }
+    // Somewhere on the floors a wash runs below the floor round it.
+    const land = new Float32Array(4);
+    let beds = 0;
+    for (let z = -1500; z <= 1500; z += 7)
+      for (let x = -1500; x <= 1500; x += 7) {
+        L.landAt(x, z, 0, land, 0);
+        if (land[1] < 0.2 && L.canyon(x, z) < -20) beds++;
+      }
+    expect(beds).toBeGreaterThan(20);
+  });
+
+  it('runs a road along the floor, out of the river', () => {
+    const land = new Float32Array(4);
+    let road = 0;
+    for (let z = -1500; z <= 1500; z += 5)
+      for (let x = -1500; x <= 1500; x += 5) {
+        L.landAt(x, z, 0, land, 0);
+        if (land[0] < 1) {
+          road++;
+          expect(L.cd).toBeGreaterThan(L.river(x, z) + 4);
+          expect(L.canyon(x, z)).toBeLessThan(0);
+        }
+      }
+    expect(road).toBeGreaterThan(200);
+  });
+});
+
+describe('canyon sites', () => {
+  it('are deterministic per seed', () => {
+    const a = new CanyonLayout(42).sites;
+    const b = new CanyonLayout(42).sites;
+    expect(a.homeRanch).toEqual(b.homeRanch);
+    expect(a.homeAlcove).toEqual(b.homeAlcove);
+    for (const [i, j] of [
+      [0, 1],
+      [-2, 3],
+      [4, -1],
+    ]) {
+      expect(a.ranch(i, j)).toEqual(b.ranch(i, j));
+      expect(a.alcove(i, j)).toEqual(b.alcove(i, j));
+    }
+  });
+
+  it('puts a ranch and a cliff dwelling near the spawn, and more out in the canyons', () => {
+    for (const seed of [1337, 1, 42, 7]) {
+      const S = new CanyonLayout(seed).sites;
+      expect(S.homeRanch).not.toBeNull();
+      expect(S.homeAlcove).not.toBeNull();
+    }
+    const S = L.sites;
+    let ranches = 0;
+    let alcoves = 0;
+    for (let j = -5; j <= 5; j++)
+      for (let i = -5; i <= 5; i++) {
+        if (S.ranch(i, j)) ranches++;
+        if (S.alcove(i, j)) alcoves++;
+      }
+    expect(ranches).toBeGreaterThan(5);
+    expect(alcoves).toBeGreaterThan(10);
+  });
+
+  it('stands a ranch on a level pad on the floor, its roofs under the flight floor', () => {
+    const r = L.sites.homeRanch!;
+    expect(L.canyon(r.x, r.z)).toBeLessThan(0);
+    for (const [u, v, , roof] of RANCH_PARTS) {
+      const x = r.x + r.ux * u + r.vx * v;
+      const z = r.z + r.uz * u + r.vz * v;
+      expect(Math.abs(L.height(x, z) - r.y)).toBeLessThan(0.3);
+      expect(L.ground(x, z)).toBeGreaterThanOrEqual(r.y + roof - 1e-6);
+    }
+    // Away from the ranch the floor is the terrain again.
+    expect(L.ground(r.x + r.vx * 200, r.z + r.vz * 200)).toBe(
+      L.height(r.x + r.vx * 200, r.z + r.vz * 200),
+    );
+  });
+
+  it('shelters a dwelling under a brow that is solid and lifts the flight floor', () => {
+    const a = L.sites.homeAlcove!;
+    const bx = a.x - a.nx * a.back + a.nx * a.reach * 0.4;
+    const bz = a.z - a.nz * a.back + a.nz * a.reach * 0.4;
+    const top = browTop(a, bx, bz);
+    expect(top).toBeGreaterThan(a.y0 + a.h);
+    expect(L.ground(bx, bz)).toBeGreaterThanOrEqual(top - 1e-6);
+    expect(L.solidTop(bx, top - 1, bz, 0)).toBeGreaterThanOrEqual(top - 1e-6);
+    // The rooms' bench is level.
+    const rx = a.x + a.nx * 2;
+    const rz = a.z + a.nz * 2;
+    expect(Math.abs(L.height(rx, rz) - a.y0)).toBeLessThan(1.5);
+  });
+});
+
+describe('canyon scenery', () => {
+  const sc = new CanyonScatter(L);
+  const size = Config.world.chunkSize;
+  const all = (fn: (ox: number, oz: number, out: number[]) => void, r: number) => {
+    const out: number[] = [];
+    for (let cz = -r; cz <= r; cz++) for (let cx = -r; cx <= r; cx++) fn(cx * size, cz * size, out);
+    return out;
+  };
+
+  it('is deterministic per seed', () => {
+    const b = new CanyonScatter(new CanyonLayout(1337));
+    const p1: number[] = [];
+    const p2: number[] = [];
+    sc.props(160, -320, size, p1);
+    b.props(160, -320, size, p2);
+    expect(p1).toEqual(p2);
+    const t1: number[] = [];
+    const t2: number[] = [];
+    sc.trees(0, 0, size, t1);
+    b.trees(0, 0, size, t2);
+    expect(t1).toEqual(t2);
+  });
+
+  it('keeps trees and props out of the river and off the road', () => {
+    const K = Config.canyon;
+    const trees = all((ox, oz, out) => sc.trees(ox, oz, size, out), 4);
+    let willows = 0;
+    for (let k = 0; k < trees.length; k += 7) {
+      const x = trees[k + 1];
+      const z = trees[k + 3];
+      expect(L.height(x, z)).toBeGreaterThan(0.3);
+      L.canyon(x, z);
+      if (L.cd < L.cw) expect(Math.abs(L.cs - K.roadOffset)).toBeGreaterThan(K.roadWidth);
+      if (trees[k] === T.Willow) willows++;
+    }
+    expect(willows).toBeGreaterThan(20);
+    const props = all((ox, oz, out) => sc.props(ox, oz, size, out), 4);
+    const kinds = new Set<number>();
+    for (let k = 0; k < props.length; k += PROP_STRIDE) {
+      const kind = props[k];
+      kinds.add(kind);
+      const x = props[k + 1];
+      const z = props[k + 3];
+      if (kind === P.Hawk || kind === P.DustDevil) continue;
+      expect(L.height(x, z)).toBeGreaterThan(0.3);
+      L.canyon(x, z);
+      if (kind !== P.Fence && L.cd < L.cw)
+        expect(Math.abs(L.cs - K.roadOffset)).toBeGreaterThan(K.roadWidth);
+    }
+    for (const k of [P.Boulder, P.Sage, P.Fence, P.Hawk]) expect(kinds.has(k)).toBe(true);
+  });
+
+  it('stocks the ranches: buildings, a turning windmill, horses and cattle', () => {
+    const sites = all((ox, oz, out) => sc.sites(ox, oz, size, out), 4);
+    const n = new Map<number, number>();
+    for (let k = 0; k < sites.length; k += PROP_STRIDE) n.set(sites[k], (n.get(sites[k]) ?? 0) + 1);
+    expect(n.get(P.Ranch)).toBeGreaterThan(0);
+    expect(n.get(P.Fan)).toBe(n.get(P.Ranch));
+    expect(n.get(P.Horse)).toBeGreaterThan(0);
+    expect(n.get(P.Cow)).toBeGreaterThan(0);
+  });
+
+  it('keeps the wisps an autopilot flies clear of every prop', () => {
+    const w = new CanyonWorld(1337);
+    const seen: number[] = [];
+    const r = flyBot(w, w.layout.spawn, 1337, 60, (x, y, z) => {
+      seen.push(x, y, z);
+      return false;
+    });
+    expect(r.got).toBeGreaterThan(60);
+    const s2 = new CanyonScatter(w.layout);
+    const props = new Map<number, number[]>();
+    for (let k = 0; k < seen.length; k += 3) {
+      const cx = Math.floor(seen[k] / size);
+      const cz = Math.floor(seen[k + 2] / size);
+      for (let dz = -1; dz <= 1; dz++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const key = (cx + dx) * 10000 + cz + dz;
+          if (props.has(key)) continue;
+          const out: number[] = [];
+          s2.props((cx + dx) * size, (cz + dz) * size, size, out);
+          s2.sites((cx + dx) * size, (cz + dz) * size, size, out);
+          props.set(key, out);
+        }
+    }
+    for (let k = 0; k < seen.length; k += 3) {
+      const [x, y, z] = [seen[k], seen[k + 1], seen[k + 2]];
+      const cx = Math.floor(x / size);
+      const cz = Math.floor(z / size);
+      for (let dz = -1; dz <= 1; dz++)
+        for (let dx = -1; dx <= 1; dx++)
+          for (const list of [props.get((cx + dx) * 10000 + cz + dz)!]) {
+            for (let i = 0; i < list.length; i += PROP_STRIDE) {
+              const kind = list[i];
+              if (kind === P.Hawk || kind === P.DustDevil || kind === P.Brow) continue;
+              // Everything on the ground stands under 12 m (the windmill's wheel included).
+              if (Math.hypot(x - list[i + 1], z - list[i + 3]) < 4)
+                expect(y).toBeGreaterThan(list[i + 2] + (kind === P.Fan ? 2 : 4));
+            }
+          }
+    }
+  }, 60_000);
+});
+
+describe('canyon ground cover', () => {
+  const style = canyonCover();
+  const tuft = (r: number, g: number, b: number, road: number, wash: number, slick: number) => ({
+    r,
+    g,
+    b,
+    scale: 1,
+    bare: false,
+    bloom: -1,
+    petal: -1,
+    extra: road,
+    extras: [road, wash, slick, 0] as [number, number, number, number],
+    shape: 0,
+  });
+
+  it('leaves the road and slickrock bare, grows the banks lush and the washes in flower', () => {
+    const road = tuft(0.6, 0.4, 0.2, 0.5, 99, 0);
+    style.paint!(10.5, 3.5, 2, road);
+    expect(road.bare).toBe(true);
+    const slick = tuft(0.6, 0.4, 0.2, 99, 99, 0.8);
+    style.paint!(10.5, 3.5, 40, slick);
+    expect(slick.bare).toBe(true);
+    const bank = tuft(0.3, 0.4, 0.15, 99, 99, 0);
+    style.paint!(10.5, 3.5, 1.5, bank);
+    expect([bank.bare, bank.scale > 1, bank.shape]).toEqual([false, true, 0]);
+    let flowers = 0;
+    let shapes = 0;
+    for (let i = 0; i < 400; i++) {
+      const w = tuft(0.6, 0.4, 0.2, 99, 0.2, 0);
+      style.paint!(i * 0.37, i * 0.53, 3, w);
+      if (!w.bare && w.bloom > 0.3) flowers++;
+      const d = tuft(0.6, 0.4, 0.2, 99, 99, 0);
+      style.paint!(i * 0.37, i * 0.53, 3, d);
+      if (d.shape > 0) shapes++;
+    }
+    expect(flowers).toBeGreaterThan(100);
+    expect(shapes).toBeGreaterThan(5);
   });
 });
 

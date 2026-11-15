@@ -678,10 +678,27 @@ export class AtollLayout {
   height(x: number, z: number): number {
     let y = -Infinity;
     for (const a of this.near(x, z)) {
-      y = Math.max(y, this.atollY(a, x, z));
-      if (a.island) y = Math.max(y, this.islandY(a.island, x, z));
+      let ya = this.atollY(a, x, z);
+      if (a.island) ya = Math.max(ya, this.islandY(a.island, x, z));
+      if (a.village) ya = this.shelf(a.village, x, z, ya);
+      y = Math.max(y, ya);
     }
     return y === -Infinity ? this.oceanY(x, z) : y;
+  }
+
+  /**
+   * The sandy shelf a village stands on: the lagoon floor lifted to a metre or two under the
+   * huts (stilt villages are built over the shallows), easing back down beyond them.
+   */
+  private shelf(v: Village, x: number, z: number, y: number): number {
+    const cx = v.x + Math.sin(v.yaw) * v.reach * 0.4;
+    const cz = v.z + Math.cos(v.yaw) * v.reach * 0.4;
+    const R = v.reach * 0.8 + 14;
+    const d2 = (x - cx) ** 2 + (z - cz) ** 2;
+    if (d2 > R * R) return y;
+    const target = -1.7 + 0.35 * fbm(this.nFloor, x * 0.03, z * 0.03, 2);
+    if (y >= target) return y;
+    return lerp(y, target, 1 - smoothstep(R * 0.6, R, Math.sqrt(d2)));
   }
 
   /** Top of a bungalow roof over (x, z) (soft canopy), or -Infinity. */

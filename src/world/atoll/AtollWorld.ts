@@ -14,6 +14,7 @@ import { AtollDecor, type AtollChunk } from './AtollDecor';
 import { AtollLayout } from './AtollLayout';
 import { AtollPlanner } from './AtollWisps';
 import { Surf } from './Surf';
+import { atollCover } from './cover';
 import { atollLandFrame, createAtollGeometry, fillAtoll, withAtollLand } from './land';
 import type { DiscoveryDef } from '../Discoveries';
 import { atollFinds } from './finds';
@@ -83,6 +84,7 @@ export class AtollWorld implements World {
       color: (f, x, z, y, slope, out) => this.groundColor(f, x, z, y, slope, out),
       createGeometry: createAtollGeometry,
       fillExtra: (g, ox, oz, size, res) => fillAtoll(L, g, ox, oz, size, res),
+      cover: atollCover(L),
     });
     this.surf = new Surf(L);
     this.planner = new AtollPlanner(L);

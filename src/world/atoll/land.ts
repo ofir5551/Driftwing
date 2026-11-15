@@ -206,8 +206,9 @@ float aGloss = 0.0;
       else if (ci == 2) cc = uACorals[2];
       else if (ci == 3) cc = uACorals[3];
       else if (ci == 4) cc = uACorals[4];
-      float head = (1.0 - smoothstep(0.22, 0.5, c.x)) * step(0.25, fract(c.w * 13.7));
-      vec3 garden = mix(diffuseColor.rgb * 0.74, mix(diffuseColor.rgb, cc, 0.6) * (0.85 + 0.25 * (1.0 - c.x)), head);
+      float head = (1.0 - smoothstep(0.12, 0.4, c.x + 0.25 * gNoise(p * 2.1)))
+        * step(0.5, fract(c.w * 13.7)) * smoothstep(0.35, 0.6, gNoise(p * 0.35));
+      vec3 garden = mix(diffuseColor.rgb * (0.7 + 0.2 * gNoise(p * 0.8)), mix(diffuseColor.rgb, cc, 0.45) * (0.9 + 0.2 * gNoise(p * 3.0)), head);
       // Far off the heads blur into one warm, speckled patch.
       garden = mix(mix(diffuseColor.rgb * 0.86, vec3(0.6, 0.46, 0.5), 0.18), garden, aFine);
       diffuseColor.rgb = mix(diffuseColor.rgb, garden, smoothstep(0.05, 0.4, co));

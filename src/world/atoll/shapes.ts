@@ -65,11 +65,11 @@ export function stiltHutGeometry(): THREE.BufferGeometry {
   for (const x of [-2, 2])
     for (const z of [-2.3, 0, 2.3])
       parts.push(
-        colored(new THREE.BoxGeometry(0.22, F + 8, 0.22), WOOD, (F - 8) / 2).translate(x, 0, z),
+        colored(new THREE.BoxGeometry(0.22, F + 2.6, 0.22), WOOD, (F - 2.6) / 2).translate(x, 0, z),
       );
   for (const x of [-1.4, 1.4])
     parts.push(
-      colored(new THREE.BoxGeometry(0.18, F + 8, 0.18), WOOD, (F - 8) / 2).translate(x, 0, 3.9),
+      colored(new THREE.BoxGeometry(0.18, F + 2.6, 0.18), WOOD, (F - 2.6) / 2).translate(x, 0, 3.9),
     );
   parts.push(
     colored(new THREE.BoxGeometry(4.8, 0.24, 5.6), PLANK, F - 0.12),

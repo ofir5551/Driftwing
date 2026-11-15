@@ -239,7 +239,7 @@ vec3 cityTilt = vec3(0.0);
     float band = step(0.55, t) * step(0.72, fract(t * 7.0));
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92), band);
     cityEmit = diffuseColor.rgb * lights * 0.7;
-  } else if (st > 7.5) {
+  } else if (st > 7.5 && st < 8.5) {
     float blink = step(0.2, sin(uCityTime * 2.4 + seed * 6.283));
     cityEmit = diffuseColor.rgb * (0.25 + lights * 3.0 * blink);
   }

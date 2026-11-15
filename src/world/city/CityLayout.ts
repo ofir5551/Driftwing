@@ -2,6 +2,14 @@ import { Config } from '../../core/Config';
 import { clamp, lerp, smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, mulberry32, type Noise2D } from '../noise';
 import { PROP } from './props';
+import {
+  genHarbour,
+  harbourAt,
+  PIER_AT,
+  PIER_HALF,
+  PIER_LENGTH,
+  type HarbourSink,
+} from './CityHarbour';
 
 /**
  * The bay city as pure data: one seeded function of space, no Three.js, so it is unit-tested
@@ -28,6 +36,8 @@ export const BK = {
   SHRINE: 7,
   TEMPLE: 8,
   LANDMARK: 9,
+  /** A waterfront block on a harbour's stretch of shore: the container yard. */
+  HARBOUR: 10,
 } as const;
 export type BlockKind = (typeof BK)[keyof typeof BK];
 
@@ -48,6 +58,7 @@ export const STYLE = {
   LAMP: 6,
   LATTICE: 7,
   BEACON: 8,
+  CONTAINER: 9,
 } as const;
 /** Tree shapes (index into the city's Trees meshes). */
 export const TREE = { ROUND: 0, PINE: 1, CHERRY: 2 } as const;
@@ -114,6 +125,7 @@ const INK = 0x2b2833;
 const STONE_GREY = 0xb9b3a8;
 const LANTERN = 0xffc978;
 const CONCRETE = 0xa9a4ad;
+const CONTAINER_COLORS = [0xb8452f, 0x2f5f8f, 0x3f7f5a, 0xd09a3a, 0x8a8f96, 0xe2e0d8, 0x9a4a6f];
 /** Shop awnings: canvas in shop-front colours. */
 const AWNINGS = [0xc8423a, 0x2f6f8f, 0x3c7a4e, 0xe0a33a, 0x7a4a8c, 0xe9e3d6, 0x34404f];
 
@@ -130,7 +142,7 @@ interface Frame {
   g: number;
 }
 
-export class CityLayout {
+export class CityLayout implements HarbourSink {
   readonly S: number;
   readonly AH: number;
   readonly SH: number;
@@ -165,7 +177,10 @@ export class CityLayout {
   /** Scratch: the direction a bank distance grows in. */
   private readonly dir = { x: 0, z: 0 };
 
-  constructor(private readonly seed: number) {
+  /** The superblock being generated (the harbour's sink writes into it). */
+  private cur: Superblock | null = null;
+
+  constructor(readonly seed: number) {
     const c = Config.city;
     this.S = c.superblock;
     this.AH = c.avenueHalf;
@@ -425,7 +440,10 @@ export class CityLayout {
   }
 
   blockKind(bi: number, bj: number): BlockKind {
-    if (this.coastal(bi, bj)) return BK.PARK;
+    if (this.coastal(bi, bj)) {
+      const side = this.blockZ0(bj) < (NEAR_MAX + FAR_MIN) / 2 ? 1 : -1;
+      return harbourAt(this.seed, Math.floor(bi / 3), side) ? BK.HARBOUR : BK.PARK;
+    }
     const I = Math.floor(bi / 3);
     const J = Math.floor(bj / 3);
     const centre = mod3(bi) === 1 && mod3(bj) === 1;
@@ -532,6 +550,21 @@ export class CityLayout {
     this.genBridges(sb, I, J);
     this.genWaterfront(sb, I, J);
     this.genRiverWalk(sb, I, J);
+    this.cur = sb;
+    const z0 = J * this.S;
+    if (
+      harbourAt(this.seed, I, 1) &&
+      z0 < NEAR_MAX + PIER_LENGTH + 10 &&
+      z0 + this.S > NEAR_MIN - 10
+    )
+      genHarbour(this, I, J, 1);
+    if (
+      harbourAt(this.seed, I, -1) &&
+      z0 < FAR_MAX + 10 &&
+      z0 + this.S > FAR_MIN - PIER_LENGTH - 10
+    )
+      genHarbour(this, I, J, -1);
+    this.cur = null;
     const S = this.S;
     if (
       this.gate.x >= I * S &&
@@ -559,6 +592,48 @@ export class CityLayout {
       const j1 = clamp(Math.floor((B[k + 5] + INFLATE - oz) / cs), 0, GRID - 1);
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) sb.cells[j * GRID + i].push(b);
     }
+  }
+
+  addPart(
+    mesh: number,
+    x: number,
+    y: number,
+    z: number,
+    sx: number,
+    sy: number,
+    sz: number,
+    rot: number,
+    color: number,
+    style: number,
+    seed: number,
+  ): void {
+    this.part(this.cur!, mesh, x, y, z, sx, sy, sz, rot, color, style, seed);
+  }
+
+  addSolid(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): void {
+    this.solid(this.cur!, x0, y0, z0, x1, y1, z1);
+  }
+
+  addProp(
+    kind: number,
+    x: number,
+    y: number,
+    z: number,
+    rot: number,
+    sx: number,
+    sy: number,
+    sz: number,
+    tint: number,
+  ): void {
+    this.prop(this.cur!, kind, x, y, z, rot, sx, sy, sz, tint);
+  }
+
+  /** On the root of a harbour pier (x along the shore): the promenade's railing opens there. */
+  private pierRoot(x: number, side: number): boolean {
+    const I = Math.floor(x / this.S);
+    if (!harbourAt(this.seed, I, side)) return false;
+    for (const a of PIER_AT) if (Math.abs(x - (I * this.S + a)) < PIER_HALF + 1.5) return true;
+    return false;
   }
 
   private part(
@@ -834,6 +909,8 @@ export class CityLayout {
         return this.genPark(sb, ix0, iz0, ix1, iz1, kind === BK.FOREST, rnd);
       case BK.PLAZA:
         return this.genPlaza(sb, ix0, iz0, ix1, iz1, rnd);
+      case BK.HARBOUR:
+        return this.genYard(sb, ix0, iz0, ix1, iz1, rnd);
       case BK.SHRINE:
         return this.genShrine(sb, bi, bj, rnd);
       case BK.TEMPLE:
@@ -1364,6 +1441,67 @@ export class CityLayout {
         this.solid(sb, px - 3, g, pz - 3, px + 3, g + 4.9, pz + 3);
       }
     }
+  }
+
+  /**
+   * A container yard behind the seawall: a warehouse shed and rows of container stacks, on
+   * whatever of the block is buildable.
+   */
+  private genYard(
+    sb: Superblock,
+    ix0: number,
+    iz0: number,
+    ix1: number,
+    iz1: number,
+    rnd: () => number,
+  ): void {
+    // The shed along the inland side, if there is room.
+    const inland = this.shoreNear((ix0 + ix1) / 2) > iz1 ? iz0 : iz1;
+    const sza = inland === iz0 ? iz0 : iz1 - 16;
+    if (this.fits(ix0 + 2, sza, ix1 - 2, sza + 16)) {
+      const g = this.baseHeight((ix0 + ix1) / 2, sza + 8);
+      this.box(sb, ix0 + 2, sza, ix1 - 2, sza + 16, g - 3, g + 9, 0xc9c6bf, STYLE.OFFICE, rnd());
+      this.part(
+        sb,
+        MESH.GABLE,
+        (ix0 + ix1) / 2,
+        g + 9,
+        sza + 8,
+        ix1 - ix0 - 3,
+        2.2,
+        17,
+        0,
+        0x6b7a86,
+        STYLE.PLAIN,
+        0,
+      );
+      this.solid(sb, ix0 + 2, g + 9, sza, ix1 - 2, g + 10.5, sza + 16);
+    }
+    for (let z = iz0 + 2; z < iz1 - 4; z += 7.5)
+      for (let x = ix0 + 2; x < ix1 - 13; x += 14) {
+        if (z + 5 > sza && z < sza + 16) continue;
+        if (!this.fits(x, z, x + 12.2, z + 5)) continue;
+        const g = this.baseHeight(x + 6, z + 2.5);
+        for (const dz of [0, 2.5]) {
+          const n = 1 + Math.floor(rnd() * 3);
+          for (let k = 0; k < n; k++)
+            this.part(
+              sb,
+              MESH.BOX,
+              x + 6.1,
+              g + k * 2.6,
+              z + dz + 1.2,
+              12.2,
+              2.55,
+              2.4,
+              0,
+              pick(CONTAINER_COLORS, rnd()),
+              STYLE.CONTAINER,
+              rnd(),
+            );
+          this.solid(sb, x, g, z + dz, x + 12.2, g + n * 2.6, z + dz + 2.4);
+        }
+      }
   }
 
   private genPlaza(
@@ -2082,7 +2220,8 @@ export class CityLayout {
             this.part(sb, MESH.BOX, mx, y, mz, len, 1.05, 0.14, rot, 0xd9d4cc, STYLE.PLAIN, 0);
         };
         if (!wet) {
-          rail(0.4, this.baseHeight(x + 3, (ea + eb) / 2 - side * 0.4));
+          if (!this.pierRoot(x + 3, side))
+            rail(0.4, this.baseHeight(x + 3, (ea + eb) / 2 - side * 0.4));
           continue;
         }
         const mx = x + 3;
@@ -2125,7 +2264,7 @@ export class CityLayout {
       for (let x = Math.ceil((x0 - 12) / 24) * 24 + 12; x < x0 + S; x += 24) {
         const e = edge(x);
         const z = e - side * 2.6;
-        if (!owns(x, z) || this.baseHeight(x, z) < water) continue;
+        if (!owns(x, z) || this.baseHeight(x, z) < water || this.pierRoot(x, side)) continue;
         const rot = Math.atan2(-(edge(x + 3) - edge(x - 3)), 6) + (side > 0 ? 0 : Math.PI);
         this.prop(sb, PROP.Bench, x, this.baseHeight(x, z), z, rot, 1, 1, 1, 0.5);
       }

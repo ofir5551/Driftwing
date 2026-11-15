@@ -15,6 +15,7 @@ import { avoidSolids, glanceOffWall } from './collide';
 import { createCityUniforms, createGroundMaterial, type CityUniforms } from './materials';
 import type { DiscoveryDef } from '../Discoveries';
 import { cityFinds } from './finds';
+import { cityCover, cityLand } from './cover';
 
 const C = {
   seabed: new THREE.Color('#4f6d78'),
@@ -62,11 +63,14 @@ export class CityWorld implements World {
         const g = createChunkGeometry(res);
         g.setAttribute('aRoad', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2), 1));
         g.setAttribute('aEdge', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2 * 2), 2));
+        g.setAttribute('aCityLand', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2), 1));
         return g;
       },
       fillExtra: (g, ox, oz, size, res) => {
         const a = g.getAttribute('aRoad') as THREE.BufferAttribute;
         const e = g.getAttribute('aEdge') as THREE.BufferAttribute;
+        const c = g.getAttribute('aCityLand') as THREE.BufferAttribute;
+        const G = c.array as Float32Array;
         const A = a.array as Float32Array;
         const E = e.array as Float32Array;
         const n = res + 1;
@@ -79,10 +83,13 @@ export class CityWorld implements World {
             // Both distances are smooth, so the shader cuts crisp bands from their interpolation.
             E[(j * n + i) * 2] = Math.max(-60, Math.min(200, L.shoreDist(x, z)));
             E[(j * n + i) * 2 + 1] = L.bankDist(x, z);
+            G[j * n + i] = cityLand(L, x, z);
           }
+        c.needsUpdate = true;
         a.needsUpdate = true;
         e.needsUpdate = true;
       },
+      cover: cityCover(L),
     });
     this.planner = new CityPlanner(L);
     this.group.add(this.chunks.group);

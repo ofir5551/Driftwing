@@ -220,7 +220,7 @@ export function browGeometry(): THREE.BufferGeometry {
       const rho = (r / R) * 0.92;
       const yy = -0.1 + 0.7 * BROW_RISE * Math.sqrt(Math.max(0, 1 - (rho / 0.92) ** 2));
       pts.push(Math.cos(a) * rho, yy * Math.sin(a) ** 0.5, Math.sin(a) * rho);
-      shade.push(0.35 + 0.35 * (r / R) ** 2);
+      shade.push(0.22 + 0.4 * (r / R) ** 2);
     }
   const rows = outerRows + 2 + R + 1;
   const g = new THREE.BufferGeometry();

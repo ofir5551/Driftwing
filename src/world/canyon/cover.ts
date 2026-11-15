@@ -60,16 +60,16 @@ export function canyonCover(): CoverStyle {
       t.bare = true;
       return;
     }
-    if (h < 0.6) {
+    if (h < 0.585) {
       tint(t, 0.95 + (h - 0.55) * 2, COVER_SAGE);
       t.scale *= 1.1;
       return;
     }
-    if (h < 0.615) {
+    if (h < 0.6) {
       tint(t, 1, COVER_CACTUS);
       return;
     }
-    if (h < 0.62) {
+    if (h < 0.605) {
       tint(t, 1, COVER_TUMBLEWEED);
       return;
     }

@@ -443,8 +443,11 @@ export class CanyonLayout {
       if (fade > 0.05) wash = this.washDist(x, z) / (K.washWidth * 1.8 * fade);
     }
     out[o + 1] = Math.min(wash, 99);
+    // Bare slickrock out on the plateau; on the narrow benches only a little shows.
     out[o + 2] =
-      bank > K.wall * 0.2 ? smoothstep(0.05, 0.45, this.nSlick(x * 0.005, z * 0.005)) : 0;
+      bank > K.wall * 0.2
+        ? smoothstep(0.05, 0.45, this.nSlick(x * 0.005, z * 0.005)) * (bank > K.wall ? 1 : 0.35)
+        : 0;
     out[o + 3] = this.sitesOrNull?.shade(x, z, y) ?? 0;
   }
 

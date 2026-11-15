@@ -145,7 +145,7 @@ export class CanyonScatter {
     const bx = a.x - a.nx * a.back;
     const bz = a.z - a.nz * a.back;
     push(out, P.Brow, bx, a.y0 + a.h, bz, yaw, 0, a.w, a.reach, a.reach, a.seed);
-    push(out, P.Dwelling, a.x, a.y0, a.z, yaw, 0, a.w / 20.6, 1, 1, a.seed);
+    push(out, P.Dwelling, a.x, a.y0, a.z, yaw, 0, (a.w / 20.6) * 1.1, 1.25, 1.25, a.seed);
   }
 
   /** Trees per chunk (Trees records): cottonwood and willow by the river, juniper up high. */
@@ -176,7 +176,7 @@ export class CanyonScatter {
           s = 0.8 + 0.5 * hash2(i, j, seed + 14);
         } else if (y > 12) {
           const scrub = L.scrub(x, z);
-          if (h < scrub * (y > 20 ? 0.13 : 0.05)) {
+          if (h < scrub * (y > 20 ? 0.09 : 0.04)) {
             type = T.Juniper;
             s = 0.7 + 0.6 * hash2(i, j, seed + 14);
           }
@@ -242,7 +242,7 @@ export class CanyonScatter {
         }
         if (slope > 0.35) continue;
         const scrub = L.scrub(x, z);
-        if (h < scrub * 0.3 && L.cd > L.river(x, z) + 14 && this.clearOfSites(x, z, 1.5)) {
+        if (h < scrub * 0.22 && L.cd > L.river(x, z) + 14 && this.clearOfSites(x, z, 1.5)) {
           const s = 0.7 + 0.8 * hash2(i, j, seed + 25);
           push(out, P.Sage, x, y - 0.15, z, h * 40, 0, s, s * 0.9, s, hash2(i, j, seed + 26));
         } else if (h > 0.996 && bank < -6 && this.clearOfSites(x, z, 2)) {

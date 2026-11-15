@@ -178,7 +178,7 @@ export class CanyonSites {
     return (
       smoothstep(1, 0.75, along) *
       smoothstep(lip + 1, lip - 2, out) *
-      smoothstep(a.y0 + a.h + 2, a.y0 + a.h * 0.7, y) *
+      smoothstep(a.y0 + a.h + 5, a.y0 + a.h * 0.8, y) *
       smoothstep(a.y0 - 3, a.y0 - 0.5, y)
     );
   }
@@ -365,7 +365,7 @@ export class CanyonSites {
     // Clear of an arch's legs (it stands on the floor, the dwelling up on the wall).
     for (const ar of L.nearArches(fx, fz))
       if (Math.hypot(fx - ar.x, fz - ar.z) < ar.r * 1.3 + 30) return null;
-    return { x: fx, z: fz, nx, nz, y0, w, h, back: a, reach: a + 6, seed };
+    return { x: fx, z: fz, nx, nz, y0, w, h, back: a, reach: a + 9, seed };
   }
 
   private placeHomeAlcove(): Alcove | null {

@@ -104,6 +104,24 @@ const BOUNCE = /* glsl */ `
 }`;
 
 /**
+ * Flutes: the vertical grooves rain and rockfall carve down a sandstone cliff, as a tilt of the
+ * normal across the face (along its horizontal tangent), so the toon bands stripe the cliffs
+ * top to bottom while the strata stripe them across. Steep rock only; no vertices.
+ */
+const FLUTES = /* glsl */ `
+{
+  vec3 fN = normalize(vGNrm);
+  float fSteep = smoothstep(0.3, 0.65, 1.0 - fN.y) * (1.0 - smoothstep(uGFar * 0.4, uGFar * 1.2, distance(vGPos, cameraPosition)));
+  if (fSteep > 0.0) {
+    vec2 tg = normalize(vec2(-fN.z, fN.x) + 1e-5);
+    float al = dot(vGPos.xz, tg);
+    float ph = al * 0.42 + gNoise(vec2(al * 0.06, vGPos.y * 0.02)) * 5.0;
+    float d = cos(ph) * 0.6 + cos(ph * 2.3 + 1.7) * 0.3;
+    normal = normalize(normal + (viewMatrix * vec4(tg.x, 0.0, tg.y, 0.0)).xyz * d * 0.55 * fSteep);
+  }
+}`;
+
+/**
  * The canyon floor's painted ground (terrain only), from the chunk's `aLand` attribute (see
  * CanyonWorld's chunk fill): x = distance from the road's centre over its half width, y =
  * distance from a wash's bed line over its half width, z = slickrock 0..1, w = the shade
@@ -149,7 +167,7 @@ float cRock = 0.0;
     diffuseColor.rgb = mix(diffuseColor.rgb, rc, road * rGentle * 0.85);
   }
   // Shade on the cliff and bench under a dwelling's brow.
-  diffuseColor.rgb *= 1.0 - 0.5 * vLand.w;
+  diffuseColor.rgb *= 1.0 - 0.68 * vLand.w;
 }`;
 
 /**
@@ -188,7 +206,8 @@ diffuseColor.rgb *= rockStrata(vGPos, 1.0 - normalize(vGNrm).y * 0.5);`;
     shader.fragmentShader = shader.fragmentShader
       .replace('float gBumpAt(', `${PARS}\n${vary}float gBumpAt(`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${apply}`)
-      .replace('#include <aomap_fragment>', `#include <aomap_fragment>\n${BOUNCE}`);
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>\n${BOUNCE}`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>\n${FLUTES}`);
   };
   m.customProgramCacheKey = () => `${prevKey()}|rock-${mode}`;
   return m;

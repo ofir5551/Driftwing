@@ -71,10 +71,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   casters, contact shadows, chimney smoke), `Land` (ground colour; fields and road painted in the
   terrain shader from `aLand`), `crops` (ground-cover style), `shapes`, `materials`. The rivers and
   farmland are in `Terrain`'s `LandField`.
-- `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; the waterfront
-  (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; queries), `collide`
-  (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
-  `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.
+- `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes, props; the
+  waterfront (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; street furniture,
+  power lines (thin solids), rooftop kits and gardens, shop fronts; queries), `CityHarbour` (pure:
+  piers, gantry cranes, containers, a ship, moored boats; solids clipped per superblock), `props`
+  (records), `traffic` (pure `TrafficPlan`: endless lanes, clipped and sampled per plan, vehicles
+  placed per frame into preallocated buffers), `CityTraffic` (car, tram, ferry instancing),
+  `collide` (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths
+  checked clear), `CityDecor` (instanced buildings, trees in three distances, props, casters,
+  contact shadows), `cover` (ground-cover style, `aCityLand`), `shapes` (props, vehicles),
+  `geometry` (incl. soft city trees), `materials` (painterly facade, street and prop shaders),
+  `CityWorld`.
 - `world/karst/`: `KarstLayout` (pure: rivers, terraced paddies, footpaths and bridges, pillars +
   shared radius profile, terrain, queries), `skin` (pure: the rock surface every pillar tier is
   lathed from), `KarstScatter` (pure: trees, villages, pagodas, bridges, boats, boulders, vines,

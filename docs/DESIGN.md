@@ -189,6 +189,38 @@ so flying the centre line misses them; lane-change lines are planned 8 m clear o
 pillars and decks (straight lanes 3.5 m) and fall back to a straight lane where they would not
 fit. All of it is `Config.city` (`weave*`, `run*`, `turnChance`, `turnRadius`, `spiralChance`).
 
+The city is lived in. Buildings are painted, not cardboard: one box shader pass (no vertices)
+shades every corner, wall top and roof rim as if rounded over ~1.5 m (never under ~2.5 px, so far
+towers soften too), with a dry-brush edge light, a two-octave paint wash, weathering streaks, a
+darker foot, sky light up the height and a painted cornice; windows have a lintel shadow and a
+pale sill, and glass mirrors the sky at grazing angles and up high. All of it reads each part's
+own frame (scale then yaw), so turned parts are right. Pillars, lanterns and tanks are 16-sided
+and smooth; trees are soft-shaded (normals lean toward their corner's average) with a one-crown
+distant shape beyond `treeFar`. The streets: ginkgo rows in kerbed tree pits, street lamps at the
+back of the sidewalk over the painted pools of lamplight, a bus shelter per avenue side, traffic
+signals on every crossing (the green lamp glows), vending machines on the corners, power poles
+and sagging cables along the low-rise side streets, awnings and lit signboards over the shop
+fronts. Flat roofs carry parapets, water tanks, condensers, antennas and stair huts; some
+podiums and apartment roofs are lawns with small trees. Parks grow lawns with a ring of flower
+beds round the centre and wildflower drifts; house gardens short grass (`cover.ts`). The
+promenade and the river walks have benches (and the river walk a railing and lamps). Traffic:
+cars down every avenue, the bayside road and the expressway decks (driving on the left), trams
+on every third avenue over painted rails, ferries looping across the bay and water taxis along
+its shores, their lights glowing after dark. Harbours stand along the bay (one always just west
+of the spawn): concrete piers with ship-to-shore gantry cranes (solid), container stacks, a
+cargo ship alongside and boats moored down the piers; the waterfront blocks behind become
+container yards. Towers, props and cranes cast sun shadows on high; props have contact shadows
+on medium and high; a thin haze lies low in the street canyons (`levelLight.city.haze`).
+
+- Code: `CityLayout` (the props, power lines and roofs with the buildings), `CityHarbour`,
+  `props`, `shapes`, `cover`, `traffic` (pure: lanes and vehicles), `CityTraffic`, `CityDecor`.
+- Per preset: street furniture, roof kits, parapets and cars within `smallPropDistance`
+  0 / 200 / 320 m, moored boats and ferries within `propDistance`; low has the facade pass,
+  round pillars and soft trees but no props or traffic. Grass ring off / 60 / 80 m.
+- Cost at the review's viewpoints (triangles / draw calls, whole frame): medium 95-243k /
+  115-146 (was 111-255k / 108-127), high 222-485k / 154-193 (was 242-480k / 140-173), low
+  64-140k / 83-94 (was 61-130k / 83-94).
+
 ## Jade River
 
 Mood: still, contemplative, ink-wash. Muted colour (the post saturation is scaled to 0.82 and
@@ -1339,3 +1371,23 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Vines are straight strands whose instance basis runs from their foot to their top along the
   wall: pushed out over any bulge between, shortened where the wall falls away under them, and
   dropped where a neighbouring pillar's rock is in the way.
+- Neon Bay lived in: every building was a box with one flat toon colour per face, so corners
+  snapped between bands and towers read as cardboard. The fix is a shader pass, not geometry:
+  the shading normal leans toward the neighbouring face near every edge (a fake rounded arris),
+  plus paint wash, streaks, a darker foot and a cornice, all in the part's own frame (the old
+  face frame assumed axis-aligned boxes). Cost is fragment work only.
+- The city's trees got a distant shape (one crown, ~26 tris) beyond `treeFar`; it pays for the
+  props and traffic, so medium's triangles went down while it gained ~18 draw calls.
+- Traffic is endless lanes, not paths with spawn points: vehicle k on a lane sits at
+  k * spacing + jitter(k) + speed * t, so cars never pop when the lanes are replanned and the
+  frame's placement is arithmetic over arrays. Lanes are clipped to the road (an avenue's T at
+  the bayside road, east-west roads' green strips) and fade over 8 m at a clipped end. Crossing
+  traffic passes through itself at junctions; at this density it is rarely seen.
+- Power poles and their cable runs are thin solids (the look-ahead sees them); street lamps,
+  signals and street trees are not, but lamps stand at the back of the sidewalk so their heads
+  stay clear of the avenue wisp lanes 12 m off the centre line (a test flies the wisps against
+  every prop). Cranes, piers, container stacks and the ship are solid; the harbour clips each
+  solid to the superblock that asks, since a superblock only indexes its own boxes.
+- Water taxis pick their lane's distance offshore so it passes between the piers of every
+  expressway bridge in reach and clear of the bay torii; ferry routes keep away from harbours,
+  expressway lines and the spawn's view of the torii.

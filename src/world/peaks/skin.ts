@@ -97,13 +97,18 @@ export class SpireSkin {
       .map((j, i) => ({ j, i }))
       .filter(({ j }) => j.t > 0.35 && j.t < sh.cap - 0.12 && !tiers.includes(j.t));
     const pick = mids.length ? mids[Math.floor(rand() * mids.length)] : { i: -1 };
-    this.alcove = { joint: pick.i, a: rand() * Math.PI * 2, arc: 0.45 + rand() * 0.2, depth: 0.18 };
+    this.alcove = {
+      joint: pick.i,
+      a: rand() * Math.PI * 2,
+      arc: 0.85 + rand() * 0.25,
+      depth: 0.17,
+    };
     const k = 3 + Math.floor(rand() * 3);
     for (let i = 0; i < k; i++)
       this.cracks.push({
         a: ((i + 0.2 + rand() * 0.6) / k) * Math.PI * 2,
-        w: 0.12 + rand() * 0.12,
-        d: 0.05 + rand() * 0.05,
+        w: 0.22 + rand() * 0.12,
+        d: 0.03 + rand() * 0.025,
         ph: rand() * 10,
       });
   }
@@ -166,13 +171,13 @@ export class SpireSkin {
       if (g > -1 && g < 1)
         cut += J.notch * (1 - g * g) * (1 - g * g) * (0.25 + 0.75 * this.grooveMask(j, a));
       // The ledge: the rock above stands back, then leans out to the full radius again.
-      const u = (t - J.t) / (A.joint === j ? J.rise * 1.6 : J.rise);
+      const u = (t - J.t) / (A.joint === j ? Math.max(J.rise * 1.4, 0.06) : J.rise);
       if (u >= 0 && u < 1) cut += this.shelfDepth(j, a) * (1 - smoothstep(0.1, 1, u));
     }
     for (const c of this.cracks) {
       const ca = c.a + 0.08 * Math.sin(t * 9 + c.ph);
       const x = angleTo(a, ca) / c.w;
-      if (x < 1) cut += c.d * (1 - x * x) * (1 - x * x) * (0.6 + 0.4 * Math.sin(t * 13 + c.ph));
+      if (x < 1) cut += c.d * (1 - x * x) * (1 - x * x) * (0.8 + 0.2 * Math.sin(t * 7 + c.ph));
     }
     // Broad columns: the faces between the chimneys bulge a little.
     const lobe = 0.015 * Math.sin(3 * a + this.ph + t * 2) + 0.01 * Math.sin(5 * a - this.ph);

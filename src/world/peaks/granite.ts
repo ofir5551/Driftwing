@@ -53,6 +53,8 @@ uniform float uGrSnowRag;
 uniform float uGrMoss;
 varying vec3 vGrPos;
 varying vec3 vGrNrm;
+varying vec3 vGrRock;
+varying float vGrR0;
 float grHash(vec3 p) {
   p = fract(p * 0.1031);
   p += dot(p, p.zyx + 31.32);
@@ -68,17 +70,28 @@ float grNoise(vec3 x) {
     mix(mix(grHash(i + vec3(0.0, 0.0, 1.0)), grHash(i + vec3(1.0, 0.0, 1.0)), f.x),
         mix(grHash(i + vec3(0.0, 1.0, 1.0)), grHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
 }
-// The joint field: x = vertical fractures (0 on a crack), y = horizontal sheeting joints.
-vec2 grJoints(vec3 p) {
-  float c = abs(grNoise(p * vec3(0.11, 0.017, 0.11)) - 0.5);
-  float j = abs(grNoise(p * vec3(0.022, 0.095, 0.022) + 17.0) - 0.5);
-  return vec2(c, j);
+// The joint field at angle a round the spire's axis (radians), height y and world point p
+// (for the slow warps): x = distance to the nearest vertical fracture, y = to the nearest
+// sheeting joint, both in column / course units (0 on the line, 0.5 between). The fractures are
+// whole multiples of the angle (n = columns round this spire), so they close round the seam;
+// both sets run as open lines that start and stop, never as closed loops. 2: no joints here.
+vec2 grJoints(float a, float y, vec3 p, float n) {
+  if (n < 1.0) return vec2(0.5);
+  float u = a * n / 6.2832 + (grNoise(p * vec3(0.035, 0.011, 0.035)) - 0.5) * 1.6;
+  float col = floor(u + 0.5);
+  float dc = abs(fract(u + 0.5) - 0.5);
+  // A fracture runs for a stretch, then the block is whole for a while.
+  dc = mix(0.5, dc, smoothstep(0.38, 0.55, grNoise(vec3(col * 3.7, y * 0.022, 1.3))));
+  float v = y * 0.085 + (grNoise(p * 0.02 + 7.0) - 0.5) * 1.1;
+  float row = floor(v + 0.5);
+  float dj = abs(fract(v + 0.5) - 0.5);
+  dj = mix(0.5, dj, smoothstep(0.4, 0.58, grNoise(vec3(p.x * 0.05 + row * 5.1, row * 2.3, p.z * 0.05))));
+  return vec2(dc, dj);
 }
 // Relief in metres-ish: pillowed blocks between the joints, the joints themselves cut in.
-float grRelief(vec3 p) {
-  vec2 q = grJoints(p);
-  float block = smoothstep(0.0, 0.2, q.x) * smoothstep(0.0, 0.17, q.y);
-  return block * 0.9 - (1.0 - smoothstep(0.0, 0.035, q.x)) * 0.6 - (1.0 - smoothstep(0.0, 0.03, q.y)) * 0.45;
+float grRelief(vec2 q) {
+  float block = smoothstep(0.0, 0.32, q.x) * smoothstep(0.0, 0.3, q.y);
+  return block * 0.9 - (1.0 - smoothstep(0.0, 0.03, q.x)) * 0.6 - (1.0 - smoothstep(0.0, 0.03, q.y)) * 0.45;
 }`;
 
 /** Colour pass (before alphamap_fragment): paint, and the tilted normal for the light pass. */
@@ -88,15 +101,19 @@ vec3 grWN = grN;
 float grDist = distance(vGrPos, cameraPosition);
 float grNear = 1.0 - smoothstep(uGrFar * 0.5, uGrFar, grDist);
 vec2 grQ = vec2(0.5);
-if (grNear > 0.0) {
-  // Tangent frame on the face: round the spire (horizontal) and up the face.
+if (grNear > 0.0 && vGrRock.z > 0.01) {
+  // Round the spire's own axis: its angle, the radius here, and columns about 8 m wide.
+  float ga = atan(vGrRock.y, vGrRock.x);
+  float gR = max(vGrRock.z, 1.0);
+  float gn = max(6.0, floor(6.2832 * vGrR0 / 8.0));
   vec3 tg = normalize(vec3(-grN.z, 0.0, grN.x) + vec3(1e-4, 0.0, 0.0));
   vec3 bt = normalize(cross(grN, tg));
-  float r0 = grRelief(vGrPos);
-  float dA = (grRelief(vGrPos + tg * 0.7) - r0) / 0.7;
-  float dB = (grRelief(vGrPos + bt * 0.7) - r0) / 0.7;
+  grQ = grJoints(ga, vGrPos.y, vGrPos, gn);
+  float r0 = grRelief(grQ);
+  // Steps of 0.7 m along the face (the angle grows with the arc) and up it.
+  float dA = (grRelief(grJoints(ga + 0.7 / gR, vGrPos.y, vGrPos, gn)) - r0) / 0.7;
+  float dB = (grRelief(grJoints(ga, vGrPos.y + 0.7, vGrPos, gn)) - r0) / 0.7;
   grWN = normalize(grN - (tg * dA + bt * dB) * 3.4 * uGrRelief * grNear);
-  grQ = grJoints(vGrPos);
 }
 {
   vec3 p = vGrPos;
@@ -106,7 +123,7 @@ if (grNear > 0.0) {
   // Stone tone drifts warmer and cooler across the faces; up close, the granite's speckle.
   rc *= 0.88 + 0.24 * n1;
   rc *= 1.0 + (grNoise(p * 1.9) - 0.5) * 0.16 * grNear;
-  float crack = (1.0 - smoothstep(0.0, 0.03, grQ.x)) + (1.0 - smoothstep(0.0, 0.025, grQ.y)) * 0.8;
+  float crack = (1.0 - smoothstep(0.0, 0.028, grQ.x)) + (1.0 - smoothstep(0.0, 0.025, grQ.y)) * 0.8;
   rc *= 1.0 - 0.6 * min(crack, 1.0) * grNear;
   // Dark water stains hanging down the faces.
   float stain = smoothstep(0.66, 0.84, n2) * (1.0 - smoothstep(0.5, 0.9, grWN.y));
@@ -115,7 +132,8 @@ if (grNear > 0.0) {
   float lich = smoothstep(0.66, 0.8, grNoise(p * 0.11 + 9.0));
   rc = mix(rc, mix(vec3(0.78, 0.64, 0.4), vec3(0.62, 0.68, 0.55), n2), lich * 0.35 * grNear);
   // Moss and alpine turf wherever the rock faces the sky (ledges, the grooves' lower lips).
-  float up = grWN.y + 0.18 * (n1 - 0.5);
+  // (Mostly the rock's own shape: the pillows' tilt alone would green every block's top.)
+  float up = mix(grN.y, grWN.y, 0.35) + 0.18 * (n1 - 0.5);
   float moss = smoothstep(0.42, 0.72, up) * uGrMoss;
   vec3 turf = mix(vec3(0.27, 0.38, 0.2), vec3(0.47, 0.5, 0.26), smoothstep(0.3, 0.8, n2));
   rc = mix(rc, turf, moss * 0.85);
@@ -138,7 +156,10 @@ export function withGranite<T extends THREE.Material>(m: T): T {
     prev(shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vGrPos;\nvarying vec3 vGrNrm;')
+      .replace(
+        '#include <common>',
+        '#include <common>\nattribute vec3 aRock;\nvarying vec3 vGrPos;\nvarying vec3 vGrNrm;\nvarying vec3 vGrRock;\nvarying float vGrR0;',
+      )
       .replace(
         '#include <defaultnormal_vertex>',
         `#include <defaultnormal_vertex>
@@ -149,7 +170,12 @@ export function withGranite<T extends THREE.Material>(m: T): T {
         `#include <project_vertex>
 #ifdef USE_INSTANCING
   vGrPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+  // The lathe's angle and radius (aRock; zero on shapes that are not lathed) in metres.
+  vGrR0 = length(instanceMatrix[0].xyz);
+  vGrRock = vec3(aRock.xy, aRock.z * vGrR0);
 #else
+  vGrR0 = 0.0;
+  vGrRock = vec3(0.0);
   vGrPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
 #endif`,
       );

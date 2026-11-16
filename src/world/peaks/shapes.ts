@@ -109,15 +109,13 @@ export function boulderGeometry(detail: 0 | 1): THREE.BufferGeometry {
 }
 
 /**
- * A dwarf pine clinging to a ledge (krummholz): a stub of trunk under two or three wind-flattened
- * pads, all leaning one way (+x). `near` adds lumpier pads (~70 triangles against ~30).
+ * A dwarf pine clinging to a ledge (krummholz): a stub of trunk under wind-flattened pads, all
+ * leaning one way (+x). `near` has three lumpy pads (~76 triangles); far, two lenses (~22).
  */
 export function dwarfPineGeometry(near: boolean): THREE.BufferGeometry {
+  const trunk = new THREE.CylinderGeometry(0.12, 0.2, 1.6, near ? 4 : 3, 1, !near);
   const parts: THREE.BufferGeometry[] = [
-    colored(
-      new THREE.CylinderGeometry(0.12, 0.2, 1.6, 4).translate(0, 0.8, 0).rotateZ(-0.6),
-      '#6a5244',
-    ),
+    colored(trunk.translate(0, 0.8, 0).rotateZ(-0.6), '#6a5244'),
   ];
   const dark = new THREE.Color('#2f5440');
   const light = new THREE.Color('#5a8a62');
@@ -134,8 +132,8 @@ export function dwarfPineGeometry(near: boolean): THREE.BufferGeometry {
   pads.forEach(([x, y, z, r], i) => {
     const g = near
       ? jitter(new THREE.IcosahedronGeometry(1, 0), 0.3, 60 + i)
-      : new THREE.CylinderGeometry(1, 0.8, 0.9, 5);
-    g.scale(r, near ? 0.38 : 0.45, r * 0.85);
+      : new THREE.OctahedronGeometry(1, 0);
+    g.scale(r, near ? 0.38 : 0.42, r * 0.85);
     parts.push(
       painted(g, (_x, py, _z, out) =>
         out.copy(dark).lerp(light, smoothstep(-0.3, 0.3, py)),

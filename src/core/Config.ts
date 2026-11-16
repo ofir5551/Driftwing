@@ -411,7 +411,7 @@ export const Config = {
     spireMin: 13, // m, base radius of the smallest spires
     spireMax: 32, // m, base radius of the largest (before the cluster boost)
     spireTop: 330, // m, no summit rises above this (the ceiling is 420)
-    spireLod: 520, // m, beyond this spires use the coarse mesh (chosen when chunks change)
+    spireLod: 520, // m, beyond this spires use the coarse mesh at the high draw distance (scaled with it)
     // (Spires whose flank is nearer than render.heroDetail use the finest mesh, with grooves.)
     gateAhead: 400, // m from the spawn to the Sky Gate (two spires and a bridge)
     gateHalf: 52, // m, each gate spire's centre off the line the bird flies

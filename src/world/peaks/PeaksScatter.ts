@@ -119,7 +119,7 @@ export class PeaksScatter {
 
     // Summit: pines (a temple keeps the middle for itself), turf, boulders and snow.
     const span = sp.temple === Temple.None ? 0.9 : 0.35;
-    const crown = 4 + Math.floor(sp.r / 5);
+    const crown = 5 + Math.floor(sp.r / 4);
     for (let k = 0; k < crown; k++) {
       const t = sh.cap + (1 - sh.cap) * span * rand();
       const a = rand() * Math.PI * 2;
@@ -188,7 +188,7 @@ export class PeaksScatter {
 
     // Cliff pines clinging to the walls above the cloud sea, reaching out over the drop.
     const cloudT = (P.cloud + 15 - sp.y0) / sp.h;
-    const cliffs = Math.floor(sp.h / 35);
+    const cliffs = Math.floor(sp.h / 26);
     for (let k = 0; k < cliffs; k++) {
       const t = cloudT + (sh.cap - 0.05 - cloudT) * rand();
       const a = rand() * Math.PI * 2;

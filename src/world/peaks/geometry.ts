@@ -29,7 +29,7 @@ export interface SpireDetail {
   joints: 0 | 1 | 2;
 }
 
-export const SPIRE_HERO: SpireDetail = { seg: 30, rings: 26, joints: 2 };
+export const SPIRE_HERO: SpireDetail = { seg: 26, rings: 24, joints: 2 };
 export const SPIRE_NEAR: SpireDetail = { seg: 16, rings: 16, joints: 1 };
 export const SPIRE_FAR: SpireDetail = { seg: 7, rings: 10, joints: 0 };
 
@@ -60,6 +60,8 @@ export function spireGeometry(skin: SpireSkin, d: SpireDetail): THREE.BufferGeom
   for (const t of ts) if (t < 0.995 && (T.length === 0 || t - T[T.length - 1] > 0.0015)) T.push(t);
   const pos: number[] = [];
   const col: number[] = [];
+  // Per vertex: the lathe's direction from the axis and radius (granite.ts reads the angle).
+  const rock: number[] = [];
   const c = new THREE.Color();
   const ph = skin.sh.aspect * 3.7;
   for (const t of T) {
@@ -80,6 +82,7 @@ export function spireGeometry(skin: SpireSkin, d: SpireDetail): THREE.BufferGeom
       const sk = skin.skin(tc, a);
       const rad = prof * sk;
       pos.push(Math.cos(a) * rad + off, (t + skin.lift(tc, a)) * sh.aspect, Math.sin(a) * rad);
+      rock.push(Math.cos(a), Math.sin(a), rad);
       // Columns of slightly different stone round the spire.
       const tone = 0.5 + 0.5 * Math.sin(a * 3 + ph) * Math.sin(a * 7 - ph * 0.6 + tc * 5);
       c.copy(GRANITE)
@@ -99,6 +102,7 @@ export function spireGeometry(skin: SpireSkin, d: SpireDetail): THREE.BufferGeom
   }
   const R = T.length;
   pos.push(sh.lean * sh.aspect, sh.aspect, 0);
+  rock.push(1, 0, 0);
   c.copy(GRANITE).lerp(MOSS, 0.4);
   col.push(c.r, c.g, c.b);
   const apex = R * SEG;
@@ -116,6 +120,7 @@ export function spireGeometry(skin: SpireSkin, d: SpireDetail): THREE.BufferGeom
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setAttribute('aRock', new THREE.Float32BufferAttribute(rock, 3));
   geo.setIndex(idx);
   geo.computeVertexNormals();
   return geo;

@@ -67,7 +67,7 @@ const RANGE = [2, 2, 2, 2, 1, 1, 2, 1, 1, 2];
 /** Instance capacity. */
 const CAP = [5000, 5000, 3000, 2000, 120, 120, 300, 400, 40, 2000];
 /** Casts a sun shadow (through near-only proxies, on high). */
-const CASTS = [0, 0, 0, 1, 1, 1, 1, 0, 0, 1];
+const CASTS = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0];
 /** Contact-shadow radius at scale 1 (0 = none); blobs lie flat at the foot. */
 const BLOB = [0, 0, 0, 1.0, 2.6, 3.2, 0.8, 0, 0, 1.4];
 /** Drawn with the granite material (the stair is cut from the rock). */
@@ -305,7 +305,8 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
     for (const c of this.casters) c?.begin(px, pz, size);
     this.contact.begin(px, pz);
     this.treeLists.length = 0;
-    const near2 = Config.peaks.spireLod ** 2;
+    // The near mesh out to spireLod at the high preset's draw distance, scaled with the preset.
+    const near2 = ((Config.peaks.spireLod * R.drawDistance) / 1150) ** 2;
     const hero = R.heroDetail;
     const S = this.spires.length;
     for (const it of items) {

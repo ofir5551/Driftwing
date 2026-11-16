@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { lerp, smoothstep } from '../../core/math';
 import { mulberry32 } from '../noise';
 import { painted } from '../Trees';
+import { glowing } from './materials';
 import { BEACON, CRYSTAL_H, spireProfile, type Ship, type SpireShape } from './RingmoonLayout';
 
 /**
@@ -100,8 +101,9 @@ const pod = (s: number) => Math.pow(Math.max(0, 1 - s * s), 0.72);
  * the hull (legs in world height relative to the hull's centre).
  */
 export function shipGeometry(S: Ship): THREE.BufferGeometry {
-  const RINGS = 44;
-  const SEG = 20;
+  // Six rings a rib, so the proud ribs read as rounded bands rather than stepped facets.
+  const RINGS = 66;
+  const SEG = 28;
   const RIBS = 11;
   const pos: number[] = [];
   const col: number[] = [];
@@ -165,11 +167,11 @@ export function shipGeometry(S: Ship): THREE.BufferGeometry {
     local(a, L[k], L[k + 1], L[k + 2]);
     local(b, L[k + 3], L[k + 4], L[k + 5]);
     const len = a.distanceTo(b);
-    const g = new THREE.CylinderGeometry(S.legR * 0.8, S.legR, len, 7, 4);
+    const g = new THREE.CylinderGeometry(S.legR * 0.8, S.legR, len, 12, 4);
     // A joint ring two thirds of the way down, and a broad foot.
-    const joint = new THREE.TorusGeometry(S.legR * 1.05, 0.55, 4, 8).rotateX(Math.PI / 2);
+    const joint = new THREE.TorusGeometry(S.legR * 1.05, 0.55, 5, 12).rotateX(Math.PI / 2);
     joint.translate(0, -len * 0.18, 0);
-    const foot = new THREE.CylinderGeometry(S.legR * 1.25, S.legR * 1.9, 2.4, 8).translate(
+    const foot = new THREE.CylinderGeometry(S.legR * 1.25, S.legR * 1.9, 2.4, 12).translate(
       0,
       -len / 2 + 1,
       0,
@@ -477,16 +479,69 @@ export function landerGeometry(): THREE.BufferGeometry {
     );
     parts.push(painted(g, (_x, _y, _z, o) => o.copy(COPPER_DARK)));
   }
-  return mergeGeometries(parts)!;
+  return mergeGeometries([glowing(mergeGeometries(parts)!), landerHatch(10, 8)])!;
 }
 
-/** A lander's hatch: a tall oval of light on its +z side, under the copper band. */
-export function landerGlowGeometry(): THREE.BufferGeometry {
+const HATCH = new THREE.Color('#6fd6c6');
+
+/** A lander's hatch: a tall oval of teal light on its +z side, under the copper band. */
+function landerHatch(w: number, h: number): THREE.BufferGeometry {
   const t = 0.3;
-  const g = new THREE.SphereGeometry(1, 10, 8).scale(0.75, 1.15, 0.25);
+  const g = new THREE.SphereGeometry(1, w, h).scale(0.75, 1.15, 0.25);
   g.translate(0, LANDER_BASE + t * LANDER_SHELL, landerR(t) * 0.93);
-  g.deleteAttribute('uv');
-  return g;
+  return glowing(
+    painted(g, (_x, _y, _z, o) => o.copy(HATCH)),
+    () => 1,
+  );
+}
+
+/**
+ * A lander seen from afar (beyond propDetail): the same teardrop in 7 sides and 6 rings on
+ * three plain legs, its hatch lit. A tenth of the near one's triangles.
+ */
+export function landerFarGeometry(): THREE.BufferGeometry {
+  const RINGS = 6;
+  const SEG = 7;
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  const c = new THREE.Color();
+  for (let i = 0; i <= RINGS; i++) {
+    const t = i / RINGS;
+    const band = 1 - smoothstep(0.08, 0.12, Math.abs(t - 0.42));
+    const r = landerR(t);
+    for (let k = 0; k < SEG; k++) {
+      const a = (k / SEG) * Math.PI * 2;
+      pos.push(Math.cos(a) * r, LANDER_BASE + t * LANDER_SHELL, Math.sin(a) * r);
+      c.copy(IVORY)
+        .lerp(IVORY_SHADE, 0.35)
+        .lerp(COPPER, band)
+        .lerp(COPPER_DARK, smoothstep(0.25, 0, t) * 0.6);
+      col.push(c.r, c.g, c.b);
+    }
+  }
+  for (let i = 0; i < RINGS; i++)
+    for (let k = 0; k < SEG; k++) {
+      const a = i * SEG + k;
+      const b = i * SEG + ((k + 1) % SEG);
+      idx.push(a, a + SEG, b, b, a + SEG, b + SEG);
+    }
+  const shell = new THREE.BufferGeometry();
+  shell.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  shell.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  shell.setIndex(idx);
+  shell.computeVertexNormals();
+  const parts: THREE.BufferGeometry[] = [shell.toNonIndexed()];
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2 + 0.5;
+    const leg = new THREE.CylinderGeometry(0.22, 0.3, 2.6, 3).translate(0, 1.1, 0);
+    leg
+      .rotateZ(0.5)
+      .rotateY(-a)
+      .translate(Math.cos(a) * 2.3, 0, Math.sin(a) * 2.3);
+    parts.push(painted(leg, (_x, _y, _z, o) => o.copy(STRUT)));
+  }
+  return mergeGeometries([glowing(mergeGeometries(parts)!), landerHatch(5, 4)])!;
 }
 
 /**
@@ -531,8 +586,15 @@ export function beaconGeometry(): THREE.BufferGeometry {
       (_x, _y, _z, o) => o.copy(COPPER_DARK),
     ),
   );
-  return mergeGeometries(parts)!;
+  // The tip light, pulsing after dark (aGlow 2).
+  const tip = painted(
+    new THREE.IcosahedronGeometry(BEACON.tip, 1).translate(0, BEACON.h * 0.97, 0),
+    (_x, _y, _z, o) => o.copy(TIP),
+  );
+  return mergeGeometries([glowing(mergeGeometries(parts)!), glowing(tip, () => 2)])!;
 }
+
+const TIP = new THREE.Color('#7fe6d6');
 
 /**
  * One of a beacon's two rings, tilted off level: a copper hoop with ivory studs round it. Built
@@ -563,13 +625,6 @@ export function beaconRingGeometry(upper: boolean): THREE.BufferGeometry {
   const g = mergeGeometries(parts)!;
   g.rotateZ(upper ? -0.32 : 0.24);
   g.translate(0, y, 0);
-  return g;
-}
-
-/** A beacon's tip light (the instance's colour pulses after dark). */
-export function beaconTipGeometry(): THREE.BufferGeometry {
-  const g = new THREE.IcosahedronGeometry(BEACON.tip, 1).translate(0, BEACON.h * 0.97, 0);
-  g.deleteAttribute('uv');
   return g;
 }
 
@@ -614,5 +669,6 @@ export function crystalGeometry(): THREE.BufferGeometry {
     g.translate(Math.cos(a) * 0.6, 0, Math.sin(a) * 0.6);
     parts.push(g);
   }
-  return mergeGeometries(parts)!;
+  // A faint glow from within, strongest toward the tips (aGlow).
+  return glowing(mergeGeometries(parts)!, (_x, y) => 0.25 + 0.35 * smoothstep(1, CRYSTAL_H, y));
 }

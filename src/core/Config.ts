@@ -308,7 +308,9 @@ export const Config = {
     canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4, bounce: 0.32, haze: 0.16 },
     peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.6 },
     atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.55 },
-    ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
+    // giant: light off the ringed giant's lit face (a coloured fill from its side of the sky,
+    // the ringlight at night); sun2: the second sun's soft fill from where it trails the first.
+    ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5, giant: 0.32, sun2: 0.22 },
   },
   /** Adaptive resolution (AdaptiveScale): judged in one-second windows of frames. */
   adaptive: {
@@ -520,6 +522,35 @@ export const Config = {
     giantEl: 0.3, // rad, its height above the horizon
     sun2: 0.42, // rad the second, smaller sun trails the first round the sky
     glow: 1, // brightness of the reed tips, ship lights and pods after dark
+    // Spires (read when a level is created): sides and rings of the lathed meshes.
+    spireSides: 14, // near mesh (within spireLod): the painted column facets do the rest
+    spireRings: 26, // near mesh rings, bunched toward the crown
+    farSides: 8, // coarse mesh beyond spireLod (6 read as a hexagon on the skyline)
+    farRings: 10,
+    // Painted basalt on the spires and the terrace steps (rock.ts; live).
+    columns: 16, // basalt columns round a spire (flat faces with joints between)
+    relief: 1.2, // strength of the columns' facets and the drum cracks (tilts the light)
+    cracks: 0.4, // darkness of the cracks between the column drums
+    rockFar: 520, // m, the relief fades out by here (flat paint beyond)
+    // The painted ground (land.ts; live).
+    moss: 1, // the moss cushions on the islets and hills (tint, dark gaps, domes)
+    mossSize: 0.7, // m, spacing of the painted cushions
+    seabed: 1, // ripples, moss beds and spore glow on the sea floor
+    foam: 1, // the shore's swash: its reach and its lace of foam
+    tidePools: 1, // tide pools on the shore flats and the terrace steps
+    sandbars: 1, // 0..1 strength of the sand bars in the open shallows (read when created)
+    // The explorers' camp by the ship (read when a level is created).
+    campAlong: 82, // m along the ship's length (toward the right end) to the camp's sand spit
+    campOut: 78, // m out from the ship's side, toward the spawn
+    campRadius: 44, // m, the spit's half length (half as wide)
+    // Life (scatter, within prop distance).
+    outposts: 0.75, // share of lander groups with an explorers' outpost (habs, mast, lit path)
+    bulbs: 0.09, // chance a 12 m cell of moss has a cluster of glow bulbs
+    fish: 0.35, // chance a 70 m cell of shallows has a school of glowing fish
+    herds: 0.6, // chance a 220 m cell of mainland hills has a herd of grazers
+    floaterCell: 300, // m, grid cell that may hold one drifting floater
+    floaters: 0.45, // chance a floater cell has one
+    steps: 0.35, // density of the basalt column steps on the islet terraces
   },
   karst: {
     // Plan (read when a level is created).

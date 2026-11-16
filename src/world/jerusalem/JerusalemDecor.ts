@@ -67,6 +67,7 @@ import {
   shepherdGeometry,
   tanksGeometry,
 } from './shapes';
+import { commitInstances } from '../instances';
 
 /** One terrain chunk's City of Gold scenery. */
 export interface JerusalemChunk {
@@ -411,9 +412,7 @@ export class JerusalemDecor implements ChunkDecor<JerusalemChunk> {
     }
     for (let mi = 0; mi < this.meshes.length; mi++) {
       const mesh = this.meshes[mi];
-      mesh.count = counts[mi];
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor!.needsUpdate = true;
+      commitInstances(mesh, counts[mi]);
       mesh.geometry.getAttribute('aStyle').needsUpdate = true;
       this.stoneCasters[mi]?.end();
     }
@@ -497,9 +496,7 @@ export class JerusalemDecor implements ChunkDecor<JerusalemChunk> {
   }
 
   private finish(mesh: THREE.InstancedMesh, n: number): void {
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    commitInstances(mesh, n);
   }
 
   /** Instance every prop record of a list that is in range. */

@@ -36,7 +36,7 @@ function visit(o: THREE.Object3D): void {
 
 /**
  * Gives every lit mesh of a level the shared lighting, without each level opting its meshes
- * in: it receives the sun's shadows (trees shading a roof, a hill shading the trees) and its
+ * in: it receives the sun's shadows (trees shading a roof or the ground under them) and its
  * material gets the drifting cloud shadows. Levels stream meshes in (islands, pooled chunks), so
  * Game runs this on a level switch and then about once a second; meshes already seen are
  * skipped. Custom shader materials (water, the cloud sea, facades) are left alone: they don't

@@ -42,6 +42,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `vite.config.ts` builds it to `sw.js` with the file list. Updates reload only on the title.
   Files added to `public/` must be listed in `PUBLIC_FILES` there. Icons: `scripts/icons.mjs`.
 - `core/Loop.ts`: fixed 60 Hz step + accumulator; render gets `alpha` to interpolate. dt clamped.
+- `core/AdaptiveScale.ts`: pure adaptive-resolution logic (windows of slow frames; `Config.adaptive`).
+  It scales the composer's targets only: never resize the canvas in flight (it blanks a frame).
 - `core/Game.ts`: renderer, scene, flight, camera, sky/water/clouds, adaptive resolution/quality, and the
   current level's `World` (`setLevel` swaps it in place). Modes: `menu` (bot flies the attract backdrop),
   `playing`, `paused`. `onStep`/`onFrame` hooks.
@@ -60,8 +62,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
   plumage, tuning). `ChaseCamera.ts` polar springs. `fx/TrailStyle.ts`: wingtip trail colours.
-- `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming, LOD, generic per-chunk
-  decor, optional `GroundCover`), `Trees` (instanced; near, far and optional distant shapes; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
+- `world/`: `noise` -> `Terrain` height field shared by `ChunkManager` (streaming in budgeted stages, LOD,
+  generic per-chunk decor with an optional one-chunk-a-frame `prepare`, optional `GroundCover`),
+  `instances` (`commitInstances`: end every instanced refill with it, it uploads only what is used), `Trees` (instanced; near, far and optional distant shapes; sun-shadow casters and contact shadows), `Islands`, `Wisps` (+ optional level `WispPlanner`), `Thermals`. `DayCycle`
   palette drives `Sky` (incl. the city's Fuji), `Water`, `Clouds`, lights, post.
   `GroundDetail`: painted terrain detail (patches, strokes, strata, bumps) patched into toon materials.
 - `world/highlands/`: `HighlandsLayout` (pure: rotated field grid, farmed fields (decided whole,

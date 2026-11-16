@@ -17,6 +17,7 @@ import {
   spireGeometry,
 } from './geometry';
 import { profile, SHAPES, Temple, type PeaksLayout, type Spire } from './PeaksLayout';
+import { commitInstances } from '../instances';
 
 const PINE = 0;
 
@@ -244,9 +245,7 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
       [this.lanterns, lc],
     ];
     for (const [mesh, n] of counts) {
-      mesh.count = n;
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      commitInstances(mesh, n);
     }
     this.trees.rebuild(this.treeLists, px, pz, Config.render.treeDistance);
   }

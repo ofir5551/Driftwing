@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
 import { smoothstep } from '../../core/math';
-import type { ChunkDecor } from '../ChunkManager';
+import { nearestInReach, type ChunkDecor } from '../ChunkManager';
 import { ContactShadows } from '../ContactShadows';
 import type { DayCycle } from '../DayCycle';
 import { withGroundDetail } from '../GroundDetail';
@@ -50,6 +50,7 @@ import {
   vineGeometry,
 } from './shapes';
 import { SKINS } from './skin';
+import { commitInstances } from '../instances';
 
 /**
  * How far each prop kind is drawn, and where it swaps to its far shape:
@@ -201,9 +202,7 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
       this.near.push(this.make(near[k], CAP[k], names[k]));
       const fg = far[k];
       this.far.push(fg ? this.make(fg, CAP[k], `${names[k]}-far`) : null);
-      const caster = CASTS[k]
-        ? new ShadowCasters(near[k], this.material, Math.ceil(CAP[k] / 3))
-        : null;
+      const caster = CASTS[k] ? new ShadowCasters(near[k], this.material, CAP[k]) : null;
       this.casters.push(caster);
       if (caster) this.group.add(caster.mesh);
     }
@@ -230,6 +229,22 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
 
   scatter(ox: number, oz: number, size: number): KarstChunk {
     return this.scatterer.chunk(ox, oz, size);
+  }
+
+  private readonly bare = (c: KarstChunk): boolean => !c.props;
+
+  /** Small things scatter lazily, the first time their chunk comes within reach: one a frame. */
+  prepare(items: KarstChunk[], px: number, pz: number, budget: number): boolean {
+    const R = Config.render;
+    if (R.smallPropDistance <= 0) return false;
+    const size = Config.world.chunkSize;
+    const reach = R.smallPropDistance * 1.6 + size; // the vines' range, the widest
+    for (;;) {
+      const c = nearestInReach(items, px, pz, reach, this.bare);
+      if (!c) return false;
+      if (budget-- <= 0) return true;
+      this.scatterer.props(c, size);
+    }
   }
 
   rebuild(items: KarstChunk[], px: number, pz: number): void {
@@ -297,9 +312,7 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
   }
 
   private finish(mesh: THREE.InstancedMesh, n: number): void {
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    commitInstances(mesh, n);
   }
 
   private placePillars(c: KarstChunk): void {

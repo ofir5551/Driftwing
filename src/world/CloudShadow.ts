@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
 import { smoothstep } from '../core/math';
+import { fadeSunShadow, SUN_SHADOW_PARS, sunShadowUniforms } from '../fx/SunShadows';
 
 /**
  * Drifting cloud shadows: big soft patches sliding over the land with the wind. They dim only
@@ -73,7 +74,7 @@ export function withCloudShadow<T extends THREE.Material>(m: T): T {
   const prevKey = m.customProgramCacheKey();
   m.onBeforeCompile = (shader, renderer) => {
     prev(shader, renderer);
-    Object.assign(shader.uniforms, cloudShadowUniforms);
+    Object.assign(shader.uniforms, cloudShadowUniforms, sunShadowUniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vCsPos;')
       .replace(
@@ -86,12 +87,14 @@ export function withCloudShadow<T extends THREE.Material>(m: T): T {
 #endif`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${PARS}`)
+      .replace('#include <common>', `#include <common>\n${PARS}${SUN_SHADOW_PARS}`)
+      // The sun's cast shadows fade out with distance from the bird (see fadeSunShadow).
+      .replace('#include <lights_fragment_begin>', fadeSunShadow('vCsPos'))
       .replace(
         '#include <lights_fragment_end>',
         '#include <lights_fragment_end>\nreflectedLight.directDiffuse *= cloudShade(vCsPos);',
       );
   };
-  m.customProgramCacheKey = () => `${prevKey}|cloudshadow`;
+  m.customProgramCacheKey = () => `${prevKey}|cloudshadow2`;
   return m;
 }

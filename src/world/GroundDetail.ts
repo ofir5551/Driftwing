@@ -128,15 +128,21 @@ diffuseColor.rgb *= 1.0 + vec3(1.0, 0.25, -0.9) * (gM1 - 0.5) * uGWarmth;`,
         '#include <normal_fragment_maps>',
         /* glsl */ `#include <normal_fragment_maps>
 if (gNear > 0.0) {
-  // World-space gradient of the relief by central differences, tilted into the normal.
-  const float e = 0.6;
   // Which vertical plane the wall faces: x-facing walls take the zy plane, z-facing the xy.
   float gWx = smoothstep(0.3, 0.7, gN.x * gN.x / max(gN.x * gN.x + gN.z * gN.z, 1e-4));
-  vec3 gGrad = vec3(
-    gBumpAt(vGPos + vec3(e, 0.0, 0.0), gSteep, gWx) - gBumpAt(vGPos - vec3(e, 0.0, 0.0), gSteep, gWx),
-    gBumpAt(vGPos + vec3(0.0, e, 0.0), gSteep, gWx) - gBumpAt(vGPos - vec3(0.0, e, 0.0), gSteep, gWx),
-    gBumpAt(vGPos + vec3(0.0, 0.0, e), gSteep, gWx) - gBumpAt(vGPos - vec3(0.0, 0.0, e), gSteep, gWx)) / (2.0 * e);
-  vec3 gT = gGrad - gN * dot(gN, gGrad);
+  // The relief's gradient along the surface, from screen-space derivatives: one sample of the
+  // relief per pixel where central differences in world space took six (this is the shader
+  // most of a phone's screen runs, and the relief was most of its cost).
+  float gB = gBumpAt(vGPos, gSteep, gWx);
+  vec3 gPx = dFdx(vGPos);
+  vec3 gPy = dFdy(vGPos);
+  vec3 gR1 = cross(gPy, gN);
+  vec3 gR2 = cross(gN, gPx);
+  float gDet = dot(gPx, gR1);
+  vec3 gT = (dFdx(gB) * gR1 + dFdy(gB) * gR2) * sign(gDet) / max(abs(gDet), 1e-6);
+  // A pixel wider than the dabs can't resolve them: its slope is noise, so it fades out.
+  float gFoot = max(length(gPx), length(gPy));
+  gT *= 1.0 - smoothstep(0.5, 1.5, gFoot);
   vec3 gWorldN = normalize(gN - gT * uGBump * gNear * 2.0);
   normal = normalize((viewMatrix * vec4(gWorldN, 0.0)).xyz);
 }`,

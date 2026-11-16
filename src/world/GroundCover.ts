@@ -3,6 +3,7 @@ import { Config } from '../core/Config';
 import { withMist } from './Mist';
 import { createNoise2D, hash2, type Noise2D } from './noise';
 import { getToonGradient } from './Terrain';
+import { commitInstances } from './instances';
 
 /**
  * What a level's ground cover looks like and where it grows. Tufts take the colour of the
@@ -529,9 +530,7 @@ export class GroundCover {
   }
 
   private finish(mesh: THREE.InstancedMesh, n: number): void {
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.instanceColor!.needsUpdate = true;
+    commitInstances(mesh, n);
   }
 
   dispose(): void {

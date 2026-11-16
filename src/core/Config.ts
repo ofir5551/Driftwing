@@ -266,15 +266,18 @@ export const Config = {
   },
   /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
   light: {
-    shadowRange: 150, // m, half-size of the shadow map's box round the bird
-    shadowMapSize: 2048, // texels per side
-    shadowSoftness: 3, // PCF blur radius (texels)
+    shadowRange: 400, // m, half-size of the shadow map's box round the bird
+    shadowMapSize: 4096, // texels per side
+    shadowMapSizeTouch: 2048, // ... on touch devices (softer shadows, a quarter of the memory)
+    shadowSoftness: 0.45, // m, blur of a shadow's edge
+    shadowFadeStart: 0.62, // share of shadowRange where shadows begin to fade out with distance
+    shadowFadeEnd: 0.92, // share of shadowRange where they are gone (inside the box's edge)
     shadowBias: -0.0004,
     shadowNormalBias: 0.25, // m, pushes the lookup off the surface (no acne on gentle slopes)
     shadowSunMin: 0.06, // sun height (sunDir.y) where shadows have faded out (low sun, night)
     shadowSunFull: 0.18, // sun height where shadows reach full strength
     contactStrength: 0.34, // darkness of a contact shadow at its centre
-    contactWithShadows: 0.2, // ... with the shadow map on too (it is only ambient occlusion then)
+    contactWithShadows: 0.2, // ... where the shadow map draws the real shadow (ambient occlusion only)
     contactRange: 280, // m, contact shadows fade out by this distance
     contactSize: 0.85, // blob radius as a share of a tree's crown radius
     cloudScale: 0.0035, // 1/m: cloud-shadow patch frequency (smaller = bigger clouds)
@@ -307,6 +310,20 @@ export const Config = {
     atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.55 },
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
   },
+  /** Adaptive resolution (AdaptiveScale): judged in one-second windows of frames. */
+  adaptive: {
+    slowMs: 21, // a frame longer than this is slow (~47 fps)
+    hitchMs: 100, // a frame longer than this is a one-off hitch and is not counted
+    slowShare: 0.5, // a window with more than this share of slow frames is slow
+    fastShare: 0.1, // a window with less than this share is comfortably fast
+    dropAfter: 2, // slow windows in a row before the resolution drops
+    dropStep: 0.15, // render scale lost per drop
+    raiseStep: 0.1, // render scale regained per raise
+    raiseAfter: 6, // fast windows before a raise
+    raiseHold: 12, // s: a drop this soon after a raise doubles the wait for the next raise
+    raiseMax: 120, // fast windows, the longest that wait grows to
+    floor: 0.55, // lowest render scale; below it Auto steps the preset down
+  },
   /** Ground cover (GroundCover): grass tufts and flowers on the terrain's own lattice. */
   cover: {
     cell: 1.25, // m between tufts at full density
@@ -327,7 +344,7 @@ export const Config = {
     treeCell: 11, // m, scatter grid for trees
     treeSway: 0.0025, // wind sway of tree crowns (m of push per m^2 of height up the tree)
     canopyHeight: 9, // m, dense forest counts as "ground" this high for soft skimming
-    buildBudgetMs: 4, // max chunk-building time per frame
+    buildBudgetMs: 2, // chunk-building time per frame after which no new chunk is started
     cloudDrift: 3, // m/s
   },
   city: {

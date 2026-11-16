@@ -64,12 +64,16 @@ float gNoise(vec2 p) {
   return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), u.x),
              mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
-// Surface relief: dabs on the ground plane, plus a wall-plane term that only steep ground uses
-// (a height field's walls stretch any xz pattern into streaks).
-float gBumpAt(vec3 p, float steep) {
+// Surface relief: dabs on the ground plane, plus a wall term that only steep ground uses (a
+// height field's walls stretch any xz pattern into streaks). The wall term is projected on the
+// two vertical planes, blended by which way the wall faces (wx): a single diagonal plane went
+// flat on walls facing along it (45 and 225 degrees) and drew long horizontal stripes there.
+float gBumpAt(vec3 p, float steep, float wx) {
   float ground = gNoise(p.xz * 0.33) + 0.5 * gNoise(p.xz * 0.9 + 3.1);
-  float wall = gNoise(vec2(p.x + p.z, p.y * 1.6) * 0.3) + 0.5 * gNoise(vec2(p.x - p.z, p.y) * 0.8);
-  return mix(ground, wall, steep);
+  if (steep <= 0.0) return ground;
+  float wallX = gNoise(vec2(p.z, p.y * 1.6) * 0.3) + 0.5 * gNoise(p.zy * 0.8 + 5.3);
+  float wallZ = gNoise(vec2(p.x, p.y * 1.6) * 0.3) + 0.5 * gNoise(p.xy * 0.8 + 9.1);
+  return mix(ground, mix(wallZ, wallX, wx), steep);
 }`;
 
 /**
@@ -124,10 +128,12 @@ diffuseColor.rgb *= 1.0 + vec3(1.0, 0.25, -0.9) * (gM1 - 0.5) * uGWarmth;`,
         '#include <normal_fragment_maps>',
         /* glsl */ `#include <normal_fragment_maps>
 if (gNear > 0.0) {
+  // Which vertical plane the wall faces: x-facing walls take the zy plane, z-facing the xy.
+  float gWx = smoothstep(0.3, 0.7, gN.x * gN.x / max(gN.x * gN.x + gN.z * gN.z, 1e-4));
   // The relief's gradient along the surface, from screen-space derivatives: one sample of the
   // relief per pixel where central differences in world space took six (this is the shader
   // most of a phone's screen runs, and the relief was most of its cost).
-  float gB = gBumpAt(vGPos, gSteep);
+  float gB = gBumpAt(vGPos, gSteep, gWx);
   vec3 gPx = dFdx(vGPos);
   vec3 gPy = dFdy(vGPos);
   vec3 gR1 = cross(gPy, gN);

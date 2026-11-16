@@ -74,10 +74,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   casters, contact shadows, chimney smoke), `Land` (ground colour; fields and road painted in the
   terrain shader from `aLand`), `crops` (ground-cover style), `shapes`, `materials`. The rivers and
   farmland are in `Terrain`'s `LandField`.
-- `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes; the waterfront
-  (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; queries), `collide`
-  (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths checked clear),
-  `CityDecor` (instanced meshes), `geometry`, `materials` (facade + street shaders), `CityWorld`.
+- `world/city/`: `CityLayout` (pure plan: superblocks -> parts, trees, solid boxes, props; the
+  waterfront (bayside road, promenade, river walks) from `shoreDist`/`bankDist`; street furniture,
+  power lines (thin solids), rooftop kits and gardens, shop fronts; queries), `CityHarbour` (pure:
+  piers, gantry cranes, containers, a ship, moored boats; solids clipped per superblock), `props`
+  (records), `traffic` (pure `TrafficPlan`: endless lanes, clipped and sampled per plan, vehicles
+  placed per frame into preallocated buffers), `CityTraffic` (car, tram, ferry instancing),
+  `collide` (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths
+  checked clear), `CityDecor` (instanced buildings, trees in three distances, props, casters,
+  contact shadows), `cover` (ground-cover style, `aCityLand`), `shapes` (props, vehicles),
+  `geometry` (incl. soft city trees), `materials` (painterly facade, street and prop shaders),
+  `CityWorld`.
 - `world/karst/`: `KarstLayout` (pure: rivers, terraced paddies, footpaths and bridges, pillars +
   shared radius profile, terrain, queries), `skin` (pure: the rock surface every pillar tier is
   lathed from), `KarstScatter` (pure: trees, villages, pagodas, bridges, boats, boulders, vines,
@@ -86,9 +93,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   with rice), `rock` (limestone shader), `RiverMist`, `KarstWisps` (river/slalom/spiral planner),
   `geometry` (rock, bamboo), `shapes` (props), `KarstWorld`.
   `world/Mist.ts`: shared valley-mist uniforms + `withMist` material patch (also in `Water`).
-- `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain, icebergs, lighthouse;
-  walls are terrain that `solidTop` reports for the look-ahead), `FjordWisps`, `FjordDecor`,
-  `geometry`, `FjordWorld`. The aurora is the `aurora` backdrop in `Sky`.
+- `world/fjord/`: `FjordLayout` (pure: fjords, strand/wall/plateau terrain with rounded crags,
+  icebergs, lighthouse, snow climate, the terrain's `aLand`; walls are terrain that `solidTop`
+  reports for the look-ahead; `ground` includes the villages' roofs), `FjordSites` (pure: fishing
+  villages that widen their strand (houses, church, boathouses, jetties, racks; solids that lift
+  the flight floor; streets) and waterfalls), `FjordScatter` (pure: forest, village parts, floes,
+  boulder beaches, seals, boats, gulls and eagles per chunk), `FjordDecor` (instancing, near/far,
+  casters, contact shadows), `rock` (per-pixel cliff relief, ledge snow, beach, streets, spray),
+  `cover`, `Waterfalls` (ribbons and spray), `atmosphere` (dawn fog banks, the aurora reflected
+  near the shore), `materials` (props with lit windows, bobbing boats, circling birds; water),
+  `geometry` (trees, ice, lighthouse), `shapes` (props), `FjordWisps`, `FjordWorld`. The aurora is
+  the `aurora` backdrop in `Sky`.
 - `world/jerusalem/`: `JerusalemLayout` (pure: designed Old City, valleys and landmarks round the
   origin blending into endless hills, wadis, terraces and towns; per-block parts, trees, roof
   clutter and stalls, and solids (oriented boxes, domed drums); low roofs are canopy; roads,
@@ -116,11 +131,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `PeaksDecor`, `cloudSea` (the sea's shader), `geometry`, `PeaksWorld`. Snow peaks are the
   `summits` backdrop; the mist rests on the cloud tops via `uMistBase`.
 - `world/atoll/`: `AtollLayout` (pure: atolls on a coarse grid, each a wobbly reef ring with
-  motus and passes round a lagoon; mushroom rocks lathed from one notched profile; high islands
-  (the home one's fang ahead of the spawn) that `solidTop` reports as solid; bungalow piers as
-  soft canopy), `AtollWisps` (skipping-stone hops aimed at the next atoll, reef rims, rock
-  slaloms, island swings), `AtollDecor`, `Surf` (an animated foam strip per atoll in view),
-  `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
+  motus and passes round a lagoon, a crest that dries in patches, sand bars, seagrass; mushroom
+  rocks lathed from one notched profile; high islands (the home one's fang ahead of the spawn)
+  that `solidTop` reports as solid; bungalow piers and fishing villages of stilt huts on a sandy
+  shelf as soft canopy (`roofAt`)), `AtollScatter` (pure, per chunk: trees, the villages' huts,
+  walkways and fires; canoes, nets, coral heads, fish, turtles, rays and seabirds, moving things
+  on circles checked clear), `AtollWisps` (skipping-stone hops aimed at the next atoll, reef
+  rims, rock slaloms, island swings), `AtollDecor` (instancing, near/far/distant trees, casters,
+  contact shadows, smoke), `land` (the ground's paint from `aAtoll`: jungle crowns, wet sand and
+  swash foam, tide pools, ripples, seagrass, coral gardens), `cover` (ground-cover style),
+  `materials` (the life's vertex-shader motion, smoke), `shapes` (props), `Surf` (an animated
+  foam strip per atoll in view), `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
   the seabed's colours through the water.
 - `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets and mainland of rolling
   hills, leaning

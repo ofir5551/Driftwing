@@ -118,12 +118,13 @@ describe('city layout', () => {
       }
     expect(trees).toBe(0);
     expect(boxes).toBeGreaterThan(0); // the expressway crossing the bay at least
-    // Blocks the shore cuts into are waterfront parks.
+    // Blocks the shore cuts into are waterfront parks (or a harbour's container yard).
     for (let bi = -20; bi < 20; bi++)
       for (let bj = -3; bj < 3; bj++) {
         const x = city.blockX0(bi) + city.B / 2;
         const z = city.blockZ0(bj) + city.B / 2;
-        if (city.shoreDist(x, z) < city.roadIn) expect(city.blockKind(bi, bj)).toBe(BK.PARK);
+        if (city.shoreDist(x, z) < city.roadIn)
+          expect([BK.PARK, BK.HARBOUR]).toContain(city.blockKind(bi, bj));
       }
   });
 

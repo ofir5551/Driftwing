@@ -1,4 +1,16 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { Config } from '../../core/Config';
+import {
+  cherryDetailGeometry,
+  cherryGeometry,
+  colored,
+  pineDetailGeometry,
+  pineGeometry,
+  roundTreeDetailGeometry,
+  roundTreeGeometry,
+  topLit,
+} from '../Trees';
 import { CityLayout } from './CityLayout';
 
 /**
@@ -25,8 +37,94 @@ export function boxGeometry(): THREE.BufferGeometry {
   return flat(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
 }
 
+/**
+ * Pillars, lanterns and tanks: smooth-shaded round sides (the caps keep their own flat normals,
+ * CylinderGeometry builds them as separate vertices), so a torii pillar reads round, not fluted.
+ */
 export function cylinderGeometry(): THREE.BufferGeometry {
-  return flat(new THREE.CylinderGeometry(0.5, 0.5, 1, 10, 1).translate(0, 0.5, 0));
+  const g = new THREE.CylinderGeometry(0.5, 0.5, 1, Config.city.cylinderSegments, 1);
+  g.deleteAttribute('uv');
+  return g.translate(0, 0.5, 0);
+}
+
+/**
+ * Soft shading for a merged, non-indexed shape: every vertex's normal leans (by `k`, 0..1) toward
+ * the average of the faces that meet at its position. Lobes are jittered by position, so their
+ * corners coincide and a crown shades as a smooth lumpy mass instead of cut facets; separate
+ * lobes and the trunk share no corners, so their silhouettes stay distinct. Build time only.
+ */
+export function softShade(g: THREE.BufferGeometry, k: number): THREE.BufferGeometry {
+  const pos = g.getAttribute('position');
+  const nrm = g.getAttribute('normal');
+  const sum = new Map<string, [number, number, number]>();
+  const key = (i: number) =>
+    `${Math.round(pos.getX(i) * 1e3)},${Math.round(pos.getY(i) * 1e3)},${Math.round(pos.getZ(i) * 1e3)}`;
+  for (let i = 0; i < pos.count; i++) {
+    const kk = key(i);
+    const acc = sum.get(kk) ?? [0, 0, 0];
+    acc[0] += nrm.getX(i);
+    acc[1] += nrm.getY(i);
+    acc[2] += nrm.getZ(i);
+    sum.set(kk, acc);
+  }
+  const v = new THREE.Vector3();
+  const f = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    const acc = sum.get(key(i))!;
+    v.set(acc[0], acc[1], acc[2]).normalize();
+    f.set(nrm.getX(i), nrm.getY(i), nrm.getZ(i));
+    f.lerp(v, k).normalize();
+    nrm.setXYZ(i, f.x, f.y, f.z);
+  }
+  nrm.needsUpdate = true;
+  return g;
+}
+
+/** A distant tree: one soft crown on a three-sided trunk (~26 triangles), for beyond treeFar. */
+function distantTree(
+  crown: string,
+  bark: string,
+  r: number,
+  y: number,
+  squash: number,
+  cone = false,
+): THREE.BufferGeometry {
+  const c = cone
+    ? new THREE.ConeGeometry(r, y * 1.25, 6, 1).translate(0, y * 0.95, 0)
+    : new THREE.IcosahedronGeometry(r, 0).scale(1, squash, 1).translate(0, y, 0);
+  const g = topLit(
+    mergeGeometries([
+      colored(new THREE.CylinderGeometry(0.3, 0.45, y, 3, 1), bark, y / 2),
+      colored(c, crown),
+    ])!,
+    0.7,
+    1.1,
+  );
+  return softShade(g, 1);
+}
+
+/**
+ * The city's trees (round street tree, pine, cherry) in three distances: the shared shapes with
+ * soft normals (so a crown reads as a rounded mass, not a cut gem), near detail, and a one-crown
+ * distant shape beyond render.treeFar.
+ */
+export function cityTreeShapes(): {
+  far: THREE.BufferGeometry[];
+  near: THREE.BufferGeometry[];
+  distant: THREE.BufferGeometry[];
+} {
+  const k = Config.city.treeSoftness;
+  return {
+    far: [roundTreeGeometry(), pineGeometry(), cherryGeometry()].map((g) => softShade(g, k)),
+    near: [roundTreeDetailGeometry(), pineDetailGeometry(), cherryDetailGeometry()].map((g) =>
+      softShade(g, k),
+    ),
+    distant: [
+      distantTree('#9cc970', '#8f6e5c', 3.1, 5.4, 0.9),
+      distantTree('#5a9b78', '#8a6a5a', 2.7, 6.2, 1, true),
+      distantTree('#f2b8c8', '#6d5058', 3.4, 4.8, 0.72),
+    ],
+  };
 }
 
 /** Tiled gable roof: a triangular prism with its ridge along x, plus a flat underside. */

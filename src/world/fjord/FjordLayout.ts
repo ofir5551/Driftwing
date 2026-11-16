@@ -1,14 +1,24 @@
 import { Config } from '../../core/Config';
 import { lerp, smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, type Noise2D } from '../noise';
+import { FjordSites, type Village } from './FjordSites';
 
 /**
  * Aurora Fjords' plan as one pure, seeded function of position (no Three.js, unit-tested):
  * fjords along the zero contours of a low-frequency noise, each a strip of black water with a
  * pebble strand along its shore, then a steep glacial wall rounding over onto a snowy plateau
  * with ridged peaks. Icebergs drift on the water and a lighthouse stands on the shore ahead of
- * the spawn. The terrain, collisions and wisp planner all read it.
+ * the spawn; fishing villages widen the strand and waterfalls drop down the walls (FjordSites).
+ * The terrain, collisions, wisp planner and scenery all read it.
  */
+
+/**
+ * |n| with its crease rounded over `k` (sqrt(n^2 + k) - sqrt(k)): a ridge built from it has a
+ * rounded crest instead of a knife edge, which the 4 m terrain lattice drew as a sawtooth.
+ */
+export function softAbs(n: number, k: number): number {
+  return Math.sqrt(n * n + k) - Math.sqrt(k);
+}
 
 export interface Berg {
   x: number;
@@ -40,7 +50,10 @@ export class FjordLayout {
   private readonly nPeak: Noise2D;
   private readonly nCrag: Noise2D;
   private readonly nForest: Noise2D;
-  private readonly nHamlet: Noise2D;
+  private readonly nBirch: Noise2D;
+  private readonly nSnow: Noise2D;
+  private readonly nField: Noise2D;
+  private readonly gForest: Village[] = [];
   private readonly bergs = new Map<number, Berg | null>();
 
   constructor(seed: number) {
@@ -52,10 +65,19 @@ export class FjordLayout {
     this.nPeak = createNoise2D(seed + 405);
     this.nCrag = createNoise2D(seed + 406);
     this.nForest = createNoise2D(seed + 407);
-    this.nHamlet = createNoise2D(seed + 408);
+    this.nBirch = createNoise2D(seed + 408);
+    this.nSnow = createNoise2D(seed + 409);
+    this.nField = createNoise2D(seed + 410);
     this.findSpawn();
     this.placeLighthouse();
+    // Villages widen the strand, so the terrain reads them: plan them before any height.
+    this.sites = new FjordSites(this);
+    const L = this.lighthouse;
+    L.y0 = this.height(L.x, L.z) - 0.5;
   }
+
+  /** Villages and waterfalls (set while it is built: its own planning reads the strand). */
+  sites!: FjordSites;
 
   // --- Fjords ----------------------------------------------------------------------------------
 
@@ -148,15 +170,21 @@ export class FjordLayout {
     const L = this.lighthouse;
     L.x = x;
     L.z = z;
-    L.y0 = this.height(x, z) - 0.5;
     L.yaw = h;
   }
 
   // --- Ground ----------------------------------------------------------------------------------
 
-  /** Width of the flat strand between the water and the wall here (m). */
+  /**
+   * Width of the flat strand between the water and the wall here (m): from a noise, and wider
+   * round a village. Reads the fjord noise's sign (which shore) only near a village.
+   */
   shelf(x: number, z: number): number {
-    return Config.fjord.shelfMax * smoothstep(-0.1, 0.55, this.nShelf(x * 0.004, z * 0.004));
+    const base = Config.fjord.shelfMax * smoothstep(-0.1, 0.55, this.nShelf(x * 0.004, z * 0.004));
+    const S = this.sites as FjordSites | undefined;
+    if (!S) return base;
+    const v = S.villageShelf(x, z, this.fjordNoise(x, z) >= 0 ? 1 : -1);
+    return Math.max(base, v);
   }
 
   /**
@@ -175,33 +203,85 @@ export class FjordLayout {
     if (t > 0) {
       const u = 1 - Math.pow(1 - t, 2.2);
       const plateau = K.plateau + K.plateauVar * fbm(this.nPlateau, x * 0.0014, z * 0.0014, 3);
-      // Crags and gullies: ridged noise scores the walls into buttresses.
+      // Crags and gullies: ridged noise scores the walls into buttresses. The ridges are rounded
+      // (softAbs): the finer relief is painted in the rock shader, not built from 4 m triangles.
       const crag =
         fbm(this.nCrag, x * 0.018, z * 0.018, 2) * 8 +
-        (1 - Math.abs(this.nCrag(x * 0.045 + 7, z * 0.045))) * 14 * Math.sin(Math.PI * t);
-      const r = 1 - Math.abs(this.nPeak(x * 0.0024, z * 0.0024));
+        (1 - softAbs(this.nCrag(x * 0.045 + 7, z * 0.045), K.crease)) *
+          K.crag *
+          Math.sin(Math.PI * t);
+      const r = 1 - softAbs(this.nPeak(x * 0.0024, z * 0.0024), K.crease * 0.5);
       const peaks = r * r * r * r * K.peaks * smoothstep(K.wall, K.wall + 220, bank - shelf);
       y += (plateau + crag) * u + peaks;
     }
     return y;
   }
 
-  /** 0..1 spruce density: dark stands on the strand and the lower walls, under the treeline. */
+  /**
+   * 0..1 forest density: spruce and birch on the strands and the lower walls, under the
+   * treeline, thinning to open shore at the beach and clear of the villages' houses.
+   */
   forest(x: number, z: number): number {
     const y = this.height(x, z);
     const bank = this.fd - this.fw;
     const n = fbm(this.nForest, x * 0.006, z * 0.006, 2);
+    let open = 1;
+    const list = this.sites.gather(x, z, Config.fjord.villageReach, this.gForest);
+    for (let k = 0; k < list.length; k++) {
+      const v = list[k];
+      const d = Math.hypot(x - v.x, z - v.z);
+      open = Math.min(open, smoothstep(v.span + 10, v.span + 45, d) + smoothstep(42, 50, bank));
+    }
     return (
       smoothstep(-0.5, 0.15, n) *
       smoothstep(1.2, 3, y) *
+      smoothstep(5, 10, bank) *
       (1 - smoothstep(Config.fjord.treeline - 20, Config.fjord.treeline, y)) *
-      (1 - this.hamlet(x, z) * smoothstep(0, 10, Math.max(0, this.shelf(x, z) - bank)))
+      Math.min(open, 1)
     );
   }
 
-  /** 0..1: where a fishing hamlet's red huts line the strand. */
-  hamlet(x: number, z: number): number {
-    return smoothstep(0.3, 0.5, fbm(this.nHamlet, x * 0.003, z * 0.003, 2));
+  /** Darkening under the forest for the ground's vertex colour (cheap: noise and height only). */
+  forestShade(x: number, z: number, y: number): number {
+    const n = fbm(this.nForest, x * 0.006, z * 0.006, 2);
+    const T = Config.fjord.treeline;
+    return smoothstep(-0.5, 0.15, n) * smoothstep(1.2, 3, y) * (1 - smoothstep(T - 20, T, y));
+  }
+
+  /** 0..1: the share of birch in the forest here (in drifts; spruce keep the steepest ground). */
+  birch(x: number, z: number, slope: number): number {
+    return (
+      smoothstep(-0.35, 0.2, this.nBirch(x * 0.008, z * 0.008)) * (1 - smoothstep(0.7, 1.2, slope))
+    );
+  }
+
+  /**
+   * Snow climate, 0..1: a ramp up through a ragged snowline, plus snowfields lying in the
+   * plateau's hollows below it. The shader lays the snow per pixel from this (on the flat, and
+   * on a cliff only on its ledges); the ground cover leaves the snow bare.
+   */
+  snow(x: number, z: number, y: number): number {
+    const K = Config.fjord;
+    const line = K.snowline + K.snowRag * fbm(this.nSnow, x * 0.0035, z * 0.0035, 2);
+    const ramp = smoothstep(line - 80, line + 30, y);
+    const f = fbm(this.nField, x * 0.007, z * 0.007, 2);
+    const field =
+      smoothstep(0.62 - K.snowfields * 0.6, 0.75 - K.snowfields * 0.6, f) *
+      smoothstep(K.plateau - 90, K.plateau - 40, y);
+    return Math.max(ramp, field * 0.9);
+  }
+
+  /**
+   * The terrain's painted-ground attribute at a vertex (rock.ts): distance from the water
+   * (m, clamped), a village street's or lane's distance over its half width, distance from a
+   * waterfall's line over its band, and the snow climate. Written into `out` at `o`.
+   */
+  landAt(x: number, z: number, y: number, out: Float32Array, o: number): void {
+    const bank = this.fjord(x, z);
+    out[o] = Math.min(Math.max(bank, -40), 120);
+    out[o + 1] = bank > -4 && bank < 60 ? Math.min(this.sites.street(x, z, bank), 9) : 9;
+    out[o + 2] = bank > -10 ? Math.min(this.sites.wet(x, z), 9) : 9;
+    out[o + 3] = y > 20 ? this.snow(x, z, y) : 0;
   }
 
   // --- Ice -------------------------------------------------------------------------------------
@@ -219,8 +299,14 @@ export class FjordLayout {
       const x = (i + 0.2 + 0.6 * hash2(i, j, s + 412)) * C;
       const z = (j + 0.2 + 0.6 * hash2(i, j, s + 413)) * C;
       const r = 5 + 7 * hash2(i, j, s + 414);
-      // Out on open water, and clear of the spawn reach where the first ribbon runs low.
+      // Out on open water, clear of the spawn reach where the first ribbon runs low and of
+      // the villages' jetties and boats.
+      let crowded = false;
+      this.sites.near(x, z, 240, (v) => {
+        if (Math.hypot(x - v.x, z - v.z) < 240) crowded = true;
+      });
       if (
+        !crowded &&
         this.fjord(x, z) < -(r + 14) &&
         Math.hypot(x - this.spawn.x, z - this.spawn.z) > Config.fjord.lighthouseAhead + 80
       )
@@ -253,9 +339,9 @@ export class FjordLayout {
     return y;
   }
 
-  /** What the bird flies over: terrain or ice, whichever is higher. */
+  /** What the bird flies over: terrain, ice or a village's roofs, whichever is higher. */
   ground(x: number, z: number): number {
-    return Math.max(this.height(x, z), this.ice(x, z));
+    return Math.max(this.height(x, z), this.ice(x, z), this.sites.built(x, z));
   }
 
   // --- Solids ----------------------------------------------------------------------------------

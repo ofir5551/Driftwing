@@ -2,7 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { ATOLL_KEYS, MODES } from '../src/audio/scales';
 import { ATOLL_MUSIC } from '../src/audio/styles';
 import { Config } from '../src/core/Config';
-import { AtollLayout, ROCK_SHAPES, rockProfile, type Rock } from '../src/world/atoll/AtollLayout';
+import {
+  AtollLayout,
+  HUT_STRIDE,
+  HUT_TOP,
+  ROCK_SHAPES,
+  rockProfile,
+  type Rock,
+} from '../src/world/atoll/AtollLayout';
+import {
+  AtollScatter,
+  P,
+  PATHS,
+  PROP_STRIDE,
+  pathPhase,
+  pathRadius,
+} from '../src/world/atoll/AtollScatter';
+import { atollCover } from '../src/world/atoll/cover';
+import type { CoverTuft } from '../src/world/GroundCover';
 import { AtollWorld } from '../src/world/atoll/AtollWorld';
 import { flyBot } from './helpers';
 
@@ -175,6 +192,231 @@ describe('atoll layout', () => {
   });
 });
 
+describe('atoll villages', () => {
+  it('builds a village off the home island, ahead and to the left, clear of the opening run', () => {
+    for (const seed of [1, 1337, 42]) {
+      const l = new AtollLayout(seed);
+      const v = l.atoll(0, 0)!.village!;
+      expect(v).not.toBeNull();
+      expect(v.huts.length / HUT_STRIDE).toBeGreaterThanOrEqual(8);
+      // Left of the spawn (+x is the bird's left facing +z) and ahead of it.
+      expect(v.x).toBeGreaterThan(l.spawn.x + 60);
+      expect(v.z).toBeGreaterThan(l.spawn.z + 200);
+      for (let k = 0; k < v.huts.length; k += HUT_STRIDE)
+        expect(l.nearOpening(v.huts[k], v.huts[k + 1], 60)).toBe(false);
+    }
+  });
+
+  it('stands huts on stilts over shallow water or on the sand, clear of the rocks', () => {
+    let water = 0;
+    let land = 0;
+    let villages = 0;
+    for (let j = -3; j <= 3; j++)
+      for (let i = -3; i <= 3; i++) {
+        const v = L.atoll(i, j)?.village;
+        if (!v) continue;
+        villages++;
+        for (let k = 0; k < v.huts.length; k += HUT_STRIDE) {
+          const x = v.huts[k];
+          const z = v.huts[k + 1];
+          const y0 = v.huts[k + 3];
+          const g = L.height(x, z);
+          if (y0 === 0) {
+            water++;
+            expect(g).toBeLessThan(-0.6);
+            expect(g).toBeGreaterThan(-3); // the shelf: short stilts
+          } else {
+            land++;
+            expect(Math.abs(g - y0)).toBeLessThan(0.01);
+            expect(y0).toBeGreaterThan(0.6);
+          }
+          expect(L.skyline(x, z, 12)).toBe(-Infinity);
+          // No two huts overlap.
+          for (let n = k + HUT_STRIDE; n < v.huts.length; n += HUT_STRIDE)
+            expect(Math.hypot(x - v.huts[n], z - v.huts[n + 1])).toBeGreaterThan(9);
+        }
+      }
+    expect(villages).toBeGreaterThan(8);
+    expect(water).toBeGreaterThan(villages * 4);
+    expect(land).toBeGreaterThan(villages);
+  });
+
+  it('keeps the huts and walkways under the flight floor (soft roofs)', () => {
+    const w = new AtollWorld(1337);
+    const v = w.layout.atoll(0, 0)!.village!;
+    for (let k = 0; k < v.huts.length; k += HUT_STRIDE) {
+      const top = v.huts[k + 3] + HUT_TOP * v.huts[k + 4];
+      expect(w.flightGround(v.huts[k], v.huts[k + 1])).toBeGreaterThanOrEqual(top);
+      expect(w.layout.solidTop(v.huts[k], top - 1, v.huts[k + 1], 1)).toBe(-Infinity);
+    }
+    for (let k = 0; k < v.walks.length; k += 4)
+      expect(w.flightGround(v.walks[k], v.walks[k + 1])).toBeGreaterThan(2.2);
+    w.dispose();
+  });
+
+  it('lifts sand bars just clear of the water, never on the opening run', () => {
+    let bars = 0;
+    for (let j = -2; j <= 2; j++)
+      for (let i = -2; i <= 2; i++) {
+        const a = L.atoll(i, j);
+        if (!a) continue;
+        for (let k = 0; k < 720; k++) {
+          const th = (k / 720) * Math.PI * 2;
+          for (const d of [30, 50, 70]) {
+            const R = L.ringR(a, th) - a.w - d;
+            const y = L.height(a.x + Math.sin(th) * R, a.z + Math.cos(th) * R);
+            if (
+              y > 0.05 &&
+              !(
+                a.island &&
+                Math.hypot(
+                  a.x + Math.sin(th) * R - a.island.x,
+                  a.z + Math.cos(th) * R - a.island.z,
+                ) <
+                  a.island.r * 1.4
+              )
+            ) {
+              bars++;
+              expect(y).toBeLessThan(0.9);
+            }
+          }
+        }
+      }
+    expect(bars).toBeGreaterThan(20);
+    const s = L.spawn;
+    for (let d = 0; d < 300; d += 3) expect(L.height(s.x, s.z + d)).toBeLessThan(0);
+  });
+});
+
+describe('atoll scatter', () => {
+  const S = new AtollScatter(L);
+  const all: number[] = [];
+  const size = Config.world.chunkSize;
+  for (let cz = -2; cz <= 5; cz++)
+    for (let cx = -4; cx <= 4; cx++) S.props(cx * size, cz * size, size, all);
+
+  it('is deterministic', () => {
+    const a: number[] = [];
+    const b: number[] = [];
+    new AtollScatter(new AtollLayout(1337)).props(160, 320, size, a);
+    new AtollScatter(new AtollLayout(1337)).props(160, 320, size, b);
+    expect(a).toEqual(b);
+    const t1: number[] = [];
+    const t2: number[] = [];
+    S.sites(160, 320, size, t1);
+    new AtollScatter(new AtollLayout(1337)).sites(160, 320, size, t2);
+    expect(t1).toEqual(t2);
+  });
+
+  it('puts canoes on the beaches, nets and life in the water, birds in the air', () => {
+    const seen = new Set<number>();
+    for (let k = 0; k < all.length; k += PROP_STRIDE) {
+      const kind = all[k];
+      const x = all[k + 1];
+      const y = all[k + 2];
+      const z = all[k + 3];
+      seen.add(kind);
+      const g = L.height(x, z);
+      if (kind === P.Canoe) {
+        expect(g).toBeGreaterThan(0.2);
+        expect(g).toBeLessThan(1.05);
+      } else if (kind === P.Net) {
+        expect(g).toBeLessThan(-0.3);
+        expect(L.skyline(x, z, 10)).toBe(-Infinity);
+      } else if (kind === P.Coral) {
+        expect(y).toBeLessThan(-1.2);
+        expect(Math.abs(y + 0.1 - g)).toBeLessThan(0.01);
+      } else if (kind === P.Bird) {
+        expect(y).toBeGreaterThan(Math.max(g, 0) + 8);
+      } else if (kind === P.Fish || kind === P.Turtle || kind === P.Ray || kind === P.Paddler) {
+        // The whole circle it follows stays in water deeper than it swims, clear of rock.
+        const anim = { [P.Fish]: 2, [P.Turtle]: 3, [P.Ray]: 4, [P.Paddler]: 5 }[kind]!;
+        const r = pathRadius(anim, x, z);
+        for (let n = 0; n < 24; n++) {
+          const a = (n / 24) * Math.PI * 2;
+          const px = x + Math.cos(a) * r;
+          const pz = z + Math.sin(a) * r;
+          expect(L.height(px, pz)).toBeLessThan(Math.min(y, 0) - 0.4);
+          expect(L.solidTop(px, -0.5, pz, 1)).toBe(-Infinity);
+        }
+      }
+    }
+    for (const k of [P.Canoe, P.Net, P.Coral, P.Fish, P.Bird]) expect(seen.has(k)).toBe(true);
+  });
+
+  it("agrees with the shader on a moving thing's circle", () => {
+    for (const [x, z] of [
+      [0, 0],
+      [123.4, -987.6],
+      [4000, 2500],
+    ]) {
+      const ph = pathPhase(x, z);
+      expect(ph).toBeGreaterThanOrEqual(0);
+      expect(ph).toBeLessThan(1);
+      // float32, as the GPU sees it
+      const f = Math.fround(
+        Math.fround(x) * Math.fround(0.0137) + Math.fround(z) * Math.fround(0.0291),
+      );
+      expect(Math.abs(f - Math.floor(f) - ph)).toBeLessThan(1e-3);
+    }
+    expect(Object.keys(PATHS).length).toBe(5);
+  });
+
+  it('keeps trees off the huts', () => {
+    const v = L.atoll(0, 0)!.village!;
+    const trees: number[] = [];
+    for (let cz = 1; cz <= 3; cz++)
+      for (let cx = 0; cx <= 2; cx++) S.trees(cx * size, cz * size, size, trees);
+    for (let k = 0; k < trees.length; k += 7)
+      for (let n = 0; n < v.huts.length; n += HUT_STRIDE)
+        expect(Math.hypot(trees[k + 1] - v.huts[n], trees[k + 3] - v.huts[n + 1])).toBeGreaterThan(
+          3.5,
+        );
+  });
+
+  it('grows seagrass under the water and shells only on the wet sand', () => {
+    const style = atollCover(L);
+    const tuft = (_y: number, extras: [number, number, number, number]): CoverTuft => {
+      const t: CoverTuft = {
+        r: 0.5,
+        g: 0.5,
+        b: 0.4,
+        scale: 1,
+        bare: false,
+        bloom: -1,
+        petal: -1,
+        extra: extras[0],
+        extras,
+        shape: 0,
+      };
+      return t;
+    };
+    let grass = 0;
+    let shells = 0;
+    for (let i = 0; i < 400; i++) {
+      const x = 900 + i * 0.37;
+      const t = tuft(-1.5, [0, 0, 0.9, 0]);
+      style.paint!(x, 50, -1.5, t);
+      if (!t.bare) grass++;
+      const r = tuft(-1.5, [0, 0, 0, 0]);
+      style.paint!(x, 50, -1.5, r);
+      expect(r.bare).toBe(true); // no meadow, no seagrass
+      const w = tuft(0.3, [0, 0, 0, 0]);
+      style.paint!(x, 50, 0.3, w);
+      if (!w.bare) {
+        expect([2, 3]).toContain(w.shape);
+        shells++;
+      }
+      const reef = tuft(0.2, [0.9, 0, 0, 0]);
+      style.paint!(x, 50, 0.2, reef);
+      expect(reef.bare).toBe(true);
+    }
+    expect(grass).toBeGreaterThan(200);
+    expect(shells).toBeGreaterThan(0);
+    expect(shells).toBeLessThan(60);
+  });
+});
+
 describe('atoll wisps', () => {
   it('ribbons never sit inside the rock, and an autopilot skims them across the lagoons', () => {
     for (const seed of [42, 2024]) {
@@ -189,6 +431,40 @@ describe('atoll wisps', () => {
       expect(r.inside).toBe(0);
       expect(r.got).toBeGreaterThan(150);
       expect(r.glances).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+describe('atoll wisps over a village', () => {
+  it('ribbons ride over the huts and walkways, never through them', () => {
+    for (const seed of [1, 1337]) {
+      const w = new AtollWorld(seed);
+      const L2 = w.layout;
+      const v = L2.atoll(0, 0)!.village!;
+      // Out over the lagoon beyond the village, heading back across it toward the island.
+      const spawn = {
+        x: v.x + Math.sin(v.yaw) * 150,
+        y: 10,
+        z: v.z + Math.cos(v.yaw) * 150,
+        yaw: v.yaw + Math.PI,
+      };
+      let over = 0;
+      const r = flyBot(
+        w,
+        spawn,
+        seed,
+        40,
+        (x, y, z) =>
+          (L2.solidTop(x, y, z, 0) !== -Infinity && y > L2.height(x, z) - 50) ||
+          y < L2.roofAt(x, z),
+        undefined,
+        (x, _y, z) => {
+          if (L2.villageAt(x, z) !== -Infinity) over++;
+        },
+      );
+      expect(r.inside).toBe(0);
+      expect(r.glances).toBeLessThanOrEqual(1);
+      expect(over).toBeGreaterThan(0); // the bird did cross the village
     }
   });
 });

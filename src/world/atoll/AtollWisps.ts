@@ -147,7 +147,7 @@ export class AtollPlanner implements WispPlanner {
   private surface(x: number, z: number): number {
     const L = this.L;
     const g = L.height(x, z);
-    return Math.max(g + L.canopy(g), L.bungalowAt(x, z), Config.world.waterLevel);
+    return Math.max(g + L.canopy(g), L.roofAt(x, z), Config.world.waterLevel);
   }
 
   /**

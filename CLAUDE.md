@@ -113,11 +113,17 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `PeaksDecor`, `cloudSea` (the sea's shader), `geometry`, `PeaksWorld`. Snow peaks are the
   `summits` backdrop; the mist rests on the cloud tops via `uMistBase`.
 - `world/atoll/`: `AtollLayout` (pure: atolls on a coarse grid, each a wobbly reef ring with
-  motus and passes round a lagoon; mushroom rocks lathed from one notched profile; high islands
-  (the home one's fang ahead of the spawn) that `solidTop` reports as solid; bungalow piers as
-  soft canopy), `AtollWisps` (skipping-stone hops aimed at the next atoll, reef rims, rock
-  slaloms, island swings), `AtollDecor`, `Surf` (an animated foam strip per atoll in view),
-  `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
+  motus and passes round a lagoon, a crest that dries in patches, sand bars, seagrass; mushroom
+  rocks lathed from one notched profile; high islands (the home one's fang ahead of the spawn)
+  that `solidTop` reports as solid; bungalow piers and fishing villages of stilt huts on a sandy
+  shelf as soft canopy (`roofAt`)), `AtollScatter` (pure, per chunk: trees, the villages' huts,
+  walkways and fires; canoes, nets, coral heads, fish, turtles, rays and seabirds, moving things
+  on circles checked clear), `AtollWisps` (skipping-stone hops aimed at the next atoll, reef
+  rims, rock slaloms, island swings), `AtollDecor` (instancing, near/far/distant trees, casters,
+  contact shadows, smoke), `land` (the ground's paint from `aAtoll`: jungle crowns, wet sand and
+  swash foam, tide pools, ripples, seagrass, coral gardens), `cover` (ground-cover style),
+  `materials` (the life's vertex-shader motion, smoke), `shapes` (props), `Surf` (an animated
+  foam strip per atoll in view), `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
   the seabed's colours through the water.
 - `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets and mainland of rolling
   hills, leaning

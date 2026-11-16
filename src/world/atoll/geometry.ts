@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { smoothstep } from '../../core/math';
 import { hipGeometry } from '../city/geometry';
 import { mulberry32 } from '../noise';
-import { colored, topLit } from '../Trees';
+import { colored, jitter, limb, painted, topLit } from '../Trees';
 import { rockProfile, type RockShape } from './AtollLayout';
 
 /**
@@ -60,7 +60,30 @@ function frond(len: number, width: number, segs: number, droop: number): THREE.B
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
+  // Leaflet normals leaned to the frond's own up (or down, under it): the toon bands light the
+  // whole frond as one arching blade instead of flickering facet by facet as the bird passes.
+  const n = g.getAttribute('normal');
+  for (let i = 0; i < n.count; i++) {
+    const s = n.getY(i) >= 0 ? 1 : -1;
+    const x = n.getX(i) * 0.45;
+    const y = n.getY(i) * 0.45 + s;
+    const z = n.getZ(i) * 0.45;
+    const l = Math.hypot(x, y, z);
+    n.setXYZ(i, x / l, y / l, z / l);
+  }
   return g;
+}
+
+/** As `colored`, but keeping the shape's own smooth normals (a round trunk, not facets). */
+function smooth(g: THREE.BufferGeometry, hex: string): THREE.BufferGeometry {
+  const ng = g.index ? g.toNonIndexed() : g;
+  const c = new THREE.Color(hex);
+  const n = ng.getAttribute('position').count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+  ng.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  ng.deleteAttribute('uv');
+  return ng;
 }
 
 /** A palm's curving trunk: stacked tapering segments leaning further out as they rise. */
@@ -94,17 +117,17 @@ function trunk(
       new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()),
     );
     g.translate(x, y, 0);
-    // Ringed bark: alternate bands a shade apart.
-    parts.push(colored(g, k % 2 ? '#a08a6a' : '#8d7759'));
+    // Ringed bark: alternate bands a shade apart, smooth-shaded round the trunk.
+    parts.push(smooth(g, k % 2 ? '#a08a6a' : '#8d7759'));
     x = x1;
     y = y1;
   }
   return { parts, top: new THREE.Vector3(x, y, 0) };
 }
 
-/** Far coconut palm (~60 triangles): a leaning trunk under six broad, drooping fronds. */
+/** Far coconut palm (~64 triangles): a leaning trunk under six broad, drooping fronds. */
 export function palmGeometry(): THREE.BufferGeometry {
-  const { parts, top } = trunk(10.5, 2.2, 2, 3);
+  const { parts, top } = trunk(10.5, 2.2, 2, 4);
   // Broader than the near fronds: far away a thin frond vanishes and the palm reads as a stick.
   for (let k = 0; k < 6; k++) {
     const f = frond(5, 1.6, 1, 1.4).rotateZ(k % 2 ? 0.15 : -0.1);
@@ -113,14 +136,24 @@ export function palmGeometry(): THREE.BufferGeometry {
   return mergeGeometries(parts)!;
 }
 
+/** Distant coconut palm (~38 triangles): a three-sided trunk under four broad fronds. */
+export function palmDistantGeometry(): THREE.BufferGeometry {
+  const { parts, top } = trunk(10.5, 2.2, 1, 3);
+  for (let k = 0; k < 4; k++) {
+    const f = frond(5.4, 1.9, 1, 1.4).rotateZ(k % 2 ? 0.15 : -0.1);
+    parts.push(f.rotateY((k / 4) * Math.PI * 2 + 0.5).translate(top.x, top.y, top.z));
+  }
+  return mergeGeometries(parts)!;
+}
+
 /**
- * Near coconut palm (~200 triangles): a ringed trunk curving out of the sand under a full
+ * Near coconut palm (~220 triangles): a ringed trunk curving out of the sand under a full
  * crown of eight arching fronds (a few young ones standing up, the old ones hanging low) and
  * a cluster of coconuts.
  */
 export function palmDetailGeometry(): THREE.BufferGeometry {
   const rand = mulberry32(31);
-  const { parts, top } = trunk(10.5, 2.2, 4, 5);
+  const { parts, top } = trunk(10.5, 2.2, 4, 6);
   for (let k = 0; k < 8; k++) {
     const young = k % 3 === 0;
     const f = frond(4.4 + rand() * 1.2, 1.25, 3, young ? 0.6 : 2.2 + rand() * 0.8);
@@ -141,15 +174,100 @@ export function palmDetailGeometry(): THREE.BufferGeometry {
   return mergeGeometries(parts)!;
 }
 
-/** A low beach shrub (naupaka, pandanus) to fill the islets between the palms. */
-export function shrubGeometry(): THREE.BufferGeometry {
-  const a = new THREE.IcosahedronGeometry(1.6, 0).scale(1.3, 0.7, 1.1);
-  const b = new THREE.IcosahedronGeometry(1.1, 0).translate(1.3, 0.3, 0.4);
-  return topLit(
-    mergeGeometries([colored(a, '#5c9a4a', 0.8), colored(b, '#73ab52', 0.8)])!,
-    0.7,
-    1.12,
+/**
+ * A soft foliage lobe: a lumpy icosahedron (subdivided near the bird) whose normals are not its
+ * facets' but a blend of its own ellipsoid's and the whole crown's (centre `crown`), so the
+ * toon bands sweep round the crown as one soft mass and the facets disappear.
+ */
+function softLobe(
+  r: number,
+  x: number,
+  y: number,
+  z: number,
+  hex: string,
+  seed: number,
+  detail: number,
+  crown: [number, number, number],
+  squash = 0.82,
+): THREE.BufferGeometry {
+  const c = new THREE.Color(hex);
+  const cool = new THREE.Color(hex).offsetHSL(0.03, 0.02, -0.09);
+  const g = jitter(new THREE.IcosahedronGeometry(r, detail), r * (detail ? 0.22 : 0.3), seed);
+  g.scale(1, squash, 1);
+  const out = painted(g, (_x, py, _z, o) => o.copy(cool).lerp(c, smoothstep(-r, r * 0.6, py)));
+  out.translate(x, y, z);
+  const pos = out.getAttribute('position');
+  const nor = out.getAttribute('normal');
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    a.set((pos.getX(i) - x) / r, (pos.getY(i) - y) / (r * squash * squash), (pos.getZ(i) - z) / r);
+    a.normalize();
+    b.set(pos.getX(i) - crown[0], (pos.getY(i) - crown[1]) * 1.3, pos.getZ(i) - crown[2]);
+    b.normalize();
+    a.lerp(b, 0.45).normalize();
+    nor.setXYZ(i, a.x, a.y, a.z);
+  }
+  return out;
+}
+
+/** Jungle crown lobes: [radius, x, y, z, colour]. */
+const JUNGLE_LOBES: [number, number, number, number, string][] = [
+  [2.7, 0, 5.1, 0, '#4f9a4a'],
+  [2.1, 1.8, 4.6, 0.8, '#5aa650'],
+  [2.2, -1.7, 4.8, -0.6, '#478f45'],
+  [2.0, 0.2, 4.5, -1.8, '#4f9a4a'],
+  [2.0, -0.5, 4.6, 1.8, '#61ab55'],
+  [2.0, 0.4, 6.7, 0.3, '#6cb45a'],
+];
+
+/**
+ * Near jungle tree (~330 triangles): six soft-shaded lobes (the core, a side and the top one
+ * subdivided) on a forked trunk. The lobes' normals follow the crown, so it reads as one
+ * rounded mass of foliage, not a cluster of gems.
+ */
+export function jungleDetailGeometry(): THREE.BufferGeometry {
+  const crown: [number, number, number] = [0, 5.4, 0];
+  const parts = [
+    colored(new THREE.CylinderGeometry(0.32, 0.5, 3.6, 6), '#7a6450', 1.8),
+    limb(1.3, 3.0, 4.6, 0.6, 0.28, '#7a6450'),
+    limb(-1.2, 3.2, 4.8, -0.4, 0.25, '#7a6450'),
+  ];
+  JUNGLE_LOBES.forEach(([r, x, y, z, hex], i) =>
+    parts.push(softLobe(r, x, y, z, hex, 40 + i, i < 2 || i === 5 ? 1 : 0, crown)),
   );
+  return topLit(mergeGeometries(parts)!, 0.66, 1.12);
+}
+
+/** Far jungle tree (~70 triangles): three soft lobes, the same crown shading. */
+export function jungleGeometry(): THREE.BufferGeometry {
+  const crown: [number, number, number] = [0, 5.4, 0];
+  const parts = [
+    colored(new THREE.CylinderGeometry(0.35, 0.5, 3.4, 5), '#7a6450', 1.7),
+    softLobe(3.0, 0, 5.2, 0, '#4f9a4a', 51, 0, crown, 0.8),
+    softLobe(2.1, 0.7, 6.8, 0.3, '#6cb45a', 52, 0, crown),
+    softLobe(2.0, -1.4, 4.7, -0.7, '#478f45', 53, 0, crown),
+  ];
+  return topLit(mergeGeometries(parts)!, 0.66, 1.12);
+}
+
+/** Distant jungle tree (~28 triangles): one soft lobe on a stub of trunk. */
+export function jungleDistantGeometry(): THREE.BufferGeometry {
+  const crown: [number, number, number] = [0, 5.4, 0];
+  const parts = [
+    colored(new THREE.CylinderGeometry(0.35, 0.5, 3.4, 4, 1, true), '#7a6450', 1.7),
+    softLobe(3.4, 0, 5.6, 0, '#529c4b', 54, 0, crown, 0.85),
+  ];
+  return topLit(mergeGeometries(parts)!, 0.66, 1.12);
+}
+
+/** A low beach shrub (naupaka, pandanus) to fill the islets between the palms; soft-shaded. */
+export function shrubGeometry(detail = 0): THREE.BufferGeometry {
+  const crown: [number, number, number] = [0.6, 0.2, 0.2];
+  const a = softLobe(1.6, 0, 0.8, 0, '#5c9a4a', 61, detail, crown, 0.62);
+  a.scale(1.3, 1, 1.1);
+  const b = softLobe(1.1, 1.3, 1.1, 0.4, '#73ab52', 62, detail, crown);
+  return topLit(mergeGeometries([a, b])!, 0.7, 1.12);
 }
 
 const STONE = new THREE.Color('#d3d0c2');
@@ -181,9 +299,18 @@ export function rockGeometry(
   for (let i = 0; i <= RINGS; i++) {
     // Rings bunch round the notch and over the dome, where the profile bends.
     const u = i / RINGS;
+    // Below the cap: bunched round the notch. On the dome: spaced by arc (a quarter circle), so
+    // the crown is round rather than coming to a point.
+    const tn = tw * 1.6;
     const t =
-      u < 0.5 ? tw * 1.6 * (u / 0.5) : tw * 1.6 + (1 - tw * 1.6) * Math.pow((u - 0.5) / 0.5, 0.8);
-    const tc = Math.min(t, 0.995);
+      u < 0.4
+        ? tn * (u / 0.4)
+        : u < 0.65
+          ? tn + (sh.cap - tn) * ((u - 0.4) / 0.25)
+          : sh.cap + (1 - sh.cap) * Math.sin(((u - 0.65) / 0.35) * Math.PI * 0.5);
+    const tc = Math.min(t, 0.998);
+    // The lumps calm toward the apex, where the rings close up (no spikes on the crown).
+    const calm = 1 - smoothstep(0.6, 1, (tc - sh.cap) / (1 - sh.cap));
     const rad = rockProfile(sh, tc);
     for (let k = 0; k < SEG; k++) {
       const a = (k / SEG) * Math.PI * 2;
@@ -196,9 +323,9 @@ export function rockGeometry(
       const lump =
         plan *
         (1 +
-          cap * (0.1 * Math.sin(a * 5 + ph) * Math.sin(tc * 19 + a * 2)) +
+          cap * calm * (0.1 * Math.sin(a * 5 + ph) * Math.sin(tc * 19 + a * 2)) +
           (1 - cap) * (0.06 * Math.sin(a * 7 + ph + tc * 6) + 0.05 * Math.sin(a * 13 - tc * 11)));
-      const lift = cap * 0.04 * Math.sin(a * 3 + ph * 2);
+      const lift = cap * calm * 0.04 * Math.sin(a * 3 + ph * 2);
       pos.push(Math.cos(a) * rad * lump, (tc + lift) * sh.H, Math.sin(a) * rad * lump);
       c.copy(STONE).lerp(
         STONE_DARK,
@@ -298,20 +425,24 @@ export function sailboatGeometry(): THREE.BufferGeometry {
   return mergeGeometries(parts)!;
 }
 
-/** An outrigger canoe: a slim dugout, a float on two booms, a paddle laid across. */
-export function canoeGeometry(): THREE.BufferGeometry {
-  const hull = new THREE.CylinderGeometry(0.45, 0.45, 6.4, 6, 1)
+/** An outrigger canoe's parts: a slim dugout, a float on two booms, a paddle laid across. */
+export function canoeParts(): THREE.BufferGeometry[] {
+  const hull = new THREE.CylinderGeometry(0.45, 0.45, 6.4, 10, 1)
     .rotateX(Math.PI / 2)
     .scale(1, 0.6, 1);
-  const float = new THREE.CylinderGeometry(0.2, 0.2, 3.6, 5, 1).rotateX(Math.PI / 2);
-  const parts = [
+  const float = new THREE.CylinderGeometry(0.2, 0.2, 3.6, 6, 1).rotateX(Math.PI / 2);
+  return [
     colored(hull, '#8b5a3a', 0.15),
     colored(float, '#a37a55', 0.05).translate(2.4, 0, 0),
     colored(new THREE.BoxGeometry(2.6, 0.08, 0.12), '#6d5a45', 0.45).translate(1.2, 0, 1),
     colored(new THREE.BoxGeometry(2.6, 0.08, 0.12), '#6d5a45', 0.45).translate(1.2, 0, -1),
     colored(new THREE.BoxGeometry(0.1, 0.05, 1.8), '#c49a5c', 0.55).translate(-0.1, 0, -0.4),
   ];
-  return mergeGeometries(parts)!;
+}
+
+/** An outrigger canoe, moored or pulled up on a beach. */
+export function canoeGeometry(): THREE.BufferGeometry {
+  return mergeGeometries(canoeParts())!;
 }
 
 /** Lantern: a small, slightly tall ball (one shared shape, sized per instance). */

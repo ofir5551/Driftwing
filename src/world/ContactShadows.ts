@@ -9,6 +9,10 @@ export type GroundFn = (x: number, z: number) => number;
 export const contactUniforms = {
   uStrength: { value: 0 },
   uFar: { value: 280 },
+  /** Strength near the bird while the shadow map draws the real shadows there (else = uStrength). */
+  uNearStrength: { value: 0 },
+  /** Distances over which the shadow map's shadows fade out (x start, y end). */
+  uMapFade: { value: new THREE.Vector2(0, 1) },
 };
 
 /** Where a blob lies: on the ground (tilted to its slope) or flat at the object's foot. */
@@ -78,11 +82,15 @@ function blobMaterial(): THREE.ShaderMaterial {
     fragmentShader: /* glsl */ `
       uniform float uStrength;
       uniform float uFar;
+      uniform float uNearStrength;
+      uniform vec2 uMapFade;
       varying vec2 vUv;
       varying float vDist;
       void main() {
         float a = 1.0 - smoothstep(0.0, 1.0, dot(vUv, vUv));
-        a *= a * uStrength * (1.0 - smoothstep(uFar * 0.6, uFar, vDist));
+        // Light under the shadow map's real shadows, full where those have faded out.
+        float k = mix(uNearStrength, uStrength, smoothstep(uMapFade.x, uMapFade.y, vDist));
+        a *= a * k * (1.0 - smoothstep(uFar * 0.6, uFar, vDist));
         gl_FragColor = vec4(0.08, 0.09, 0.15, a);
       }`,
     transparent: true,

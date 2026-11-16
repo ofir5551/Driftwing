@@ -241,15 +241,18 @@ export const Config = {
   },
   /** Shared lighting and atmosphere: sun shadows, contact and cloud shadows, light shafts. */
   light: {
-    shadowRange: 150, // m, half-size of the shadow map's box round the bird
-    shadowMapSize: 2048, // texels per side
-    shadowSoftness: 3, // PCF blur radius (texels)
+    shadowRange: 400, // m, half-size of the shadow map's box round the bird
+    shadowMapSize: 4096, // texels per side
+    shadowMapSizeTouch: 2048, // ... on touch devices (softer shadows, a quarter of the memory)
+    shadowSoftness: 0.45, // m, blur of a shadow's edge
+    shadowFadeStart: 0.62, // share of shadowRange where shadows begin to fade out with distance
+    shadowFadeEnd: 0.92, // share of shadowRange where they are gone (inside the box's edge)
     shadowBias: -0.0004,
     shadowNormalBias: 0.25, // m, pushes the lookup off the surface (no acne on gentle slopes)
     shadowSunMin: 0.06, // sun height (sunDir.y) where shadows have faded out (low sun, night)
     shadowSunFull: 0.18, // sun height where shadows reach full strength
     contactStrength: 0.34, // darkness of a contact shadow at its centre
-    contactWithShadows: 0.2, // ... with the shadow map on too (it is only ambient occlusion then)
+    contactWithShadows: 0.2, // ... where the shadow map draws the real shadow (ambient occlusion only)
     contactRange: 280, // m, contact shadows fade out by this distance
     contactSize: 0.85, // blob radius as a share of a tree's crown radius
     cloudScale: 0.0035, // 1/m: cloud-shadow patch frequency (smaller = bigger clouds)

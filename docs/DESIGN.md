@@ -66,9 +66,9 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
 | `lightShafts`: screen-space sun shafts       | off | off        | on          |
 | `coverDistance` / `coverDensity`: grass ring | off | 60 m, 60 % | 80 m, 100 % |
 
-- **Sun shadows** (`fx/SunShadows`): a 2048 PCF map in a ±150 m box that follows the bird,
+- **Sun shadows** (`fx/SunShadows`): a 4096 PCF map (2048 on touch devices) in a ±400 m box that follows the bird, fading out with distance,
   snapped to the light-space texel grid so its edges don't crawl. Partial (`levelLight.*.shadows`
-  is the darkness, ~0.5-0.6) so a shadow reads as painted shade. Terrain chunks cast and receive;
+  is the darkness, ~0.5-0.6) so a shadow reads as painted shade. Terrain chunks receive but do not cast;
   trees cast through `ShadowCasters`, near-only copies on a shadow-only layer (an instanced mesh
   is never culled, so the real one would draw every tree into the map). `LitScenery` makes every
   lit mesh of a level receive. A low sun fades shadows by intensity and skips the pass (by
@@ -1108,7 +1108,11 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   one-off recompile of lit materials, a short hitch when Auto steps the preset down); the sun's
   height fades shadows by intensity and skips the pass at low sun, so dawn and dusk never
   recompile. At night the moon is the light, so moonlit shadows stay (faint) and so does the pass.
-- Terrain does not cast into the shadow map (trees, buildings and props do). The map is a 150 m
+- The shadow map reaches 400 m round the bird (4096 texels; 2048 on touch devices) and its
+  shadows fade out with distance from the bird (62-92% of the range, `fadeSunShadow`), where
+  contact shadows return to full strength. At 150 m with a hard edge, shadows appeared out of
+  nowhere as the bird flew up to them, worst at golden hour when they are long.
+- Terrain does not cast into the shadow map (trees, buildings and props do). The map is a
   box round the bird; a hill's shadow in a low sun is far longer, so only the part inside the
   box was drawn: a dark patch round the bird, lit land beyond, unrolling as it flew. Slopes
   turned from the sun are already darkened by the toon shading. A level can opt back in

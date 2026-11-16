@@ -351,9 +351,7 @@ export class Trees {
     this.counts = this.meshes.map(() => 0);
     for (const mesh of this.meshes) mesh.receiveShadow = true;
     // Sun-shadow casters near the bird, one per type, in the detailed shape where there is one.
-    this.casters = geometries.map(
-      (g, i) => new ShadowCasters(near[i] ?? g, mat, Math.ceil(capacity / 3)),
-    );
+    this.casters = geometries.map((g, i) => new ShadowCasters(near[i] ?? g, mat, capacity));
     this.crowns = geometries.map((g) => {
       g.computeBoundingBox();
       const b = g.boundingBox!;

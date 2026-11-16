@@ -202,9 +202,7 @@ export class KarstDecor implements ChunkDecor<KarstChunk> {
       this.near.push(this.make(near[k], CAP[k], names[k]));
       const fg = far[k];
       this.far.push(fg ? this.make(fg, CAP[k], `${names[k]}-far`) : null);
-      const caster = CASTS[k]
-        ? new ShadowCasters(near[k], this.material, Math.ceil(CAP[k] / 3))
-        : null;
+      const caster = CASTS[k] ? new ShadowCasters(near[k], this.material, CAP[k]) : null;
       this.casters.push(caster);
       if (caster) this.group.add(caster.mesh);
     }

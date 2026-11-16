@@ -9,7 +9,7 @@ export const SHADOW_LAYER = 1;
  * Shadow-only copies of an instanced shape, holding just the instances near the bird. An
  * instanced mesh is never frustum-culled (its instances span the view), so letting the real
  * mesh cast would draw every instance out to the draw distance into a shadow map that covers
- * ~150 m round the bird. The proxy lives on SHADOW_LAYER: the sun's shadow camera renders it,
+ * a few hundred metres round the bird. The proxy lives on SHADOW_LAYER: the sun's shadow camera renders it,
  * the main camera never does. Refilled alongside its mesh (when the chunk set changes), so it
  * keeps instances out to the shadow box plus a refill's worth of flight (`reach`).
  */
@@ -34,7 +34,9 @@ export class ShadowCasters {
     this.n = 0;
     this.cx = px;
     this.cz = pz;
-    const r = Config.render.shadows > 0 ? Config.light.shadowRange * Math.SQRT2 + reach : 0;
+    // Shadows have faded out by shadowFadeEnd, so casters past it (plus the flight) draw nothing.
+    const L = Config.light;
+    const r = Config.render.shadows > 0 ? L.shadowRange * L.shadowFadeEnd + reach : 0;
     this.r2 = r * r;
   }
 

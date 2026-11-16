@@ -37,6 +37,38 @@ export function shadowFade(sunY: number): number {
   return smoothstep(Config.light.shadowSunMin, Config.light.shadowSunFull, sunY);
 }
 
+/** Where the shadow map's shadows fade out, shared by every lit material (see fadeSunShadow). */
+export const sunShadowUniforms = {
+  uSunShadowFocus: { value: new THREE.Vector3() },
+  /** x: distance from the focus where shadows start to fade, y: where they are gone. */
+  uSunShadowFade: { value: new THREE.Vector2(1e6, 2e6) },
+};
+
+/** Declarations for `fadeSunShadow` (after <common>). */
+export const SUN_SHADOW_PARS = /* glsl */ `
+uniform vec3 uSunShadowFocus;
+uniform vec2 uSunShadowFade;`;
+
+const DIRECTIONAL_LOOKUP =
+  /getShadow\( directionalShadowMap\[ i \][^;]*vDirectionalShadowCoord\[ i \] \)/;
+
+/**
+ * The lights chunk with the sun's shadow fading out with distance from the bird, for a fragment
+ * shader that has a world position in `worldPos`. The map covers a box round the bird; without
+ * the fade, shadows ended at its edge and so appeared out of nowhere as the bird flew up to
+ * them. Faded, they thin out into the distance (where contact shadows take over).
+ */
+export function fadeSunShadow(worldPos: string): string {
+  const chunk = THREE.ShaderChunk.lights_fragment_begin;
+  const out = chunk.replace(
+    DIRECTIONAL_LOOKUP,
+    (lookup) =>
+      `mix( ${lookup}, 1.0, smoothstep( uSunShadowFade.x, uSunShadowFade.y, distance( ${worldPos}.xz, uSunShadowFocus.xz ) ) )`,
+  );
+  if (out === chunk) throw new Error('fadeSunShadow: three changed its directional shadow lookup');
+  return out;
+}
+
 /**
  * The sun's shadow map: a box round the bird (Config.light.shadowRange), soft PCF and partial
  * (a painted shade, not a black cut-out). On only on presets with `render.shadows` and levels
@@ -56,7 +88,13 @@ export class SunShadows {
     renderer.shadowMap.autoUpdate = false;
     const L = Config.light;
     const sh = sun.shadow;
-    sh.mapSize.set(L.shadowMapSize, L.shadowMapSize);
+    // A phone gets a smaller map: the same reach, softer shadows, a quarter of the memory.
+    const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    const size = Math.min(
+      touch ? L.shadowMapSizeTouch : L.shadowMapSize,
+      renderer.capabilities.maxTextureSize,
+    );
+    sh.mapSize.set(size, size);
     sh.camera.near = 1;
     sh.camera.far = 1000;
     sh.camera.layers.enable(SHADOW_LAYER);
@@ -88,13 +126,17 @@ export class SunShadows {
     }
     sh.bias = L.shadowBias;
     sh.normalBias = L.shadowNormalBias;
-    sh.radius = L.shadowSoftness;
+    // The blur is set in metres, so the look doesn't change with the map's size or reach.
+    const texel = (2 * r) / sh.mapSize.x;
+    sh.radius = Math.max(1, L.shadowSoftness / texel);
+    sunShadowUniforms.uSunShadowFocus.value.copy(focus);
+    sunShadowUniforms.uSunShadowFade.value.set(r * L.shadowFadeStart, r * L.shadowFadeEnd);
     const k = strength * shadowFade(sunDir.y);
     sh.intensity = k;
     // A faded-out map is never sampled to any effect, so skip the shadow pass.
     this.renderer.shadowMap.needsUpdate = k > 0.001;
     if (k <= 0.001) return;
-    snapToTexel(this.target.copy(focus), sunDir, (2 * r) / sh.mapSize.x);
+    snapToTexel(this.target.copy(focus), sunDir, texel);
     this.sun.target.position.copy(this.target);
     this.sun.position.copy(sunDir).multiplyScalar(500).add(this.target);
   }

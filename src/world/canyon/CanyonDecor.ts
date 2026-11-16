@@ -166,7 +166,7 @@ export class CanyonDecor implements ChunkDecor<CanyonChunk> {
       this.near.push(mesh);
       const fg = far[k];
       this.far.push(fg ? this.make(fg, mat, CAP[k], `canyon-${k}-far`) : null);
-      const caster = CASTS[k] ? new ShadowCasters(near[k], mat, Math.ceil(CAP[k] / 3)) : null;
+      const caster = CASTS[k] ? new ShadowCasters(near[k], mat, CAP[k]) : null;
       this.casters.push(caster);
     }
     this.group.add(

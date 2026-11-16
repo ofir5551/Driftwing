@@ -138,9 +138,7 @@ export class HighlandsDecor implements ChunkDecor<HighlandsChunk> {
       this.near.push(this.make(near[k], CAP[k], `hl-${k}`));
       const fg = far[k];
       this.far.push(fg ? this.make(fg, CAP[k], `hl-${k}-far`) : null);
-      const caster = CASTS[k]
-        ? new ShadowCasters(near[k], this.material, Math.ceil(CAP[k] / 3))
-        : null;
+      const caster = CASTS[k] ? new ShadowCasters(near[k], this.material, CAP[k]) : null;
       this.casters.push(caster);
       if (caster) this.group.add(caster.mesh);
     }

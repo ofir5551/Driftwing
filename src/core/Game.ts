@@ -410,15 +410,17 @@ export class Game {
     this.sun.position.copy(this.day.sunDir).multiplyScalar(100).add(this.bird.root.position);
     this.sun.target.position.copy(this.bird.root.position);
     this.shadows.update(this.bird.root.position, this.day.sunDir, this.levelLight.shadows);
-    // Contact shadows are lighter when the shadow map draws the real ones (they're only the
-    // occlusion at the foot then).
+    // Contact shadows are lighter where the shadow map draws the real ones (they're only the
+    // occlusion at the foot there), and full again where those have faded out with distance.
     const L = Config.light;
-    contactUniforms.uStrength.value =
-      Config.render.contactShadows > 0
-        ? this.shadows.enabled
-          ? L.contactWithShadows
-          : L.contactStrength
-        : 0;
+    const contact = Config.render.contactShadows > 0 ? L.contactStrength : 0;
+    contactUniforms.uStrength.value = contact;
+    contactUniforms.uNearStrength.value =
+      contact > 0 && this.shadows.enabled ? L.contactWithShadows : contact;
+    contactUniforms.uMapFade.value.set(
+      L.shadowRange * L.shadowFadeStart,
+      L.shadowRange * L.shadowFadeEnd,
+    );
     contactUniforms.uFar.value = L.contactRange;
     this.composer.shaftStrength = this.levelLight.shafts * Config.render.lightShafts;
     updateCloudShadows(

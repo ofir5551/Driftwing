@@ -16,6 +16,10 @@ import { RingmoonLayout } from './RingmoonLayout';
 import { RingmoonPlanner } from './RingmoonWisps';
 import type { DiscoveryDef } from '../Discoveries';
 import { ringmoonFinds } from './finds';
+import { ringCover } from './cover';
+import { createRingGeometry, fillRing, ringLandFrame, withRingLand } from './land';
+import { propMaterial, ringFrame, withMoonLight } from './materials';
+import { campGeometry } from './shapes';
 
 /**
  * Sea-floor and islet colours. The water over the shallows is fairly clear (the level's water
@@ -58,6 +62,7 @@ export class RingmoonWorld implements World {
   private readonly decor: RingmoonDecor;
   private readonly shipMaterial: THREE.MeshToonMaterial;
   private readonly glowMaterial: THREE.MeshBasicMaterial;
+  private readonly campMaterial = propMaterial();
   private readonly n = { x: 0, y: 0, z: 0 };
 
   constructor(seed: number) {
@@ -72,18 +77,27 @@ export class RingmoonWorld implements World {
     this.decor = new RingmoonDecor(L);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withGroundDetail(
-        withMist(
-          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      material: withMoonLight(
+        withRingLand(
+          withGroundDetail(
+            withMist(
+              new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+            ),
+          ),
         ),
       ),
       color: (f, x, z, y, slope, out) => this.groundColor(f, x, z, y, slope, out),
+      createGeometry: createRingGeometry,
+      fillExtra: (g, ox, oz, size, res) => fillRing(L, g, ox, oz, size, res),
+      cover: ringCover(),
     });
     this.planner = new RingmoonPlanner(L);
     // The ship: one mesh, and its glow.
     const S = L.ship;
     this.shipMaterial = withMist(
-      new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      withMoonLight(
+        new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      ),
     );
     this.glowMaterial = new THREE.MeshBasicMaterial({ color: GLOW_DAY.clone() });
     const ship = new THREE.Mesh(shipGeometry(S), this.shipMaterial);
@@ -94,7 +108,15 @@ export class RingmoonWorld implements World {
     }
     ship.name = 'ship';
     glow.name = 'ship-glow';
-    this.group.add(this.chunks.group, ship, glow);
+    // One mesh, frustum-culled: its shadow on the shallows (the sea floor shows through) is
+    // drawn only while it is in the shadow map's box.
+    ship.castShadow = true;
+    // The explorers' camp on its spit: the awning and the skiff, one mesh (habs and masts are
+    // instanced with the outposts').
+    const camp = new THREE.Mesh(campGeometry(L), this.campMaterial);
+    camp.name = 'camp';
+    camp.castShadow = true;
+    this.group.add(this.chunks.group, ship, glow, camp);
   }
 
   private groundColor(
@@ -137,9 +159,10 @@ export class RingmoonWorld implements World {
     return s <= y ? Math.max(g, s) : g;
   }
 
-  /** Generic wisp paths ride over any stone near their line rather than into it. */
+  /** Generic wisp paths ride over any stone near their line rather than into it, and over floaters. */
   wispFloor(x: number, z: number): number {
-    return Math.max(this.flightGround(x, z), this.layout.skyline(x, z, 18) + 6);
+    const L = this.layout;
+    return Math.max(this.flightGround(x, z), L.skyline(x, z, 18) + 6, L.floaterTop(x, z, 10) + 8);
   }
 
   prime(px: number, pz: number): void {
@@ -161,6 +184,8 @@ export class RingmoonWorld implements World {
     u.uMistTime.value = time;
     const night = smoothstep(0.08, 0.6, p.stars) * R.glow;
     this.glowMaterial.color.copy(GLOW_DAY).lerp(GLOW_NIGHT, night);
+    ringFrame(day, time);
+    ringLandFrame(day);
     this.decor.frame(day, time);
   }
 
@@ -212,9 +237,13 @@ export class RingmoonWorld implements World {
   dispose(): void {
     this.chunks.dispose();
     for (const o of this.group.children)
-      if (o instanceof THREE.Mesh && (o.name === 'ship' || o.name === 'ship-glow'))
+      if (
+        o instanceof THREE.Mesh &&
+        (o.name === 'ship' || o.name === 'ship-glow' || o.name === 'camp')
+      )
         o.geometry.dispose();
     this.shipMaterial.dispose();
+    this.campMaterial.dispose();
     this.glowMaterial.dispose();
     mistUniforms.uMist.value = 0;
     mistUniforms.uMistFar.value = 0;

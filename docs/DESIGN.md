@@ -85,7 +85,8 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
   in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River, City of Gold, Red
   Canyons, whose style adds its own shapes: sagebrush, prickly pear, tumbleweeds; Coral Atolls:
   ferns, driftwood, shells, and seagrass under the clear water; and Aurora Fjords: heather,
-  crowberry and moss); `paint` gets every component of the style's `extra` attribute (`t.extras`).
+  crowberry and moss; Ringmoon Shallows: moss cushions, trumpet flowers, spore puffs and sea
+  moss); `paint` gets every component of the style's `extra` attribute (`t.extras`).
 
 ## Levels
 
@@ -789,7 +790,7 @@ one light), so every sunset happens twice. The suns go down to the right of the 
 Plan: a shallow sea (~5 m) over pale sand with violet and amber moss beds, fairly clear water
 (`waterClarity` 0.55) so they show through. Islets are low moss tables (3-8 m) rising in a
 terrace or two, most of the sea (channels of water between them), rust ledges on their steps, carrying coil fronds
-(a stalk whose top is still rolled up like a fiddlehead), fans of glassy reeds and glow pods.
+(a stalk whose top is still rolled up like a fiddlehead), fans of glassy reeds and clusters of glow bulbs.
 Beyond the islets lies mainland: broad land a kilometre or two across (~21 % of the world, kept
 240 m off the opening run and well clear of the ship), a flat moss shore rising inland into
 rolling hills up to ~46 m, teal up their flanks and gold on their crowns, never cliffs (no
@@ -830,6 +831,80 @@ the groves (planned 16 m clear of stone: in a grove the look-ahead sees stone on
 once), low skims over the water and the frond tops in a slow swell, and every few patterns a
 swing round a spire over 90 m tall, at a height among its knuckles, far enough out to clear
 its lean. Generic patterns (and their thermal spirals) only where no spire stands within 240 m.
+No ribbon runs through a floater: the planner's clearance check includes the space each one
+drifts through, and generic patterns ride over it (`wispFloor`).
+
+Lived in. Believable here means a coherent alien ecology with a small explorers' presence, still
+painted and calm. The ground is painted per pixel (`land.ts`) from a per-vertex `aRing`
+(distance to a path, sand bar, mainland, islet): the moss is a carpet of small cushions in
+patches of deeper violet, teal and gold (a light dappling, not tiles: a Voronoi cell with a
+strong dome read as paving and was toned right down); the islets' terrace risers are basalt
+columns with joints down them; every shore has a band of wet sand catching the sky, a lace of
+foam swashing at the waterline and tide pools on the flats above it (something small glows in
+some of them at night). Through the clear shallows the sea floor shows sand ripples, the moss
+beds as clumps and, after dark, spores in the beds that glow and twinkle. Sand bars wander over
+the open shallows (the zero contour of a stretched noise, off the opening run and the ship),
+just awash in stretches and a pale shoal elsewhere.
+
+Basalt: the spires are bundles of columns, painted per pixel (`rock.ts`): each column a flat
+face (the shading normal turned to its middle, so the toon bands step face to face), its own
+cool or warm grey, thin joints, and cross joints at its own spacing with a pale lip, half of
+them whole. Column widths wander (a periodic noise warps the angle) and they follow the lean
+(cut from the mesh's unit space). Joints and cracks fade where a pixel spans much of a column,
+so far spires never show a grid. The meshes are finer (14 x 26 near, 8 x 10 far). On the islets'
+terraces, clusters of hexagonal column stubs step down the risers.
+
+Ground cover (`cover.ts`): violet moss tufts on the islets and teal on the hills, moss
+cushions, trumpet flowers (a curving stalk, a pink bell lit gold inside) and spore puffs among
+them, drifts of teal, magenta, gold and lilac blossoms; dark sea moss in the beds under the
+water; bare on the wet sand, the paths, the bars and the rock.
+
+Explorers: whoever came down in the landing pods camps by them. About three groups of pods in
+four have an outpost: one or two domed habs (a pale shell on a pad, round windows lit teal, an
+entry tunnel with a warm door, crates stacked by it), a mast with a dish and a pulsing tip, and a
+lit path from the pods to each, lamps either side; the paths and the trodden ground round each
+hab are painted with lit studs along their edges. A camp stands on a sand spit beside the ship
+(on the spawn's side, toward its right end, its own little island: islets and mainland keep
+off it): three habs in an arc facing the ship, an awning over a table and crates, two masts,
+lamps along the spit and down to the beach, a skiff moored off it. All of it is soft (under the
+canopy, glided over).
+
+Life: glow bulbs (three on nodding stalks, teal, gold or violet) in clusters on the moss;
+schools of slim fish with glowing flanks circling in the shallows; herds of grazers on the
+mainland's hills: pale six-legged beasts with a violet frill and a long neck that sweeps down
+to the moss, shuffling round their patch with a tripod gait; and floaters, jelly-like bells 6 m
+across with ribbon tendrils, drifting high on slow circles over the sea and the islets (35-80
+m up), bobbing and pulsing, rims and tendril tips glowing after dark. Moving things follow a
+circle round their instance's origin in the vertex shader (radius and direction from a hash
+the scatter shares, as on the atolls), and every circle is checked: fish in water at least 1.7
+m deep and clear of stone, grazers on level moss (within 0.6 m all round) clear of stone, the
+alien things, the paths and each other, floaters clear of every spire, beacon and the ship,
+tendrils and all, and off the opening run.
+
+Light: one directional light, so the level adds two fills in its own materials (`materials.ts`,
+`withMoonLight`): the giant's light, a wrapped diffuse from its side of the sky in its cream
+colour (strongest when its face toward us is lit, the ringlight's teal after dark), and the
+second sun's from where it trails the first, so faces in the main sun's shade get a soft warm
+side. Strengths in `levelLight.ringmoon` (`giant`, `sun2`). Props glow from a per-vertex
+`aGlow` (crystals faintly, bulbs, hatches, windows, lamps, fish, floaters; the beacons' tips and
+the masts' lights pulse): a little by day, HDR after dark for the bloom. On high, spires,
+landing pods, habs and beacons cast sun shadows through near-only proxies, and the ship (one
+mesh) casts too; pods, habs, masts, crystals, beacons, bulbs and steps get contact shadows on
+medium and high.
+
+- Code: `world/ringmoon/`: `RingmoonLayout` (pure: plan, spires, ship, alien things, the camp,
+  sand bars, outposts, floaters, life circles, queries), `RingmoonScatter` (pure: fronds,
+  explorers' parts, bulbs, steps, fish, grazers), `RingmoonDecor` (instancing, LOD, casters,
+  contact shadows), `land` (the ground's paint), `rock` (basalt), `cover`, `materials` (fills,
+  glow, the life's motion), `shapes` (explorers, life, cover shapes), `geometry` (spires, ship,
+  flora, pods near and far, beacons, crystals), `RingmoonWisps`.
+- Per preset (`render.*`): outposts, camp, bulbs, steps, grazers and pods' near shapes within
+  `propDistance` / `propDetail` (pods beyond use a tenth of the triangles); fish within
+  `smallPropDistance` (none on low); cover in the shared grass ring (none on low); fronds and
+  reeds have distant shapes beyond `treeFar`. Low keeps the finer spires for the nearest 160 m.
+- Cost at the review's viewpoints (triangles / draw calls, whole frame): medium 238-287k /
+  124-143 (was 289-311k / 113-134), high 400-480k / 134-168 (was 473-491k / 121-155), low
+  135-159k / 91-104 (was 153-179k / 87-100). The distant fronds and far pods pay for the rest.
 
 ## Gameplay
 
@@ -1634,3 +1709,21 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   `light.shadowSunMin`. Sea of Clouds opened at sunrise with the sun just below it; its dawn sun
   now sits just above. The shared code is unchanged; another level opening with the sun that
   low would need the same care, or SunShadows drawing the map once when it is enabled.
+- Ringmoon lived in: "believable" on another world means a coherent ecology (moss, bulbs,
+  grazers, fish, floaters) and a small explorers' presence by the landing pods and the ship,
+  not more alien machines. Everything new is soft (under the canopy) except what was already
+  solid; the floaters are not solid either, but the wisp planner treats the space each drifts
+  through as taken, so no ribbon leads the bird into one.
+- Ringmoon's scene keeps one directional light. The giant's light and the second sun's are fills
+  added in the level's own materials (`withMoonLight`), like the canyon's bounce: a real second
+  light would recompile every material of every level and cost every lit fragment.
+- Night glow on Ringmoon is a per-vertex `aGlow` on one shared prop material (and the life
+  material) instead of separate basic-material meshes: the lander hatches, beacon tips and
+  crystals' glow folded into their meshes, so glowing parts cost no draw calls of their own.
+- Ringmoon's spires first got dark vertical joints and regular cracks: from a few hundred metres
+  they read as staves or brickwork (wood, not stone). The columns now differ in width, their
+  joints are faint and fade where a pixel spans much of a column, half the cross joints show,
+  and the column faces carry the read (each its own normal and grey).
+- The herd cells (220 m) are wider than a chunk (160 m): a cell belongs to the chunk whose index
+  range holds it (the ceil/ceil partition every scatter uses), not the chunk holding its jittered
+  centre; checking both dropped most herds.

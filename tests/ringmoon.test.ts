@@ -5,6 +5,18 @@ import { RINGMOON_MUSIC } from '../src/audio/styles';
 import { Config } from '../src/core/Config';
 import {
   BEACON,
+  FLOATER,
+  FLOATER_CLEAR,
+  LAMP_GROUND,
+  LIFE_PATHS,
+  lifePhase,
+  lifeRadius,
+  OUT_HAB,
+  OUT_LAMP,
+  OUT_MAST,
+  OUT_SKIFF,
+  OUT_STRIDE,
+  OUT_TOP,
   PROP_BEACON,
   PROP_CRYSTAL,
   PROP_POD,
@@ -12,10 +24,15 @@ import {
   SPIRE_REACH,
   SPIRE_SHAPES,
   spireProfile,
+  type Floater,
+  type Outpost,
   type Prop,
   type Spire,
 } from '../src/world/ringmoon/RingmoonLayout';
+import { ANIM, P, PROP_STRIDE, RingmoonScatter } from '../src/world/ringmoon/RingmoonScatter';
 import { RingmoonWorld } from '../src/world/ringmoon/RingmoonWorld';
+import { ringCover } from '../src/world/ringmoon/cover';
+import type { CoverTuft } from '../src/world/GroundCover';
 import { flyBot } from './helpers';
 
 const L = new RingmoonLayout(1337);
@@ -201,7 +218,7 @@ describe('ringmoon layout', () => {
 });
 
 describe('ringmoon wisps', () => {
-  it('ribbons never sit inside stone or hull, and an autopilot gathers them', () => {
+  it('ribbons never sit inside stone, hull or a floater, and an autopilot gathers them', () => {
     for (const seed of [42, 2024]) {
       const w = new RingmoonWorld(seed);
       const r = flyBot(
@@ -209,7 +226,8 @@ describe('ringmoon wisps', () => {
         w.layout.spawn,
         seed,
         120,
-        (x, y, z) => w.layout.solidTop(x, y, z, 0) !== -Infinity,
+        (x, y, z) =>
+          w.layout.solidTop(x, y, z, 0) !== -Infinity || w.layout.floaterNear(x, y, z, 0),
       );
       expect(r.inside).toBe(0);
       expect(r.got).toBeGreaterThan(150);
@@ -273,5 +291,292 @@ describe('ringmoon alien things', () => {
     expect(n.x).toBeGreaterThan(0.9);
     expect(L.solidTop(pt.x, pt.y, pt.z, 0.99)).toBe(-Infinity);
     expect(L.skyline(b.x, b.z, 5)).toBeGreaterThanOrEqual(b.top);
+  });
+});
+
+/** Every outpost round the origin. */
+function outpostsAround(layout: RingmoonLayout, half: number): Outpost[] {
+  const C = Config.ringmoon.propCell;
+  const out: Outpost[] = [];
+  for (let j = Math.floor(-half / C); j <= Math.floor(half / C); j++)
+    for (let i = Math.floor(-half / C); i <= Math.floor(half / C); i++) {
+      const o = layout.outpost(i, j);
+      if (o) out.push(o);
+    }
+  return out;
+}
+
+/** A part stands on its ground and under the flight floor (soft, glided over). */
+function expectSoftPart(layout: RingmoonLayout, kind: number, x: number, z: number, s: number) {
+  const g = layout.height(x, z);
+  expect(g).toBeGreaterThanOrEqual(kind === OUT_LAMP ? LAMP_GROUND : 2.6);
+  expect(OUT_TOP[kind] * s).toBeLessThanOrEqual(layout.canopy(g) + 0.01);
+  expect(layout.solidTop(x, g + 1, z, 1)).toBe(-Infinity);
+}
+
+describe('ringmoon explorers', () => {
+  it('raises the camp on a sand spit beside the ship, clear of the opening run', () => {
+    for (const seed of [1337, 42, 1]) {
+      const l = new RingmoonLayout(seed);
+      const c = l.camp;
+      expect(l.height(c.x, c.z)).toBeGreaterThan(2.6);
+      expect(l.nearOpening(c.x, c.z, 60)).toBe(false);
+      expect(l.shipZone(c.x, c.z, 0)).toBeGreaterThan(1.9);
+      const Q = l.campSite.parts;
+      const kinds = new Set<number>();
+      for (let k = 0; k < Q.length; k += OUT_STRIDE) {
+        kinds.add(Q[k]);
+        if (Q[k] === OUT_SKIFF) expect(l.height(Q[k + 1], Q[k + 2])).toBeLessThan(-0.5);
+        else if (Q[k] <= OUT_LAMP) expectSoftPart(l, Q[k], Q[k + 1], Q[k + 2], Q[k + 4]);
+        expect(l.solidTop(Q[k + 1], 4, Q[k + 2], 2)).toBe(-Infinity);
+      }
+      for (const k of [OUT_HAB, OUT_MAST, OUT_LAMP, OUT_SKIFF]) expect(kinds.has(k)).toBe(true);
+      // The lit path runs through the middle of the camp.
+      expect(l.pathDist(c.x, c.z)).toBeLessThan(10);
+    }
+  });
+
+  it('sets outposts by the landers: habs, masts and lit paths on level moss, soft', () => {
+    const os = outpostsAround(L, 2500);
+    expect(os.length).toBeGreaterThan(15);
+    let habs = 0;
+    let lamps = 0;
+    for (const o of os) {
+      const Q = o.parts;
+      for (let k = 0; k < Q.length; k += OUT_STRIDE) {
+        const kind = Q[k];
+        const x = Q[k + 1];
+        const z = Q[k + 2];
+        expectSoftPart(L, kind, x, z, Q[k + 4]);
+        expect(L.nearOpening(x, z, 45)).toBe(false);
+        expect(L.spiresNear(x, z, 10)).toBe(0);
+        if (kind === OUT_HAB) habs++;
+        if (kind === OUT_LAMP) lamps++;
+        // On or beside the path, never on a lander, a crystal or a beacon.
+        if (kind !== OUT_LAMP) expect(L.propNear(x, z, 4)).toBe(false);
+        expect(L.pathDist(x, z)).toBeLessThan(3);
+      }
+      // The pods it serves stand round its middle.
+      expect(L.propNear(o.x, o.z, 16)).toBe(true);
+    }
+    expect(habs).toBeGreaterThan(15);
+    expect(lamps).toBeGreaterThan(40);
+    expect(L.outpost(-1, -3)).toEqual(new RingmoonLayout(1337).outpost(-1, -3));
+  });
+
+  it('lifts sand bars in the shallows just clear of the water, never on the opening run', () => {
+    let bars = 0;
+    let dry = 0;
+    for (let z = -2500; z < 2500; z += 13)
+      for (let x = -2500; x < 2500; x += 17) {
+        const b = L.sandbar(x, z);
+        if (b < 0.9) continue;
+        if (L.mainland(x, z) > 0 || L.isle(x, z) > 0 || L.campMask(x, z) > 0) continue;
+        bars++;
+        const y = L.height(x, z);
+        expect(y).toBeLessThan(0.5);
+        if (y > 0) dry++;
+        expect(L.openness(x, z, 90)).toBeLessThan(1);
+      }
+    expect(bars).toBeGreaterThan(50);
+    expect(dry).toBeGreaterThan(5);
+    expect(dry / bars).toBeLessThan(0.7);
+  });
+});
+
+describe('ringmoon floaters', () => {
+  /** Every floater round the origin. */
+  function floatersAround(layout: RingmoonLayout, half: number): Floater[] {
+    const C = Config.ringmoon.floaterCell;
+    const out: Floater[] = [];
+    for (let j = Math.floor(-half / C); j <= Math.floor(half / C); j++)
+      for (let i = Math.floor(-half / C); i <= Math.floor(half / C); i++) {
+        const f = layout.floater(i, j);
+        if (f) out.push(f);
+      }
+    return out;
+  }
+
+  it('drift high on circles clear of stone, the ship and the opening run', () => {
+    const fs = floatersAround(L, 3000);
+    expect(fs.length).toBeGreaterThan(15);
+    for (const f of fs) {
+      expect(f.r).toBeCloseTo(lifeRadius(ANIM.Floater, f.x, f.z), 6);
+      expect(L.nearOpening(f.x, f.z, 120)).toBe(false);
+      const low = f.y - FLOATER.down * f.s;
+      for (let n = 0; n < 24; n++) {
+        const a = (n / 24) * Math.PI * 2;
+        const px = f.x + Math.cos(a) * f.r;
+        const pz = f.z + Math.sin(a) * f.r;
+        const g = L.height(px, pz);
+        expect(low).toBeGreaterThan(Math.max(g + L.canopy(g), 0) + 15);
+        for (const y of [low, f.y, f.y + FLOATER.up * f.s])
+          expect(L.solidTop(px, y, pz, FLOATER.out * f.s + 2)).toBe(-Infinity);
+        // The planner sees it (no ribbon runs through), the flight model doesn't (soft).
+        expect(L.floaterNear(px, f.y, pz, 0)).toBe(true);
+        expect(L.clear(px, f.y, pz, 1, 2)).toBe(false);
+      }
+      const out = f.x + f.r + FLOATER.out * f.s + FLOATER_CLEAR + 1;
+      expect(L.floaterNear(out, f.y, f.z, FLOATER_CLEAR)).toBe(false);
+    }
+  });
+});
+
+describe('ringmoon scatter', () => {
+  const S = new RingmoonScatter(L);
+  const size = Config.world.chunkSize;
+  const life: number[] = [];
+  const sites: number[] = [];
+  const plants: number[] = [];
+  for (let cz = -8; cz <= 8; cz++)
+    for (let cx = -8; cx <= 8; cx++) {
+      S.props(cx * size, cz * size, size, life);
+      S.sites(cx * size, cz * size, size, sites);
+    }
+  for (let cz = -3; cz <= 1; cz++)
+    for (let cx = -2; cx <= 1; cx++) S.plants(cx * size, cz * size, size, plants);
+
+  it('is deterministic', () => {
+    for (const [ox, oz] of [
+      [160, 320],
+      [-320, -480],
+    ]) {
+      const a: number[] = [];
+      const b: number[] = [];
+      new RingmoonScatter(new RingmoonLayout(1337)).props(ox, oz, size, a);
+      new RingmoonScatter(new RingmoonLayout(1337)).props(ox, oz, size, b);
+      expect(a).toEqual(b);
+      const c: number[] = [];
+      const d: number[] = [];
+      S.sites(ox, oz, size, c);
+      new RingmoonScatter(new RingmoonLayout(1337)).sites(ox, oz, size, d);
+      expect(c).toEqual(d);
+    }
+  });
+
+  it('puts bulbs and steps on the land, fish in the water and grazers on the hills', () => {
+    const seen = new Set<number>();
+    const grazers: number[][] = [];
+    for (let k = 0; k < life.length; k += PROP_STRIDE) {
+      const kind = life[k];
+      const x = life[k + 1];
+      const y = life[k + 2];
+      const z = life[k + 3];
+      seen.add(kind);
+      const g = L.height(x, z);
+      if (kind === P.Bulbs) {
+        expect(g).toBeGreaterThan(1.4);
+        expect(L.pathDist(x, z)).toBeGreaterThan(2.4);
+        expect(L.skyline(x, z, 2)).toBe(-Infinity);
+      } else if (kind === P.Steps) {
+        expect(g).toBeGreaterThan(2.3);
+        expect(L.mainland(x, z)).toBeLessThan(0.21);
+        expect(L.skyline(x, z, 3)).toBe(-Infinity);
+      } else if (kind === P.Fish) {
+        // The whole circle it follows stays in water deeper than it swims, clear of stone.
+        const r = lifeRadius(ANIM.Fish, x, z);
+        for (let n = 0; n < 24; n++) {
+          const a = (n / 24) * Math.PI * 2;
+          const px = x + Math.cos(a) * r;
+          const pz = z + Math.sin(a) * r;
+          expect(L.height(px, pz)).toBeLessThan(y - 0.4);
+          expect(L.solidTop(px, -0.5, pz, 1)).toBe(-Infinity);
+        }
+      } else if (kind === P.Grazer) {
+        const r = lifeRadius(ANIM.Grazer, x, z);
+        for (let n = 0; n < 24; n++) {
+          const a = (n / 24) * Math.PI * 2;
+          const px = x + Math.cos(a) * r;
+          const pz = z + Math.sin(a) * r;
+          // Feet on the moss: at most 0.75 m off the ground either way, all round.
+          expect(Math.abs(L.height(px, pz) - y)).toBeLessThan(0.75);
+          for (const h of [1, 3]) expect(L.solidTop(px, y + h, pz, 2.5)).toBe(-Infinity);
+          expect(L.propNear(px, pz, 3)).toBe(false);
+        }
+        for (const [ox, oz] of grazers)
+          expect(Math.hypot(x - ox, z - oz)).toBeGreaterThan(
+            r + lifeRadius(ANIM.Grazer, ox, oz) + 4,
+          );
+        grazers.push([x, z]);
+      }
+    }
+    for (const k of [P.Bulbs, P.Steps, P.Fish, P.Grazer]) expect(seen.has(k)).toBe(true);
+    expect(grazers.length).toBeGreaterThan(10);
+  });
+
+  it('keeps the plants off the paths and the habs, and lists every outpost part once', () => {
+    for (let k = 0; k < plants.length; k += 7)
+      expect(L.pathDist(plants[k + 1], plants[k + 3])).toBeGreaterThanOrEqual(4);
+    const keys = new Set<string>();
+    for (let k = 0; k < sites.length; k += PROP_STRIDE) {
+      const kind = sites[k];
+      const key = `${kind}:${sites[k + 1].toFixed(2)}:${sites[k + 3].toFixed(2)}`;
+      expect(keys.has(key)).toBe(false);
+      keys.add(key);
+      if (kind === OUT_HAB || kind === OUT_MAST || kind === OUT_LAMP)
+        expect(sites[k + 2]).toBeLessThan(L.height(sites[k + 1], sites[k + 3]));
+    }
+  });
+
+  it("agrees with the shader on a moving thing's circle", () => {
+    for (const [x, z] of [
+      [0, 0],
+      [123.4, -987.6],
+      [4000, 2500],
+    ]) {
+      const ph = lifePhase(x, z);
+      expect(ph).toBeGreaterThanOrEqual(0);
+      expect(ph).toBeLessThan(1);
+      // float32, as the GPU sees it
+      const f = Math.fround(
+        Math.fround(x) * Math.fround(0.0137) + Math.fround(z) * Math.fround(0.0291),
+      );
+      expect(Math.abs(f - Math.floor(f) - ph)).toBeLessThan(1e-3);
+    }
+    expect(Object.keys(LIFE_PATHS).map(Number)).toEqual([ANIM.Fish, ANIM.Grazer, ANIM.Floater]);
+  });
+
+  it('grows sea moss in the beds, none on the sand, the bars, the paths or the wet sand', () => {
+    const style = ringCover();
+    const tuft = (r: number, extras: [number, number, number, number]): CoverTuft => ({
+      r,
+      g: r,
+      b: r,
+      scale: 1,
+      bare: false,
+      bloom: -1,
+      petal: -1,
+      extra: extras[0],
+      extras,
+      shape: 0,
+    });
+    let moss = 0;
+    let land = 0;
+    const shapes = new Set<number>();
+    for (let i = 0; i < 400; i++) {
+      const x = 900 + i * 0.37;
+      const bed = tuft(0.3, [2, 0, 0, 0]);
+      style.paint!(x, 50, -1.5, bed);
+      if (!bed.bare) moss++;
+      for (const t of [tuft(0.8, [2, 0, 0, 0]), tuft(0.3, [2, 0.9, 0, 0])]) {
+        style.paint!(x, 50, -1.5, t);
+        expect(t.bare).toBe(true); // sand, a bar
+      }
+      const wet = tuft(0.4, [2, 0, 0, 1]);
+      style.paint!(x, 50, 0.8, wet);
+      expect(wet.bare).toBe(true);
+      const path = tuft(0.4, [0.2, 0, 0, 1]);
+      style.paint!(x, 50, 4, path);
+      expect(path.bare).toBe(true);
+      const turf = tuft(0.4, [2, 0, 0, 1]);
+      style.paint!(x, 50, 4, turf);
+      if (!turf.bare) {
+        land++;
+        shapes.add(turf.shape);
+      }
+    }
+    expect(moss).toBeGreaterThan(120);
+    expect(land).toBeGreaterThan(150);
+    expect([...shapes].sort()).toEqual([0, 1, 2, 3]);
   });
 });

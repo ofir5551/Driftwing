@@ -151,14 +151,22 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `materials` (the life's vertex-shader motion, smoke), `shapes` (props), `Surf` (an animated
   foam strip per atoll in view), `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
   the seabed's colours through the water.
-- `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets and mainland of rolling
-  hills, leaning
-  basalt spires lathed from one knuckled profile (the lean is a shear in the instance matrix;
-  queries follow the leaning axis), the ship (an ellipsoid hull with an underside, four leg
-  capsules), the two gate spires beside it, and alien props on the land: landers and crystals
-  (soft, under the canopy) and beacon towers (solid; rings spun in the shader)), `RingmoonWisps` (the run under the ship, grove
-  slaloms, skims, swings round tall spires), `RingmoonDecor`, `geometry`, `RingmoonWorld`. The
-  ringed giant and the second sun are the `giant` backdrop in `Sky`.
+- `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets, sand bars
+  and mainland of rolling hills, leaning basalt spires lathed from one knuckled profile (the lean
+  is a shear in the instance matrix; queries follow the leaning axis), the ship (an ellipsoid
+  hull with an underside, four leg capsules), the two gate spires beside it, alien props on the
+  land: landers and crystals (soft, under the canopy) and beacon towers (solid; rings spun in
+  the shader); the explorers' outposts by the landers and the camp on its spit by the ship (habs,
+  masts, lit paths; soft, `pathDist`), floaters on high circles (`floaterNear`: the planner's
+  `clear` keeps ribbons off them) and the life circles (`LIFE_PATHS`)), `RingmoonScatter` (pure:
+  fronds, outpost parts, glow bulbs, terrace steps, fish, grazers per chunk; moving things on
+  checked circles), `RingmoonWisps` (the run under the ship, grove slaloms, skims, swings round
+  tall spires), `RingmoonDecor` (instancing, near/far, casters, contact shadows), `land` (the
+  ground's paint from `aRing`: moss cushions, basalt risers, shore foam, tide pools, seabed,
+  paths), `rock` (per-pixel column faces and cracks on the spires and steps), `cover`,
+  `materials` (the giant's and second sun's fills, `aGlow` night glow, the life's vertex
+  motion), `shapes` (explorers, life, cover shapes), `geometry`, `RingmoonWorld`. The ringed
+  giant and the second sun are the `giant` backdrop in `Sky`.
 - Shared lighting (see DESIGN's Rendering): `fx/SunShadows` (shadow map round the bird, high),
   `world/ShadowCasters` (near-only caster proxies on layer 1), `world/ContactShadows` (blobs under
   trees/props), `world/CloudShadow` (drifting cloud shadows patch), `world/LitScenery` (gives every

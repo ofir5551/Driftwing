@@ -123,6 +123,73 @@ export function beaconProfile(t: number): number {
   return t < 0.07 ? BEACON.foot : BEACON.mast;
 }
 
+/** The explorers' things at an outpost or the camp (see `Outpost`). */
+export const OUT_HAB = 0;
+export const OUT_MAST = 1;
+export const OUT_LAMP = 2;
+export const OUT_AWNING = 3;
+export const OUT_SKIFF = 4;
+/** Lowest ground a lamp stands on (m): its 1.7 m stay under the canopy there. */
+export const LAMP_GROUND = 1.9;
+/** Floats per outpost part: kind, x, z, yaw, scale. */
+export const OUT_STRIDE = 5;
+/** Tallest of each part at scale 1 (m): hab with its crates, mast, lamp, awning, skiff. */
+export const OUT_TOP = [3.6, 7.6, 1.7, 2.8, 1.1];
+/** Footprint radius of each part at scale 1 (m). */
+export const OUT_R = [4.6, 2.2, 0.4, 3.4, 2.4];
+
+/**
+ * A small explorers' outpost by a group of landing pods (or the camp by the ship): domed habs
+ * with crates stacked by their doors, a mast with a dish, and a lit path between them, lamps
+ * along it. Everything stands under the frond canopy (soft ground, glided over).
+ */
+export interface Outpost {
+  x: number;
+  z: number;
+  /** OUT_STRIDE floats per part. */
+  parts: number[];
+  /** The lit path as segments: x0, z0, x1, z1 each. */
+  path: number[];
+}
+
+/**
+ * The circles moving things follow round their instance's origin: speed (m/s) and radius
+ * r0 + dr * lifePhase. The life material (materials.ts) moves them by the same numbers, so the
+ * scatter can check every circle it hands out. 1 fish school, 2 grazer, 3 floater.
+ */
+export const LIFE_PATHS: Record<number, { speed: number; r0: number; dr: number }> = {
+  1: { speed: 1.8, r0: 6, dr: 8 },
+  2: { speed: 0.35, r0: 2.5, dr: 2.5 },
+  3: { speed: 1.4, r0: 16, dr: 20 },
+};
+
+/** A moving thing's phase from its circle's centre, as the shader computes it. */
+export function lifePhase(x: number, z: number): number {
+  const v = x * 0.0137 + z * 0.0291;
+  return v - Math.floor(v);
+}
+
+/** Radius (m) of the circle a moving thing of kind `kind` centred at (x, z) follows. */
+export function lifeRadius(kind: number, x: number, z: number): number {
+  const p = LIFE_PATHS[kind];
+  return p.r0 + p.dr * lifePhase(x, z);
+}
+
+/** A jelly-like floater drifting high on a slow circle round (x, z) at height y. */
+export interface Floater {
+  x: number;
+  y: number;
+  z: number;
+  /** Size (1 = a 3.2 m bell with 8 m of tendrils). */
+  s: number;
+  /** Its circle's radius (lifeRadius of kind 3). */
+  r: number;
+}
+/** A floater's reach about its circle at scale 1 (m): out, above and below (tendrils). */
+export const FLOATER = { out: 4, up: 4.5, down: 10 };
+/** How far (m) the wisp ribbons keep from the space a floater drifts through. */
+export const FLOATER_CLEAR = 8;
+
 /** Cell hash with offset coordinates: cells mirrored through the origin never match. */
 const cellHash = (i: number, j: number, seed: number) => hash2(i + 6113, j + 2729, seed);
 const CELL_CACHE = 6000;
@@ -141,8 +208,15 @@ export class RingmoonLayout {
   private readonly nFine: Noise2D;
   private readonly nLand: Noise2D;
   private readonly nHill: Noise2D;
+  private readonly nBar: Noise2D;
   private readonly cells = new Map<number, Spire[]>();
   private readonly propCells = new Map<number, Prop[]>();
+  private readonly outpostCells = new Map<number, Outpost | null>();
+  private readonly floaterCells = new Map<number, Floater | null>();
+  /** The explorers' camp on a sand spit beside the ship: its middle, heading and half length. */
+  readonly camp: { x: number; z: number; yaw: number; r: number; top: number };
+  /** The camp's habs, masts, lamps, awning and skiff, and its lit paths (as an outpost). */
+  readonly campSite: Outpost;
   /** The opening run: from the spawn, under the ship's belly and on beyond it. */
   private readonly runEnd: { x: number; z: number };
 
@@ -154,6 +228,7 @@ export class RingmoonLayout {
     this.nFine = createNoise2D(seed + 804);
     this.nLand = createNoise2D(seed + 805);
     this.nHill = createNoise2D(seed + 806);
+    this.nBar = createNoise2D(seed + 807);
     const R = Config.ringmoon;
     const s = this.spawn;
     const a = R.shipLength;
@@ -202,6 +277,9 @@ export class RingmoonLayout {
         seed: side > 0 ? 0.2 : 0.7,
       });
     }
+    const cp = this.shipPoint(ship, R.campAlong, R.campOut);
+    this.camp = { x: cp.x, z: cp.z, yaw: ship.yaw, r: R.campRadius, top: R.isleTop };
+    this.campSite = this.buildCamp();
   }
 
   /** World x, z of a point at (along, across) in the ship's frame. */
@@ -260,6 +338,8 @@ export class RingmoonLayout {
     if (m <= 0) return 0;
     m *= 1 - this.openness(x, z, 110);
     m *= smoothstep(1.3, 1.9, this.shipZone(x, z, 0));
+    // The camp's spit stands alone in the water.
+    m *= smoothstep(1.5, 2.3, this.campDist(x, z));
     return m;
   }
 
@@ -278,6 +358,7 @@ export class RingmoonLayout {
     if (m <= 0) return 0;
     m *= 1 - this.openness(x, z, 240);
     m *= smoothstep(2.4, 3.4, this.shipZone(x, z, 0));
+    m *= smoothstep(1.5, 2.5, this.campDist(x, z));
     return m;
   }
 
@@ -314,7 +395,55 @@ export class RingmoonLayout {
       y = lerp(bed, top, m);
     }
     if (ml > 0) y = Math.max(y, lerp(bed, this.landY(x, z), ml));
+    const cm = this.campMask(x, z);
+    if (cm > 0)
+      y = Math.max(y, lerp(bed, this.camp.top + 0.3 * fbm(this.nFine, x * 0.05, z * 0.05, 1), cm));
+    if (y < 0.5) {
+      const b = this.sandbar(x, z);
+      // A bar's crest is just awash or just clear of the water; elsewhere a pale shoal under it.
+      if (b > 0) y = Math.max(y, lerp(bed, -1.6 + 1.95 * this.barRise(x, z), b));
+    }
     return y;
+  }
+
+  /** 0..1: the camp's sand spit, an ellipse along the ship with a soft beach round it. */
+  campMask(x: number, z: number): number {
+    const C = this.camp;
+    if (Math.abs(x - C.x) > C.r * 1.3 || Math.abs(z - C.z) > C.r * 1.3) return 0;
+    return 1 - smoothstep(0.55, 1.05, this.campDist(x, z));
+  }
+
+  /** Distance from the camp's middle in its spit's ellipse (1 at the waterline, roughly). */
+  campDist(x: number, z: number): number {
+    const C = this.camp;
+    const dx = x - C.x;
+    const dz = z - C.z;
+    const sn = Math.sin(C.yaw);
+    const cs = Math.cos(C.yaw);
+    const u = (dx * sn + dz * cs) / C.r;
+    const v = (dx * cs - dz * sn) / (C.r * 0.5);
+    return Math.hypot(u, v);
+  }
+
+  /**
+   * 0..1: a sand bar in the open shallows: the zero contour of a noise stretched one way, a
+   * low ridge about 25 m across, away from the land, the opening run and the ship.
+   */
+  sandbar(x: number, z: number): number {
+    const k = Config.ringmoon.sandbars;
+    if (k <= 0) return 0;
+    const s = fbm(this.nBar, x * 0.0021 + z * 0.0012, z * 0.0052 - x * 0.0014, 2);
+    const ridge = 1 - smoothstep(0, 0.07, Math.abs(s));
+    if (ridge <= 0) return 0;
+    let m = ridge * k * (1 - this.openness(x, z, 90));
+    if (m <= 0) return 0;
+    m *= smoothstep(1.5, 2.2, this.shipZone(x, z, 0));
+    return m;
+  }
+
+  /** 0..1 along a bar: where it rises clear of the water (else it stays a pale shoal). */
+  private barRise(x: number, z: number): number {
+    return smoothstep(0.05, 0.3, this.nBar(x * 0.004 + 31.7, z * 0.004 - 12.3));
   }
 
   /** Soft canopy: coil fronds and reed fans on the islets. */
@@ -496,6 +625,271 @@ export class RingmoonLayout {
           if (fn(p)) return;
         }
       }
+  }
+
+  /** Whether any alien thing (pod, crystal, beacon) stands within `r` of (x, z). */
+  propNear(x: number, z: number, r: number): boolean {
+    this.pn = false;
+    this.nearProps(x, z, r, this.propNearFn);
+    return this.pn;
+  }
+
+  private pn = false;
+  private readonly propNearFn = (): boolean => {
+    this.pn = true;
+    return true;
+  };
+
+  // --- The explorers ---------------------------------------------------------------------------
+
+  /** Whether an outpost part of footprint r may stand at (x, z): level moss, clear of things. */
+  private siteOk(x: number, z: number, r: number): boolean {
+    const y = this.height(x, z);
+    if (y < 2.6) return false;
+    if (Math.abs(this.height(x + r, z) - y) + Math.abs(this.height(x, z + r) - y) > r * 0.6)
+      return false;
+    if (this.nearOpening(x, z, 45 + r) || this.shipZone(x, z, 40 + r) < 1) return false;
+    return this.spiresNear(x, z, 12 + r) === 0;
+  }
+
+  /**
+   * The explorers' outpost (if any) by the landing pods of prop cell (i, j): one or two habs and
+   * a mast round the pods, a lit path from the pods to each, lamps along it. Cached.
+   */
+  outpost(i: number, j: number): Outpost | null {
+    const key = (i + 0x8000) * 0x10000 + (j + 0x8000);
+    const got = this.outpostCells.get(key);
+    if (got !== undefined) return got;
+    if (this.outpostCells.size > CELL_CACHE) this.outpostCells.clear();
+    let o: Outpost | null = null;
+    const pods = this.props(i, j).filter((p) => p.type === PROP_POD);
+    const h = (salt: number) => cellHash(i, j, this.seed + salt);
+    if (pods.length > 0 && h(901) < Config.ringmoon.outposts) {
+      let cx = 0;
+      let cz = 0;
+      for (const p of pods) {
+        cx += p.x / pods.length;
+        cz += p.z / pods.length;
+      }
+      o = { x: cx, z: cz, parts: [], path: [] };
+      const a0 = h(902) * Math.PI * 2;
+      let habs = 0;
+      let mast = false;
+      let last = -9;
+      for (let k = 0; k < 8 && (habs < 2 || !mast); k++) {
+        if (k - last < 2) continue;
+        const a = a0 + (k * Math.PI) / 4;
+        const want = habs < 1 + (h(903) < 0.5 ? 1 : 0) ? OUT_HAB : mast ? -1 : OUT_MAST;
+        if (want < 0) break;
+        const d = want === OUT_HAB ? 23 : 27;
+        const x = cx + Math.sin(a) * d;
+        const z = cz + Math.cos(a) * d;
+        const r = OUT_R[want];
+        if (!this.siteOk(x, z, r) || this.propNear(x, z, r + 5)) continue;
+        // The hab's door (local +z) faces the pods.
+        o.parts.push(want, x, z, a + Math.PI, want === OUT_HAB ? 0.9 + 0.2 * h(904 + k) : 1);
+        this.lamps(o, cx + Math.sin(a) * 7, cz + Math.cos(a) * 7, x, z, d - 7 - r);
+        if (want === OUT_HAB) habs++;
+        else mast = true;
+        last = k;
+      }
+      if (o.parts.length === 0) o = null;
+    }
+    this.outpostCells.set(key, o);
+    return o;
+  }
+
+  /** A lit path from (x0, z0) toward (x1, z1), `len` long, lamps either side along it. */
+  private lamps(o: Outpost, x0: number, z0: number, x1: number, z1: number, len: number): void {
+    const d = Math.hypot(x1 - x0, z1 - z0) || 1;
+    const fx = (x1 - x0) / d;
+    const fz = (z1 - z0) / d;
+    o.path.push(x0, z0, x0 + fx * (len + 2), z0 + fz * (len + 2));
+    let side = 1;
+    for (let s = 1.5; s <= len; s += 6.5) {
+      const x = x0 + fx * s + fz * 1.6 * side;
+      const z = z0 + fz * s - fx * 1.6 * side;
+      side = -side;
+      if (this.height(x, z) < LAMP_GROUND) continue;
+      o.parts.push(OUT_LAMP, x, z, 0, 1);
+    }
+  }
+
+  /**
+   * The camp on its spit beside the ship: three habs in an arc facing the ship, an awning
+   * between them, two masts, a skiff drawn up on the beach and a lit path down to it.
+   */
+  private buildCamp(): Outpost {
+    const C = this.camp;
+    const sn = Math.sin(C.yaw);
+    const cs = Math.cos(C.yaw);
+    // Camp frame: u along the spit (the ship's length), v out from the ship (+v toward spawn).
+    const at = (u: number, v: number) => ({ x: C.x + u * sn + v * cs, z: C.z + u * cs - v * sn });
+    const o: Outpost = { x: C.x, z: C.z, parts: [], path: [] };
+    // Facing the ship: local +z toward -v.
+    const face = Math.atan2(-cs, sn);
+    const put = (kind: number, u: number, v: number, yaw: number, s: number) => {
+      const p = at(u, v);
+      o.parts.push(kind, p.x, p.z, yaw, s);
+    };
+    put(OUT_HAB, -13, 5, face + 0.35, 1.05);
+    put(OUT_HAB, 1, 9, face, 1.15);
+    put(OUT_HAB, 15, 4, face - 0.4, 0.95);
+    put(OUT_AWNING, 2, -2, face, 1);
+    put(OUT_MAST, -19, 2, 0, 1.05);
+    put(OUT_MAST, 19, 7, 0.6, 0.9);
+    // The path from the awning down to the beach on the ship's side, a skiff moored off it.
+    const a = at(2, -6);
+    const b = at(2, -16);
+    this.lamps(o, a.x, a.z, b.x, b.z, 9);
+    put(OUT_SKIFF, 6, -26, face + Math.PI / 2, 1);
+    // And along the spit between the habs.
+    const l = at(-17, -2);
+    const r = at(19, -2);
+    this.lamps(o, l.x, l.z, r.x, r.z, 36);
+    return o;
+  }
+
+  /** Calls `fn` for every outpost (and the camp) that could reach (x, z) within `pad`. */
+  private nearOutposts(x: number, z: number, pad: number, fn: (o: Outpost) => void): void {
+    const C = Config.ringmoon.propCell;
+    const R = 60 + pad;
+    const i0 = Math.floor((x - R) / C);
+    const i1 = Math.floor((x + R) / C);
+    const j0 = Math.floor((z - R) / C);
+    const j1 = Math.floor((z + R) / C);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const o = this.outpost(i, j);
+        if (o && Math.abs(o.x - x) < R && Math.abs(o.z - z) < R) fn(o);
+      }
+    const c = this.campSite;
+    if (Math.abs(c.x - x) < R && Math.abs(c.z - z) < R) fn(c);
+  }
+
+  private pd = Infinity;
+  private readonly pathFn = (o: Outpost): void => {
+    const x = this.tx;
+    const z = this.tz;
+    const P = o.path;
+    for (let k = 0; k < P.length; k += 4) {
+      const ex = P[k + 2] - P[k];
+      const ez = P[k + 3] - P[k + 1];
+      const L2 = ex * ex + ez * ez || 1;
+      const t = clamp(((x - P[k]) * ex + (z - P[k + 1]) * ez) / L2, 0, 1);
+      const d = Math.hypot(x - P[k] - ex * t, z - P[k + 1] - ez * t);
+      if (d < this.pd) this.pd = d;
+    }
+    // Trodden ground round every hab and mast.
+    const Q = o.parts;
+    for (let k = 0; k < Q.length; k += OUT_STRIDE) {
+      if (Q[k] === OUT_LAMP) continue;
+      const d = Math.hypot(x - Q[k + 1], z - Q[k + 2]) - OUT_R[Q[k]] * Q[k + 4] - 1;
+      if (d < this.pd) this.pd = d;
+    }
+  };
+
+  /**
+   * Distance (m) from (x, z) to the nearest lit path or the trodden ground round a hab or mast
+   * (0 inside one), or Infinity when there is none within ~60 m. Paints the paths and keeps the
+   * flora off them.
+   */
+  pathDist(x: number, z: number): number {
+    this.pd = Infinity;
+    this.tx = x;
+    this.tz = z;
+    this.nearOutposts(x, z, 0, this.pathFn);
+    return Math.max(this.pd, 0);
+  }
+
+  /** The floater (if any) of floater cell (i, j). Cached. */
+  floater(i: number, j: number): Floater | null {
+    const key = (i + 0x8000) * 0x10000 + (j + 0x8000);
+    const got = this.floaterCells.get(key);
+    if (got !== undefined) return got;
+    if (this.floaterCells.size > CELL_CACHE) this.floaterCells.clear();
+    const R = Config.ringmoon;
+    const C = R.floaterCell;
+    const h = (salt: number) => cellHash(i, j, this.seed + salt);
+    let f: Floater | null = null;
+    if (h(931) < R.floaters) {
+      const x = (i + 0.2 + 0.6 * h(932)) * C;
+      const z = (j + 0.2 + 0.6 * h(933)) * C;
+      const s = 1 + 0.7 * h(934);
+      const r = lifeRadius(3, x, z);
+      // Over the sea or the islets, well up, never over the opening run or the ship.
+      if (!this.nearOpening(x, z, 140 + r) && this.shipZone(x, z, 80 + r) >= 1) {
+        let floor = -Infinity;
+        let stone = -Infinity;
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * Math.PI * 2;
+          const px = x + Math.cos(a) * r;
+          const pz = z + Math.sin(a) * r;
+          const g = this.height(px, pz);
+          floor = Math.max(floor, g + this.canopy(g), 0);
+          stone = Math.max(stone, this.skyline(px, pz, (FLOATER.out + 10) * s));
+        }
+        const y = floor + 18 + 26 * h(935) + FLOATER.down * s;
+        // Clear of every spire and beacon round its circle, tendrils and all.
+        if (stone < y - FLOATER.down * s - 12) f = { x, y, z, s, r };
+      }
+    }
+    this.floaterCells.set(key, f);
+    return f;
+  }
+
+  /** Calls `fn` for every floater whose circle could come within `pad` of (x, z). */
+  private nearFloaters(x: number, z: number, pad: number, fn: (f: Floater) => boolean): void {
+    const C = Config.ringmoon.floaterCell;
+    const R = LIFE_PATHS[3].r0 + LIFE_PATHS[3].dr + FLOATER.out * 1.7 + pad;
+    const i0 = Math.floor((x - R) / C);
+    const i1 = Math.floor((x + R) / C);
+    const j0 = Math.floor((z - R) / C);
+    const j1 = Math.floor((z + R) / C);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const f = this.floater(i, j);
+        if (f && fn(f)) return;
+      }
+  }
+
+  private fy = 0;
+  private fp = 0;
+  private fHit = false;
+  private fTop = -Infinity;
+  private readonly floaterFn = (f: Floater): boolean => {
+    const d = Math.abs(Math.hypot(this.tx - f.x, this.tz - f.z) - f.r);
+    if (d > FLOATER.out * f.s + this.fp) return false;
+    if (this.fy > f.y + FLOATER.up * f.s + this.fp || this.fy < f.y - FLOATER.down * f.s - this.fp)
+      return false;
+    this.fHit = true;
+    return true;
+  };
+  private readonly floaterTopFn = (f: Floater): boolean => {
+    const d = Math.abs(Math.hypot(this.tx - f.x, this.tz - f.z) - f.r);
+    if (d <= FLOATER.out * f.s + this.fp) this.fTop = Math.max(this.fTop, f.y + FLOATER.up * f.s);
+    return false;
+  };
+
+  /** Whether (x, y, z) comes within `pad` of the space a floater drifts through. */
+  floaterNear(x: number, y: number, z: number, pad: number): boolean {
+    this.tx = x;
+    this.tz = z;
+    this.fy = y;
+    this.fp = pad;
+    this.fHit = false;
+    this.nearFloaters(x, z, pad, this.floaterFn);
+    return this.fHit;
+  }
+
+  /** Top of the space any floater drifts through within `pad` of (x, z), or -Infinity. */
+  floaterTop(x: number, z: number, pad: number): number {
+    this.tx = x;
+    this.tz = z;
+    this.fp = pad;
+    this.fTop = -Infinity;
+    this.nearFloaters(x, z, pad, this.floaterTopFn);
+    return this.fTop;
   }
 
   /** A beacon's radius at height y, or -1 above or below it. */
@@ -893,6 +1287,8 @@ export class RingmoonLayout {
     const g = this.height(x, z);
     const top = Math.max(g + this.canopy(g), Config.world.waterLevel);
     if (y < top + above) return false;
-    return this.solidTop(x, y, z, margin) === -Infinity;
+    if (this.solidTop(x, y, z, margin) !== -Infinity) return false;
+    // The floaters aren't solid (the bird drifts through them), but no ribbon runs through one.
+    return !this.floaterNear(x, y, z, FLOATER_CLEAR);
   }
 }

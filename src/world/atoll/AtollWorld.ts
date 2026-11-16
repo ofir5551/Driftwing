@@ -14,6 +14,8 @@ import { AtollDecor, type AtollChunk } from './AtollDecor';
 import { AtollLayout } from './AtollLayout';
 import { AtollPlanner } from './AtollWisps';
 import { Surf } from './Surf';
+import { atollCover } from './cover';
+import { atollLandFrame, createAtollGeometry, fillAtoll, withAtollLand } from './land';
 import type { DiscoveryDef } from '../Discoveries';
 import { atollFinds } from './finds';
 
@@ -71,12 +73,18 @@ export class AtollWorld implements World {
     this.decor = new AtollDecor(L);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withGroundDetail(
-        withMist(
-          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+      material: withAtollLand(
+        withGroundDetail(
+          withMist(
+            new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+          ),
         ),
+        true,
       ),
       color: (f, x, z, y, slope, out) => this.groundColor(f, x, z, y, slope, out),
+      createGeometry: createAtollGeometry,
+      fillExtra: (g, ox, oz, size, res) => fillAtoll(L, g, ox, oz, size, res),
+      cover: atollCover(L),
     });
     this.surf = new Surf(L);
     this.planner = new AtollPlanner(L);
@@ -126,7 +134,7 @@ export class AtollWorld implements World {
   flightGround(x: number, z: number): number {
     const L = this.layout;
     const h = L.height(x, z);
-    return Math.max(h + L.canopy(h), L.bungalowAt(x, z));
+    return Math.max(h + L.canopy(h), L.roofAt(x, z));
   }
 
   surfaceBelow(x: number, y: number, z: number): number {
@@ -159,8 +167,9 @@ export class AtollWorld implements World {
     u.uMistFar.value = A.mistFar;
     u.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.4);
     u.uMistTime.value = time;
-    this.decor.frame(day);
+    this.decor.frame(day, time);
     this.surf.frame(time, day);
+    atollLandFrame(day, time);
   }
 
   assist(s: FlightState, input: FlightInput): void {

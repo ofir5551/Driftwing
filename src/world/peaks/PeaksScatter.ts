@@ -101,32 +101,42 @@ export class PeaksScatter {
     return lo;
   }
 
-  /** Everything on one spire, appended to `out`. */
+  /** Does this bare summit carry a pavilion? (A hash, so the pines and the cover agree.) */
+  pavilion(sp: Spire): boolean {
+    return (
+      sp.temple === Temple.None &&
+      sp.r * 0.3 >= 3.2 &&
+      (sp.seed * 7919.13) % 1 < Config.peaks.pavilions
+    );
+  }
+
+  /**
+   * What a spire shows from afar, appended to `out`: its pines on the summit and the cliffs,
+   * and its temple with the temple's lanterns and windows. Cheap: scattered with the chunk.
+   */
   dress(sp: Spire, out: Dressing): void {
     const P = Config.peaks;
     const sh = SHAPES[sp.shape];
     const skin = SKINS[sp.shape];
     const rand = mulberry32(Math.floor(sp.seed * 1e9) + 7);
     const pos = [0, 0, 0];
-    const tree = (type: number, t: number, a: number, rad: number, s: number, rot: number) => {
+    const tree = (t: number, a: number, rad: number, s: number, rot: number) => {
       this.onRock(sp, t, a, rad, pos);
-      out.trees.push(type, pos[0], pos[1] - 0.4, pos[2], s, rot, rand());
+      out.trees.push(PINE, pos[0], pos[1] - 0.4, pos[2], s, rot, rand());
     };
-    const prop = (kind: number, x: number, y: number, z: number, yaw: number, s: number) =>
-      out.props.push(kind, x, y, z, yaw, s, rand());
     // A cliff pine's drawn lean (local +x) points out from the rock: rotY = -(world angle).
     const outward = (a: number) => -(a - sp.yaw) + (rand() - 0.5) * 0.6;
 
-    // Summit: pines (a temple keeps the middle for itself), turf, boulders and snow.
+    // Summit pines; a temple or pavilion keeps the middle for itself.
     const span = sp.temple === Temple.None ? 0.9 : 0.35;
+    const inner = this.pavilion(sp) ? 0.45 : 0.1;
     const crown = 5 + Math.floor(sp.r / 4);
     for (let k = 0; k < crown; k++) {
       const t = sh.cap + (1 - sh.cap) * span * rand();
       const a = rand() * Math.PI * 2;
-      const inset = sp.temple === Temple.None ? 0.85 * rand() + 0.1 : 0.9;
+      const inset = sp.temple === Temple.None ? inner + (0.95 - inner) * rand() : 0.9;
       const edge = t < sh.cap + 0.04;
       tree(
-        PINE,
         t,
         a,
         sp.r * skin.radius(t, a) * inset,
@@ -134,9 +144,51 @@ export class PeaksScatter {
         edge ? outward(a) : rand() * 6.3,
       );
     }
+
+    // Cliff pines clinging to the walls above the cloud sea, reaching out over the drop.
+    const cloudT = (P.cloud + 15 - sp.y0) / sp.h;
+    const cliffs = Math.floor(sp.h / 26);
+    for (let k = 0; k < cliffs; k++) {
+      const t = cloudT + (sh.cap - 0.05 - cloudT) * rand();
+      const a = rand() * Math.PI * 2;
+      if (t > cloudT) tree(t, a, sp.r * skin.radius(t, a) * 0.97, 0.9 + rand() * 0.5, outward(a));
+    }
+
+    // A temple on the summit, with its lanterns and windows.
+    if (sp.temple !== Temple.None) {
+      const t = 0.985;
+      const x = sp.x + sp.lx * t * t;
+      const y = sp.y0 + sp.h * t - 0.6;
+      const z = sp.z + sp.lz * t * t;
+      out.temples.push(x, y, z, sp.yaw, sp.temple);
+      const mon = sp.temple === Temple.Monastery;
+      for (const l of mon ? MONASTERY_LANTERNS : HERMITAGE_LANTERNS)
+        out.lanterns.push(...placeLocal(x, y, z, sp.yaw, l), 1.1);
+      for (const l of mon ? MONASTERY_WINDOWS : HERMITAGE_WINDOWS)
+        out.windows.push(...placeLocal(x, y, z, sp.yaw, l), sp.yaw);
+    }
+  }
+
+  /**
+   * What a spire shows up close, appended to `out` (props, and their lanterns and windows):
+   * turf, snow and boulders on the summit and every ledge wide enough, dwarf pines and shrines,
+   * a pavilion, the hermit's hut in the alcove, the monastery's stair. Scattered lazily, the
+   * first time the spire's chunk comes within prop distance.
+   */
+  cover(sp: Spire, out: Dressing): void {
+    const P = Config.peaks;
+    const sh = SHAPES[sp.shape];
+    const skin = SKINS[sp.shape];
+    const rand = mulberry32(Math.floor(sp.seed * 1e9) + 11);
+    const pos = [0, 0, 0];
+    const prop = (kind: number, x: number, y: number, z: number, yaw: number, s: number) =>
+      out.props.push(kind, x, y, z, yaw, s, rand());
+    const outward = (a: number) => -(a - sp.yaw) + (rand() - 0.5) * 0.6;
+
+    // Summit: turf, grass, boulders and snow round the pines.
     const capR = sp.r * profile(sh, sh.cap);
     const clear = sp.temple === Temple.Monastery ? 16.5 : sp.temple === Temple.Hermitage ? 6.5 : 0;
-    const pavilion = sp.temple === Temple.None && sp.r * 0.3 >= 3.2 && rand() < P.pavilions;
+    const pavilion = this.pavilion(sp);
     const cover = 10 + Math.floor(sp.r / 1.2);
     for (let k = 0; k < cover; k++) {
       const d = Math.sqrt(rand()) * capR * 0.92;
@@ -147,7 +199,7 @@ export class PeaksScatter {
       const x = sp.x + sp.lx * t * t + Math.cos(w) * d;
       const y = sp.y0 + t * sp.h;
       const z = sp.z + sp.lz * t * t + Math.sin(w) * d;
-      this.cover(x, y, z, rand(), 1 + rand() * 0.9, prop, rand, true);
+      this.piece(x, y, z, rand(), 1 + rand() * 0.9, prop, rand, true);
     }
     if (pavilion) {
       const t = this.domeT(sp, 0.5);
@@ -182,18 +234,8 @@ export class PeaksScatter {
         if (roll < 0.2) prop(K.Dwarf, pos[0], pos[1] - 0.3, pos[2], outward(a), 0.9 + rand() * 0.7);
         else if (roll < 0.215 && width > 2.2 && pos[1] < P.snowline) {
           prop(K.Shrine, pos[0], pos[1], pos[2], -(a - sp.yaw) + Math.PI / 2, 1);
-        } else this.cover(pos[0], pos[1], pos[2], rand(), s, prop, rand, false);
+        } else this.piece(pos[0], pos[1], pos[2], rand(), s, prop, rand, false);
       }
-    }
-
-    // Cliff pines clinging to the walls above the cloud sea, reaching out over the drop.
-    const cloudT = (P.cloud + 15 - sp.y0) / sp.h;
-    const cliffs = Math.floor(sp.h / 26);
-    for (let k = 0; k < cliffs; k++) {
-      const t = cloudT + (sh.cap - 0.05 - cloudT) * rand();
-      const a = rand() * Math.PI * 2;
-      if (t > cloudT)
-        tree(PINE, t, a, sp.r * skin.radius(t, a) * 0.97, 0.9 + rand() * 0.5, outward(a));
     }
 
     // A hermit's hut in the alcove, out of the wind under its overhang.
@@ -215,25 +257,11 @@ export class PeaksScatter {
           out.windows.push(...placeLocal(pos[0], pos[1], pos[2], yaw, l, s), yaw);
       }
     }
-
-    // A temple on the summit, with its lanterns and windows.
-    if (sp.temple !== Temple.None) {
-      const t = 0.985;
-      const x = sp.x + sp.lx * t * t;
-      const y = sp.y0 + sp.h * t - 0.6;
-      const z = sp.z + sp.lz * t * t;
-      out.temples.push(x, y, z, sp.yaw, sp.temple);
-      const mon = sp.temple === Temple.Monastery;
-      for (const l of mon ? MONASTERY_LANTERNS : HERMITAGE_LANTERNS)
-        out.lanterns.push(...placeLocal(x, y, z, sp.yaw, l), 1.1);
-      for (const l of mon ? MONASTERY_WINDOWS : HERMITAGE_WINDOWS)
-        out.windows.push(...placeLocal(x, y, z, sp.yaw, l), sp.yaw);
-      if (mon) this.stair(out);
-    }
+    if (sp.temple === Temple.Monastery) this.stair(out);
   }
 
   /** One piece of ledge or summit cover, chosen by `roll`. */
-  private cover(
+  private piece(
     x: number,
     y: number,
     z: number,

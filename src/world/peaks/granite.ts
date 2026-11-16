@@ -134,7 +134,8 @@ if (grNear > 0.0 && vGrRock.z > 0.01) {
   // Moss and alpine turf wherever the rock faces the sky (ledges, the grooves' lower lips).
   // (Mostly the rock's own shape: the pillows' tilt alone would green every block's top.)
   float up = mix(grN.y, grWN.y, 0.35) + 0.18 * (n1 - 0.5);
-  float moss = smoothstep(0.42, 0.72, up) * uGrMoss;
+  // (Worn stone where people tread: the stair, aRock zero, keeps only a little in its corners.)
+  float moss = smoothstep(0.42, 0.72, up) * uGrMoss * (vGrRock.z > 0.01 ? 1.0 : 0.25);
   vec3 turf = mix(vec3(0.27, 0.38, 0.2), vec3(0.47, 0.5, 0.26), smoothstep(0.3, 0.8, n2));
   rc = mix(rc, turf, moss * 0.85);
   // Snow on the high ledges and summits, above a ragged snowline.

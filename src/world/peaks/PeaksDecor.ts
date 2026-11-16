@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
 import { smoothstep } from '../../core/math';
-import type { ChunkDecor } from '../ChunkManager';
+import { nearestInReach, type ChunkDecor } from '../ChunkManager';
 import { ContactShadows } from '../ContactShadows';
 import type { DayCycle } from '../DayCycle';
 import { withMist } from '../Mist';
@@ -59,7 +59,20 @@ export interface PeaksChunk extends Dressing {
   ropes: Rope[];
   /** Crane flocks whose circle is centred in the chunk. */
   flocks: Flock[];
+  /**
+   * The spires' close-up dressing (ledge cover, huts, the stair, their lights), scattered the
+   * first time the chunk comes within prop distance; null until then.
+   */
+  near: Dressing | null;
 }
+
+const emptyDressing = (): Dressing => ({
+  trees: [],
+  props: [],
+  temples: [],
+  lanterns: [],
+  windows: [],
+});
 
 // Per prop kind (K: moss, grass, snow, boulder, hut, pavilion, shrine, step, post, dwarf pine):
 /** 1 drawn within propDistance, 2 within smallPropDistance. */
@@ -265,6 +278,7 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
       windows: [],
       ropes: [],
       flocks: [],
+      near: null,
     };
     const inside = (x: number, z: number) => x >= ox && x < ox + size && z >= oz && z < oz + size;
     const C = Config.peaks.spireCell;
@@ -286,6 +300,28 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
         if (f && inside(f.x, f.z)) out.flocks.push(f);
       }
     return out;
+  }
+
+  /** Fill a chunk's close-up dressing (ledge cover, huts, the stair). */
+  private dressNear(c: PeaksChunk): void {
+    const d = emptyDressing();
+    for (const sp of c.spires) this.scatterer.cover(sp, d);
+    c.near = d;
+  }
+
+  private readonly bare = (c: PeaksChunk): boolean => !c.near;
+
+  /** Close-up dressing scatters lazily, nearest chunk first: one chunk a frame. */
+  prepare(items: PeaksChunk[], px: number, pz: number, budget: number): boolean {
+    const R = Config.render;
+    if (R.propDistance <= 0) return false;
+    const size = Config.world.chunkSize;
+    for (;;) {
+      const c = nearestInReach(items, px, pz, R.propDistance + size, this.bare);
+      if (!c) return false;
+      if (budget-- <= 0) return true;
+      this.dressNear(c);
+    }
   }
 
   rebuild(items: PeaksChunk[], px: number, pz: number): void {
@@ -331,8 +367,17 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
         this.spireCasters[sp.shape].add(sp.x, sp.z, m);
       }
       this.placeTemples(it.temples);
-      this.placeProps(it.props);
       this.placeGlows(it.lanterns, it.windows);
+      // Any chunk prepare() has not reached yet (prime) is dressed now.
+      if (!it.near && R.propDistance > 0) {
+        const dx = Math.max(0, Math.abs(it.ox + size / 2 - px) - size / 2);
+        const dz = Math.max(0, Math.abs(it.oz + size / 2 - pz) - size / 2);
+        if (dx * dx + dz * dz < (R.propDistance + size) ** 2) this.dressNear(it);
+      }
+      if (it.near) {
+        this.placeProps(it.near.props);
+        this.placeGlows(it.near.lanterns, it.near.windows);
+      }
       for (const r of it.ropes) this.placeRope(r);
       for (const f of it.flocks) this.placeFlock(f);
     }

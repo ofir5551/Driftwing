@@ -543,14 +543,48 @@ like dunes and read as sand), now and then a big heap rising 26 m, and cloud pil
 every spire's foot. Spires stand on a 100 m jittered grid (up to two per cell, clustered by a
 noise into ranges with open sea between, hash coordinates offset so cells mirrored through the
 origin differ), their bases hidden in the cloud. Five silhouettes (column, needle, tiered tower,
-massif, leaning blade) are lathed from one profile: a tapering column with stepped tiers (the
-granite breaking along its joints) under a flat summit dome; the mesh is flat-shaded, each
-column of rock a little proud or recessed, so the granite reads as hard facets where Jade River's
-limestone is smooth. Windswept pines (flat pads of needles on a crooked trunk) crowd the crowns,
-stand on the ledges and reach out from the cliffs over the drop; hermitages crown some of the
-tallest. The Sky Gate stands 400 m ahead of the spawn: two great columns 104 m apart joined by
-a hanging plank bridge with rope rails and prayer flags (blue, white, red, green, yellow), a
-monastery (a main hall, a side hall and a three-storey tower) on the taller one.
+massif, leaning blade) share one profile, a tapering column with stepped tiers under a flat
+summit dome, which is also what the bird collides with. Each silhouette is lathed from its skin
+(`skin.ts`, pure): granite breaks along horizontal sheeting joints, and at each joint the rock
+above steps back to leave a ledge round part of the spire (a mask of whole angular frequencies,
+so the seam closes) and then leans back out, an overhang over it, with a groove at the joint
+that fades in and out round the rock; the joints dip a little across the spire so the ledges
+slope rather than ring it; one joint per shape is a wide, low alcove under an overhang; broad
+chimneys run down the faces. The skin only cuts into the rock (it is at most 2 % over the
+profile), so the collision profile stays the envelope of what is drawn. Three mesh tiers, all
+smooth-shaded and indexed: the finest (26 sides, rings packed round every joint for the groove)
+for spires whose flank is within `render.heroDetail`, a near one (16 sides, the ledges' lip and
+inner edge) out to `spireLod` (520 m at the high draw distance, scaled with the preset) and a
+far one (7 sides). The fine granite is painted per pixel (`granite.ts`): vertical fractures as
+whole multiples of the angle round the spire's own axis (an `aRock` vertex attribute carries
+the lathe's direction and radius), about 8 m apart and warped, and sheeting joints by height,
+both open lines that start and stop (iso-lines of a 3D noise close into loops on a lathe and
+drew ovals), the blocks between them pillowed so the light rolls over each one; stone tone and
+speckle, ochre and grey-green lichen, dark water stains, moss and turf where the rock faces the
+sky, and snow on ledges and summits above a ragged snowline (~228 m). Relief and fine paint
+fade by `rockFar` and are off on low (`render.rockDetail`).
+
+Ground cover (`PeaksScatter`, pure, read from the skin so things sit on the drawn stone): every
+ledge wide enough holds moss cushions, alpine grass, boulders, old snow above the snowline,
+dwarf pines leaning out over the drop and now and then a stone shrine; the summits carry turf,
+grass, boulders and snow between their windswept pines (flat pads on a crooked trunk; near,
+far and a 22-triangle distant shape past `treeFar`), and more pines reach out from the cliffs.
+
+Life: the Sky Gate stands 400 m ahead of the spawn, two great columns 104 m apart joined by a
+hanging plank bridge with rope rails and prayer flags (blue, white, red, green, yellow). The
+monastery on the taller one has a main hall, a side hall and a three-storey tower, a dormitory,
+a bell pavilion, a white stupa, an incense burner and stone lanterns in its courtyard and a
+front gate, lines of flags from the tower's eaves down to the terrace wall, lit windows and
+lanterns, and a stair cut round its spire (one turn and a bit, granite steps on a wall into
+the rock, lamp posts every few metres) from the bridge's deck up to the summit. A long line of
+flags runs from its terrace across to the other gate summit. Hermitages crown some of the
+tallest spires; a hermit's hut (stilts, whitewash, a red door, a lamp) stands in the alcove of
+about a third of the spires that have one; little six-post pavilions stand on bare summits.
+Rope bridges (plank segments, flags along one rail, lamps at each end) and lines of prayer
+flags hang between neighbouring spires (`PeaksSites`, pure: anchored in stone at both ends,
+clear of every other spire and of the opening run). Flocks of red-crowned cranes in a V wheel
+on wide circles over the summits (high enough to clear everything under them), moved and
+flapped in the vertex shader.
 
 Atmosphere: the cloud sea has its own paint (cauliflower lobes riding the wind and slowly
 warped so they boil rather than slide, tilted into the normal so the toon bands break into
@@ -562,12 +596,34 @@ drift round the spires' waists, their puffs wandering and swelling so each bank 
 shape, and the bird can fly through them; the sky's own clouds float
 140 m higher than usual. Two ranges of great snow peaks are painted round the horizon (jagged
 pyramids, the face toward the sun lit and coloured by it, pink at sunrise), standing out of the
-cloud sea's haze. Lanterns on the temples and the bridge glow after dark.
+cloud sea's haze. Lanterns on the temples, stair, huts, pavilions and bridges, and the
+monastery's and huts' windows, glow after dark.
+
+Gaps open in the cloud sea out on the open water (one in a 650 m cell at most, never where a
+spire's foot would show; a home gap 80 m left of the opening glide): the drawn surface
+(`PeaksLayout.surface`) falls away through walls of cloud going blue in their own shade to a
+valley floor at 5 m (just over the water plane) painted as dark forest, terraced fields and a
+river's thread under the haze that fills it, small in scale so it reads as far below. Only the
+drawing opens: flight, wisps and spires keep the cloud top (`height`), so the bird floats over a
+gap as on a thin veil. The cloud sea glows warm on heaps that face a low sun and gets a silver
+lining on tops seen against the sun or moon (`levelLight.peaks.warm`, `lining`), and from
+mid-morning to the golden hour shafts of sun slant through the haze onto the sea (`beams`:
+long additive quads along the sunlight turned to the camera, out over open cloud, faded near
+the bird and end-on; geometry, so medium has them, following the cloud-shadow preset). On high,
+spires, temples, huts, pavilions, shrines and boulders cast sun shadows (spires onto the cloud
+tops and each other) through ShadowCasters, and the screen-space shafts are a little stronger
+(0.7); huts, pavilions, shrines, boulders and dwarf pines get contact shadows on medium and high.
+The dawn sun sits just over `light.shadowSunMin`, so the shadow pass runs once at sunrise: a map
+never drawn left every shadow-receiving draw failing on high.
 
 Flight: the cloud sea is soft ground, skimmed like water with a puff of cloud (`World.skimColor`).
 Spires are solid but soft, flown with the city's look-ahead and wall glance; summits push up
 (skim them). The bridge is a solid box with an underside: the look-ahead eases the nose under
-it, and touching it pushes the bird up off the deck or down under it. Music: a breathy bamboo
+it, and touching it pushes the bird up off the deck or down under it. Ledge cover, huts and
+dwarf pines stand inside the rock's solid envelope; pavilions inside the summit's crown. Rope
+bridges and flag lines are soft (the bird brushes through them as through a cloud bank) and
+every wisp ribbon keeps `ropeClear` (10 m) from them, so they are never a wall in the flow's
+way. Music: a breathy bamboo
 flute (a sine and a soft triangle with band-passed breath on the pitch, a chiff as it speaks,
 bending up from a little flat, a slow vibrato on held notes) at 60 BPM over a wide high sine pad
 and an open-fifth drone, a slow glinting arpeggio an octave up with flow, and the largest reverb;
@@ -579,7 +635,23 @@ under the bridge. Then: skims that ride 7 m over the cloud tops, following the h
 up a skim glides straight down first and only then weaves); slaloms between spires at the height
 the ribbon is flying; glides that sink back toward the sea; and swings that join a spire's
 circle on a tangent, climb about 315 degrees round it and cross its summit. Every pattern is
-checked 9 m clear of rock and 3 m over the cloud before anything spawns.
+checked 9 m clear of rock, 10 m clear of every rope and 3 m over the cloud before anything
+spawns.
+
+- Code: `world/peaks/`: `profile` (the silhouettes), `PeaksLayout` (pure: cloud sea and its
+  gaps, spires, the gate, queries), `skin` (pure: joints, ledges, alcove, chimneys),
+  `PeaksSites` (pure: ropes, the monastery stair, crane flocks), `PeaksScatter` (pure: pines,
+  ledge cover, huts, pavilions, temples, lanterns and windows per spire), `PeaksWisps`,
+  `PeaksDecor` (instancing, three spire tiers, near/far props, casters, contact shadows),
+  `granite` (the rock shader), `cloudSea` (the sea's shader: lobes, heave, gaps, glow),
+  `geometry` (spires, pines, temples, the gate bridge), `shapes` (props), `materials` (props
+  with fluttering flags, cranes, sunbeams), `PeaksWorld`.
+- Per preset (`render.*`): spire tiers by `heroDetail` (0 / 120 / 260 m) and `spireLod` scaled by
+  `drawDistance`; ledge and summit cover, dwarf pines and shrines within `smallPropDistance`;
+  huts, pavilions, the stair, ropes, flags, lanterns and windows within `propDistance`; near
+  boulders and dwarf pines within `propDetail`; distant pines past `treeFar`; granite relief
+  off on low (`rockDetail`); sunbeams with `cloudShadows`.
+- Cost at the review's viewpoints: see the decisions log.
 
 ## Coral Atolls
 

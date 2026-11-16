@@ -159,7 +159,10 @@ describe('peaks life', () => {
     const a = empty();
     const b = empty();
     sc.dress(p, a);
-    new PeaksScatter(new PeaksLayout(1337)).dress(p, b);
+    sc.cover(p, a);
+    const sb = new PeaksScatter(new PeaksLayout(1337));
+    sb.dress(p, b);
+    sb.cover(p, b);
     expect(a).toEqual(b);
     expect(new PeaksLayout(1337).sites.ropes(2, 3)).toEqual(L.sites.ropes(2, 3));
     expect(new PeaksLayout(1337).sites.flock(1, -1)).toEqual(L.sites.flock(1, -1));
@@ -167,7 +170,7 @@ describe('peaks life', () => {
 
   it('keeps ledge cover, huts and dwarf pines on the rock, inside its solid envelope', () => {
     const out = empty();
-    for (const p of spiresAround(L, 900)) sc.dress(p, out);
+    for (const p of spiresAround(L, 900)) sc.cover(p, out);
     const kinds = new Set<number>();
     let n = 0;
     for (let k = 0; k < out.props.length; k += PROP_STRIDE) {

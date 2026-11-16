@@ -828,6 +828,9 @@ medium and high.
   `propDistance` / `propDetail` (pods beyond use a tenth of the triangles); fish within
   `smallPropDistance` (none on low); cover in the shared grass ring (none on low); fronds and
   reeds have distant shapes beyond `treeFar`. Low keeps the finer spires for the nearest 160 m.
+- Cost at the review's viewpoints (triangles / draw calls, whole frame): medium 238-287k /
+  124-143 (was 289-311k / 113-134), high 400-480k / 134-168 (was 473-491k / 121-155), low
+  135-159k / 91-104 (was 153-179k / 87-100). The distant fronds and far pods pay for the rest.
 
 ## Gameplay
 

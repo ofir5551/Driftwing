@@ -20,7 +20,10 @@ const P = {
     hemiSky: '#c7c2ee',
     hemiGround: '#a8879f',
     hemiIntensity: 1.3,
-    sunElevation: 0.06, // just risen over the cloud sea
+    // Just risen over the cloud sea, and just high enough (sunDir.y over light.shadowSunMin)
+    // that the shadow pass runs once: on high, a map never drawn leaves every shadow-receiving
+    // draw failing (a depth sampler bound to no depth texture) until the sun climbs.
+    sunElevation: 0.07,
     stars: 0.2,
     grade: '#fff0ea',
     water: '#ecbdb4',

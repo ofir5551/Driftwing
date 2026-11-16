@@ -35,6 +35,25 @@ export const cloudSeaUniforms = {
       return Config.peaks.breath;
     },
   },
+  /** The cloud sea's mean top: below it is a gap's wall, then the valley floor. */
+  uCLevel: {
+    get value() {
+      return Config.peaks.cloud;
+    },
+  },
+  uCFloor: {
+    get value() {
+      return Config.peaks.gapFloor;
+    },
+  },
+  /** World direction to the sun (or the moon) and its colour (set each frame). */
+  uCSunDir: { value: new THREE.Vector3(0, 1, 0) },
+  uCSunColor: { value: new THREE.Color() },
+  /** Warm glow on the sun-facing heaps (strongest with the sun low) and the silver lining. */
+  uCWarm: { value: 0 },
+  uCLining: { value: 0 },
+  /** The haze that fills a gap, the valley's air (set each frame from the palette). */
+  uCHaze: { value: new THREE.Color() },
 };
 
 const NOISE = /* glsl */ `
@@ -59,6 +78,7 @@ uniform float uCTime;
 uniform vec2 uCDrift;
 uniform float uCHeave;
 uniform float uCBreath;
+uniform float uCLevel;
 ${NOISE}
 // Heave in -1..1: broad heaps carried by the wind, smaller ones that swell and sink in place.
 float cHeave(vec2 p) {
@@ -78,6 +98,13 @@ varying vec2 vCWarp;
 uniform float uCTime;
 uniform vec2 uCDrift;
 uniform float uCDetail;
+uniform float uCLevel;
+uniform float uCFloor;
+uniform vec3 uCSunDir;
+uniform vec3 uCSunColor;
+uniform float uCWarm;
+uniform float uCLining;
+uniform vec3 uCHaze;
 ${NOISE}
 // Rounded lobes: each octave squared toward its crests, so the puffs bulge and the seams
 // between them pinch, as in heaped cumulus. q is wind-carried and warped; near (0..1) fades the
@@ -105,6 +132,8 @@ export function withCloudSea<T extends THREE.Material>(m: T): T {
   float cd = length(cw.xz - cameraPosition.xz);
   // Flat round the camera (its floor is just above the height field) and calm far away.
   float amp = uCHeave * smoothstep(6.0, 36.0, cd) * (1.0 - smoothstep(700.0, 1100.0, cd));
+  // Only the cloud tops heave: a gap's walls and the valley under it stand still.
+  amp *= 1.0 - smoothstep(4.0, 14.0, uCLevel - cw.y);
   transformed.y += cHeave(cw.xz) * amp;
   // The heave's slope (m per m) tilts the shading normal in the fragment shader.
   const float ce = 3.0;
@@ -125,11 +154,34 @@ export function withCloudSea<T extends THREE.Material>(m: T): T {
       .replace(
         '#include <color_fragment>',
         /* glsl */ `#include <color_fragment>
+vec3 cSunGlow = vec3(0.0);
 float cNear = 1.0 - smoothstep(120.0, 520.0, distance(vCPos, cameraPosition));
 vec2 cQ = vCPos.xz - uCDrift + vCWarp;
 float cL = cLobes(cQ, cNear);
 // Crests of the lobes catch a little more light; the seams between them sink into shade.
-diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.84, 0.84, 0.96), vec3(1.06), smoothstep(0.15, 1.1, cL)), uCDetail);`,
+diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.84, 0.84, 0.96), vec3(1.06), smoothstep(0.15, 1.1, cL)), uCDetail);
+// A gap: the cloud's walls fall away into blue shadow, and far below lie the valleys (a dark
+// forest, a river's thread, terraced fields) under the haze that fills them.
+float cDepth = uCLevel - vCPos.y;
+float cGap = smoothstep(6.0, 30.0, cDepth);
+if (cGap > 0.0) {
+  vec2 v = vCPos.xz;
+  float f1 = cNoise(v * 0.11);
+  float f2 = cNoise(v * 0.43 + 7.3);
+  vec3 forest = mix(vec3(0.13, 0.24, 0.16), vec3(0.24, 0.36, 0.2), f1 * 0.7 + f2 * 0.3);
+  // Fields on the gentler ground: small patches of lighter green and straw.
+  float field = smoothstep(0.55, 0.62, cNoise(v * 0.07 + 3.1));
+  vec3 crop = mix(vec3(0.42, 0.52, 0.26), vec3(0.62, 0.58, 0.34), step(0.5, cHash(floor(v * 0.35))));
+  forest = mix(forest, crop, field * 0.8);
+  // A river wandering through: a thin bright thread with darker banks.
+  float rv = abs(cNoise(v * 0.018 + 11.0) - 0.5);
+  float river = 1.0 - smoothstep(0.012, 0.022, rv);
+  forest = mix(forest * (1.0 - 0.3 * (1.0 - smoothstep(0.02, 0.05, rv))), vec3(0.58, 0.7, 0.78), river);
+  float floorK = 1.0 - smoothstep(uCFloor + 2.0, uCFloor + 9.0, vCPos.y);
+  vec3 wall = mix(diffuseColor.rgb, uCHaze * 0.9, smoothstep(0.0, 1.0, cGap));
+  vec3 below = mix(forest, uCHaze, 0.42);
+  diffuseColor.rgb = mix(wall, below, floorK);
+}`,
       )
       .replace(
         '#include <normal_fragment_maps>',
@@ -144,8 +196,22 @@ diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.84, 0.84, 0.96), vec3(1.06), smoot
   vec3 base = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
   base = normalize(base - vec3(vCTilt.x, 0.0, vCTilt.y));
   wn = normalize(base + wn - vec3(0.0, 1.0, 0.0));
+  // In a gap the walls and the valley keep their own normal (no cloud lobes down there).
+  wn = normalize(mix(wn, base, cGap));
   normal = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
+  // Warm light on the heaps that face a low sun, and a silver lining on the tops seen against
+  // it (light scattered forward through the thin edges of the cloud).
+  vec3 cView = normalize(vCPos - cameraPosition);
+  float cFace = max(dot(wn, uCSunDir), 0.0);
+  float cFwd = pow(max(dot(cView, uCSunDir), 0.0), 5.0);
+  float cRim = 1.0 - max(dot(wn, -cView), 0.0);
+  float cGlow = (uCWarm * cFace * cFace + uCLining * cFwd * cRim * cRim) * (1.0 - cGap);
+  cSunGlow = uCSunColor * cGlow;
 }`,
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\ntotalEmissiveRadiance = totalEmissiveRadiance * (1.0 - 0.75 * cGap) + cSunGlow;',
       );
   };
   m.customProgramCacheKey = () => 'cloudsea';

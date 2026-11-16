@@ -86,7 +86,7 @@ export class SpireSkin {
         notch: 0.03 + rand() * 0.035,
         w: 0.006 + rand() * 0.006,
         // A tier already has its step; a little more round part of it.
-        shelf: tier ? 0.03 + rand() * 0.03 : 0.05 + rand() * 0.05,
+        shelf: tier ? 0.04 + rand() * 0.03 : 0.07 + rand() * 0.06,
         rise: 0.025 + rand() * 0.035,
         ph: rand() * Math.PI * 2,
         ph2: rand() * Math.PI * 2,
@@ -97,7 +97,7 @@ export class SpireSkin {
       .map((j, i) => ({ j, i }))
       .filter(({ j }) => j.t > 0.35 && j.t < sh.cap - 0.12 && !tiers.includes(j.t));
     const pick = mids.length ? mids[Math.floor(rand() * mids.length)] : { i: -1 };
-    this.alcove = { joint: pick.i, a: rand() * Math.PI * 2, arc: 0.45 + rand() * 0.2, depth: 0.15 };
+    this.alcove = { joint: pick.i, a: rand() * Math.PI * 2, arc: 0.45 + rand() * 0.2, depth: 0.18 };
     const k = 3 + Math.floor(rand() * 3);
     for (let i = 0; i < k; i++)
       this.cracks.push({
@@ -127,7 +127,11 @@ export class SpireSkin {
   /** 0..1: how deep joint j's groove is at local angle a (it fades in and out round the rock). */
   grooveMask(j: number, a: number): number {
     const J = this.joints[j];
-    return smoothstep(-0.3, 0.6, Math.sin(a * 2 + J.ph2 * 1.7) * 0.6 + Math.sin(a * 3 - J.ph) * 0.4);
+    return smoothstep(
+      -0.3,
+      0.6,
+      Math.sin(a * 2 + J.ph2 * 1.7) * 0.6 + Math.sin(a * 3 - J.ph) * 0.4,
+    );
   }
 
   /**
@@ -136,7 +140,8 @@ export class SpireSkin {
    * ringing the rock. Zero at the foot and on the dome, so the summit query is unchanged.
    */
   lift(t: number, a: number): number {
-    const w = smoothstep(0.03, 0.12, t) * (1 - smoothstep(this.sh.cap - 0.08, this.sh.cap - 0.02, t));
+    const w =
+      smoothstep(0.03, 0.12, t) * (1 - smoothstep(this.sh.cap - 0.08, this.sh.cap - 0.02, t));
     return w * (0.02 * Math.sin(a + this.ph) + 0.01 * Math.sin(2 * a - this.ph * 1.3 + t * 6));
   }
 
@@ -144,7 +149,7 @@ export class SpireSkin {
   shelfDepth(j: number, a: number): number {
     const A = this.alcove;
     const J = this.joints[j];
-    const deep = A.joint === j ? (1 - smoothstep(A.arc * 0.5, A.arc, angleTo(a, A.a))) : 0;
+    const deep = A.joint === j ? 1 - smoothstep(A.arc * 0.5, A.arc, angleTo(a, A.a)) : 0;
     return (J.shelf + (A.depth - J.shelf) * deep) * this.ledgeMask(j, a) * this.rough(J.t);
   }
 
@@ -182,7 +187,7 @@ export class SpireSkin {
 
 /** Unsigned angle between two angles, in [0, pi]. */
 export function angleTo(a: number, b: number): number {
-  const d = Math.abs((((a - b) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  const d = Math.abs(((((a - b) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
   return d;
 }
 

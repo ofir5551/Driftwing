@@ -82,7 +82,9 @@ export function spireGeometry(skin: SpireSkin, d: SpireDetail): THREE.BufferGeom
       pos.push(Math.cos(a) * rad + off, (t + skin.lift(tc, a)) * sh.aspect, Math.sin(a) * rad);
       // Columns of slightly different stone round the spire.
       const tone = 0.5 + 0.5 * Math.sin(a * 3 + ph) * Math.sin(a * 7 - ph * 0.6 + tc * 5);
-      c.copy(GRANITE).lerp(GRANITE_WARM, tone * 0.55).lerp(GRANITE_COOL, (1 - tone) * 0.25);
+      c.copy(GRANITE)
+        .lerp(GRANITE_WARM, tone * 0.55)
+        .lerp(GRANITE_COOL, (1 - tone) * 0.25);
       // Cut-in rock is in shade and wet: grooves, chimneys, the backs of ledges.
       c.lerp(JOINT, Math.min(0.6, Math.max(0, 1 - sk) * 4.5));
       const lichen = smoothstep(0.75, 0.95, Math.sin(tc * 19 + a * 3 + ph) * Math.sin(a * 2 - ph));
@@ -225,19 +227,50 @@ export function monasteryGeometry(): THREE.BufferGeometry {
     parts.push(roof(w + 2.4, w + 2.4, 1.4, y + 3.2).translate(6, 0, -7));
   }
   parts.push(colored(new THREE.ConeGeometry(0.35, 2.4, 6), '#c9a64e', 15.6).translate(6, 0, -7));
+  // The monks' long dormitory along the west wall.
+  parts.push(colored(new THREE.BoxGeometry(4, 3, 7), '#e3dccd', 3.1).translate(-10, 0, -5));
+  parts.push(roof(5.2, 8.4, 1.6, 4.6).translate(-10, 0, -5));
+  // A bell pavilion: four red posts, a roof, the bronze bell hanging under it.
+  for (const [x, z] of [
+    [-10.3, 4.7],
+    [-7.7, 4.7],
+    [-10.3, 7.3],
+    [-7.7, 7.3],
+  ])
+    parts.push(
+      colored(new THREE.CylinderGeometry(0.12, 0.14, 2.8, 4), '#9e3a2f', 3).translate(x, 0, z),
+    );
+  parts.push(roof(4, 4, 1.3, 4.4).translate(-9, 0, 6));
+  parts.push(
+    colored(new THREE.CylinderGeometry(0.45, 0.7, 1.2, 8), '#6d5a35', 3.3).translate(-9, 0, 6),
+  );
+  // A white stupa: a square plinth, the dome, a stepped spire with a gilded tip.
+  parts.push(colored(new THREE.BoxGeometry(3, 1, 3), '#d9d2c4', 2.1).translate(8, 0, 10));
+  parts.push(colored(new THREE.SphereGeometry(1.25, 8, 5), '#f1ece2', 3.4).translate(8, 0, 10));
+  parts.push(
+    colored(new THREE.CylinderGeometry(0.25, 0.55, 2.2, 6), '#e9e3d6', 5.3).translate(8, 0, 10),
+  );
+  parts.push(colored(new THREE.ConeGeometry(0.3, 0.8, 6), '#c9a64e', 6.8).translate(8, 0, 10));
+  // The courtyard before the main hall: a bronze incense burner and two stone lanterns.
+  parts.push(
+    colored(new THREE.CylinderGeometry(0.75, 0.5, 0.8, 8), '#5e5135', 2.1).translate(-2, 0, 5.2),
+  );
+  parts.push(colored(new THREE.ConeGeometry(0.6, 0.7, 8), '#4b4130', 2.85).translate(-2, 0, 5.2));
+  for (const x of [-5, 1])
+    parts.push(
+      colored(new THREE.BoxGeometry(0.5, 1.3, 0.5), '#a69f94', 2.25).translate(x, 0, 4.4),
+      colored(new THREE.ConeGeometry(0.55, 0.45, 4).rotateY(Math.PI / 4), '#8d867b', 3.1).translate(
+        x,
+        0,
+        4.4,
+      ),
+    );
+  // The front gate in the terrace wall.
+  for (const x of [-3.6, -0.4])
+    parts.push(colored(new THREE.BoxGeometry(0.4, 3.4, 0.4), '#9e3a2f', 3.3).translate(x, 0, 13.4));
+  parts.push(roof(5, 1.5, 0.8, 5).translate(-2, 0, 13.4));
   return mergeGeometries(parts)!;
 }
-
-/** Where lanterns hang on the temples, in their local metres. */
-export const HERMITAGE_LANTERNS = [{ x: 2.3, y: 3.6, z: 2.6 }];
-export const MONASTERY_LANTERNS = [
-  { x: -5, y: 5.6, z: 2.6 },
-  { x: 1, y: 5.6, z: 2.6 },
-  { x: 6, y: 13.4, z: -4.2 },
-  { x: 8, y: 4.6, z: 5.3 },
-  { x: -12, y: 3.4, z: 8 },
-  { x: 12, y: 3.4, z: -8 },
-];
 
 const FLAGS = ['#3d6fb6', '#f1ece2', '#c8443a', '#4c9a5f', '#e5c14b'];
 

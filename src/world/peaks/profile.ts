@@ -52,4 +52,3 @@ export function profile(sh: SpireShape, t: number): number {
   }
   return r;
 }
-

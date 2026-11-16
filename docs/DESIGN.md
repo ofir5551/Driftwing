@@ -651,7 +651,9 @@ spawns.
   huts, pavilions, the stair, ropes, flags, lanterns and windows within `propDistance`; near
   boulders and dwarf pines within `propDetail`; distant pines past `treeFar`; granite relief
   off on low (`rockDetail`); sunbeams with `cloudShadows`.
-- Cost at the review's viewpoints: see the decisions log.
+- Cost at five views (triangles / draw calls, whole frame): medium 123-153k / 132-148 (was
+  146-167k / 115-133), high 245-271k / 145-179 (was 229-255k / 126-154), low 85-109k / 93-110
+  (was 82-102k / 92-103).
 
 ## Coral Atolls
 
@@ -1605,3 +1607,30 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Water taxis pick their lane's distance offshore so it passes between the piers of every
   expressway bridge in reach and clear of the bay torii; ferry routes keep away from harbours,
   expressway lines and the spawn's view of the torii.
+- Sea of Clouds lived in. The spires were flat-shaded 9-sided prisms (polygons, not rock);
+  smoothing them alone was rejected as a tweak. Each silhouette now has a skin that only cuts
+  into the collision profile (ledges, grooves, an alcove, chimneys), so collisions, the summit
+  query and the wisp clearance are unchanged while the drawn rock gets its shape; things that
+  sit on the rock read the skin. The first per-pixel joints were iso-lines of a 3D noise, which
+  close into loops on a lathe and drew ovals on every face; fractures are now whole multiples
+  of the angle round each spire's own axis (`aRock`) and sheeting joints follow height, so they
+  are open lines. Ledge cover and dwarf pines are props within `smallPropDistance` (the Trees
+  would have drawn them to `treeDistance`); the granite pine got a distant shape past `treeFar`,
+  which pays for the indexed spire lathes: medium is 2-21 % cheaper than before at five views,
+  with 15-19 more draw calls; high +5-10 % (shadow casters), low -6 to +10 %.
+- Rope bridges and flag lines between spires are soft rather than solid: an oriented thin box
+  would need its own look-ahead (the shared one sees axis-aligned boxes) and would be a wall
+  across the gap between two spires. The planner keeps every ribbon 10 m off them instead, and
+  the autopilot test counts wisps near a rope as failures.
+- Gaps in the cloud sea open only in the drawn surface: the water plane is at 0, so the valley
+  floor can be just 35 m below the cloud top, and a bird diving into a 40 m hole would meet
+  steep terrain walls. Flight, wisps and spires keep the cloud top; the valley is painted at a
+  small scale and hazed so it reads far below.
+- Sunbeams are geometry, not the shafts pass, so medium (no shafts) has them; they show only
+  from mid-morning to the golden hour, since a low sun laid them along the sea and an end-on
+  beam through the camera washed the whole screen.
+- On high, a shadow map that has never been drawn leaves every shadow-receiving draw failing
+  (a depth sampler bound to no depth texture: the scene vanishes) until the sun rises past
+  `light.shadowSunMin`. Sea of Clouds opened at sunrise with the sun just below it; its dawn sun
+  now sits just above. The shared code is unchanged; another level opening with the sun that
+  low would need the same care, or SunShadows drawing the map once when it is enabled.

@@ -422,7 +422,7 @@ export const Config = {
     flagLines: 0.3, // share that string a line of prayer flags to one instead
     ropeSpan: 120, // m, the farthest apart two spires' centres may be for a rope between them
     ropeClear: 10, // m every wisp ribbon keeps from a rope (they are soft, but never in the way)
-    ledgeCover: 0.85, // share of the ledge spots wide enough that carry moss, grass, snow or a dwarf pine
+    ledgeCover: 0.9, // share of the ledge spots wide enough that carry moss, grass, snow or a dwarf pine
     craneSpeed: 11, // m/s, cranes wheeling round their circle
     huts: 0.3, // share of the spires with an alcove that shelter a hermit's hut in it
     pavilions: 0.14, // share of the bare summits that carry a little pavilion

@@ -117,8 +117,8 @@ export class SpireSkin {
   /** 0..1: how much of joint j's ledge there is at local angle a (whole frequencies: no seam). */
   ledgeMask(j: number, a: number): number {
     const J = this.joints[j];
-    const s = 0.55 * Math.sin(a + J.ph) + 0.45 * Math.sin(3 * a + J.ph2);
-    let m = smoothstep(0.2, 0.55, s);
+    const s = 0.7 * Math.sin(a + J.ph) + 0.3 * Math.sin(2 * a + J.ph2);
+    let m = smoothstep(-0.05, 0.35, s);
     const A = this.alcove;
     if (A.joint === j) m = Math.max(m, 1 - smoothstep(A.arc * 0.6, A.arc, angleTo(a, A.a)));
     return m;

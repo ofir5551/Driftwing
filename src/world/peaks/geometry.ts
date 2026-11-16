@@ -86,7 +86,7 @@ export function spireGeometry(skin: SpireSkin, d: SpireDetail): THREE.BufferGeom
         .lerp(GRANITE_WARM, tone * 0.55)
         .lerp(GRANITE_COOL, (1 - tone) * 0.25);
       // Cut-in rock is in shade and wet: grooves, chimneys, the backs of ledges.
-      c.lerp(JOINT, Math.min(0.6, Math.max(0, 1 - sk) * 4.5));
+      c.lerp(JOINT, Math.min(0.45, Math.max(0, 1 - sk) * 2.6));
       const lichen = smoothstep(0.75, 0.95, Math.sin(tc * 19 + a * 3 + ph) * Math.sin(a * 2 - ph));
       c.lerp(LICHEN, lichen * 0.35);
       // Rain streaks hang under the ledges.

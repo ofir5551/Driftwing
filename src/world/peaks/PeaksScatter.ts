@@ -13,9 +13,8 @@ import { LEDGE_EPS, SKINS } from './skin';
  * position is read from the spire's skin (skin.ts), so things sit on the drawn stone.
  */
 
-/** Trees in the Trees stride (type, x, y, z, scale, rotY, tint); types: */
+/** Trees in the Trees stride (type, x, y, z, scale, rotY, tint): the granite pine, type 0. */
 export const PINE = 0;
-export const DWARF = 1;
 
 /** Prop kinds. */
 export const K = {
@@ -28,7 +27,7 @@ export const K = {
   Shrine: 6,
   Step: 7,
   Post: 8,
-  Gate: 9,
+  Dwarf: 9,
 } as const;
 export const PROP_KINDS = 10;
 /** Floats per prop record: kind, x, y, z, yaw, scale, tint. */
@@ -138,7 +137,7 @@ export class PeaksScatter {
     const capR = sp.r * profile(sh, sh.cap);
     const clear = sp.temple === Temple.Monastery ? 16.5 : sp.temple === Temple.Hermitage ? 6.5 : 0;
     const pavilion = sp.temple === Temple.None && sp.r * 0.3 >= 3.2 && rand() < P.pavilions;
-    const cover = 8 + Math.floor(sp.r / 1.6);
+    const cover = 10 + Math.floor(sp.r / 1.2);
     for (let k = 0; k < cover; k++) {
       const d = Math.sqrt(rand()) * capR * 0.92;
       if (d < clear || (pavilion && d < 3.6)) continue;
@@ -165,7 +164,7 @@ export class PeaksScatter {
     for (let j = 0; j < skin.joints.length; j++) {
       const J = skin.joints[j];
       const pr = sp.r * profile(sh, J.t);
-      const n = Math.max(8, Math.floor((Math.PI * 2 * pr) / 3));
+      const n = Math.max(12, Math.floor((Math.PI * 2 * pr) / 1.7));
       for (let k = 0; k < n; k++) {
         const a = ((k + rand() * 0.8) / n) * Math.PI * 2;
         const lip = skin.skin(J.t - LEDGE_EPS, a);
@@ -179,8 +178,9 @@ export class PeaksScatter {
         this.onRock(sp, J.t, a, rad, pos);
         const s = Math.min(1.8, width * 0.6) * (0.8 + rand() * 0.5);
         const roll = rand();
-        if (roll < 0.2) tree(DWARF, J.t, a, rad, 0.9 + rand() * 0.7, outward(a));
-        else if (roll < 0.135 && width > 2.2 && pos[1] < P.snowline) {
+        // A dwarf pine leans out over the drop (its drawn lean is local +x).
+        if (roll < 0.2) prop(K.Dwarf, pos[0], pos[1] - 0.3, pos[2], outward(a), 0.9 + rand() * 0.7);
+        else if (roll < 0.215 && width > 2.2 && pos[1] < P.snowline) {
           prop(K.Shrine, pos[0], pos[1], pos[2], -(a - sp.yaw) + Math.PI / 2, 1);
         } else this.cover(pos[0], pos[1], pos[2], rand(), s, prop, rand, false);
       }
@@ -271,20 +271,6 @@ export class PeaksScatter {
         out.props.push(K.Post, px, y + 0.27, pz, yaw, 1, 0.5);
         out.lanterns.push(px, y + 0.27 + 1.95, pz, 0.7);
       }
-    }
-    // A gate where the stair arrives on the summit.
-    const n = S.length - 4;
-    if (n >= 0) {
-      const yaw = S[n + 3];
-      out.props.push(
-        K.Gate,
-        S[n] + Math.sin(yaw) * 1.4,
-        S[n + 1] + 0.3,
-        S[n + 2] + Math.cos(yaw) * 1.4,
-        yaw,
-        1,
-        0.5,
-      );
     }
   }
 }

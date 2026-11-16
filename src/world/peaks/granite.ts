@@ -70,8 +70,8 @@ float grNoise(vec3 x) {
 }
 // The joint field: x = vertical fractures (0 on a crack), y = horizontal sheeting joints.
 vec2 grJoints(vec3 p) {
-  float c = abs(grNoise(p * vec3(0.075, 0.012, 0.075)) - 0.5);
-  float j = abs(grNoise(p * vec3(0.016, 0.07, 0.016) + 17.0) - 0.5);
+  float c = abs(grNoise(p * vec3(0.11, 0.017, 0.11)) - 0.5);
+  float j = abs(grNoise(p * vec3(0.022, 0.095, 0.022) + 17.0) - 0.5);
   return vec2(c, j);
 }
 // Relief in metres-ish: pillowed blocks between the joints, the joints themselves cut in.
@@ -95,20 +95,21 @@ if (grNear > 0.0) {
   float r0 = grRelief(vGrPos);
   float dA = (grRelief(vGrPos + tg * 0.7) - r0) / 0.7;
   float dB = (grRelief(vGrPos + bt * 0.7) - r0) / 0.7;
-  grWN = normalize(grN - (tg * dA + bt * dB) * 2.6 * uGrRelief * grNear);
+  grWN = normalize(grN - (tg * dA + bt * dB) * 3.4 * uGrRelief * grNear);
   grQ = grJoints(vGrPos);
 }
 {
   vec3 p = vGrPos;
   float n1 = grNoise(p * 0.045);
-  float n2 = grNoise(p * vec3(0.3, 0.05, 0.3) + 5.0);
+  float n2 = grNoise(p * vec3(0.38, 0.035, 0.38) + 5.0);
   vec3 rc = diffuseColor.rgb;
-  // Stone tone drifts warmer and cooler across the faces.
+  // Stone tone drifts warmer and cooler across the faces; up close, the granite's speckle.
   rc *= 0.88 + 0.24 * n1;
+  rc *= 1.0 + (grNoise(p * 1.9) - 0.5) * 0.16 * grNear;
   float crack = (1.0 - smoothstep(0.0, 0.03, grQ.x)) + (1.0 - smoothstep(0.0, 0.025, grQ.y)) * 0.8;
-  rc *= 1.0 - 0.55 * min(crack, 1.0) * grNear;
+  rc *= 1.0 - 0.6 * min(crack, 1.0) * grNear;
   // Dark water stains hanging down the faces.
-  float stain = smoothstep(0.62, 0.86, n2) * (1.0 - smoothstep(0.5, 0.9, grWN.y));
+  float stain = smoothstep(0.66, 0.84, n2) * (1.0 - smoothstep(0.5, 0.9, grWN.y));
   rc = mix(rc, rc * vec3(0.55, 0.56, 0.6), stain * 0.6 * (0.35 + 0.65 * grNear));
   // Lichen: ochre and grey-green crusts.
   float lich = smoothstep(0.66, 0.8, grNoise(p * 0.11 + 9.0));

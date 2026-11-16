@@ -145,12 +145,18 @@ export function dwarfPineGeometry(near: boolean): THREE.BufferGeometry {
   return mergeGeometries(parts)!;
 }
 
-/** The granite pine past render.treeFar: a trunk stroke under two flat pads (~16 triangles). */
+/**
+ * The granite pine past render.treeFar (~22 triangles): a trunk stroke under two flat pads,
+ * each a squashed four-sided lens (the eye reads only their silhouette that far out).
+ */
 export function pineDistantGeometry(): THREE.BufferGeometry {
-  const trunk = new THREE.CylinderGeometry(0.25, 0.45, 6, 3).translate(0, 3, 0).rotateZ(-0.42);
+  const trunk = new THREE.CylinderGeometry(0.25, 0.45, 6, 3, 1, true)
+    .translate(0, 3, 0)
+    .rotateZ(-0.42);
+  const pad = (r: number, h: number) => new THREE.OctahedronGeometry(1, 0).scale(r, h, r * 0.85);
   const pads = [
-    colored(new THREE.CylinderGeometry(3.0, 2.4, 1.0, 4), '#3f6b4f').translate(2.8, 5.8, 0),
-    colored(new THREE.CylinderGeometry(2.0, 1.6, 0.9, 4), '#3f6b4f').translate(1.6, 4.4, -0.4),
+    colored(pad(3.0, 0.6), '#3f6b4f').translate(2.8, 5.8, 0),
+    colored(pad(2.0, 0.5), '#3f6b4f').translate(1.6, 4.4, -0.4),
   ];
   return topLit(mergeGeometries([colored(trunk, '#6c5345'), ...pads])!, 0.6, 1.15);
 }
@@ -276,37 +282,16 @@ export function flagSegmentGeometry(): THREE.BufferGeometry {
 }
 
 /**
- * A length of rope bridge, one metre along +x: a plank across a 1.5 m deck and rope rails
- * either side at hand height; `near` adds the hangers from the rails down to the deck.
+ * A length of rope bridge, one metre along +x: a plank across a 1.5 m deck, rope rails either
+ * side at hand height and the hangers from the rails down to the deck (~30 triangles).
  */
-export function bridgeSegmentGeometry(near: boolean): THREE.BufferGeometry {
-  const rail = (z: number) =>
-    colored(
-      new THREE.CylinderGeometry(0.035, 0.035, 1, 3, 1, true).rotateZ(Math.PI / 2),
-      '#5c4a3a',
-    ).translate(0.5, 1.05, z);
-  const parts = [box(0.86, 0.1, 1.5, '#9d7d5a', 0.5, 0, 0), rail(0.72), rail(-0.72)];
-  if (near)
-    for (const z of [0.72, -0.72])
-      parts.push(
-        colored(new THREE.CylinderGeometry(0.02, 0.02, 1.05, 3, 1, true), '#5c4a3a').translate(
-          0.02,
-          0.52,
-          z,
-        ),
-      );
-  return still(mergeGeometries(parts)!);
-}
-
-/** A gate (paifang) where the stair reaches the summit: two red posts, a beam, a little roof. */
-export function gateGeometry(): THREE.BufferGeometry {
-  const parts = [
-    box(0.3, 3.6, 0.3, '#9e3a2f', -1.3, 1.8, 0),
-    box(0.3, 3.6, 0.3, '#9e3a2f', 1.3, 1.8, 0),
-    box(3.4, 0.3, 0.36, '#9e3a2f', 0, 3.2, 0),
-    box(1.2, 0.5, 0.12, '#2d4f7c', 0, 2.75, 0.2),
-    roof(3.9, 1.0, 0.6, 3.6),
-  ];
+export function bridgeSegmentGeometry(): THREE.BufferGeometry {
+  const cord = (h: number, r: number) => new THREE.CylinderGeometry(r, r, h, 3, 1, true);
+  const parts = [box(0.86, 0.1, 1.5, '#9d7d5a', 0.5, 0, 0)];
+  for (const z of [0.72, -0.72]) {
+    parts.push(colored(cord(1, 0.035).rotateZ(Math.PI / 2), '#5c4a3a').translate(0.5, 1.05, z));
+    parts.push(colored(cord(1.05, 0.02), '#5c4a3a').translate(0.02, 0.52, z));
+  }
   return still(mergeGeometries(parts)!);
 }
 

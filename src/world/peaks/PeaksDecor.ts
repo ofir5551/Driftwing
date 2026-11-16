@@ -38,7 +38,6 @@ import {
   dwarfPineGeometry,
   FLAG_COLORS,
   flagSegmentGeometry,
-  gateGeometry,
   grassGeometry,
   hutGeometry,
   mossGeometry,
@@ -62,15 +61,16 @@ export interface PeaksChunk extends Dressing {
   flocks: Flock[];
 }
 
-/** Per prop kind: 1 drawn within propDistance, 2 within smallPropDistance. */
-const RANGE = [2, 2, 2, 2, 1, 1, 2, 1, 1, 1];
-/** Per prop kind: instance capacity. */
-const CAP = [5000, 5000, 3000, 2000, 120, 120, 300, 400, 40, 4];
-/** Per prop kind: casts a sun shadow (through near-only proxies, on high). */
+// Per prop kind (K: moss, grass, snow, boulder, hut, pavilion, shrine, step, post, dwarf pine):
+/** 1 drawn within propDistance, 2 within smallPropDistance. */
+const RANGE = [2, 2, 2, 2, 1, 1, 2, 1, 1, 2];
+/** Instance capacity. */
+const CAP = [5000, 5000, 3000, 2000, 120, 120, 300, 400, 40, 2000];
+/** Casts a sun shadow (through near-only proxies, on high). */
 const CASTS = [0, 0, 0, 1, 1, 1, 1, 0, 0, 1];
-/** Per prop kind: contact-shadow radius at scale 1 (0 = none); blobs lie flat at the foot. */
-const BLOB = [0, 0, 0, 1.0, 2.6, 3.2, 0.8, 0, 0, 0];
-/** Per prop kind: drawn with the granite material (the stair is cut from the rock). */
+/** Contact-shadow radius at scale 1 (0 = none); blobs lie flat at the foot. */
+const BLOB = [0, 0, 0, 1.0, 2.6, 3.2, 0.8, 0, 0, 1.4];
+/** Drawn with the granite material (the stair is cut from the rock). */
 const ROCK = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0];
 
 const m = new THREE.Matrix4();
@@ -125,16 +125,15 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
   private readonly near: THREE.InstancedMesh[] = [];
   private readonly far: (THREE.InstancedMesh | null)[] = [];
   private readonly casters: (ShadowCasters | null)[] = [];
-  private readonly bridgeNear: THREE.InstancedMesh;
-  private readonly bridgeFar: THREE.InstancedMesh;
+  private readonly bridge: THREE.InstancedMesh;
   private readonly flags: THREE.InstancedMesh;
   private readonly cranes: THREE.InstancedMesh;
   private readonly craneSlots: THREE.InstancedBufferAttribute;
   private readonly contact = new ContactShadows(1500);
   readonly trees = new Trees(
     9000,
-    [cloudPineGeometry(), dwarfPineGeometry(false)],
-    [cloudPineDetailGeometry(), dwarfPineGeometry(true)],
+    [cloudPineGeometry()],
+    [cloudPineDetailGeometry()],
     [pineDistantGeometry()],
   );
   private readonly treeLists: number[][] = [];
@@ -143,7 +142,6 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
   /** Instances per spire mesh (tier * shapes + shape), then hermitages and the monastery. */
   private readonly sc = new Array<number>(SKINS.length * 3 + 2).fill(0);
   private bn = 0;
-  private bf = 0;
   private fc = 0;
   private cc = 0;
   private lc = 0;
@@ -204,12 +202,12 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
       shrineGeometry(),
       stepGeometry(),
       postGeometry(),
-      gateGeometry(),
+      dwarfPineGeometry(true),
     ];
     const far: (THREE.BufferGeometry | null)[] = near.map(() => null);
     far[K.Boulder] = boulderGeometry(0);
-    far[K.Hut] = hutGeometry(false);
-    far[K.Pavilion] = pavilionGeometry(false);
+    far[K.Dwarf] = dwarfPineGeometry(false);
+    // Huts and pavilions are few: one shape each (two meshes would cost a draw call apiece).
     for (let k = 0; k < PROP_KINDS; k++) {
       const mat = ROCK[k] ? rock : this.prop;
       this.near.push(this.make(near[k], CAP[k], mat, `peaks-${k}`));
@@ -219,8 +217,7 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
         CASTS[k] ? new ShadowCasters(fg ?? near[k], mat, Math.min(CAP[k], 400)) : null,
       );
     }
-    this.bridgeNear = this.make(bridgeSegmentGeometry(true), 1500, this.prop, 'rope-bridge-near');
-    this.bridgeFar = this.make(bridgeSegmentGeometry(false), 4000, this.prop, 'rope-bridge');
+    this.bridge = this.make(bridgeSegmentGeometry(), 4000, this.prop, 'rope-bridge');
     this.flags = this.make(flagSegmentGeometry(), 6000, this.cloth, 'prayer-flags');
     const crane = craneGeometry();
     this.craneSlots = new THREE.InstancedBufferAttribute(new Float32Array(400 * 4), 4);
@@ -302,7 +299,7 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
     this.nearCount.fill(0);
     this.farCount.fill(0);
     this.sc.fill(0);
-    this.bn = this.bf = this.fc = this.cc = this.lc = this.wc = 0;
+    this.bn = this.fc = this.cc = this.lc = this.wc = 0;
     for (const c of this.spireCasters) c.begin(px, pz, size);
     for (const c of this.templeCasters) c.begin(px, pz, size);
     for (const c of this.casters) c?.begin(px, pz, size);
@@ -352,8 +349,7 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
       if (f) commitInstances(f, this.farCount[k]);
       this.casters[k]?.end();
     }
-    commitInstances(this.bridgeNear, this.bn);
-    commitInstances(this.bridgeFar, this.bf);
+    commitInstances(this.bridge, this.bn);
     commitInstances(this.flags, this.fc);
     commitInstances(this.cranes, this.cc);
     this.craneSlots.clearUpdateRanges();
@@ -452,19 +448,14 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
     }
     const len = Math.hypot(r.x1 - r.x0, r.y1 - r.y0, r.z1 - r.z0);
     const n = Math.max(3, Math.ceil(len / 2));
-    const nearB = (mx - this.px) ** 2 + (mz - this.pz) ** 2 < this.detail2 * 2;
     const hx = (r.z1 - r.z0) / Math.hypot(r.x1 - r.x0, r.z1 - r.z0);
     const hz = -(r.x1 - r.x0) / Math.hypot(r.x1 - r.x0, r.z1 - r.z0);
     for (let k = 0; k < n; k++) {
       ropeAt(r, k / n, pa);
       ropeAt(r, (k + 1) / n, pb);
-      const mesh = nearB ? this.bridgeNear : this.bridgeFar;
-      const idx = nearB ? this.bn : this.bf;
-      if (idx >= mesh.instanceMatrix.count) return;
+      if (this.bn >= this.bridge.instanceMatrix.count) return;
       this.segment(pa.x, pa.y, pa.z, pb.x, pb.y, pb.z);
-      mesh.setMatrixAt(idx, m);
-      if (nearB) this.bn++;
-      else this.bf++;
+      this.bridge.setMatrixAt(this.bn++, m);
       // Flags along the rail on one side, every other plank.
       if (k % 2 === 0 && this.fc < this.flags.instanceMatrix.count) {
         const o = 0.72;
@@ -570,8 +561,7 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
       this.lanterns,
       this.windows,
       ...this.near,
-      this.bridgeNear,
-      this.bridgeFar,
+      this.bridge,
       this.flags,
       this.cranes,
     ]) {

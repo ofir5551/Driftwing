@@ -69,7 +69,13 @@ export interface ChunkOptions<T> {
   /** Allocate a chunk geometry (extra attributes) and fill them after the terrain pass. */
   createGeometry?: (res: number) => THREE.BufferGeometry;
   fillExtra?: (g: THREE.BufferGeometry, ox: number, oz: number, size: number, res: number) => void;
-  /** Terrain casts sun shadows (hills shade valleys). Default true; receiving is always on. */
+  /**
+   * Terrain casts sun shadows. Default false; receiving is always on. The shadow map is a box
+   * round the bird (Config.light.shadowRange): a tree's shadow fits inside it, a hill's does
+   * not. In a low sun a hill's shadow is hundreds of metres long, and the map drew only the
+   * part inside the box: a dark patch round the bird with lit land beyond it, unrolling over
+   * the ground as the bird flew. The toon shading already darkens slopes turned from the sun.
+   */
   castShadow?: boolean;
   /** Grass tufts (and flowers) on the near terrain: the level's opt-in to ground cover. */
   cover?: CoverStyle;
@@ -216,7 +222,7 @@ export class ChunkManager<T> {
     const stage = job.stage++;
     if (stage === 0) {
       mesh.userData.lod = lod;
-      mesh.castShadow = this.opts.castShadow ?? true;
+      mesh.castShadow = this.opts.castShadow ?? false;
       mesh.receiveShadow = true;
       fillChunkGeometry(mesh.geometry, this.field, ox, oz, size, res, this.color);
       if (this.opts.fillExtra) return;

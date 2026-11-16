@@ -1108,6 +1108,11 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   one-off recompile of lit materials, a short hitch when Auto steps the preset down); the sun's
   height fades shadows by intensity and skips the pass at low sun, so dawn and dusk never
   recompile. At night the moon is the light, so moonlit shadows stay (faint) and so does the pass.
+- Terrain does not cast into the shadow map (trees, buildings and props do). The map is a 150 m
+  box round the bird; a hill's shadow in a low sun is far longer, so only the part inside the
+  box was drawn: a dark patch round the bird, lit land beyond, unrolling as it flew. Slopes
+  turned from the sun are already darkened by the toon shading. A level can opt back in
+  (`ChunkOptions.castShadow`).
 - Contact shadows everywhere trees stand (medium and high) instead of the shadow map on medium:
   one 2-triangle blob per tree near the bird costs nothing next to a second scene pass.
 - Cloud shadows and receiving shadows are applied by walking a level's scenery (`LitScenery`,

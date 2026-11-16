@@ -1896,7 +1896,10 @@ export class CityLayout implements HarbourSink {
         const r1 = rnd();
         if (this.baseHeight(ax + off, az + t) > 1.2) {
           if (t === busNS) this.busStop(sb, ax + side * (AH - 2.4), az + t, -side * (Math.PI / 2));
-          else if (this.tree(sb, TREE.ROUND, ax + off, az + t, 0.5 + s1 * 0.2, r1))
+          else if (
+            this.tree(sb, TREE.ROUND, ax + off, az + t, 0.5 + s1 * 0.2, r1) &&
+            this.bankDist(ax + off, az + t) > this.riverWalk + 8
+          )
             this.prop(
               sb,
               PROP.Pit,
@@ -1914,7 +1917,10 @@ export class CityLayout implements HarbourSink {
         const r2 = rnd();
         if (this.baseHeight(ax + t, az + off) > 1.2) {
           if (t === busEW) this.busStop(sb, ax + t, az + side * (AH - 2.4), side > 0 ? Math.PI : 0);
-          else if (this.tree(sb, TREE.ROUND, ax + t, az + off, 0.5 + s2 * 0.2, r2))
+          else if (
+            this.tree(sb, TREE.ROUND, ax + t, az + off, 0.5 + s2 * 0.2, r2) &&
+            this.bankDist(ax + t, az + off) > this.riverWalk + 8
+          )
             this.prop(
               sb,
               PROP.Pit,
@@ -1929,12 +1935,12 @@ export class CityLayout implements HarbourSink {
             );
         }
       }
-    // Street lamps at the kerb, over the pools of lamplight the ground shader paints (every
-    // 26 m, on the 13 m mark), their arms reaching over the road.
+    // Street lamps at the back of the sidewalk, heads over the pools of lamplight the ground
+    // shader paints (every 26 m, on the 13 m mark), clear of the wisp lanes over the road.
     for (let t = Math.ceil((az + AH + 2 - 13) / 26) * 26 + 13; t < az + S - AH - 2; t += 26)
-      for (const side of [-1, 1]) this.lamp(sb, ax + side * (AH - 3.7), t, -side * (Math.PI / 2));
+      for (const side of [-1, 1]) this.lamp(sb, ax + side * (AH - 0.7), t, -side * (Math.PI / 2));
     for (let t = Math.ceil((ax + AH + 2 - 13) / 26) * 26 + 13; t < ax + S - AH - 2; t += 26)
-      for (const side of [-1, 1]) this.lamp(sb, t, az + side * (AH - 3.7), side > 0 ? Math.PI : 0);
+      for (const side of [-1, 1]) this.lamp(sb, t, az + side * (AH - 0.7), side > 0 ? Math.PI : 0);
     // Traffic signals on the four corners of the crossing, arms over alternate avenues.
     for (const sx of [-1, 1])
       for (const sz of [-1, 1]) {
@@ -1956,9 +1962,21 @@ export class CityLayout implements HarbourSink {
   private streetSpot(x: number, z: number): boolean {
     return (
       this.baseHeight(x, z) > 1.2 &&
+      this.river(x, z) < 0.001 && // off the banks, where bridge decks reach
+      this.bankDist(x, z) > this.riverWalk + 12 &&
       this.shoreDist(x, z) > this.roadIn + KERB &&
       this.bankDist(x, z) > this.riverWalk + 1
     );
+  }
+
+  /** Within m metres (in x or z) of an avenue or a street. */
+  private nearRoad(x: number, z: number, m: number): boolean {
+    for (const dx of [-m, 0, m])
+      for (const dz of [-m, 0, m]) {
+        const zone = this.zoneAt(x + dx, z + dz);
+        if (zone === ZONE_AVENUE || zone === ZONE_STREET) return true;
+      }
+    return false;
   }
 
   private lamp(sb: Superblock, x: number, z: number, rot: number): void {
@@ -2309,6 +2327,8 @@ export class CityLayout implements HarbourSink {
         if (this.shoreDist(x, z) < this.roadIn + 2) continue;
         const r = hash2(Math.round(x * 4), Math.round(z * 4), this.seed + 951);
         if (!this.tree(sb, TREE.CHERRY, x, z, 0.7 + r * 0.25, r, true)) continue;
+        // Where a road crosses on its bridge the walk has no railing, bench or lamp.
+        if (this.nearRoad(x, z, 8)) continue;
         // The walk's railing along the bank's edge (along the tangent), a bench under every
         // third tree facing the water, a lamp by every fourth.
         const tx = -dir.z;

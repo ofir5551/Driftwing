@@ -300,8 +300,8 @@ export function genHarbour(H: HarbourSink, I: number, J: number, side: number): 
         rnd(),
       );
     }
-    // Bollards' worth of life on the deck: lamps down the middle.
-    for (let a = 8; a < PIER_LENGTH; a += 24) {
+    // Lamps down the middle of the deck, between the cranes and the container rows.
+    for (const a of [8, 22, 58, 92]) {
       const lz = zAt(a);
       if (inJ(lz))
         H.addProp(

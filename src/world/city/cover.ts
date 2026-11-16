@@ -49,6 +49,13 @@ export function cityCover(L: CityLayout): CoverStyle {
     const u = x - Math.floor(x / S) * S;
     const v = z - Math.floor(z / S) * S;
     const edge = L.SH + 2.6;
+    if (u < L.AH + 0.5 || u > S - L.AH - 0.5 || v < L.AH + 0.5 || v > S - L.AH - 0.5) {
+      // Never on an avenue (except the green strip, which is an east-west road's end).
+      if (!(t.extra > 0.75 && !L.northSouthRoad(x) && L.shoreDist(x, z) < L.eastWestIn)) {
+        t.bare = true;
+        return;
+      }
+    }
     if (
       (t.extra < 0.75 || t.extra > 0.95) &&
       (Math.abs(u - L.c1) < edge ||

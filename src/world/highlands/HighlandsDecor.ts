@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
-import type { ChunkDecor } from '../ChunkManager';
+import { nearestInReach, type ChunkDecor } from '../ChunkManager';
 import { ContactShadows } from '../ContactShadows';
 import { hash2 } from '../noise';
 import { ShadowCasters } from '../ShadowCasters';
@@ -36,6 +36,7 @@ import {
   wallGeometry,
   windmillGeometry,
 } from './shapes';
+import { commitInstances } from '../instances';
 
 /** One terrain chunk's Highlands scenery. */
 export interface HighlandsChunk {
@@ -177,23 +178,29 @@ export class HighlandsDecor implements ChunkDecor<HighlandsChunk> {
     return { ox, oz, trees, built, props: null, hedge: [] };
   }
 
+  private readonly bare = (c: HighlandsChunk): boolean => !c.props;
+
+  /** Props scatter lazily, the first time their chunk comes within reach: one chunk a frame. */
+  prepare(items: HighlandsChunk[], px: number, pz: number, budget: number): boolean {
+    const R = Config.render;
+    if (R.propDistance <= 0) return false;
+    const size = Config.world.chunkSize;
+    for (;;) {
+      const c = nearestInReach(items, px, pz, R.propDistance + size, this.bare);
+      if (!c) return false;
+      if (budget-- <= 0) return true;
+      c.props = [];
+      this.scatterer.props(c.ox, c.oz, size, c.built, c.props, c.hedge);
+    }
+  }
+
   rebuild(items: HighlandsChunk[], px: number, pz: number): void {
     const R = Config.render;
     const size = Config.world.chunkSize;
-    const reach = R.propDistance + size;
-    // Props scatter lazily, the first time their chunk comes within reach.
     const lists = this.treeLists;
     lists.length = 0;
     for (const c of items) {
       lists.push(c.trees);
-      if (!c.props && R.propDistance > 0) {
-        const dx = Math.max(0, Math.abs(c.ox + size / 2 - px) - size / 2);
-        const dz = Math.max(0, Math.abs(c.oz + size / 2 - pz) - size / 2);
-        if (dx * dx + dz * dz < reach * reach) {
-          c.props = [];
-          this.scatterer.props(c.ox, c.oz, size, c.built, c.props, c.hedge);
-        }
-      }
       if (c.props) lists.push(c.hedge);
     }
     this.trees.rebuild(lists, px, pz, R.treeDistance);
@@ -220,15 +227,12 @@ export class HighlandsDecor implements ChunkDecor<HighlandsChunk> {
       this.casters[k]?.end();
     }
     this.contact.end();
-    this.smoke.count = this.smokeCount;
-    this.smoke.instanceMatrix.needsUpdate = true;
+    commitInstances(this.smoke, this.smokeCount);
     this.smokePhase.needsUpdate = true;
   }
 
   private finish(mesh: THREE.InstancedMesh, n: number): void {
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    commitInstances(mesh, n);
   }
 
   /** Instance every record of a chunk list that is in range. */

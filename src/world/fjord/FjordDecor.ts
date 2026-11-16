@@ -16,6 +16,7 @@ import {
   spruceGeometry,
 } from './geometry';
 import type { Berg, FjordLayout } from './FjordLayout';
+import { commitInstances } from '../instances';
 
 export interface FjordChunk {
   /** Trees in the Trees stride: type, x, y, z, scale, rotY, tint. */
@@ -178,8 +179,7 @@ export class FjordDecor implements ChunkDecor<FjordChunk> {
       [this.bergs[1], bc[1]],
     ];
     for (const [mesh, n] of counts) {
-      mesh.count = n;
-      mesh.instanceMatrix.needsUpdate = true;
+      commitInstances(mesh, n);
     }
     this.trees.rebuild(this.treeLists, px, pz, Config.render.treeDistance);
   }

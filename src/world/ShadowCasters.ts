@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
+import { commitInstances } from './instances';
 
 /** Layer of the shadow-only caster proxies: the shadow camera sees it, the main camera doesn't. */
 export const SHADOW_LAYER = 1;
@@ -45,8 +46,7 @@ export class ShadowCasters {
   }
 
   end(): void {
-    this.mesh.count = this.n;
-    this.mesh.instanceMatrix.needsUpdate = true;
+    commitInstances(this.mesh, this.n);
   }
 
   dispose(): void {

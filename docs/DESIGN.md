@@ -1013,9 +1013,26 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   steering, then boosting, each saved once learned.
 - Pause: P/Esc, the touch pause button, losing pointer lock, or hiding the tab. Music ducks.
 - Settings (volume, mute, quality, invert-Y, touch steering) and best score persist in localStorage (guarded).
-- Adaptive quality: below ~47 fps for a second, render scale drops 0.1 (floor 0.55); after 6 s
-  comfortably fast it creeps back 0.05. In Auto quality, hitting the floor steps the preset down.
-  Phones default to Medium. Pixel ratio is capped per preset (max 2).
+- Adaptive quality (`AdaptiveScale`, numbers in `Config.adaptive`): frames are judged in
+  one-second windows by their share of slow frames (over 21 ms), never by an average, so the
+  burst of long frames that streaming causes cannot trigger a drop. Two slow windows in a row
+  drop the render scale 0.15 (floor 0.55); six fast ones raise it 0.1, and a raise that is
+  undone within 12 s doubles the wait for the next (up to 2 min), so the scale settles instead
+  of sawing. In Auto quality, hitting the floor steps the preset down. Phones default to
+  Medium. Pixel ratio is capped per preset (max 2).
+- The render scale resizes only the composer's targets; the canvas keeps its size and the last
+  pass upscales onto it. Resizing the canvas clears it, and doing that after the frame was drawn
+  presented a blank frame at every change (the picture cut out every few seconds on phones).
+  The adaptive step also runs before the frame is drawn, not after.
+- Streaming never does a row of work in one frame: a chunk is built in stages (terrain, the
+  level's extra attributes, scenery) with the 2 ms budget checked between them; props that
+  scatter lazily do so one chunk a frame (`ChunkDecor.prepare`), and the instance refill waits
+  for them; contact shadows cache each blob's ground frame; instance buffers upload only the
+  instances in use (`world/instances.ts`), not their worst-case capacity.
+- Per-pixel cost on a phone held upright, where land fills most of the screen: the sky is drawn
+  after the opaque scene and depth-tested at the far plane, so its shader runs only where sky
+  shows; the terrain's painted relief takes one noise sample and screen-space derivatives
+  where it took six samples (it fades out where a pixel is wider than the dabs).
 - Debug-only lil-gui is a dynamic import, so it is a separate chunk players never download.
 - Levels swap in place (dispose the old world, build the new one at its spawn, reset time of day)
   rather than reloading the page: audio stays unlocked and the title backdrop changes live.

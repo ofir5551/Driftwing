@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
-import type { ChunkDecor } from '../ChunkManager';
+import { nearestInReach, type ChunkDecor } from '../ChunkManager';
 import { ContactShadows } from '../ContactShadows';
 import { withGroundDetail } from '../GroundDetail';
 import { withMist } from '../Mist';
@@ -34,6 +34,7 @@ import {
   horseGeometry,
   ranchGeometry,
 } from './shapes';
+import { commitInstances } from '../instances';
 
 export interface CanyonChunk {
   ox: number;
@@ -219,6 +220,22 @@ export class CanyonDecor implements ChunkDecor<CanyonChunk> {
     return out;
   }
 
+  private readonly bare = (c: CanyonChunk): boolean => !c.props;
+
+  /** Props scatter lazily, the first time their chunk comes within reach: one chunk a frame. */
+  prepare(items: CanyonChunk[], px: number, pz: number, budget: number): boolean {
+    const R = Config.render;
+    if (R.propDistance <= 0) return false;
+    const size = Config.world.chunkSize;
+    for (;;) {
+      const c = nearestInReach(items, px, pz, R.propDistance + size, this.bare);
+      if (!c) return false;
+      if (budget-- <= 0) return true;
+      c.props = [];
+      this.scatterer.props(c.ox, c.oz, size, c.props);
+    }
+  }
+
   rebuild(items: CanyonChunk[], px: number, pz: number): void {
     const R = Config.render;
     const size = Config.world.chunkSize;
@@ -292,9 +309,7 @@ export class CanyonDecor implements ChunkDecor<CanyonChunk> {
   }
 
   private finish(mesh: THREE.InstancedMesh, n: number): void {
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    commitInstances(mesh, n);
   }
 
   /** Instance every record of a chunk list that is in range. */

@@ -6,6 +6,7 @@ import { getToonGradient } from './Terrain';
 import { hash2 } from './noise';
 import { ContactShadows, type GroundFn } from './ContactShadows';
 import { ShadowCasters } from './ShadowCasters';
+import { commitInstances } from './instances';
 
 /** Floats stored per tree in a chunk's scatter list: type, x, y, z, scale, rotY, tint. */
 export const TREE_STRIDE = 7;
@@ -399,9 +400,7 @@ export class Trees {
       }
     for (let i = 0; i < this.meshes.length; i++) {
       const mesh = this.meshes[i];
-      mesh.count = counts[i];
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      commitInstances(mesh, counts[i]);
     }
     for (const c of this.casters) c.end();
     this.contact.end();

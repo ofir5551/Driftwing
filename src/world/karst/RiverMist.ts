@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Config } from '../../core/Config';
 import { hash2 } from '../noise';
 import type { KarstLayout } from './KarstLayout';
+import { commitInstances } from '../instances';
 
 const WHITE = new THREE.Color(1, 1, 1);
 
@@ -165,8 +166,7 @@ export class RiverMist {
       A[k * 4 + 1] = S[o + 4];
       A[k * 4 + 2] = S[o + 5];
     }
-    this.mesh.count = n;
-    this.mesh.instanceMatrix.needsUpdate = true;
+    commitInstances(this.mesh, n);
     this.sheet.needsUpdate = true;
   }
 

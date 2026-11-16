@@ -279,6 +279,20 @@ export const Config = {
     atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.4 },
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
   },
+  /** Adaptive resolution (AdaptiveScale): judged in one-second windows of frames. */
+  adaptive: {
+    slowMs: 21, // a frame longer than this is slow (~47 fps)
+    hitchMs: 100, // a frame longer than this is a one-off hitch and is not counted
+    slowShare: 0.5, // a window with more than this share of slow frames is slow
+    fastShare: 0.1, // a window with less than this share is comfortably fast
+    dropAfter: 2, // slow windows in a row before the resolution drops
+    dropStep: 0.15, // render scale lost per drop
+    raiseStep: 0.1, // render scale regained per raise
+    raiseAfter: 6, // fast windows before a raise
+    raiseHold: 12, // s: a drop this soon after a raise doubles the wait for the next raise
+    raiseMax: 120, // fast windows, the longest that wait grows to
+    floor: 0.55, // lowest render scale; below it Auto steps the preset down
+  },
   /** Ground cover (GroundCover): grass tufts and flowers on the terrain's own lattice. */
   cover: {
     cell: 1.25, // m between tufts at full density
@@ -299,7 +313,7 @@ export const Config = {
     treeCell: 11, // m, scatter grid for trees
     treeSway: 0.0025, // wind sway of tree crowns (m of push per m^2 of height up the tree)
     canopyHeight: 9, // m, dense forest counts as "ground" this high for soft skimming
-    buildBudgetMs: 4, // max chunk-building time per frame
+    buildBudgetMs: 2, // chunk-building time per frame after which no new chunk is started
     cloudDrift: 3, // m/s
   },
   city: {

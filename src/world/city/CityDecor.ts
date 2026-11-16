@@ -19,6 +19,7 @@ import {
   latticeGeometry,
 } from './geometry';
 import { createBuildingMaterial, type CityUniforms } from './materials';
+import { commitInstances } from '../instances';
 
 export interface CityChunk {
   parts: number[];
@@ -193,9 +194,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     }
     for (let m = 0; m < this.meshes.length; m++) {
       const mesh = this.meshes[m];
-      mesh.count = counts[m];
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor!.needsUpdate = true;
+      commitInstances(mesh, counts[m]);
       mesh.geometry.getAttribute('aStyle').needsUpdate = true;
     }
     this.treeLists.length = 0;

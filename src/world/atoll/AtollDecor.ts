@@ -23,6 +23,7 @@ import {
   sailboatGeometry,
   shrubGeometry,
 } from './geometry';
+import { commitInstances } from '../instances';
 
 /** Tree types in the shared Trees meshes. */
 const PALM = 0;
@@ -296,9 +297,7 @@ export class AtollDecor implements ChunkDecor<AtollChunk> {
       [this.lanterns, lc],
     ];
     for (const [mesh, n] of counts) {
-      mesh.count = n;
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      commitInstances(mesh, n);
     }
     this.trees.rebuild(this.treeLists, px, pz, Config.render.treeDistance);
   }

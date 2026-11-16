@@ -162,9 +162,11 @@ vec3 rmGlowCol = uRmSpore;
       clump = mix(diffuseColor.rgb * 0.92, clump, fine);
       diffuseColor.rgb = mix(diffuseColor.rgb, clump, bed);
       // Spores among the clumps glow faintly after dark, brighter in drifts.
-      vec4 sp = rmCell(p / 0.9 + 40.0);
-      float speck = (1.0 - smoothstep(0.05, 0.16, sp.x)) * step(0.62, sp.w) * smoothstep(0.35, 0.7, gNoise(p * 0.04));
-      rmGlow = speck * bed * uRmNight * 1.6 * (0.7 + 0.3 * sin(t * 1.3 + sp.w * 40.0));
+      if (uRmNight > 0.01) {
+        vec4 sp = rmCell(p / 0.9 + 40.0);
+        float speck = (1.0 - smoothstep(0.05, 0.16, sp.x)) * step(0.62, sp.w) * smoothstep(0.35, 0.7, gNoise(p * 0.04));
+        rmGlow = speck * bed * uRmNight * 1.6 * (0.7 + 0.3 * sin(t * 1.3 + sp.w * 40.0));
+      }
     }
   }
   // The shore: wet sand below the waves' reach, the swash's sheen and its lace of foam.

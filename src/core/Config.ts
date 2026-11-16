@@ -529,7 +529,7 @@ export const Config = {
     farRings: 10,
     // Painted basalt on the spires and the terrace steps (rock.ts; live).
     columns: 16, // basalt columns round a spire (flat faces with joints between)
-    relief: 1.2, // strength of the columns' facets and the drum cracks (tilts the light)
+    relief: 2, // strength of the columns' facets and the drum cracks (tilts the light)
     cracks: 0.4, // darkness of the cracks between the column drums
     rockFar: 520, // m, the relief fades out by here (flat paint beyond)
     // The painted ground (land.ts; live).

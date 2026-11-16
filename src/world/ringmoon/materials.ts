@@ -54,7 +54,7 @@ export function ringFrame(day: DayCycle, time: number): void {
   const lit = 0.5 - 0.5 * (sd.x * g.x + sd.y * g.y + sd.z * g.z);
   tmp.copy(GIANT_LIGHT).multiplyScalar((0.25 + 0.75 * lit) * (1 - night * 0.5));
   tmp.lerp(RING_LIGHT, night * 0.7);
-  u.uRmGiantFill.value.copy(tmp).multiplyScalar(LL.giant * (0.6 + 0.6 * night));
+  u.uRmGiantFill.value.copy(tmp).multiplyScalar(LL.giant * (0.6 + 0.15 * night));
   const c2 = Math.cos(R.sun2);
   const s2 = Math.sin(R.sun2);
   const s = u.uRmSun2Dir.value

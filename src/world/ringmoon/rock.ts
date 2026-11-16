@@ -47,23 +47,33 @@ varying vec3 vRmL;
 const COLOR_SPIRE = /* glsl */ `
 float rmTurn = 0.0;
 float rmLip = 0.0;
+float rmTip = 0.0;
 float rmNear = 1.0 - smoothstep(uRmRockFar * 0.35, uRmRockFar, distance(vGPos, cameraPosition));
 {
   float n = floor(uRmColumns + 0.5);
   float w = 6.2832 / n;
-  // The columns twist and wander a little up the spire.
-  float tw = (gNoise(vec2(vGPos.y * 0.035, 3.1)) - 0.5) * w * 0.9 + vRmL.y * 0.7;
-  float a = atan(vRmL.z, vRmL.x) + tw;
+  // The columns wander a little up the spire, and no two are quite the same width (the angle
+  // is warped by a noise round the column, periodic so the seam where atan wraps never shows).
+  float a0 = atan(vRmL.z, vRmL.x);
+  float tw = (gNoise(vec2(vGPos.y * 0.03, 3.1)) - 0.5) * w * 0.5 + vRmL.y * 0.25;
+  float a = a0 + tw + w * 0.6 * (gNoise(vec2(cos(a0), sin(a0)) * 1.2 + 4.0) - 0.5);
   float c = floor(a / w);
   float f = a / w - c;
   float id = mod(c, n);
   float h = gHash(vec2(id, 17.0));
   rmTurn = (c + 0.5) * w - a;
+  // No column stands quite plumb: each leans its face a little up or down, so even under a high
+  // sun (where turning a face about the vertical changes little) the faces take different bands.
+  rmTip = (gHash(vec2(id, 23.0)) - 0.5) * 0.5;
   // Joints and cracks thin out to nothing where a pixel covers much of a column (no grid far off).
   float fw = max(fwidth(f), 1e-4);
   float sharp = 1.0 - smoothstep(0.04, 0.16, fw);
-  float joint = (1.0 - smoothstep(fw, fw + 0.035, min(f, 1.0 - f))) * sharp;
-  diffuseColor.rgb *= (0.88 + 0.22 * h) * (1.0 - 0.38 * joint);
+  float joint = (1.0 - smoothstep(fw, fw + 0.025, min(f, 1.0 - f))) * sharp;
+  // Each column its own stone: a bluer or a warmer grey, lighter or darker.
+  vec3 tone = mix(vec3(0.93, 0.96, 1.07), vec3(1.05, 1.0, 0.94), gHash(vec2(id, 5.0)));
+  diffuseColor.rgb *= tone * (0.82 + 0.34 * h) * (1.0 - 0.2 * joint);
+  // A worn, paler arris on one edge of every column, as the light catches it.
+  diffuseColor.rgb *= 1.0 + 0.12 * sharp * smoothstep(0.8, 0.97, f) * (1.0 - smoothstep(0.97, 1.0, f));
   // Cross joints: each column cracked at its own spacing, the drums offset from its neighbours'.
   float sp = 6.0 + 7.0 * gHash(vec2(id, 31.0));
   float cy = (vGPos.y + h * 37.0) / sp;
@@ -80,6 +90,7 @@ float rmNear = 1.0 - smoothstep(uRmRockFar * 0.35, uRmRockFar, distance(vGPos, c
 const COLOR_STEPS = /* glsl */ `
 float rmTurn = 0.0;
 float rmLip = 0.0;
+float rmTip = 0.0;
 float rmNear = 1.0 - smoothstep(uRmRockFar * 0.35, uRmRockFar, distance(vGPos, cameraPosition));
 {
   float sp = 1.6 + gHash(floor(vGPos.xz * 0.6)) * 1.4;
@@ -98,7 +109,7 @@ const NORMAL = /* glsl */ `
   float rc = cos(rmA);
   float rs = sin(rmA);
   rmW = vec3(rmW.x * rc - rmW.z * rs, rmW.y, rmW.x * rs + rmW.z * rc);
-  rmW.y += 0.5 * rmLip * uRmRelief * rmNear;
+  rmW.y += (0.5 * rmLip + rmTip) * uRmRelief * rmNear;
   normal = normalize((viewMatrix * vec4(normalize(rmW), 0.0)).xyz);
 }
 #include <emissivemap_fragment>`;

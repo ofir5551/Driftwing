@@ -14,8 +14,8 @@ import { BEACON, CRYSTAL_H, spireProfile, type Ship, type SpireShape } from './R
 
 const BASALT = new THREE.Color('#4a4860');
 const BASALT_DARK = new THREE.Color('#33324a');
-const LICHEN = new THREE.Color('#c0904f');
-const LICHEN_RUST = new THREE.Color('#9c5a3c');
+const LICHEN = new THREE.Color('#b8a05c');
+const LICHEN_RUST = new THREE.Color('#946049');
 const WET = new THREE.Color('#2a3340');
 const CROWN = new THREE.Color('#7f8a9a');
 
@@ -381,13 +381,6 @@ export function reedGeometry(blades = 6): THREE.BufferGeometry {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
-  return g;
-}
-
-/** A glow pod: a small bulb (the instance sets its colour) on the islets, lit after dark. */
-export function podGeometry(): THREE.BufferGeometry {
-  const g = new THREE.IcosahedronGeometry(0.7, 0).scale(1, 1.3, 1);
-  g.deleteAttribute('uv');
   return g;
 }
 

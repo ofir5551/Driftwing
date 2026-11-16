@@ -14,9 +14,15 @@ import {
   hermitageGeometry,
   MONASTERY_LANTERNS,
   monasteryGeometry,
+  SPIRE_FAR,
+  SPIRE_HERO,
+  SPIRE_NEAR,
   spireGeometry,
 } from './geometry';
-import { profile, SHAPES, Temple, type PeaksLayout, type Spire } from './PeaksLayout';
+import { withGranite } from './granite';
+import { SKINS } from './skin';
+import { ShadowCasters } from '../ShadowCasters';
+import { SHAPES, Temple, type PeaksLayout, type Spire } from './PeaksLayout';
 import { commitInstances } from '../instances';
 
 const PINE = 0;
@@ -66,8 +72,11 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
   private readonly material: THREE.MeshToonMaterial;
   private readonly rockMaterial: THREE.MeshToonMaterial;
   readonly lanternMaterial: THREE.MeshBasicMaterial;
+  /** Per shape: the finest mesh (flank within render.heroDetail), near, far (past spireLod). */
+  private readonly heroSpires: THREE.InstancedMesh[];
   private readonly spires: THREE.InstancedMesh[];
   private readonly farSpires: THREE.InstancedMesh[];
+  private readonly spireCasters: ShadowCasters[];
   private readonly hermitages: THREE.InstancedMesh;
   private readonly monastery: THREE.InstancedMesh;
   private readonly lanterns: THREE.InstancedMesh;
@@ -81,12 +90,17 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
     );
     withMist(this.trees.material);
     this.lanternMaterial = new THREE.MeshBasicMaterial({ color: DAY_LANTERN.clone() });
-    this.rockMaterial = withMist(
-      new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+    // Smooth lathed rock; the joints, lichen, moss and snow are painted by withGranite.
+    this.rockMaterial = withGranite(
+      withMist(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() })),
     );
     const rock = this.rockMaterial;
-    this.spires = SHAPES.map((sh, i) => this.make(spireGeometry(sh, 90 + i), 600, rock));
-    this.farSpires = SHAPES.map((sh, i) => this.make(spireGeometry(sh, 90 + i, 6, 10), 1600, rock));
+    const near = SKINS.map((sk) => spireGeometry(sk, SPIRE_NEAR));
+    this.heroSpires = SKINS.map((sk) => this.make(spireGeometry(sk, SPIRE_HERO), 60, rock));
+    this.spires = near.map((g) => this.make(g, 600, rock));
+    this.farSpires = SKINS.map((sk) => this.make(spireGeometry(sk, SPIRE_FAR), 1600, rock));
+    // Spires cast onto the cloud tops and each other on high (near-only proxies).
+    this.spireCasters = near.map((g) => new ShadowCasters(g, rock, 200));
     this.hermitages = this.make(hermitageGeometry(), 200);
     this.monastery = this.make(monasteryGeometry(), 4);
     this.lanterns = this.make(
@@ -95,13 +109,16 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
       this.lanternMaterial,
     );
     // Names show up in scripts/level-shots.mjs's triangle report.
+    this.heroSpires.forEach((mesh, i) => (mesh.name = `spire-hero-${i}`));
     this.spires.forEach((mesh, i) => (mesh.name = `spire-${i}`));
     this.farSpires.forEach((mesh, i) => (mesh.name = `spire-far-${i}`));
     this.hermitages.name = 'hermitage';
     this.monastery.name = 'monastery';
     this.lanterns.name = 'lantern';
     this.group.add(
+      ...this.heroSpires,
       ...this.spires,
+      ...this.spireCasters.map((c) => c.mesh),
       ...this.farSpires,
       this.hermitages,
       this.monastery,
@@ -141,16 +158,19 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
     const sh = SHAPES[sp.shape];
     const rand = mulberry32(Math.floor(sp.seed * 1e9) + 7);
     /** A pine at fraction t up the rock, angle a round it, set `inset` into the face. */
+    const skin = SKINS[sp.shape];
     const at = (t: number, a: number, inset: number, s: number, outward: boolean) => {
-      const r = sp.r * profile(sh, t) * inset;
+      // a is the spire's local angle (its mesh's): world angle a - yaw.
+      const r = sp.r * skin.radius(t, a) * inset;
+      const w = a - sp.yaw;
       out.trees.push(
         PINE,
-        sp.x + sp.lx * t * t + Math.sin(a) * r,
-        sp.y0 + t * sp.h - 0.5,
-        sp.z + sp.lz * t * t + Math.cos(a) * r,
+        sp.x + sp.lx * t * t + Math.cos(w) * r,
+        sp.y0 + (t + skin.lift(t, a)) * sp.h - 0.5,
+        sp.z + sp.lz * t * t + Math.sin(w) * r,
         s,
         // The drawn pine leans toward local +x: on a cliff, point that away from the rock.
-        outward ? a - Math.PI / 2 + (rand() - 0.5) * 0.6 : rand() * Math.PI * 2,
+        outward ? -w + (rand() - 0.5) * 0.6 : rand() * Math.PI * 2,
         rand(),
       );
     };
@@ -195,7 +215,10 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
   rebuild(items: PeaksChunk[], px: number, pz: number): void {
     const pc = this.spires.map(() => 0);
     const fc = this.spires.map(() => 0);
+    const hc0 = this.spires.map(() => 0);
     const near2 = Config.peaks.spireLod ** 2;
+    const hero = Config.render.heroDetail;
+    for (const c of this.spireCasters) c.begin(px, pz, Config.world.chunkSize);
     let hc = 0;
     let mc = 0;
     let lc = 0;
@@ -203,9 +226,11 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
     for (const it of items) {
       this.treeLists.push(it.trees);
       for (const sp of it.spires) {
-        const near = (sp.x - px) ** 2 + (sp.z - pz) ** 2 < near2;
-        const mesh = (near ? this.spires : this.farSpires)[sp.shape];
-        const counter = near ? pc : fc;
+        const d2 = (sp.x - px) ** 2 + (sp.z - pz) ** 2;
+        const near = d2 < near2;
+        const best = hero > 0 && Math.sqrt(d2) - sp.reach < hero;
+        const mesh = (best ? this.heroSpires : near ? this.spires : this.farSpires)[sp.shape];
+        const counter = best ? hc0 : near ? pc : fc;
         const k = counter[sp.shape];
         if (k >= mesh.instanceMatrix.count) continue;
         q.setFromAxisAngle(up, sp.yaw);
@@ -218,6 +243,7 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
           col.setRGB(0.92 + s * 0.12, 0.92 + ((s * 5) % 1) * 0.08, 0.9 + (1 - s) * 0.12),
         );
         counter[sp.shape]++;
+        this.spireCasters[sp.shape].add(sp.x, sp.z, m);
       }
       const T = it.temples;
       for (let i = 0; i < T.length; i += 5) {
@@ -237,7 +263,9 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
         this.lanterns.setMatrixAt(lc++, m);
       }
     }
+    for (const c of this.spireCasters) c.end();
     const counts: [THREE.InstancedMesh, number][] = [
+      ...this.heroSpires.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, hc0[i]]),
       ...this.spires.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, pc[i]]),
       ...this.farSpires.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, fc[i]]),
       [this.hermitages, hc],
@@ -257,7 +285,9 @@ export class PeaksDecor implements ChunkDecor<PeaksChunk> {
   }
 
   dispose(): void {
+    for (const c of this.spireCasters) c.dispose();
     for (const mesh of [
+      ...this.heroSpires,
       ...this.spires,
       ...this.farSpires,
       this.hermitages,

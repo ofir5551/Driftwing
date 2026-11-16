@@ -409,6 +409,7 @@ export const Config = {
     spireMax: 32, // m, base radius of the largest (before the cluster boost)
     spireTop: 330, // m, no summit rises above this (the ceiling is 420)
     spireLod: 520, // m, beyond this spires use the coarse mesh (chosen when chunks change)
+    // (Spires whose flank is nearer than render.heroDetail use the finest mesh, with grooves.)
     gateAhead: 400, // m from the spawn to the Sky Gate (two spires and a bridge)
     gateHalf: 52, // m, each gate spire's centre off the line the bird flies
     bridgeY: 150, // m, the gate bridge's deck where it meets the rock
@@ -426,6 +427,12 @@ export const Config = {
     glow: 0.3, // how much the cloud sea glows with the sky's light (clouds are never dark)
     summitsDistance: 5000, // m, how far the painted snow peaks on the horizon pretend to be
     lanterns: 1, // brightness of temple and bridge lanterns after dark
+    // Granite (granite.ts; live).
+    rockRelief: 1, // strength of the joints and pillowed blocks (tilts the light)
+    rockFar: 420, // m, the relief and fine paint fade out by this distance (off on low)
+    ledgeMoss: 1, // moss and turf wherever the rock faces the sky
+    snowline: 228, // m, snow lies on ledges and summits above this
+    snowRag: 22, // m the snowline wanders up and down
   },
   atoll: {
     // Plan (read when a level is created).

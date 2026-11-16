@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { smoothstep } from '../../core/math';
 import { hipGeometry } from '../city/geometry';
-import { hash2, mulberry32 } from '../noise';
+import { mulberry32 } from '../noise';
 import { colored, jitter, painted, topLit } from '../Trees';
-import { profile, type Bridge, type SpireShape } from './PeaksLayout';
+import { profile, type Bridge } from './PeaksLayout';
+import { LEDGE_EPS, type SpireSkin } from './skin';
 
 /**
  * Sea of Clouds' shapes. Spires are lathed from the layout's profile in base radii (radius 1,
@@ -15,97 +16,105 @@ import { profile, type Bridge, type SpireShape } from './PeaksLayout';
 
 const GRANITE = new THREE.Color('#aaa29b');
 const GRANITE_WARM = new THREE.Color('#bba88f');
+const GRANITE_COOL = new THREE.Color('#9a9ca3');
 const JOINT = new THREE.Color('#4e4a4d');
 const LICHEN = new THREE.Color('#c7a165');
 const MOSS = new THREE.Color('#5f7f58');
 
+/** Ring layout of one spire mesh tier: segments round, base rings, rings added per joint. */
+export interface SpireDetail {
+  seg: number;
+  rings: number;
+  /** 0: none (far), 1: the ledge's lip and inner edge, 2: the joint's groove too. */
+  joints: 0 | 1 | 2;
+}
+
+export const SPIRE_HERO: SpireDetail = { seg: 30, rings: 26, joints: 2 };
+export const SPIRE_NEAR: SpireDetail = { seg: 16, rings: 16, joints: 1 };
+export const SPIRE_FAR: SpireDetail = { seg: 7, rings: 10, joints: 0 };
+
 /**
- * One spire silhouette: granite split by vertical joints into columns of slightly different
- * depth (each facet a different stone), darker in the joints and streaked where water runs,
- * with ochre lichen and green on the ledges and the summit. Flat-shaded: crisp facets read as
- * hard granite, where Jade River's limestone is smooth.
+ * One spire silhouette lathed from its skin (radius 1, height `aspect`; the instance scales
+ * it): an indexed lathe with smooth normals, rings packed round every joint so the ledges are
+ * flat steps with a lip and the grooves are undercut, chimneys cut down the faces, the summit
+ * dome rounded. Vertex colours carry the large paint (granite warmer or cooler column by
+ * column, dark in the grooves and chimneys, rain streaks under the ledges, moss on them and on
+ * the summit); the fine relief and lichen are painted per pixel (granite.ts).
  */
-export function spireGeometry(
-  sh: SpireShape,
-  seed: number,
-  SEG = 9,
-  RINGS = 24,
-): THREE.BufferGeometry {
-  const rand = mulberry32(seed);
-  // Each column of rock sits a little proud or recessed, block by block up the spire.
-  const blocks = 5 + Math.floor(rand() * 4);
-  const ph = rand() * 10;
-  const ring: number[][] = [];
-  const cols: number[][] = [];
-  const c = new THREE.Color();
-  for (let i = 0; i <= RINGS; i++) {
-    const u = i / RINGS;
-    // Rings bunch up toward the summit, where the dome curves.
-    const t = -0.03 + 1.02 * (1 - Math.pow(1 - u, 1.3));
-    const tc = Math.max(t, 0);
-    const rad = profile(sh, tc) * (t < 0 ? 1.03 : 1);
-    const off = sh.lean * tc * tc * sh.aspect;
-    const ledge = smoothstep(
-      0.015,
-      0.05,
-      profile(sh, tc) - profile(sh, Math.min(tc + 0.02, 0.999)),
-    );
-    const crown = smoothstep(sh.cap - 0.04, sh.cap + 0.06, tc);
-    const row: number[] = [];
-    const rc: number[] = [];
-    for (let k = 0; k < SEG; k++) {
-      const a = (k / SEG) * Math.PI * 2 + (hash2(k, i, seed) - 0.5) * 0.12;
-      const b = Math.floor(tc * blocks + hash2(k, 7, seed) * 0.8);
-      const depth = 1 + (1 - crown * 0.7) * (hash2(k, b, seed + 1) - 0.5) * 0.16;
-      row.push(Math.cos(a) * rad * depth + off, t * sh.aspect, Math.sin(a) * rad * depth);
-      // Joints run down the rock; rain streaks the faces below the ledges.
-      const streak = 0.5 + 0.5 * Math.sin(a * 5 + ph + Math.sin(t * 7 + a) * 1.2);
-      c.copy(GRANITE).lerp(
-        GRANITE_WARM,
-        hash2(k, 0, seed + 2) * 0.5 + hash2(k, b, seed + 3) * 0.12,
-      );
-      c.lerp(JOINT, smoothstep(0.55, 0.95, streak) * 0.6 + (depth < 0.97 ? 0.1 : 0));
-      const lichen = smoothstep(0.75, 0.95, Math.sin(t * 19 + a * 3 + ph) * Math.sin(a * 2 - ph));
-      c.lerp(LICHEN, lichen * 0.45);
-      c.lerp(MOSS, Math.min(1, crown * 0.35 + ledge * 0.55));
-      rc.push(c.r, c.g, c.b);
-    }
-    ring.push(row);
-    cols.push(rc);
+export function spireGeometry(skin: SpireSkin, d: SpireDetail): THREE.BufferGeometry {
+  const sh = skin.sh;
+  const SEG = d.seg;
+  // Ring heights: a base set bunched toward the summit, plus rings at each joint.
+  const ts: number[] = [];
+  for (let i = 0; i <= d.rings; i++) {
+    const u = i / d.rings;
+    ts.push(-0.03 + 1.02 * (1 - Math.pow(1 - u, 1.35)));
   }
-  // Non-indexed with a colour per face (from its lower-left corner), so each facet is one stone.
+  if (d.joints > 0)
+    for (const J of skin.joints) {
+      ts.push(J.t - LEDGE_EPS, J.t + LEDGE_EPS, J.t + J.rise * 0.45);
+      if (d.joints > 1) ts.push(J.t - J.w, J.t + J.rise * 0.15, J.t + J.rise);
+    }
+  ts.sort((a, b) => a - b);
+  const T: number[] = [];
+  for (const t of ts) if (t < 0.995 && (T.length === 0 || t - T[T.length - 1] > 0.0015)) T.push(t);
   const pos: number[] = [];
   const col: number[] = [];
-  const v = (i: number, k: number) => {
-    const r = ring[i];
-    pos.push(r[k * 3], r[k * 3 + 1], r[k * 3 + 2]);
-  };
-  const face = (i: number, k: number) => {
-    const cc = cols[i];
-    for (let n = 0; n < 3; n++) col.push(cc[k * 3], cc[k * 3 + 1], cc[k * 3 + 2]);
-  };
-  for (let i = 0; i < RINGS; i++)
+  const c = new THREE.Color();
+  const ph = skin.sh.aspect * 3.7;
+  for (const t of T) {
+    const tc = Math.max(t, 0);
+    const off = sh.lean * tc * tc * sh.aspect;
+    const crown = smoothstep(sh.cap - 0.04, sh.cap + 0.06, tc);
+    // Just above a ledge (its floor) and in the band under it (where water runs off it).
+    let ledge = 0;
+    let under = 0;
+    for (let j = 0; j < skin.joints.length; j++) {
+      const J = skin.joints[j];
+      if (tc >= J.t && tc < J.t + 0.004) ledge = Math.max(ledge, j + 1);
+      if (tc < J.t && tc > J.t - 0.06) under = Math.max(under, 1 - (J.t - tc) / 0.06);
+    }
+    for (let k = 0; k < SEG; k++) {
+      const a = (k / SEG) * Math.PI * 2;
+      const prof = profile(sh, tc) * (t < 0 ? 1.03 : 1);
+      const sk = skin.skin(tc, a);
+      const rad = prof * sk;
+      pos.push(Math.cos(a) * rad + off, (t + skin.lift(tc, a)) * sh.aspect, Math.sin(a) * rad);
+      // Columns of slightly different stone round the spire.
+      const tone = 0.5 + 0.5 * Math.sin(a * 3 + ph) * Math.sin(a * 7 - ph * 0.6 + tc * 5);
+      c.copy(GRANITE).lerp(GRANITE_WARM, tone * 0.55).lerp(GRANITE_COOL, (1 - tone) * 0.25);
+      // Cut-in rock is in shade and wet: grooves, chimneys, the backs of ledges.
+      c.lerp(JOINT, Math.min(0.6, Math.max(0, 1 - sk) * 4.5));
+      const lichen = smoothstep(0.75, 0.95, Math.sin(tc * 19 + a * 3 + ph) * Math.sin(a * 2 - ph));
+      c.lerp(LICHEN, lichen * 0.35);
+      // Rain streaks hang under the ledges.
+      const streak = smoothstep(0.4, 0.9, Math.sin(a * 11 + ph + Math.sin(tc * 6) * 2));
+      c.lerp(JOINT, under * streak * 0.35);
+      if (ledge > 0) c.lerp(MOSS, skin.ledgeMask(ledge - 1, a) * 0.75);
+      c.lerp(MOSS, crown * 0.4);
+      col.push(c.r, c.g, c.b);
+    }
+  }
+  const R = T.length;
+  pos.push(sh.lean * sh.aspect, sh.aspect, 0);
+  c.copy(GRANITE).lerp(MOSS, 0.4);
+  col.push(c.r, c.g, c.b);
+  const apex = R * SEG;
+  const idx: number[] = [];
+  for (let i = 0; i < R - 1; i++)
     for (let k = 0; k < SEG; k++) {
       const k1 = (k + 1) % SEG;
-      v(i, k);
-      v(i + 1, k);
-      v(i, k1);
-      face(i, k);
-      v(i, k1);
-      v(i + 1, k);
-      v(i + 1, k1);
-      face(i, k);
+      const a = i * SEG + k;
+      const b = i * SEG + k1;
+      const cc = (i + 1) * SEG + k;
+      const dd = (i + 1) * SEG + k1;
+      idx.push(a, cc, b, b, cc, dd);
     }
-  const apex = [sh.lean * sh.aspect, sh.aspect, 0];
-  for (let k = 0; k < SEG; k++) {
-    v(RINGS, k);
-    pos.push(apex[0], apex[1], apex[2]);
-    v(RINGS, (k + 1) % SEG);
-    face(RINGS, k);
-  }
+  for (let k = 0; k < SEG; k++) idx.push((R - 1) * SEG + k, apex, (R - 1) * SEG + ((k + 1) % SEG));
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setIndex(idx);
   geo.computeVertexNormals();
   return geo;
 }

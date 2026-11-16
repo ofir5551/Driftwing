@@ -1,6 +1,8 @@
 import { Config } from '../../core/Config';
 import { smoothstep } from '../../core/math';
 import { createNoise2D, fbm, hash2, type Noise2D } from '../noise';
+import { COLUMN, profile, SHAPES } from './profile';
+import { PeaksSites } from './PeaksSites';
 
 /**
  * Sea of Clouds' plan as one pure, seeded function of position (no Three.js, unit-tested): a
@@ -9,56 +11,7 @@ import { createNoise2D, fbm, hash2, type Noise2D } from '../noise';
  * taller). The renderer, collisions and wisp planner all read it, so they agree on the rock.
  */
 
-/** A spire silhouette, in base radii: a tapering column with tiers and a summit dome. */
-export interface SpireShape {
-  /** Height over base radius before the per-spire stretch. */
-  aspect: number;
-  /** How much the column narrows toward the top. */
-  taper: number;
-  /** Ledges where the column steps in (granite breaking along its horizontal joints). */
-  tiers: number;
-  /** Radius lost over all the tiers. */
-  step: number;
-  /** Fraction of the height where the summit dome starts. */
-  cap: number;
-  /** Dome flatness: 2 is round, higher is a flat top with a rounded edge. */
-  flat: number;
-  /** Top offset as a fraction of the height. */
-  lean: number;
-}
-
-export const SHAPES: SpireShape[] = [
-  { aspect: 4.2, taper: 0.18, tiers: 0, step: 0, cap: 0.94, flat: 6, lean: 0.02 }, // column
-  { aspect: 6.4, taper: 0.6, tiers: 0, step: 0, cap: 0.85, flat: 1.7, lean: 0.05 }, // needle
-  { aspect: 3.6, taper: 0.1, tiers: 3, step: 0.42, cap: 0.93, flat: 5, lean: 0 }, // tiered tower
-  { aspect: 2.6, taper: 0.25, tiers: 1, step: 0.2, cap: 0.8, flat: 3.5, lean: 0 }, // massif
-  { aspect: 4.8, taper: 0.38, tiers: 1, step: 0.18, cap: 0.9, flat: 3, lean: 0.12 }, // leaning
-];
-
-/** Column, the shape the gate spires use. */
-export const COLUMN = 0;
-
-/**
- * Radius at fraction t of the height, in base radii. The mesh is lathed from this and the
- * collisions test against it, so the bird meets the rock where it is drawn. Non-increasing in t
- * above the flared foot, which the summit query's bisection relies on.
- */
-export function profile(sh: SpireShape, t: number): number {
-  if (t >= 1) return 0;
-  const foot = t < 0.06 ? 1 + 0.12 * (1 - t / 0.06) : 1;
-  let r = foot * (1 - sh.taper * t);
-  if (sh.tiers > 0) {
-    // Stairs: flat runs, then a quick step in at each joint.
-    const s = t * (sh.tiers + 1);
-    const i = Math.floor(s);
-    r *= 1 - (sh.step * (i + smoothstep(0.86, 1, s - i))) / (sh.tiers + 1);
-  }
-  if (t > sh.cap) {
-    const q = (t - sh.cap) / (1 - sh.cap);
-    r *= Math.sqrt(Math.max(0, 1 - Math.pow(q, sh.flat)));
-  }
-  return r;
-}
+export { COLUMN, profile, SHAPES, type SpireShape } from './profile';
 
 /** What stands on a summit: nothing but pines, a hermitage, or the gate's monastery. */
 export const Temple = { None: 0, Hermitage: 1, Monastery: 2 } as const;
@@ -103,6 +56,14 @@ export interface Bridge {
   w: number;
 }
 
+/** A gap in the cloud sea, looking down on the valleys far below. */
+export interface Gap {
+  x: number;
+  z: number;
+  /** Radius of the opening (its rim wobbles round this). */
+  r: number;
+}
+
 const CELL_CACHE = 6000;
 
 export class PeaksLayout {
@@ -121,6 +82,10 @@ export class PeaksLayout {
   private readonly nDome: Noise2D;
   private readonly nDense: Noise2D;
   private readonly cells = new Map<number, Spire[]>();
+  private readonly gapCells = new Map<number, Gap | null>();
+  private readonly nGap: Noise2D;
+  /** Rope bridges, flag lines, the monastery stair and the crane flocks. */
+  readonly sites: PeaksSites;
 
   constructor(seed: number) {
     this.seed = seed;
@@ -138,6 +103,8 @@ export class PeaksLayout {
     // The deck runs from rock to rock, its ends a little inside each spire.
     const half = P.gateHalf - 21;
     this.bridge = { x0: -half, x1: half, z: z + 3, y: P.bridgeY, sag: P.bridgeSag, w: 2.2 };
+    this.nGap = createNoise2D(seed + 505);
+    this.sites = new PeaksSites(this);
   }
 
   /** A spire from its plan values (the gate's, or one rolled for a cell). */
@@ -197,6 +164,86 @@ export class PeaksLayout {
     return Math.min(1, a * 0.75 + b * 0.35);
   }
 
+  /** The gap in cloud-sea gap cell (i, j), or null. Cached; pure in the seed. */
+  gap(i: number, j: number): Gap | null {
+    const key = (i + 0x8000) * 0x10000 + (j + 0x8000);
+    const hit = this.gapCells.get(key);
+    if (hit !== undefined) return hit;
+    if (this.gapCells.size > CELL_CACHE) this.gapCells.clear();
+    const P = Config.peaks;
+    const C = P.gapCell;
+    const s = this.seed;
+    let g: Gap | null = null;
+    // The home gap, off the opening glide's left, the first look down through the cloud.
+    const hx = this.spawn.x + P.gapHome[0];
+    const hz = this.spawn.z + P.gapHome[1];
+    const home = Math.floor(hx / C) === i && Math.floor(hz / C) === j;
+    if (home || hash2(i - 211, j + 97, s + 531) < P.gapChance) {
+      const x = home ? hx : (i + 0.2 + 0.6 * hash2(i, j, s + 532)) * C;
+      const z = home ? hz : (j + 0.2 + 0.6 * hash2(i, j, s + 533)) * C;
+      const r = home ? P.gapMin + 6 : P.gapMin + (P.gapMax - P.gapMin) * hash2(i, j, s + 534);
+      // Out on the open sea: no spire's foot may show in it (the rim reaches 1.15 r).
+      if (this.skyline(x, z, r * 1.15 + 12) === -Infinity) g = { x, z, r };
+    }
+    this.gapCells.set(key, g);
+    return g;
+  }
+
+  /**
+   * 0..1: how far (x, z) is into a gap in the cloud sea (1 on the valley floor, 0 on the
+   * cloud), and in `gapRim` how far onto the heaped cloud round its rim.
+   */
+  gapAt(x: number, z: number): number {
+    const P = Config.peaks;
+    const C = P.gapCell;
+    const i0 = Math.floor((x - P.gapMax * 1.6) / C);
+    const i1 = Math.floor((x + P.gapMax * 1.6) / C);
+    const j0 = Math.floor((z - P.gapMax * 1.6) / C);
+    const j1 = Math.floor((z + P.gapMax * 1.6) / C);
+    let open = 0;
+    this.gapRim = 0;
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const g = this.gap(i, j);
+        if (!g) continue;
+        const dx = x - g.x;
+        const dz = z - g.z;
+        const d = Math.hypot(dx, dz);
+        if (d > g.r * 1.6) continue;
+        // A ragged rim: the radius wanders round the opening.
+        const rr =
+          g.r *
+          (1 +
+            0.28 *
+              this.nGap(
+                g.x * 0.01 + (dx / (d + 1e-6)) * 1.3,
+                g.z * 0.01 + (dz / (d + 1e-6)) * 1.3,
+              ));
+        open = Math.max(open, 1 - smoothstep(rr * 0.72, rr, d));
+        this.gapRim = Math.max(
+          this.gapRim,
+          smoothstep(rr * 0.8, rr * 1.05, d) * (1 - smoothstep(rr * 1.1, rr * 1.55, d)),
+        );
+      }
+    return open;
+  }
+
+  /** Scratch result of `gapAt()`: 0..1 onto the heaped cloud round a gap's rim. */
+  gapRim = 0;
+
+  /**
+   * The cloud sea as drawn: `height` with the gaps opened down to the valleys (and their rims
+   * heaped a little). Flight, wisps and spires use `height`: over a gap the bird floats on air
+   * that is still cloud for it, a thin veil it can't see.
+   */
+  surface(x: number, z: number): number {
+    const y = this.height(x, z);
+    const g = this.gapAt(x, z);
+    const rim = this.gapRim * Config.peaks.gapRim;
+    if (g <= 0) return y + rim;
+    return y + rim + (Config.peaks.gapFloor - y - rim) * g * g * (3 - 2 * g);
+  }
+
   /** Ground: the cloud sea, piled up softly against the foot of every spire. */
   height(x: number, z: number): number {
     const y = this.cloud(x, z);
@@ -224,7 +271,7 @@ export class PeaksLayout {
   // --- Spires ----------------------------------------------------------------------------------
 
   /** Is (x, z) kept open for the spawn and the opening glide to the gate? */
-  private reserved(x: number, z: number, r: number): boolean {
+  reserved(x: number, z: number, r: number): boolean {
     const s = this.spawn;
     if (Math.hypot(x - s.x, z - s.z) < 170 + r) return true;
     // The corridor to the gate and a little past it, wide enough to frame it, not crowd it.
@@ -331,6 +378,11 @@ export class PeaksLayout {
           if (fn(p)) return;
         }
       }
+  }
+
+  /** The spire the last `solidTop` hit, or null (the bridge, or nothing). */
+  get hitSpire(): Spire | null {
+    return this.qp;
   }
 
   // Query state for the closures below (kept on the instance so queries never allocate).
@@ -531,8 +583,15 @@ export class PeaksLayout {
     return best;
   }
 
-  /** Clearance for planning: `margin` from rock, `ground` over the cloud sea. */
+  /**
+   * Clearance for planning: `margin` from rock, `ground` over the cloud sea, and the ropes'
+   * own margin (`ropeClear`) from every rope bridge and flag line.
+   */
   clear(x: number, y: number, z: number, margin: number, ground: number): boolean {
-    return y > this.height(x, z) + ground && this.solidTop(x, y, z, margin) === -Infinity;
+    return (
+      y > this.height(x, z) + ground &&
+      this.solidTop(x, y, z, margin) === -Infinity &&
+      !this.sites.ropeNear(x, y, z, Math.max(margin, Config.peaks.ropeClear))
+    );
   }
 }

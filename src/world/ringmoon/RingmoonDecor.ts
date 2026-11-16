@@ -1,25 +1,25 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
-import { smoothstep } from '../../core/math';
-import type { ChunkDecor } from '../ChunkManager';
+import { nearestInReach, type ChunkDecor } from '../ChunkManager';
+import { ContactShadows } from '../ContactShadows';
 import type { DayCycle } from '../DayCycle';
 import { withGroundDetail } from '../GroundDetail';
 import { withMist } from '../Mist';
+import { ShadowCasters } from '../ShadowCasters';
 import { getToonGradient } from '../Terrain';
-import { hash2 } from '../noise';
 import { Trees } from '../Trees';
+import { commitInstances } from '../instances';
 import {
   beaconGeometry,
   beaconRingGeometry,
-  beaconTipGeometry,
   coilGeometry,
   crystalGeometry,
+  landerFarGeometry,
   landerGeometry,
-  landerGlowGeometry,
-  podGeometry,
   reedGeometry,
   spireGeometry,
 } from './geometry';
+import { lifeMaterial, propMaterial, withMoonLight } from './materials';
 import {
   PROP_BEACON,
   PROP_CRYSTAL,
@@ -29,21 +29,42 @@ import {
   type RingmoonLayout,
   type Spire,
 } from './RingmoonLayout';
-import { commitInstances } from '../instances';
-
-/** Plant types in the shared Trees meshes. */
-const COIL = 0;
-const REED = 1;
+import { P, PROP_KINDS, PROP_STRIDE, RingmoonScatter } from './RingmoonScatter';
+import { withBasalt } from './rock';
+import {
+  bulbsGeometry,
+  fishSchoolGeometry,
+  floaterGeometry,
+  grazerGeometry,
+  habGeometry,
+  lampGeometry,
+  mastGeometry,
+  stepsGeometry,
+} from './shapes';
 
 export interface RingmoonChunk {
+  ox: number;
+  oz: number;
   spires: Spire[];
   /** Plants in the Trees stride: type, x, y, z, scale, rotY, tint. */
   plants: number[];
-  /** Glow pods: x, y, z, scale, hue (0 cyan .. 1 gold). */
-  pods: number[];
   /** Landers, beacons and crystal clusters centred in the chunk. */
   props: Prop[];
+  /** The explorers' habs, masts and lamps and the floaters (RingmoonScatter records). */
+  sites: number[];
+  /** Bulbs, steps, fish and grazers, scattered the first time the chunk comes within reach. */
+  life: number[] | null;
 }
+
+/** Per prop kind: 0 always drawn, 1 within propDistance, 2 within smallPropDistance. */
+const RANGE = [1, 1, 1, 1, 1, 2, 1, 0];
+/** Per prop kind: instance capacity. */
+const CAP = [300, 200, 1600, 2600, 1600, 300, 300, 60];
+/** Per prop kind: contact-shadow radius at scale 1 (0 = none). */
+const BLOB = [4.6, 1.6, 0, 0.7, 2.2, 0, 0, 0];
+/** Bulb hues (multiplied over the bulbs' pale vertex colours, and their glow). */
+const BULBS = ['#8ff3e0', '#f4d27a', '#c9a3ff'].map((h) => new THREE.Color(h));
+const FLOATERS = ['#ffffff', '#ffd6ec', '#d4fff4'].map((h) => new THREE.Color(h));
 
 const m = new THREE.Matrix4();
 const col = new THREE.Color();
@@ -51,12 +72,6 @@ const q = new THREE.Quaternion();
 const pv = new THREE.Vector3();
 const sv = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
-const HATCH_DAY = new THREE.Color('#6fd6c6');
-// HDR (> 1): hatches, beacon tips and crystals bloom after dark.
-const HATCH_NIGHT = new THREE.Color(1.1, 2.6, 2.3);
-const TIP_DAY = new THREE.Color('#7fe6d6');
-const TIP_NIGHT = new THREE.Color(1.6, 3.6, 3.2);
-const CRYSTAL_GLOW = new THREE.Color('#5b3fa0');
 
 /**
  * A toon material whose vertices turn about the instance's own vertical axis by `spin` (radians,
@@ -81,110 +96,142 @@ function spinning(spin: { value: number }): THREE.MeshToonMaterial {
       );
   };
   mat.customProgramCacheKey = () => 'spin';
-  return withMist(mat);
+  return withMist(withMoonLight(mat));
 }
-const POD_CYAN = new THREE.Color('#7fe0d2');
-const POD_GOLD = new THREE.Color('#e8c36a');
-// HDR (> 1) so bloom halos the pods after dark.
-const POD_NIGHT = new THREE.Color(1.9, 2.3, 2.1);
 
 /**
  * Ringmoon Shallows' scenery as global instanced meshes refilled from the live chunks: basalt
- * spires in three silhouettes (leaning, so each instance carries a shear), coil fronds and
- * reed fans on the islets, and glow pods among them that light up after dark.
+ * spires in three silhouettes (leaning, so each instance carries a shear; painted columns),
+ * coil fronds and reed fans (with distant shapes), the alien things (landing pods near and far,
+ * crystal clusters, beacon towers with turning rings), the explorers' habs, masts and lit
+ * paths, and lazily within prop distance glow bulbs, basalt steps on the terraces, glowing fish,
+ * grazers on the hills and floaters drifting overhead (moving in the vertex shader). Spires,
+ * pods, habs and beacons cast sun shadows through near-only proxies (high); pods, habs, masts,
+ * crystals, beacons, bulbs and steps get contact shadows. Refills write into preallocated
+ * buffers.
  */
 export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
   readonly group = new THREE.Group();
+  private readonly scatterer: RingmoonScatter;
   private readonly spireMaterial: THREE.MeshToonMaterial;
-  private readonly podMaterial: THREE.MeshBasicMaterial;
+  private readonly stepMaterial: THREE.MeshToonMaterial;
+  private readonly propMat = propMaterial();
+  private readonly lifeMat = lifeMaterial();
   private readonly spires: THREE.InstancedMesh[];
   private readonly farSpires: THREE.InstancedMesh[];
-  private readonly pods: THREE.InstancedMesh;
-  private readonly propMaterial: THREE.MeshToonMaterial;
-  private readonly crystalMaterial: THREE.MeshToonMaterial;
-  private readonly hatchMaterial: THREE.MeshBasicMaterial;
-  private readonly tipMaterial: THREE.MeshBasicMaterial;
   private readonly ringMaterials: THREE.MeshToonMaterial[];
   private readonly spins = [{ value: 0 }, { value: 0 }];
   private readonly landers: THREE.InstancedMesh;
-  private readonly hatches: THREE.InstancedMesh;
+  private readonly farLanders: THREE.InstancedMesh;
   private readonly beacons: THREE.InstancedMesh;
   private readonly rings: THREE.InstancedMesh[];
-  private readonly tips: THREE.InstancedMesh;
   private readonly crystals: THREE.InstancedMesh;
+  /** Per prop kind its mesh. */
+  private readonly kinds: THREE.InstancedMesh[] = [];
+  private readonly kindCount = new Array<number>(PROP_KINDS).fill(0);
+  private readonly spireCasters: ShadowCasters[];
+  private readonly landerCasters: ShadowCasters;
+  private readonly habCasters: ShadowCasters;
+  private readonly beaconCasters: ShadowCasters;
+  private readonly contact = new ContactShadows(2000);
   readonly trees = new Trees(
     9000,
     [coilGeometry(3, 4, 3), reedGeometry(4)],
     [coilGeometry(), reedGeometry()],
+    [coilGeometry(1, 2, 3), reedGeometry(2)],
   );
   private readonly plantLists: number[][] = [];
+  private px = 0;
+  private pz = 0;
+  private big2 = 0;
+  private small2 = 0;
 
   constructor(private readonly layout: RingmoonLayout) {
-    this.trees.ground = (x, z) => layout.height(x, z); // contact shadows lie on the slope
-    withMist(this.trees.material);
-    this.spireMaterial = withGroundDetail(
-      withMist(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() })),
-    );
-    this.podMaterial = new THREE.MeshBasicMaterial({ color: '#fff' });
+    this.scatterer = new RingmoonScatter(layout);
+    const ground = (x: number, z: number) => layout.height(x, z);
+    this.trees.ground = ground; // contact shadows lie on the slope
+    withMoonLight(withMist(this.trees.material));
+    const toon = () =>
+      withGroundDetail(
+        withMist(
+          new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
+        ),
+      );
+    this.spireMaterial = withMoonLight(withBasalt(toon(), 'spire'));
+    this.stepMaterial = withMoonLight(withBasalt(toon(), 'steps'));
+    const R = Config.ringmoon;
     const mat = this.spireMaterial;
-    this.spires = SPIRE_SHAPES.map((sh, i) => this.make(spireGeometry(sh, 60 + i), 700, mat));
+    const nearGeo = SPIRE_SHAPES.map((sh, i) =>
+      spireGeometry(sh, 60 + i, R.spireSides, R.spireRings),
+    );
+    this.spires = nearGeo.map((g, i) => this.make(g, 700, mat, `spire-${i}`));
     this.farSpires = SPIRE_SHAPES.map((sh, i) =>
-      this.make(spireGeometry(sh, 60 + i, 6, 9), 2200, mat),
+      this.make(spireGeometry(sh, 60 + i, R.farSides, R.farRings), 2200, mat, `spire-far-${i}`),
     );
-    this.pods = this.make(podGeometry(), 2400, this.podMaterial);
-    this.propMaterial = withMist(
-      new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
-    );
-    this.crystalMaterial = withMist(
-      new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: getToonGradient() }),
-    );
-    this.hatchMaterial = new THREE.MeshBasicMaterial({ color: HATCH_DAY.clone() });
-    this.tipMaterial = new THREE.MeshBasicMaterial({ color: TIP_DAY.clone() });
+    this.spireCasters = nearGeo.map((g) => new ShadowCasters(g, mat, 300));
     this.ringMaterials = this.spins.map((sp) => spinning(sp));
-    this.landers = this.make(landerGeometry(), 500, this.propMaterial);
-    this.hatches = this.make(landerGlowGeometry(), 500, this.hatchMaterial);
-    this.beacons = this.make(beaconGeometry(), 120, this.propMaterial);
+    const lander = landerGeometry();
+    this.landers = this.make(lander, 500, this.propMat, 'lander');
+    this.farLanders = this.make(landerFarGeometry(), 600, this.propMat, 'lander-far');
+    const beacon = beaconGeometry();
+    this.beacons = this.make(beacon, 120, this.propMat, 'beacon');
     this.rings = [false, true].map((upper, i) =>
-      this.make(beaconRingGeometry(upper), 120, this.ringMaterials[i]),
+      this.make(beaconRingGeometry(upper), 120, this.ringMaterials[i], `beacon-ring-${i}`),
     );
-    this.tips = this.make(beaconTipGeometry(), 120, this.tipMaterial);
-    this.crystals = this.make(crystalGeometry(), 600, this.crystalMaterial);
-    this.landers.name = 'lander';
-    this.hatches.name = 'lander-hatch';
-    this.beacons.name = 'beacon';
-    this.rings.forEach((r, i) => (r.name = `beacon-ring-${i}`));
-    this.tips.name = 'beacon-tip';
-    this.crystals.name = 'crystal';
-    // Names show up in scripts/level-shots.mjs's triangle report.
-    this.spires.forEach((r, i) => (r.name = `spire-${i}`));
-    this.farSpires.forEach((r, i) => (r.name = `spire-far-${i}`));
-    this.pods.name = 'glow-pod';
+    this.crystals = this.make(crystalGeometry(), 600, this.propMat, 'crystal');
+    const shapes = [
+      habGeometry,
+      mastGeometry,
+      lampGeometry,
+      bulbsGeometry,
+      stepsGeometry,
+      fishSchoolGeometry,
+      grazerGeometry,
+      floaterGeometry,
+    ];
+    const names = ['hab', 'mast', 'lamp', 'bulbs', 'steps', 'fish', 'grazer', 'floater'];
+    let habGeo: THREE.BufferGeometry | null = null;
+    for (let k = 0; k < PROP_KINDS; k++) {
+      const g = shapes[k]();
+      if (k === P.Hab) habGeo = g;
+      const material = g.getAttribute('aAnim')
+        ? this.lifeMat
+        : k === P.Steps
+          ? this.stepMaterial
+          : this.propMat;
+      this.kinds.push(this.make(g, CAP[k], material, `rm-${names[k]}`));
+    }
+    this.landerCasters = new ShadowCasters(lander, this.propMat, 200);
+    this.habCasters = new ShadowCasters(habGeo!, this.propMat, 120);
+    this.beaconCasters = new ShadowCasters(beacon, this.propMat, 40);
     this.group.add(
-      ...this.spires,
-      ...this.farSpires,
-      this.pods,
-      this.landers,
-      this.hatches,
-      this.beacons,
-      ...this.rings,
-      this.tips,
-      this.crystals,
+      ...this.spireCasters.map((c) => c.mesh),
+      this.landerCasters.mesh,
+      this.habCasters.mesh,
+      this.beaconCasters.mesh,
+      this.contact.mesh,
       this.trees.group,
     );
   }
 
-  private make(geo: THREE.BufferGeometry, cap: number, mat: THREE.Material): THREE.InstancedMesh {
+  private make(
+    geo: THREE.BufferGeometry,
+    cap: number,
+    mat: THREE.Material,
+    name: string,
+  ): THREE.InstancedMesh {
     const mesh = new THREE.InstancedMesh(geo, mat, cap);
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3);
     mesh.count = 0;
     mesh.frustumCulled = false; // instances span the whole view
+    mesh.name = name; // shows up in scripts/level-shots.mjs's triangle report
+    this.group.add(mesh);
     return mesh;
   }
 
   scatter(ox: number, oz: number, size: number): RingmoonChunk {
     const L = this.layout;
-    const seed = L.seed;
-    const out: RingmoonChunk = { spires: [], plants: [], pods: [], props: [] };
+    const out: RingmoonChunk = { ox, oz, spires: [], plants: [], props: [], sites: [], life: null };
     const inChunk = (x: number, z: number) => x >= ox && x < ox + size && z >= oz && z < oz + size;
     const C = Config.ringmoon.spireCell;
     for (let j = Math.floor(oz / C); j <= Math.floor((oz + size) / C); j++)
@@ -194,39 +241,55 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
     for (let j = Math.floor(oz / PC); j <= Math.floor((oz + size) / PC); j++)
       for (let i = Math.floor(ox / PC); i <= Math.floor((ox + size) / PC); i++)
         for (const p of L.props(i, j)) if (inChunk(p.x, p.z)) out.props.push(p);
-    // The islets: coil fronds in loose groves, reed fans between them, glow pods at their feet.
-    const cell = 10;
-    for (let j = Math.ceil(oz / cell); j < Math.ceil((oz + size) / cell); j++)
-      for (let i = Math.ceil(ox / cell); i < Math.ceil((ox + size) / cell); i++) {
-        const x = (i + hash2(i, j, seed + 21)) * cell;
-        const z = (j + hash2(i, j, seed + 22)) * cell;
-        const y = L.height(x, z);
-        if (y < 1.4) continue;
-        // Inland the plants thin out, so the hills read as open moss and the counts stay low.
-        if (y > 10 && hash2(i, j, seed + 27) < smoothstep(10, 30, y) * 0.6) continue;
-        const h = hash2(i, j, seed + 23);
-        const rot = hash2(i, j, seed + 25) * Math.PI * 2;
-        const tint = hash2(i, j, seed + 26);
-        const s = 0.75 + hash2(i, j, seed + 24) * 0.5;
-        if (h < 0.4) out.plants.push(COIL, x, y - 0.3, z, s, rot, tint);
-        else if (h < 0.7) out.plants.push(REED, x, y - 0.2, z, s, rot, tint);
-        else if (h < 0.77) out.pods.push(x, y + 0.5, z, 0.8 + tint * 0.6, tint);
-      }
+    this.scatterer.plants(ox, oz, size, out.plants);
+    this.scatterer.sites(ox, oz, size, out.sites);
     return out;
   }
 
+  private readonly bare = (c: RingmoonChunk): boolean => !c.life;
+
+  /** The life scatters lazily, the first time its chunk comes within reach: one chunk a frame. */
+  prepare(items: RingmoonChunk[], px: number, pz: number, budget: number): boolean {
+    const R = Config.render;
+    if (R.propDistance <= 0) return false;
+    const size = Config.world.chunkSize;
+    for (;;) {
+      const c = nearestInReach(items, px, pz, R.propDistance + size, this.bare);
+      if (!c) return false;
+      if (budget-- <= 0) return true;
+      c.life = [];
+      this.scatterer.props(c.ox, c.oz, size, c.life);
+    }
+  }
+
   rebuild(items: RingmoonChunk[], px: number, pz: number): void {
+    const R = Config.render;
+    const size = Config.world.chunkSize;
+    this.plantLists.length = 0;
+    for (const c of items) this.plantLists.push(c.plants);
+    this.trees.rebuild(this.plantLists, px, pz, R.treeDistance);
+    this.px = px;
+    this.pz = pz;
+    this.big2 = R.propDistance ** 2;
+    this.small2 = R.smallPropDistance ** 2;
+    this.kindCount.fill(0);
+    for (const c of this.spireCasters) c.begin(px, pz, size);
+    this.landerCasters.begin(px, pz, size);
+    this.habCasters.begin(px, pz, size);
+    this.beaconCasters.begin(px, pz, size);
+    this.contact.begin(px, pz);
     const nc = this.spires.map(() => 0);
     const fc = this.spires.map(() => 0);
-    const near2 = Config.ringmoon.spireLod ** 2;
-    let pc = 0;
+    // Low (no prop detail) keeps the finer spires for the nearest only.
+    const near2 = (Config.ringmoon.spireLod * (R.propDetail > 0 ? 1 : 0.35)) ** 2;
+    const detail2 = R.propDetail ** 2;
     let lc = 0;
+    let lf = 0;
     let bc = 0;
     let cc = 0;
-    this.plantLists.length = 0;
     const e = m.elements;
+    const ground = this.trees.ground;
     for (const it of items) {
-      this.plantLists.push(it.plants);
       for (const s of it.spires) {
         const near = (s.x - px) ** 2 + (s.z - pz) ** 2 < near2;
         const mesh = (near ? this.spires : this.farSpires)[s.shape];
@@ -260,58 +323,84 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
           col.setRGB(0.9 + t * 0.14, 0.92 + ((t * 5) % 1) * 0.08, 0.94 + (1 - t) * 0.1),
         );
         counter[s.shape]++;
+        this.spireCasters[s.shape].add(s.x, s.z, m);
       }
       for (const pr of it.props) {
         q.setFromAxisAngle(UP, pr.yaw);
         m.compose(pv.set(pr.x, pr.y0, pr.z), q, sv.set(pr.s, pr.s, pr.s));
-        if (pr.type === PROP_POD && lc < this.landers.instanceMatrix.count) {
-          this.landers.setMatrixAt(lc, m);
-          this.hatches.setMatrixAt(lc++, m);
+        const d2 = (pr.x - px) ** 2 + (pr.z - pz) ** 2;
+        if (pr.type === PROP_POD) {
+          if (d2 < detail2 && lc < this.landers.instanceMatrix.count)
+            this.landers.setMatrixAt(lc++, m);
+          else if (lf < this.farLanders.instanceMatrix.count) this.farLanders.setMatrixAt(lf++, m);
+          this.landerCasters.add(pr.x, pr.z, m);
+          this.contact.add(pr.x, pr.y0 + 0.4, pr.z, 3.6 * pr.s, ground);
         } else if (pr.type === PROP_BEACON && bc < this.beacons.instanceMatrix.count) {
           this.beacons.setMatrixAt(bc, m);
           // The rings turn in the shader; their yaw here only staggers them.
           for (const r of this.rings) r.setMatrixAt(bc, m);
-          this.tips.setMatrixAt(bc++, m);
+          bc++;
+          this.beaconCasters.add(pr.x, pr.z, m);
+          this.contact.add(pr.x, pr.y0 + 2, pr.z, 4.5 * pr.s, ground);
         } else if (pr.type === PROP_CRYSTAL && cc < this.crystals.instanceMatrix.count) {
           this.crystals.setMatrixAt(cc++, m);
+          this.contact.add(pr.x, pr.y0 + 0.4, pr.z, 2.2 * pr.s, ground);
         }
       }
-      const P = it.pods;
-      for (let i = 0; i < P.length && pc < this.pods.instanceMatrix.count; i += 5) {
-        const sz = P[i + 3];
-        m.makeScale(sz, sz, sz).setPosition(P[i], P[i + 1], P[i + 2]);
-        this.pods.setMatrixAt(pc, m);
-        this.pods.setColorAt(pc++, col.copy(POD_CYAN).lerp(POD_GOLD, P[i + 4] > 0.6 ? 1 : 0));
-      }
+      this.place(it.sites);
+      if (it.life) this.place(it.life);
     }
-    const counts: [THREE.InstancedMesh, number][] = [
-      ...this.spires.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, nc[i]]),
-      ...this.farSpires.map((mesh, i): [THREE.InstancedMesh, number] => [mesh, fc[i]]),
-      [this.pods, pc],
-      [this.landers, lc],
-      [this.hatches, lc],
-      [this.beacons, bc],
-      ...this.rings.map((r): [THREE.InstancedMesh, number] => [r, bc]),
-      [this.tips, bc],
-      [this.crystals, cc],
-    ];
-    for (const [mesh, n] of counts) {
-      commitInstances(mesh, n);
+    for (let i = 0; i < this.spires.length; i++) {
+      commitInstances(this.spires[i], nc[i]);
+      commitInstances(this.farSpires[i], fc[i]);
     }
-    this.trees.rebuild(this.plantLists, px, pz, Config.render.treeDistance);
+    commitInstances(this.landers, lc);
+    commitInstances(this.farLanders, lf);
+    commitInstances(this.beacons, bc);
+    for (const r of this.rings) commitInstances(r, bc);
+    commitInstances(this.crystals, cc);
+    for (let k = 0; k < PROP_KINDS; k++) commitInstances(this.kinds[k], this.kindCount[k]);
+    for (const c of this.spireCasters) c.end();
+    this.landerCasters.end();
+    this.habCasters.end();
+    this.beaconCasters.end();
+    this.contact.end();
   }
 
-  /** Glow pods: soft colour by day, a bright halo as the light goes. */
-  frame(day: DayCycle, time: number): void {
+  /** Instance every record of a chunk list that is in range. */
+  private place(list: readonly number[]): void {
+    const ground = this.trees.ground;
+    for (let k = 0; k < list.length; k += PROP_STRIDE) {
+      const kind = list[k];
+      const x = list[k + 1];
+      const y = list[k + 2];
+      const z = list[k + 3];
+      const yaw = list[k + 4];
+      const s = list[k + 5];
+      const t = list[k + 6];
+      const d2 = (x - this.px) ** 2 + (z - this.pz) ** 2;
+      const range = RANGE[kind];
+      if ((range === 1 && d2 > this.big2) || (range === 2 && d2 > this.small2)) continue;
+      const mesh = this.kinds[kind];
+      const idx = this.kindCount[kind];
+      if (idx >= mesh.instanceMatrix.count) continue;
+      // Moving things carry no turn: the shader sets their heading round their circle.
+      q.setFromAxisAngle(UP, kind >= P.Fish ? 0 : yaw);
+      m.compose(pv.set(x, y, z), q, sv.set(s, s, s));
+      mesh.setMatrixAt(idx, m);
+      if (kind === P.Bulbs) col.copy(BULBS[Math.floor(t * 3) % 3]);
+      else if (kind === P.Floater) col.copy(FLOATERS[Math.floor(t * 3) % 3]);
+      else col.setRGB(0.94 + t * 0.1, 0.95 + t * 0.06, 0.94 + (1 - t) * 0.08);
+      mesh.setColorAt(idx, col);
+      this.kindCount[kind] = idx + 1;
+      if (kind === P.Hab) this.habCasters.add(x, z, m);
+      if (BLOB[kind] > 0) this.contact.add(x, y + 0.1, z, BLOB[kind] * s, ground);
+    }
+  }
+
+  /** The rings turn, opposite ways at different speeds (the glow is set in ringFrame). */
+  frame(_day: DayCycle, time: number): void {
     const R = Config.ringmoon;
-    const night = smoothstep(0.08, 0.6, day.palette.stars) * R.glow;
-    this.podMaterial.color.setRGB(1, 1, 1).lerp(POD_NIGHT, night);
-    this.hatchMaterial.color.copy(HATCH_DAY).lerp(HATCH_NIGHT, night);
-    // The beacons' tips pulse slowly, brightest after dark.
-    const pulse = 0.6 + 0.4 * Math.sin(time * 1.7);
-    this.tipMaterial.color.copy(TIP_DAY).lerp(TIP_NIGHT, night * pulse);
-    this.crystalMaterial.emissive.copy(CRYSTAL_GLOW).multiplyScalar(night * 0.9);
-    // The two rings turn opposite ways at different speeds.
     this.spins[0].value = time * R.ringSpin;
     this.spins[1].value = -time * R.ringSpin * 1.4;
   }
@@ -320,23 +409,25 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
     for (const mesh of [
       ...this.spires,
       ...this.farSpires,
-      this.pods,
       this.landers,
-      this.hatches,
+      this.farLanders,
       this.beacons,
       ...this.rings,
-      this.tips,
       this.crystals,
+      ...this.kinds,
     ]) {
       mesh.geometry.dispose();
       mesh.dispose();
     }
+    for (const c of this.spireCasters) c.dispose();
+    this.landerCasters.dispose();
+    this.habCasters.dispose();
+    this.beaconCasters.dispose();
+    this.contact.dispose();
     this.spireMaterial.dispose();
-    this.podMaterial.dispose();
-    this.propMaterial.dispose();
-    this.crystalMaterial.dispose();
-    this.hatchMaterial.dispose();
-    this.tipMaterial.dispose();
+    this.stepMaterial.dispose();
+    this.propMat.dispose();
+    this.lifeMat.dispose();
     for (const mat of this.ringMaterials) mat.dispose();
     this.trees.dispose();
   }

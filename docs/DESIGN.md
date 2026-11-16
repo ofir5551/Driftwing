@@ -83,9 +83,9 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
 - **Ground cover** (`world/GroundCover`): grass tufts (and flower drifts) scattered on each
   terrain chunk's own lattice, coloured from the ground, swaying in rolling gusts. A level opts
   in with a `CoverStyle` on its `ChunkManager` (the Highlands, Jade River, City of Gold, Red
-  Canyons, whose style adds its own shapes: sagebrush, prickly pear, tumbleweeds, and Coral
-  Atolls: ferns, driftwood, shells, and seagrass under the clear water); `paint` gets every
-  component of the style's `extra` attribute (`t.extras`).
+  Canyons, whose style adds its own shapes: sagebrush, prickly pear, tumbleweeds; Coral Atolls:
+  ferns, driftwood, shells, and seagrass under the clear water; and Aurora Fjords: heather,
+  crowberry and moss); `paint` gets every component of the style's `extra` attribute (`t.extras`).
 
 ## Levels
 
@@ -255,36 +255,80 @@ a slowly updated trend heading keeps the ribbon from doubling back.
 ## Aurora Fjords
 
 Mood: hushed, vast, starlit. The first level to open at night: a deep blue polar night (never
-black) with the aurora overhead, lingering (the day runs at half speed) before a low winter sun
-turns the snow pink at dawn and gold in the afternoon. Cold palette with a few warm accents: red
-huts, lamplit windows, the lighthouse.
+black) with the aurora overhead, lingering (the day runs at half speed) before a low sun turns
+the snow pink at dawn and gold in the afternoon. Late autumn on the Norwegian west coast (after
+Lofoten, Geiranger and the Sognefjord): the first snow on the heights and in the plateau's
+hollows, the birches gold, the heather in bloom. Cold palette with warm accents: red and ochre
+houses, lamplit windows, gold birch, the lighthouse.
 
 Plan: fjords run along the zero contour of a low-frequency noise (as Jade River's rivers),
 120-240 m wide, endless in every direction; spawn is mid-fjord through the origin, facing along
-it. From the water: a deep bed, a pebble strand up to ~38 m wide (from a noise), then a glacial
-wall that is steep at its foot and rounds over at the lip (1 - (1 - t)^2.2 over 150 m) onto a
-plateau of ~100-200 m that throws up ridged peaks away from the walls. Ridged noise scores the
-walls into buttresses and gullies. Spruce (snow-tipped, ~40 triangles) stand on the strands
-and lower walls under a treeline; red rorbu huts on stilts line the strand in hamlets, facing
-the water; pans of sea ice and icebergs (a jagged faceted lump, tabular or peaked) drift on the
-open water. A lighthouse stands on the shore ~260 m down the fjord from the spawn.
+it. From the water: a deep bed, a pebble strand up to ~38 m wide (from a noise, ~56 m round a
+village), then a glacial wall that is steep at its foot and rounds over at the lip
+(1 - (1 - t)^2.2 over 150 m) onto a plateau of ~100-200 m that throws up ridged peaks away from
+the walls. Ridged noise scores the walls into buttresses; its crease is rounded (`softAbs`), as
+is the peaks', because the wall is a 4 m lattice climbing 150-250 m in 150 m and a sharp ridge
+drew a sawtooth skyline. Each quad is split along its flatter diagonal (as Red Canyons), so the
+wall's foot and lip are straight lines rather than a per-cell zigzag.
+
+The ground is painted per pixel (`rock.ts`, from the terrain's `aLand`: distance from the water,
+a street's distance, a waterfall's spray, the snow climate). The cliffs' relief lives in the
+shader, in the wall's own plane (its horizontal tangent by height, so it never streaks): couloirs
+down the face, rounded slabs, pale water-washed streaks and dark meltwater stains, a black tide
+band at the water, turf and moss on the gentler steps below the treeline. Snow lies per pixel
+from the vertices' snow climate (a ramp through a snowline ~185 m that wanders ±45 m, plus
+snowfields in the plateau's hollows): on the flat, and on a cliff only where the tilted normal
+turns up into a ledge, with wind ripples on the fields. The strand gets a pebble beach, a wet
+band and broken foam at the water, the villages' gravel streets and lanes, and lush moss round a
+waterfall's stream. The rock's normal replaces GroundDetail's bump on the cliffs.
+
+Geography: spruce on the lower walls and gold autumn birch in drifts on the strands and slopes
+(near, far and distant shapes); boulder beaches along stretches of shore picked by a noise, and
+rockfall at the walls' feet; waterfalls (one in a 480 m cell at most, the first ~470 m down the
+fjord from the spawn) from the plateau's lip down the wall, hung off the rock by how steep it is
+and fraying as they fall, then across the strand to the water as a stream, with spray billowing
+at the foot; heather, crowberry, moss and grass (`cover.ts`) on the strands and the snow-free
+fell, cotton grass and harebell in drifts. Pans of sea ice (16-sided near, 8 far) and smooth
+icebergs (tabular or peaked) drift on the open water. A lighthouse (32 sides, a gallery and a
+dome) stands on the shore ~260 m down the fjord from the spawn.
+
+Life (`FjordSites`, pure): fishing villages on the strands, a home village ~170 m down the fjord on
+the bird's right and one in a 900 m cell at most elsewhere. Each widens its strand, then lays two
+rows of wooden houses either side of a gravel street (falu red, ochre, white, now and then a
+two-storey house or a blue-grey one; windows lit after dark), a white church in the home village
+and some others, tarred or red boathouses on posts at the water, jetties with fishing boats
+moored at their ends and lanes up to the street, and fish-drying racks at either end. Gulls wheel
+over the villages, fishing boats steam slowly round circles out on the open water, seals haul out
+on the bigger floes and sea eagles circle high over the walls (a few per kilometre). Roofs lift
+the flight floor (`ground`), so the bird and the wisps pass over the houses.
 
 Atmosphere: the aurora is three curtains painted into the sky dome, each with a folded,
 wandering hem, fine rays bunching and thinning along it, green at the hem fading to violet
 above, swelling and thinning along its length and drifting slowly; it comes out with the stars
-and bloom halos it. A low sea smoke (the shared mist shader) lies on the water, thickest at
-night, and a distance haze layers the far walls. After dark hut windows glow and the
-lighthouse sweeps a beam (two additive cones fading along their length). Music: glassy,
-celesta-like bells at 62 BPM over a hardanger-style open-fifth drone, a slow high music-box
-arpeggio and the largest reverb; suspended at dawn, major by day, dorian at golden hour and
-under the aurora, minor at dusk.
+and bloom halos it, and lies softly reflected in the calm water within ~90 m of the shore (an
+additive grid of water round the bird carrying the shore distance; `levelLight.fjord.reflect`).
+A low sea smoke (the shared mist shader) lies on the water, thickest at night, and a distance
+haze layers the far walls; by day both thin (`dayHaze`), so the walls read as rock. At first
+light fog banks lie low on the water (`levelLight.fjord.fog`). After dark the windows glow and
+the lighthouse sweeps a beam (two additive cones fading along their length). On high, the walls,
+buildings, racks, rocks and bergs cast sun shadows (props through ShadowCasters); buildings, racks
+and rocks get contact shadows on medium and high. Music: glassy, celesta-like bells at 62 BPM over
+a hardanger-style open-fifth drone, a slow high music-box arpeggio and the largest reverb;
+suspended at dawn, major by day, dorian at golden hour and under the aurora, minor at dusk.
 
 Flight: the walls are terrain, not props. `solidTop` reports terrain above the strand as solid,
 so the city's look-ahead veers along the fjord before a wall (or climbs if the lip is within
 reach); a bird that still touches a steep slope (gradient > 0.9) glances off it downhill.
-Icebergs are soft ground (skimmed); the lighthouse is solid. Wisps: the fjord is the spine (low
-ribbons following its bends and swinging across the channel), glides carry on over the plateau,
-and generic patterns run only far out on the plateau.
+Icebergs are soft ground (skimmed), village roofs lift the floor; the lighthouse is solid. Wisps:
+the fjord is the spine (low ribbons following its bends and swinging across the channel), glides
+carry on over the plateau, and generic patterns run only far out on the plateau.
+
+- Per preset (`render.*`): houses, boathouses, jetties, floes and bergs always; racks, boats,
+  gulls and eagles within `propDistance`; boulders and seals within `smallPropDistance`; near
+  floes and boulders within `propDetail`; the cliffs' relief off on low (`rockDetail`); cover in
+  the shared grass ring.
+- Cost at the viewpoints in `perf.md` of the review (triangles / draw calls, whole frame): see
+  the decisions log.
 
 ## City of Gold
 

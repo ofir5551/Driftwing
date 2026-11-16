@@ -11,6 +11,9 @@ import { mistUniforms, withMist } from '../Mist';
 import { createNoise2D } from '../noise';
 import { getToonGradient, type HeightField } from '../Terrain';
 import { cloudSeaUniforms, withCloudSea } from './cloudSea';
+import { beamMaterial, beamUniforms, peaksTime } from './materials';
+import { beamLight } from './PeaksSites';
+import { hash2 } from '../noise';
 import { bridgeGeometry } from './geometry';
 import { PeaksDecor, type PeaksChunk } from './PeaksDecor';
 import { PeaksLayout } from './PeaksLayout';
@@ -24,6 +27,10 @@ const C = {
   heap: new THREE.Color('#fffaf2'),
 };
 const WHITE = new THREE.Color('#fff');
+/** Most sunbeams standing round the bird at once, and the grid they stand on. */
+const BEAMS = 8;
+const BEAM_CELL = 230;
+const bm = new THREE.Matrix4();
 /** A skim over the cloud tops throws up cloud, not dust. */
 const PUFF = new THREE.Color('#f4f1f6');
 
@@ -47,6 +54,12 @@ export class PeaksWorld implements World {
   private readonly banks: Clouds;
   private readonly bridge: THREE.Mesh;
   private readonly bridgeLanterns: THREE.InstancedMesh;
+  private readonly beams: THREE.InstancedMesh;
+  /** Beam feet (x, y, z, width) round the bird, re-picked as it flies (refillBeams). */
+  private readonly beamFeet = new Float32Array(BEAMS * 4);
+  private beamN = 0;
+  private beamX = Infinity;
+  private beamZ = Infinity;
   private readonly origin = new THREE.Vector3();
   private readonly n = { x: 0, y: 0, z: 0 };
 
@@ -55,7 +68,8 @@ export class PeaksWorld implements World {
     this.discoveries = peaksFinds(L);
     const tint = createNoise2D(seed + 520);
     this.field = {
-      height: (x, z) => L.height(x, z),
+      // The cloud sea as drawn, with its gaps; the bird flies over `height` (see surface()).
+      height: (x, z) => L.surface(x, z),
       forest: () => 0,
       tint: (x, z) => tint(x * 0.003, z * 0.003),
     };
@@ -104,8 +118,20 @@ export class PeaksWorld implements World {
       this.bridgeLanterns.setMatrixAt(i, mm.makeTranslation(l.x, l.y, l.z)),
     );
     this.bridgeLanterns.name = 'bridge-lantern';
+    this.bridge.castShadow = true;
+    this.beams = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), beamMaterial(), BEAMS);
+    this.beams.count = 0;
+    this.beams.frustumCulled = false;
+    this.beams.renderOrder = 3; // additive, after the banks
+    this.beams.name = 'sunbeams';
     this.planner = new PeaksPlanner(L);
-    this.group.add(this.chunks.group, this.banks.mesh, this.bridge, this.bridgeLanterns);
+    this.group.add(
+      this.chunks.group,
+      this.banks.mesh,
+      this.bridge,
+      this.bridgeLanterns,
+      this.beams,
+    );
   }
 
   flightGround(x: number, z: number): number {
@@ -133,9 +159,76 @@ export class PeaksWorld implements World {
     this.chunks.update(px, pz);
   }
 
+  /**
+   * Pick the sunbeams' feet round the bird: on a grid, by hash, only out over open cloud (a
+   * beam through a spire would show its trick). Re-picked every half cell flown.
+   */
+  private refillBeams(px: number, pz: number): void {
+    if (Math.hypot(px - this.beamX, pz - this.beamZ) < BEAM_CELL / 2) return;
+    this.beamX = px;
+    this.beamZ = pz;
+    const L = this.layout;
+    const F = this.beamFeet;
+    let n = 0;
+    const i0 = Math.floor(px / BEAM_CELL);
+    const j0 = Math.floor(pz / BEAM_CELL);
+    for (let j = j0 - 3; j <= j0 + 3; j++)
+      for (let i = i0 - 3; i <= i0 + 3; i++) {
+        if (n >= BEAMS || hash2(i, j, L.seed + 641) > 0.3) continue;
+        const x = (i + 0.2 + 0.6 * hash2(i, j, L.seed + 642)) * BEAM_CELL;
+        const z = (j + 0.2 + 0.6 * hash2(i, j, L.seed + 643)) * BEAM_CELL;
+        if (L.skyline(x, z, 30) !== -Infinity) continue;
+        F[n * 4] = x;
+        F[n * 4 + 1] = L.height(x, z);
+        F[n * 4 + 2] = z;
+        F[n * 4 + 3] = 16 + 26 * hash2(i, j, L.seed + 644);
+        n++;
+      }
+    this.beamN = n;
+  }
+
+  /** Shafts of sun along the light from the sky's cloud layer down to the sea. */
+  private frameBeams(day: DayCycle): void {
+    const sun = day.sunDir;
+    const k =
+      Config.levelLight.peaks.beams *
+      Config.render.cloudShadows *
+      beamLight(sun.y) *
+      (1 - smoothstep(0.05, 0.5, day.palette.stars));
+    beamUniforms.uBeamStrength.value = k;
+    beamUniforms.uBeamDir.value.copy(sun).negate();
+    beamUniforms.uBeamColor.value.copy(day.palette.sun);
+    if (k <= 0.001) {
+      this.beams.count = 0;
+      return;
+    }
+    // From the sea up toward the sun until it reaches the sky's cloud layer.
+    const len = Math.min(700, 300 / Math.max(sun.y, 0.14));
+    const F = this.beamFeet;
+    for (let i = 0; i < this.beamN; i++) {
+      bm.makeScale(F[i * 4 + 3], len, 1).setPosition(F[i * 4], F[i * 4 + 1], F[i * 4 + 2]);
+      this.beams.setMatrixAt(i, bm);
+    }
+    this.beams.count = this.beamN;
+    this.beams.instanceMatrix.needsUpdate = true;
+  }
+
   frame(_dt: number, time: number, day: DayCycle): void {
     const P = Config.peaks;
     const p = day.palette;
+    peaksTime.value = time;
+    this.refillBeams(this.origin.x, this.origin.z);
+    this.frameBeams(day);
+    // The cloud sea's warm glow and silver lining, strongest with the sun low.
+    const LL = Config.levelLight.peaks;
+    const sun = day.sunDir;
+    const night = smoothstep(0.05, 0.6, p.stars);
+    const cu = cloudSeaUniforms;
+    cu.uCSunDir.value.copy(sun);
+    cu.uCSunColor.value.copy(p.sun);
+    cu.uCWarm.value = LL.warm * (1 - smoothstep(0.12, 0.55, sun.y)) * (1 - night);
+    cu.uCLining.value = LL.lining * (1 - 0.6 * night);
+    cu.uCHaze.value.copy(p.fog).lerp(p.hemiSky, 0.35).multiplyScalar(0.82);
     const u = mistUniforms;
     u.uMist.value = P.mist;
     u.uMistBase.value = P.cloud;
@@ -189,7 +282,7 @@ export class PeaksWorld implements World {
 
   /** Updrafts rise off the open cloud sea, clear of the rock. */
   thermalOk(x: number, z: number, r: number): boolean {
-    return this.layout.skyline(x, z, r + 20) === -Infinity;
+    return this.layout.skyline(x, z, r + 20) === -Infinity && this.layout.gapAt(x, z) <= 0;
   }
 
   get chunkCount(): number {
@@ -208,6 +301,9 @@ export class PeaksWorld implements World {
     (this.bridge.material as THREE.Material).dispose();
     this.bridgeLanterns.geometry.dispose();
     this.bridgeLanterns.dispose();
+    this.beams.geometry.dispose();
+    (this.beams.material as THREE.Material).dispose();
+    this.beams.dispose();
     mistUniforms.uMist.value = 0;
     mistUniforms.uMistFar.value = 0;
     mistUniforms.uMistBase.value = 0;

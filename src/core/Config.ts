@@ -306,7 +306,10 @@ export const Config = {
     jerusalem: { shadows: 0.6, clouds: 0.25, shafts: 0.45 },
     // bounce: warm light off the red walls into the canyon's shade; haze: dust in the canyons.
     canyon: { shadows: 0.6, clouds: 0.3, shafts: 0.4, bounce: 0.32, haze: 0.16 },
-    peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.6 },
+    // beams: shafts of sun through the sky's clouds onto the cloud sea (geometry, so medium has
+    // them too; they follow the cloud-shadow preset); warm: the low sun's glow on the heaps;
+    // lining: the silver edge of cloud tops seen against the sun.
+    peaks: { shadows: 0.5, clouds: 0.25, shafts: 0.7, beams: 0.3, warm: 0.35, lining: 0.45 },
     atoll: { shadows: 0.55, clouds: 0.3, shafts: 0.55 },
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5 },
   },
@@ -408,11 +411,31 @@ export const Config = {
     spireMin: 13, // m, base radius of the smallest spires
     spireMax: 32, // m, base radius of the largest (before the cluster boost)
     spireTop: 330, // m, no summit rises above this (the ceiling is 420)
-    spireLod: 520, // m, beyond this spires use the coarse mesh (chosen when chunks change)
+    spireLod: 520, // m, beyond this spires use the coarse mesh at the high draw distance (scaled with it)
+    // (Spires whose flank is nearer than render.heroDetail use the finest mesh, with grooves.)
     gateAhead: 400, // m from the spawn to the Sky Gate (two spires and a bridge)
     gateHalf: 52, // m, each gate spire's centre off the line the bird flies
     bridgeY: 150, // m, the gate bridge's deck where it meets the rock
     bridgeSag: 5, // m, how far the deck sags in the middle
+    // Life on the rock (pure layout, read when a level is created).
+    ropeBridges: 0.3, // share of tall spires that hang a rope bridge to a neighbour
+    flagLines: 0.3, // share that string a line of prayer flags to one instead
+    ropeSpan: 120, // m, the farthest apart two spires' centres may be for a rope between them
+    ropeClear: 10, // m every wisp ribbon keeps from a rope (they are soft, but never in the way)
+    ledgeCover: 0.9, // share of the ledge spots wide enough that carry moss, grass, snow or a dwarf pine
+    craneSpeed: 11, // m/s, cranes wheeling round their circle
+    huts: 0.3, // share of the spires with an alcove that shelter a hermit's hut in it
+    pavilions: 0.14, // share of the bare summits that carry a little pavilion
+    flockCell: 900, // m, grid cell that may hold a flock of cranes wheeling over the sea
+    flockChance: 0.6, // chance a flock cell has a flock
+    flockTop: 395, // m, a flock that would have to fly higher than this to clear the summits is dropped
+    gapCell: 650, // m, grid cell that may hold a gap in the cloud sea
+    gapChance: 0.55, // chance a gap cell has one (only out on the open sea)
+    gapMin: 34, // m, radius of the smallest gaps
+    gapMax: 62, // m, of the largest
+    gapFloor: 5, // m, the valley floor seen through a gap (the water plane is at 0)
+    gapRim: 5, // m, cloud heaped round a gap's rim
+    gapHome: [-80, 150], // m from the spawn (x, z) to the home gap, left of the opening glide
     // Atmosphere and light.
     mist: 0.75, // the cloud sea's breath: mist hugging its surface, dissolving the spires' feet
     mistRise: 30, // m above the cloud sea that mist reaches
@@ -426,6 +449,12 @@ export const Config = {
     glow: 0.3, // how much the cloud sea glows with the sky's light (clouds are never dark)
     summitsDistance: 5000, // m, how far the painted snow peaks on the horizon pretend to be
     lanterns: 1, // brightness of temple and bridge lanterns after dark
+    // Granite (granite.ts; live).
+    rockRelief: 1, // strength of the joints and pillowed blocks (tilts the light)
+    rockFar: 420, // m, the relief and fine paint fade out by this distance (off on low)
+    ledgeMoss: 1, // moss and turf wherever the rock faces the sky
+    snowline: 228, // m, snow lies on ledges and summits above this
+    snowRag: 22, // m the snowline wanders up and down
   },
   atoll: {
     // Plan (read when a level is created).

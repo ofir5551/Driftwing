@@ -125,11 +125,19 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   contact shadows), `rock` (per-pixel strata, varnish, flutes, the road/wash/slickrock paint from
   `aLand`, bounce light), `cover`, `geometry`, `shapes`, `materials`, `CanyonWorld` (per-chunk
   diagonals, haze). Mesas are the `mesas` backdrop.
-- `world/peaks/`: `PeaksLayout` (pure: the cloud sea as terrain (|noise| heaps), granite spires
-  lathed from one stepped profile, the Sky Gate (two spires, a bridge solid with an underside,
-  a monastery)), `PeaksWisps` (gate ribbon, cloud skims, slaloms, tangent swings over summits),
-  `PeaksDecor`, `cloudSea` (the sea's shader), `geometry`, `PeaksWorld`. Snow peaks are the
-  `summits` backdrop; the mist rests on the cloud tops via `uMistBase`.
+- `world/peaks/`: `PeaksLayout` (pure: the cloud sea as terrain (|noise| heaps) with gaps that
+  open only in the drawn `surface` (flight keeps `height`), granite spires on one stepped
+  `profile` (the collision envelope), the Sky Gate (two spires, a bridge solid with an
+  underside, a monastery)), `skin` (pure: each silhouette's joints, sloping partial ledges,
+  alcove and chimneys, only ever cutting in; meshes and props read it), `PeaksSites` (pure: rope
+  bridges and flag lines between spires, soft and kept off ribbons by `clear`; the monastery
+  stair; crane flocks), `PeaksScatter` (pure: pines, ledge and summit cover, alcove huts,
+  pavilions, temples, lanterns and windows per spire), `PeaksWisps` (gate ribbon, cloud skims,
+  slaloms, tangent swings over summits), `PeaksDecor` (three spire tiers, near/far props,
+  casters, contact shadows), `granite` (per-pixel joints round the spire's axis from `aRock`,
+  lichen, moss, snow), `cloudSea` (the sea's shader: lobes, heave, gaps, warm glow, lining),
+  `geometry`, `shapes` (props), `materials` (flags, cranes, sunbeams), `PeaksWorld`. Snow peaks
+  are the `summits` backdrop; the mist rests on the cloud tops via `uMistBase`.
 - `world/atoll/`: `AtollLayout` (pure: atolls on a coarse grid, each a wobbly reef ring with
   motus and passes round a lagoon, a crest that dries in patches, sand bars, seagrass; mushroom
   rocks lathed from one notched profile; high islands (the home one's fang ahead of the spawn)

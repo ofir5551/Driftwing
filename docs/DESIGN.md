@@ -614,8 +614,6 @@ the bird and end-on; geometry, so medium has them, following the cloud-shadow pr
 spires, temples, huts, pavilions, shrines and boulders cast sun shadows (spires onto the cloud
 tops and each other) through ShadowCasters, and the screen-space shafts are a little stronger
 (0.7); huts, pavilions, shrines, boulders and dwarf pines get contact shadows on medium and high.
-The dawn sun sits just over `light.shadowSunMin`, so the shadow pass runs once at sunrise: a map
-never drawn left every shadow-receiving draw failing on high.
 
 Flight: the cloud sea is soft ground, skimmed like water with a puff of cloud (`World.skimColor`).
 Spires are solid but soft, flown with the city's look-ahead and wall glance; summits push up
@@ -1706,9 +1704,9 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   beam through the camera washed the whole screen.
 - On high, a shadow map that has never been drawn leaves every shadow-receiving draw failing
   (a depth sampler bound to no depth texture: the scene vanishes) until the sun rises past
-  `light.shadowSunMin`. Sea of Clouds opened at sunrise with the sun just below it; its dawn sun
-  now sits just above. The shared code is unchanged; another level opening with the sun that
-  low would need the same care, or SunShadows drawing the map once when it is enabled.
+  `light.shadowSunMin`. Sea of Clouds opened at sunrise with the sun just below it. SunShadows
+  now draws the map once whenever shadows switch on, whatever the sun, so no level depends on
+  its opening sun (Sea of Clouds' dawn sun is back at 0.06).
 - Ringmoon lived in: "believable" on another world means a coherent ecology (moss, bulbs,
   grazers, fish, floaters) and a small explorers' presence by the landing pods and the ship,
   not more alien machines. Everything new is soft (under the canopy) except what was already

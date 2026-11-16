@@ -3,6 +3,7 @@ import { Config } from '../../core/Config';
 import type { FjordLayout } from './FjordLayout';
 import type { Fall } from './FjordSites';
 import { fallMaterial, sprayMaterial } from './materials';
+import { commitInstances } from '../instances';
 
 /** Points down a strand: on the wall from the lip to the foot, then the stream to the water. */
 const WALL = 22;
@@ -170,8 +171,7 @@ export class Waterfalls {
   end(): void {
     this.ribbon.geometry.setDrawRange(0, this.ns * (PTS - 1) * 6);
     for (const a of [this.pos, this.uv, this.way]) a.needsUpdate = true;
-    this.spray.count = this.np;
-    this.spray.instanceMatrix.needsUpdate = true;
+    commitInstances(this.spray, this.np);
     this.ribbon.visible = this.ns > 0 && Config.fjord.falls > 0;
     this.spray.visible = this.ribbon.visible;
   }

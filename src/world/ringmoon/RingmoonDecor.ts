@@ -29,6 +29,7 @@ import {
   type RingmoonLayout,
   type Spire,
 } from './RingmoonLayout';
+import { commitInstances } from '../instances';
 
 /** Plant types in the shared Trees meshes. */
 const COIL = 0;
@@ -295,9 +296,7 @@ export class RingmoonDecor implements ChunkDecor<RingmoonChunk> {
       [this.crystals, cc],
     ];
     for (const [mesh, n] of counts) {
-      mesh.count = n;
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      commitInstances(mesh, n);
     }
     this.trees.rebuild(this.plantLists, px, pz, Config.render.treeDistance);
   }

@@ -531,12 +531,14 @@ export class Sky {
       fragmentShader: frag,
       side: THREE.BackSide,
       depthWrite: false,
-      depthTest: false,
       fog: false,
     });
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), mat);
     this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = -1;
+    // Drawn after the opaque scene and depth-tested at the far plane (see the vertex shader):
+    // the sky's shader, the dearest in the game per pixel, runs only where sky shows. On a
+    // phone held upright the land hides more than half of it.
+    this.mesh.renderOrder = 1;
     this.mesh.scale.setScalar(1000);
   }
 

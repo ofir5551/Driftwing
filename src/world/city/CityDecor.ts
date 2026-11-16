@@ -17,6 +17,7 @@ import { createBuildingMaterial, createPropMaterial, type CityUniforms } from '.
 import { PROP, PROP_KINDS, PROP_SMALL, PROP_STRIDE } from './props';
 import { propGeometries } from './shapes';
 import { ContactShadows } from '../ContactShadows';
+import { commitInstances } from '../instances';
 
 export interface CityChunk {
   parts: number[];
@@ -107,9 +108,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
       mesh.name = `city-prop-${k}`;
       mesh.setColorAt(0, tint.set('#fff'));
       this.props.push(mesh);
-      const c = PROP_CASTS[k]
-        ? new ShadowCasters(pg[k], this.propMaterial, Math.ceil(PROP_CAP[k] / 3))
-        : null;
+      const c = PROP_CASTS[k] ? new ShadowCasters(pg[k], this.propMaterial, PROP_CAP[k]) : null;
       this.propCasters.push(c);
       if (c) this.group.add(c.mesh);
     }
@@ -252,9 +251,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     }
     for (let m = 0; m < this.meshes.length; m++) {
       const mesh = this.meshes[m];
-      mesh.count = counts[m];
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor!.needsUpdate = true;
+      commitInstances(mesh, counts[m]);
       mesh.geometry.getAttribute('aStyle').needsUpdate = true;
       this.casters[m]?.end();
     }
@@ -325,9 +322,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     }
     for (let k = 0; k < PROP_KINDS; k++) {
       const mesh = this.props[k];
-      mesh.count = n[k];
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor!.needsUpdate = true;
+      commitInstances(mesh, n[k]);
       this.propCasters[k]?.end();
     }
     this.contact.end();

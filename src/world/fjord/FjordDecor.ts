@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
-import type { ChunkDecor } from '../ChunkManager';
+import { nearestInReach, type ChunkDecor } from '../ChunkManager';
 import { ContactShadows } from '../ContactShadows';
 import type { DayCycle } from '../DayCycle';
 import { withMist } from '../Mist';
@@ -33,6 +33,7 @@ import {
   sealGeometry,
 } from './shapes';
 import { Waterfalls } from './Waterfalls';
+import { commitInstances } from '../instances';
 
 export interface FjordChunk {
   ox: number;
@@ -158,7 +159,7 @@ export class FjordDecor implements ChunkDecor<FjordChunk> {
             )
           : null,
       );
-      this.casters.push(CASTS[k] ? new ShadowCasters(near[k], mat, Math.ceil(CAP[k] / 3)) : null);
+      this.casters.push(CASTS[k] ? new ShadowCasters(near[k], mat, CAP[k]) : null);
     }
     const bergs = [bergGeometry(4), bergGeometry(7)];
     this.bergs = bergs.map((g, i) => this.make(g, this.ice, 300, `berg-${i}`, null));
@@ -219,6 +220,22 @@ export class FjordDecor implements ChunkDecor<FjordChunk> {
         if (f && inChunk(f)) out.falls.push(f);
       }
     return out;
+  }
+
+  private readonly bare = (c: FjordChunk): boolean => !c.props;
+
+  /** Props scatter lazily, the first time their chunk comes within reach: one chunk a frame. */
+  prepare(items: FjordChunk[], px: number, pz: number, budget: number): boolean {
+    const R = Config.render;
+    if (R.propDistance <= 0) return false;
+    const size = Config.world.chunkSize;
+    for (;;) {
+      const c = nearestInReach(items, px, pz, R.propDistance + size, this.bare);
+      if (!c) return false;
+      if (budget-- <= 0) return true;
+      c.props = [];
+      this.scatterer.props(c.ox, c.oz, size, c.props);
+    }
   }
 
   rebuild(items: FjordChunk[], px: number, pz: number): void {
@@ -288,9 +305,7 @@ export class FjordDecor implements ChunkDecor<FjordChunk> {
     n: number,
     move: THREE.InstancedBufferAttribute | null,
   ): void {
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    commitInstances(mesh, n);
     if (move) move.needsUpdate = true;
   }
 

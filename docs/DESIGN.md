@@ -66,9 +66,9 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
 | `lightShafts`: screen-space sun shafts       | off | off        | on          |
 | `coverDistance` / `coverDensity`: grass ring | off | 60 m, 60 % | 80 m, 100 % |
 
-- **Sun shadows** (`fx/SunShadows`): a 2048 PCF map in a ±150 m box that follows the bird,
+- **Sun shadows** (`fx/SunShadows`): a 4096 PCF map (2048 on touch devices) in a ±400 m box that follows the bird, fading out with distance,
   snapped to the light-space texel grid so its edges don't crawl. Partial (`levelLight.*.shadows`
-  is the darkness, ~0.5-0.6) so a shadow reads as painted shade. Terrain chunks cast and receive;
+  is the darkness, ~0.5-0.6) so a shadow reads as painted shade. Terrain chunks receive but do not cast;
   trees cast through `ShadowCasters`, near-only copies on a shadow-only layer (an instanced mesh
   is never culled, so the real one would draw every tree into the map). `LitScenery` makes every
   lit mesh of a level receive. A low sun fades shadows by intensity and skips the pass (by
@@ -1140,9 +1140,26 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   steering, then boosting, each saved once learned.
 - Pause: P/Esc, the touch pause button, losing pointer lock, or hiding the tab. Music ducks.
 - Settings (volume, mute, quality, invert-Y, touch steering) and best score persist in localStorage (guarded).
-- Adaptive quality: below ~47 fps for a second, render scale drops 0.1 (floor 0.55); after 6 s
-  comfortably fast it creeps back 0.05. In Auto quality, hitting the floor steps the preset down.
-  Phones default to Medium. Pixel ratio is capped per preset (max 2).
+- Adaptive quality (`AdaptiveScale`, numbers in `Config.adaptive`): frames are judged in
+  one-second windows by their share of slow frames (over 21 ms), never by an average, so the
+  burst of long frames that streaming causes cannot trigger a drop. Two slow windows in a row
+  drop the render scale 0.15 (floor 0.55); six fast ones raise it 0.1, and a raise that is
+  undone within 12 s doubles the wait for the next (up to 2 min), so the scale settles instead
+  of sawing. In Auto quality, hitting the floor steps the preset down. Phones default to
+  Medium. Pixel ratio is capped per preset (max 2).
+- The render scale resizes only the composer's targets; the canvas keeps its size and the last
+  pass upscales onto it. Resizing the canvas clears it, and doing that after the frame was drawn
+  presented a blank frame at every change (the picture cut out every few seconds on phones).
+  The adaptive step also runs before the frame is drawn, not after.
+- Streaming never does a row of work in one frame: a chunk is built in stages (terrain, the
+  level's extra attributes, scenery) with the 2 ms budget checked between them; props that
+  scatter lazily do so one chunk a frame (`ChunkDecor.prepare`), and the instance refill waits
+  for them; contact shadows cache each blob's ground frame; instance buffers upload only the
+  instances in use (`world/instances.ts`), not their worst-case capacity.
+- Per-pixel cost on a phone held upright, where land fills most of the screen: the sky is drawn
+  after the opaque scene and depth-tested at the far plane, so its shader runs only where sky
+  shows; the terrain's painted relief takes one noise sample and screen-space derivatives
+  where it took six samples (it fades out where a pixel is wider than the dabs).
 - Debug-only lil-gui is a dynamic import, so it is a separate chunk players never download.
 - Levels swap in place (dispose the old world, build the new one at its spawn, reset time of day)
   rather than reloading the page: audio stays unlocked and the title backdrop changes live.
@@ -1218,6 +1235,15 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   one-off recompile of lit materials, a short hitch when Auto steps the preset down); the sun's
   height fades shadows by intensity and skips the pass at low sun, so dawn and dusk never
   recompile. At night the moon is the light, so moonlit shadows stay (faint) and so does the pass.
+- The shadow map reaches 400 m round the bird (4096 texels; 2048 on touch devices) and its
+  shadows fade out with distance from the bird (62-92% of the range, `fadeSunShadow`), where
+  contact shadows return to full strength. At 150 m with a hard edge, shadows appeared out of
+  nowhere as the bird flew up to them, worst at golden hour when they are long.
+- Terrain does not cast into the shadow map (trees, buildings and props do). The map is a
+  box round the bird; a hill's shadow in a low sun is far longer, so only the part inside the
+  box was drawn: a dark patch round the bird, lit land beyond, unrolling as it flew. Slopes
+  turned from the sun are already darkened by the toon shading. A level can opt back in
+  (`ChunkOptions.castShadow`).
 - Contact shadows everywhere trees stand (medium and high) instead of the shadow map on medium:
   one 2-triangle blob per tree near the bird costs nothing next to a second scene pass.
 - Cloud shadows and receiving shadows are applied by walking a level's scenery (`LitScenery`,

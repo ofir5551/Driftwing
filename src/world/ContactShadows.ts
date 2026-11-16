@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
+import { commitInstances } from './instances';
 
 /** Ground height at x,z (a level's terrain); used to lay a contact shadow on the slope. */
 export type GroundFn = (x: number, z: number) => number;
@@ -8,6 +9,10 @@ export type GroundFn = (x: number, z: number) => number;
 export const contactUniforms = {
   uStrength: { value: 0 },
   uFar: { value: 280 },
+  /** Strength near the bird while the shadow map draws the real shadows there (else = uStrength). */
+  uNearStrength: { value: 0 },
+  /** Distances over which the shadow map's shadows fade out (x start, y end). */
+  uMapFade: { value: new THREE.Vector2(0, 1) },
 };
 
 /** Where a blob lies: on the ground (tilted to its slope) or flat at the object's foot. */
@@ -50,6 +55,8 @@ export function blobFrame(
   return out;
 }
 
+/** Cached blob frames kept before the cache starts over (a long flight's worth of ground). */
+const FRAME_CACHE = 60000;
 const frame: BlobFrame = { y: 0, nx: 0, ny: 1, nz: 0 };
 const m = new THREE.Matrix4();
 const q = new THREE.Quaternion();
@@ -75,11 +82,15 @@ function blobMaterial(): THREE.ShaderMaterial {
     fragmentShader: /* glsl */ `
       uniform float uStrength;
       uniform float uFar;
+      uniform float uNearStrength;
+      uniform vec2 uMapFade;
       varying vec2 vUv;
       varying float vDist;
       void main() {
         float a = 1.0 - smoothstep(0.0, 1.0, dot(vUv, vUv));
-        a *= a * uStrength * (1.0 - smoothstep(uFar * 0.6, uFar, vDist));
+        // Light under the shadow map's real shadows, full where those have faded out.
+        float k = mix(uNearStrength, uStrength, smoothstep(uMapFade.x, uMapFade.y, vDist));
+        a *= a * k * (1.0 - smoothstep(uFar * 0.6, uFar, vDist));
         gl_FragColor = vec4(0.08, 0.09, 0.15, a);
       }`,
     transparent: true,
@@ -104,6 +115,12 @@ export class ContactShadows {
   private cx = 0;
   private cz = 0;
   private r2 = 0;
+  /**
+   * Blob frames already worked out, by position. A frame costs five samples of the level's
+   * height field, and every refill asks again for the same trees and props: uncached, that was
+   * most of a refill on the levels with heavy terrain. The ground never changes under a level.
+   */
+  private readonly frames = new Map<number, Float32Array>();
 
   constructor(capacity: number) {
     const disc = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
@@ -127,18 +144,32 @@ export class ContactShadows {
   add(x: number, y: number, z: number, r: number, ground: GroundFn | null): void {
     if (this.n >= this.mesh.instanceMatrix.count) return;
     if ((x - this.cx) ** 2 + (z - this.cz) ** 2 > this.r2) return;
-    blobFrame(ground, x, y, z, r, frame);
-    q.setFromUnitVectors(UP, n.set(frame.nx, frame.ny, frame.nz));
-    m.compose(p.set(x, frame.y + 0.08, z), q, s.set(r, 1, r));
+    let fy = y;
+    n.set(0, 1, 0);
+    if (ground) {
+      // Quarter-metre cells: two things that close share a slope anyway.
+      const k = (Math.round(x * 4) + 0x200000) * 0x400000 + (Math.round(z * 4) + 0x200000);
+      let f = this.frames.get(k);
+      if (!f) {
+        if (this.frames.size > FRAME_CACHE) this.frames.clear();
+        blobFrame(ground, x, y, z, r, frame);
+        f = new Float32Array([frame.y, frame.nx, frame.ny, frame.nz]);
+        this.frames.set(k, f);
+      }
+      fy = f[0];
+      n.set(f[1], f[2], f[3]);
+    }
+    q.setFromUnitVectors(UP, n);
+    m.compose(p.set(x, fy + 0.08, z), q, s.set(r, 1, r));
     this.mesh.setMatrixAt(this.n++, m);
   }
 
   end(): void {
-    this.mesh.count = this.n;
-    this.mesh.instanceMatrix.needsUpdate = true;
+    commitInstances(this.mesh, this.n);
   }
 
   dispose(): void {
+    this.frames.clear();
     this.mesh.geometry.dispose();
     this.mesh.dispose();
   }

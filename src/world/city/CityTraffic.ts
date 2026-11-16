@@ -3,6 +3,7 @@ import { Config } from '../../core/Config';
 import type { CityLayout } from './CityLayout';
 import { carGeometry, ferryGeometry, tramGeometry } from './shapes';
 import { MAX_VEHICLES, TrafficPlan, VEHICLE_STRIDE } from './traffic';
+import { commitInstances } from '../instances';
 
 /** Car paint (sRGB): white, silver, black, red, navy, a yellow and a green taxi, sky blue. */
 const CARS = [
@@ -119,9 +120,7 @@ export class CityTraffic {
     }
     for (let k = 0; k < this.meshes.length; k++) {
       const mesh = this.meshes[k];
-      mesh.count = n[k];
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor!.needsUpdate = true;
+      commitInstances(mesh, n[k]);
     }
   }
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Config } from '../../core/Config';
 import { smoothstep } from '../../core/math';
-import type { ChunkDecor } from '../ChunkManager';
+import { nearestInReach, type ChunkDecor } from '../ChunkManager';
 import { ContactShadows } from '../ContactShadows';
 import type { DayCycle } from '../DayCycle';
 import { withGroundDetail } from '../GroundDetail';
@@ -45,6 +45,7 @@ import {
   stiltHutGeometry,
   turtleGeometry,
 } from './shapes';
+import { commitInstances } from '../instances';
 
 export interface AtollChunk {
   ox: number;
@@ -342,6 +343,22 @@ export class AtollDecor implements ChunkDecor<AtollChunk> {
     return out;
   }
 
+  private readonly bare = (c: AtollChunk): boolean => !c.props;
+
+  /** Props scatter lazily, the first time their chunk comes within reach: one chunk a frame. */
+  prepare(items: AtollChunk[], px: number, pz: number, budget: number): boolean {
+    const R = Config.render;
+    if (R.propDistance <= 0) return false;
+    const size = Config.world.chunkSize;
+    for (;;) {
+      const c = nearestInReach(items, px, pz, R.propDistance + size, this.bare);
+      if (!c) return false;
+      if (budget-- <= 0) return true;
+      c.props = [];
+      this.scatterer.props(c.ox, c.oz, size, c.props);
+    }
+  }
+
   rebuild(items: AtollChunk[], px: number, pz: number): void {
     const R = Config.render;
     const size = Config.world.chunkSize;
@@ -441,9 +458,7 @@ export class AtollDecor implements ChunkDecor<AtollChunk> {
   }
 
   private finish(mesh: THREE.InstancedMesh, n: number): void {
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    commitInstances(mesh, n);
   }
 
   /** A run of plank deck (a pier's, or a village walkway's at `width` of it). */

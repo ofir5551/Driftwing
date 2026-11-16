@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Config } from '../core/Config';
 import { clamp } from '../core/math';
 import { mulberry32 } from './noise';
+import { commitInstances } from './instances';
 
 export interface Wisp {
   x: number;
@@ -409,7 +410,6 @@ export class Wisps {
       this.m.makeScale(s, s, s).setPosition(w.x, w.y + bob, w.z);
       this.mesh.setMatrixAt(k++, this.m);
     }
-    this.mesh.count = k;
-    this.mesh.instanceMatrix.needsUpdate = true;
+    commitInstances(this.mesh, k);
   }
 }

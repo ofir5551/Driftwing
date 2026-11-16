@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AdaptiveScale } from './AdaptiveScale';
 import { Config, QUALITY, type QualityLevel } from './Config';
 import { Events } from './Events';
 import { Input } from './Input';
@@ -88,14 +89,12 @@ export class Game {
   time = 0;
   quality: QualityLevel = 'high';
   pixelRatio = 1;
-  /** Resolution multiplier from adaptive quality (0.55..1). */
-  renderScale = 1;
+  /** Adaptive resolution: scales the post-processing targets, never the canvas. */
+  private readonly adaptive = new AdaptiveScale();
   /** When true, sustained slow frames also step the preset down (high -> medium -> low). */
   autoQuality = true;
   private readonly camGround = (x: number, z: number): number => this.world.field.height(x, z);
   private readonly camPush = (p: THREE.Vector3): void => this.world.pushPoint(p, 1.2);
-  private perfTimer = 0;
-  private fastTime = 0;
   readonly autopilot = params.has('autopilot');
   private timeOfDay: TimeOfDay = 'auto';
   /** Autopilot steering target, set by gameplay (wisps) when available. */
@@ -195,7 +194,7 @@ export class Game {
     this.composer.setBloomEnabled(q.bloom);
     this.applyLightToggles();
     this.pixelRatio = Math.min(devicePixelRatio, q.maxPixelRatio);
-    this.renderScale = 1;
+    this.adaptive.reset();
     this.resize();
   }
 
@@ -369,6 +368,7 @@ export class Game {
   private render(alpha: number, frameDt: number): void {
     this.renderer.info.reset();
     const dt = this.mode === 'paused' ? 0 : frameDt;
+    this.adaptQuality(frameDt);
     this.time += dt;
     const s = this.flight;
     const p = this.prev;
@@ -397,7 +397,6 @@ export class Game {
     this.clouds.update(this.day, cam.position, this.time);
     for (const fn of this.frameHooks) fn(dt, this.time);
     this.composer.render(this.day, this.time, dt, this.level.saturation ?? 1);
-    this.adaptQuality(frameDt);
   }
 
   private applyPalette(): void {
@@ -411,15 +410,17 @@ export class Game {
     this.sun.position.copy(this.day.sunDir).multiplyScalar(100).add(this.bird.root.position);
     this.sun.target.position.copy(this.bird.root.position);
     this.shadows.update(this.bird.root.position, this.day.sunDir, this.levelLight.shadows);
-    // Contact shadows are lighter when the shadow map draws the real ones (they're only the
-    // occlusion at the foot then).
+    // Contact shadows are lighter where the shadow map draws the real ones (they're only the
+    // occlusion at the foot there), and full again where those have faded out with distance.
     const L = Config.light;
-    contactUniforms.uStrength.value =
-      Config.render.contactShadows > 0
-        ? this.shadows.enabled
-          ? L.contactWithShadows
-          : L.contactStrength
-        : 0;
+    const contact = Config.render.contactShadows > 0 ? L.contactStrength : 0;
+    contactUniforms.uStrength.value = contact;
+    contactUniforms.uNearStrength.value =
+      contact > 0 && this.shadows.enabled ? L.contactWithShadows : contact;
+    contactUniforms.uMapFade.value.set(
+      L.shadowRange * L.shadowFadeStart,
+      L.shadowRange * L.shadowFadeEnd,
+    );
     contactUniforms.uFar.value = L.contactRange;
     this.composer.shaftStrength = this.levelLight.shafts * Config.render.lightShafts;
     updateCloudShadows(
@@ -441,40 +442,35 @@ export class Game {
     }
   }
 
+  /** Resolution multiplier from adaptive quality (Config.adaptive.floor..1). */
+  get renderScale(): number {
+    return this.adaptive.scale;
+  }
+
   /**
-   * Adaptive resolution: if the smoothed frame time stays above ~47 fps worth, render fewer
-   * pixels; when it has been comfortably fast for a while, creep back up. Asymmetric thresholds
-   * and timers stop it oscillating. At the floor, auto mode drops a quality preset instead.
+   * Adaptive resolution (see AdaptiveScale): when frames stay slow, render the scene and post
+   * into smaller targets; when they have been fast for a while, creep back up. At the floor,
+   * auto mode drops a quality preset instead. Runs before the frame is drawn and only resizes
+   * the composer's targets: resizing the canvas clears it, and a canvas cleared after its frame
+   * was drawn is presented blank (the picture cut out for a frame at every change).
    */
   private adaptQuality(frameDt: number): void {
     if (this.mode === 'paused') return;
-    this.perfTimer += frameDt;
-    if (this.perfTimer < 1) return;
-    this.perfTimer = 0;
-    const ms = this.loop.frameMs;
-    if (ms > 21) {
-      this.fastTime = 0;
-      if (this.renderScale > 0.6) {
-        this.renderScale = Math.max(0.55, this.renderScale - 0.1);
-        this.resize();
-      } else if (this.autoQuality && this.quality !== 'low') {
-        this.setQuality(this.quality === 'high' ? 'medium' : 'low');
-      }
-    } else if (ms < 17.8) {
-      this.fastTime += 1;
-      if (this.fastTime >= 6 && this.renderScale < 1) {
-        this.fastTime = 0;
-        this.renderScale = Math.min(1, this.renderScale + 0.05);
-        this.resize();
-      }
-    }
+    const action = this.adaptive.frame(frameDt);
+    if (action === 'scale') this.rescale();
+    else if (action === 'preset' && this.autoQuality && this.quality !== 'low')
+      this.setQuality(this.quality === 'high' ? 'medium' : 'low');
+  }
+
+  /** The composer's targets follow the render scale; its last pass upscales onto the canvas. */
+  private rescale(): void {
+    this.composer.setSize(innerWidth, innerHeight, this.pixelRatio * this.adaptive.scale);
   }
 
   resize(): void {
-    const pr = this.pixelRatio * this.renderScale;
-    this.renderer.setPixelRatio(pr);
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(innerWidth, innerHeight);
-    this.composer.setSize(innerWidth, innerHeight, pr);
+    this.rescale();
     this.chase.camera.aspect = innerWidth / innerHeight;
     this.chase.camera.updateProjectionMatrix();
   }

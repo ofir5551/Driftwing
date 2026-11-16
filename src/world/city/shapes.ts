@@ -312,3 +312,72 @@ export function propGeometries(): THREE.BufferGeometry[] {
   g[PROP.Boat] = boat();
   return g;
 }
+
+/** A flat quad (2 tris) of size w x h at (x, y, z), facing up, or facing +z / -z (`face`). */
+function quad(
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  z: number,
+  face: 0 | 1 | -1,
+  hex: string,
+  glow = 0,
+): THREE.BufferGeometry {
+  const g = new THREE.PlaneGeometry(w, h);
+  if (face === 0) g.rotateX(-Math.PI / 2);
+  else if (face < 0) g.rotateY(Math.PI);
+  return paint(g.translate(x, y, z), hex, glow);
+}
+
+/**
+ * Car (~30 tris), nose along +z: a body (the instance colours it), a dark glasshouse, lights
+ * front and back (glowing, untinted) and a dark patch underneath that reads as its shadow.
+ */
+export function carGeometry(): THREE.BufferGeometry {
+  return merge([
+    quad(2.0, 4.8, 0, 0.05, 0, 0, '#1e1f26'),
+    box(1.76, 0.78, 4.4, 0, 0.22, 0, '#ffffff'),
+    box(1.56, 0.58, 2.3, 0, 1.0, -0.25, '#3a4250'),
+    quad(1.5, 0.2, 0, 0.72, 2.21, 1, '#fff4dc', 1),
+    quad(1.5, 0.16, 0, 0.78, -2.21, -1, '#ff3a30', 0.9),
+  ]);
+}
+
+/** Tram (~50 tris), two cars nose along +z, a band of windows that lights up after dark. */
+export function tramGeometry(): THREE.BufferGeometry {
+  return merge([
+    quad(2.9, 25, 0, 0.05, 0, 0, '#1e1f26'),
+    box(2.5, 2.7, 11.8, 0, 0.3, 6.1, '#ffffff'),
+    box(2.5, 2.7, 11.8, 0, 0.3, -6.1, '#ffffff'),
+    box(2.56, 0.85, 23.2, 0, 1.55, 0, '#f6ead0', 0.6),
+    box(2.0, 0.3, 21, 0, 3.0, 0, '#9aa0a8'),
+    box(0.9, 0.9, 0.08, 0, 3.3, 3, '#3a3d44'),
+    quad(1.8, 0.25, 0, 1.0, 12.01, 1, '#fff4dc', 1),
+    quad(1.8, 0.2, 0, 1.0, -12.01, -1, '#ff3a30', 0.9),
+  ]);
+}
+
+/**
+ * Ferry (~70 tris), bow along +z: a hull narrowing to the bow, a cabin deck with lit windows,
+ * a wheelhouse and a funnel. Scaled down it is a water taxi.
+ */
+export function ferryGeometry(): THREE.BufferGeometry {
+  const hull = new THREE.BoxGeometry(9, 3.2, 32, 1, 1, 2);
+  const pos = hull.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) {
+    if (pos.getZ(i) > 15) pos.setX(i, pos.getX(i) * 0.15);
+    if (pos.getY(i) < 0) pos.setX(i, pos.getX(i) * 0.75);
+    if (pos.getZ(i) > 15 && pos.getY(i) > 0) pos.setY(i, pos.getY(i) + 0.6);
+  }
+  hull.translate(0, 0.6, 0);
+  return merge([
+    paint(hull, '#f6f3ec'),
+    box(9.1, 0.35, 28, 0, 0.5, -1.5, '#3a6ea5'),
+    box(7.6, 2.6, 19, 0, 2.2, -3.5, '#f2efe8'),
+    box(7.7, 0.9, 18, 0, 3.0, -3.5, '#f6ead0', 0.55),
+    box(5.6, 2.2, 6, 0, 4.8, 1.5, '#f2efe8'),
+    box(5.7, 0.7, 5.2, 0, 5.8, 1.5, '#2f3a4a'),
+    cyl(0.9, 0.75, 3.2, 6, 0, 4.8, -8, '#d0473a', false),
+  ]);
+}

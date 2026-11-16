@@ -434,6 +434,14 @@ vec3 groundEmit = vec3(0.0);
     + (1.0 - smoothstep(w, w + aa, abs(da.y - 11.0))) * dashX
     + (1.0 - smoothstep(w, w + aa, da.y)) + (1.0 - smoothstep(w, w + aa, abs(da.y - (AH - 4.6))));
   float lanes = min(1.0, laneX * avX * (1.0 - avZ) + laneZ * avZ * (1.0 - avX));
+  // Tram tracks in the inner lanes of every third avenue (the traffic plan's tram lines): two
+  // steel rails 1.44 m apart either side of the centre line, crossings included.
+  float tramX = step(abs(mod(floor(p.x / CS + 0.5), 3.0) - 2.0), 0.1);
+  float tramZ = step(abs(mod(floor(p.y / CS + 0.5), 3.0) - 2.0), 0.1);
+  float rw = 0.05 + aa * 0.5;
+  float rails = max(
+    (1.0 - smoothstep(rw, rw + aa, abs(abs(da.x - 2.75) - 0.72))) * avX * tramX,
+    (1.0 - smoothstep(rw, rw + aa, abs(abs(da.y - 2.75) - 0.72))) * avZ * tramZ) * lineFade;
   // Zebra crossings just outside each crossing.
   float zx = step(0.5, fract(p.y / 1.5)) * avZ * step(AH + 0.6, da.x) * (1.0 - step(AH + 4.4, da.x)) * (1.0 - step(AH - 4.0, da.y));
   float zz = step(0.5, fract(p.x / 1.5)) * avX * step(AH + 0.6, da.y) * (1.0 - step(AH + 4.4, da.y)) * (1.0 - step(AH - 4.0, da.x));
@@ -460,6 +468,7 @@ vec3 groundEmit = vec3(0.0);
   col = mix(col, ${lin('#b9b2ad')}, max(walk, kerb) * dry);
   col = mix(col, ${lin('#5d5966')}, max(road, bay) * dry);
   col = mix(col, ${lin('#e8e2d6')}, max(marks * road, bayMarks) * dry * 0.85);
+  col = mix(col, ${lin('#a7a6ad')}, rails * road * dry * 0.8);
   // The seawall and the river embankments: dressed stone down to the water.
   col = mix(col, ${lin('#8f8983')}, embank * dry);
   diffuseColor.rgb = col;
@@ -501,6 +510,14 @@ export function createPropMaterial(u: CityUniforms): THREE.MeshToonMaterial {
       .replace(
         '#include <common>',
         '#include <common>\nattribute vec3 aProp;\nvarying float vPropGlow;',
+      )
+      .replace(
+        '#include <color_vertex>',
+        /* glsl */ `#include <color_vertex>
+#if defined(USE_INSTANCING_COLOR) && defined(USE_COLOR)
+  // Lights keep their own colour: a red car's headlights are still white.
+  if (aProp.x > 0.5) vColor.rgb = color.rgb;
+#endif`,
       )
       .replace(
         '#include <begin_vertex>',

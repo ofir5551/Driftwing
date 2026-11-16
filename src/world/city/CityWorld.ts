@@ -16,6 +16,7 @@ import { createCityUniforms, createGroundMaterial, type CityUniforms } from './m
 import type { DiscoveryDef } from '../Discoveries';
 import { cityFinds } from './finds';
 import { cityCover, cityLand } from './cover';
+import { CityTraffic } from './CityTraffic';
 
 const C = {
   seabed: new THREE.Color('#4f6d78'),
@@ -41,6 +42,9 @@ export class CityWorld implements World {
   private readonly uniforms: CityUniforms;
   private readonly chunks: ChunkManager<CityChunk>;
   readonly decor: CityDecor;
+  readonly traffic: CityTraffic;
+  private px = 0;
+  private pz = 0;
   private readonly n = { x: 0, y: 0, z: 0 };
   private readonly block = { bi: 0, bj: 0 };
 
@@ -92,7 +96,8 @@ export class CityWorld implements World {
       cover: cityCover(L),
     });
     this.planner = new CityPlanner(L);
-    this.group.add(this.chunks.group);
+    this.traffic = new CityTraffic(L, this.decor.propMaterial);
+    this.group.add(this.chunks.group, this.traffic.group);
   }
 
   /** Vertex colour of the ground: the block's surface under the analytic street pass. */
@@ -156,6 +161,9 @@ export class CityWorld implements World {
 
   update(px: number, pz: number): void {
     this.chunks.update(px, pz);
+    this.traffic.update(px, pz);
+    this.px = px;
+    this.pz = pz;
   }
 
   frame(_dt: number, time: number, day: DayCycle): void {
@@ -166,6 +174,7 @@ export class CityWorld implements World {
     u.uCityLights.value = Config.city.lights;
     u.uCitySky.value.copy(p.skyHorizon);
     u.uCityTime.value = time;
+    this.traffic.frame(time, this.px, this.pz);
     // Haze in the street canyons: a thin layer low between the towers that thickens with
     // distance (clear round the bird), warmer by day and bluer at dusk, plus a far haze.
     const L = Config.levelLight.city;
@@ -223,6 +232,7 @@ export class CityWorld implements World {
 
   dispose(): void {
     this.chunks.dispose();
+    this.traffic.dispose();
     mistUniforms.uMist.value = 0;
     mistUniforms.uMistFar.value = 0;
   }

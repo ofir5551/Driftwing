@@ -6,6 +6,7 @@ import type { FlightInput, FlightState } from '../../player/FlightModel';
 import { ChunkManager } from '../ChunkManager';
 import type { DayCycle } from '../DayCycle';
 import { createChunkGeometry, type HeightField } from '../Terrain';
+import { mistUniforms, withMist } from '../Mist';
 import { createNoise2D } from '../noise';
 import { CityDecor, type CityChunk } from './CityDecor';
 import { BK, CityLayout, ZONE_AVENUE, ZONE_STREET } from './CityLayout';
@@ -14,6 +15,8 @@ import { avoidSolids, glanceOffWall } from './collide';
 import { createCityUniforms, createGroundMaterial, type CityUniforms } from './materials';
 import type { DiscoveryDef } from '../Discoveries';
 import { cityFinds } from './finds';
+import { cityCover, cityLand } from './cover';
+import { CityTraffic } from './CityTraffic';
 
 const C = {
   seabed: new THREE.Color('#4f6d78'),
@@ -39,6 +42,9 @@ export class CityWorld implements World {
   private readonly uniforms: CityUniforms;
   private readonly chunks: ChunkManager<CityChunk>;
   readonly decor: CityDecor;
+  readonly traffic: CityTraffic;
+  private px = 0;
+  private pz = 0;
   private readonly n = { x: 0, y: 0, z: 0 };
   private readonly block = { bi: 0, bj: 0 };
 
@@ -55,17 +61,20 @@ export class CityWorld implements World {
     this.decor = new CityDecor(L, this.uniforms);
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: createGroundMaterial(this.uniforms, L),
+      material: withMist(createGroundMaterial(this.uniforms, L)),
       color: (f, x, z, y, _slope, out) => this.groundColor(f, x, z, y, out),
       createGeometry: (res) => {
         const g = createChunkGeometry(res);
         g.setAttribute('aRoad', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2), 1));
         g.setAttribute('aEdge', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2 * 2), 2));
+        g.setAttribute('aCityLand', new THREE.BufferAttribute(new Float32Array((res + 1) ** 2), 1));
         return g;
       },
       fillExtra: (g, ox, oz, size, res) => {
         const a = g.getAttribute('aRoad') as THREE.BufferAttribute;
         const e = g.getAttribute('aEdge') as THREE.BufferAttribute;
+        const c = g.getAttribute('aCityLand') as THREE.BufferAttribute;
+        const G = c.array as Float32Array;
         const A = a.array as Float32Array;
         const E = e.array as Float32Array;
         const n = res + 1;
@@ -78,13 +87,17 @@ export class CityWorld implements World {
             // Both distances are smooth, so the shader cuts crisp bands from their interpolation.
             E[(j * n + i) * 2] = Math.max(-60, Math.min(200, L.shoreDist(x, z)));
             E[(j * n + i) * 2 + 1] = L.bankDist(x, z);
+            G[j * n + i] = cityLand(L, x, z);
           }
+        c.needsUpdate = true;
         a.needsUpdate = true;
         e.needsUpdate = true;
       },
+      cover: cityCover(L),
     });
     this.planner = new CityPlanner(L);
-    this.group.add(this.chunks.group);
+    this.traffic = new CityTraffic(L, this.decor.propMaterial);
+    this.group.add(this.chunks.group, this.traffic.group);
   }
 
   /** Vertex colour of the ground: the block's surface under the analytic street pass. */
@@ -148,6 +161,9 @@ export class CityWorld implements World {
 
   update(px: number, pz: number): void {
     this.chunks.update(px, pz);
+    this.traffic.update(px, pz);
+    this.px = px;
+    this.pz = pz;
   }
 
   frame(_dt: number, time: number, day: DayCycle): void {
@@ -158,6 +174,17 @@ export class CityWorld implements World {
     u.uCityLights.value = Config.city.lights;
     u.uCitySky.value.copy(p.skyHorizon);
     u.uCityTime.value = time;
+    this.traffic.frame(time, this.px, this.pz);
+    // Haze in the street canyons: a thin layer low between the towers that thickens with
+    // distance (clear round the bird), warmer by day and bluer at dusk, plus a far haze.
+    const L = Config.levelLight.city;
+    const m = mistUniforms;
+    m.uMist.value = L.haze;
+    m.uMistTop.value = L.hazeTop;
+    m.uMistBase.value = 0;
+    m.uMistFar.value = L.hazeFar;
+    m.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.35);
+    m.uMistTime.value = time;
   }
 
   assist(s: FlightState, input: FlightInput): void {
@@ -205,5 +232,8 @@ export class CityWorld implements World {
 
   dispose(): void {
     this.chunks.dispose();
+    this.traffic.dispose();
+    mistUniforms.uMist.value = 0;
+    mistUniforms.uMistFar.value = 0;
   }
 }

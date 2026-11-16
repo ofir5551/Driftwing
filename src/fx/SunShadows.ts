@@ -78,6 +78,8 @@ export function fadeSunShadow(worldPos: string): string {
  */
 export class SunShadows {
   private readonly target = new THREE.Vector3();
+  /** Whether the map has been drawn since shadows were last switched on. */
+  private drawn = false;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -105,6 +107,7 @@ export class SunShadows {
   setEnabled(on: boolean): void {
     if (this.sun.castShadow === on) return;
     this.sun.castShadow = on;
+    this.drawn = false;
     if (!on) this.renderer.shadowMap.needsUpdate = false;
   }
 
@@ -133,9 +136,14 @@ export class SunShadows {
     sunShadowUniforms.uSunShadowFade.value.set(r * L.shadowFadeStart, r * L.shadowFadeEnd);
     const k = strength * shadowFade(sunDir.y);
     sh.intensity = k;
-    // A faded-out map is never sampled to any effect, so skip the shadow pass.
-    this.renderer.shadowMap.needsUpdate = k > 0.001;
-    if (k <= 0.001) return;
+    // A faded-out map is never sampled to any effect, so skip the shadow pass, but draw it once
+    // after shadows switch on: until a map exists, every shadow-receiving draw binds a depth
+    // sampler to no depth texture and fails, and the scene vanishes (a level opening at night
+    // or in a low sun would stay blank until the sun climbed).
+    const draw = k > 0.001 || !this.drawn;
+    this.renderer.shadowMap.needsUpdate = draw;
+    if (!draw) return;
+    this.drawn = true;
     snapToTexel(this.target.copy(focus), sunDir, texel);
     this.sun.target.position.copy(this.target);
     this.sun.position.copy(sunDir).multiplyScalar(500).add(this.target);

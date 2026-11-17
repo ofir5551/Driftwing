@@ -207,10 +207,13 @@ describe('city traffic', () => {
           const onAvenue = Math.min(u, v2) < city.AH - 4;
           expect(onBay || onAvenue).toBe(true);
           expect(city.inSea(x, z)).toBe(false);
-          // Riding the road: on the ground, or up on a bridge deck (3.3 m) over the river.
-          const h = city.height(x, z);
+          // Riding the road: on the ground, or on a bridge deck's surface over the river (and
+          // at 3.3 m where an avenue runs along a river, over the water with no deck).
+          const g = city.height(x, z);
+          const deck = city.deckAt(x, z);
+          const h = deck > -Infinity ? deck : city.river(x, z) > 0.001 ? Math.max(g, 3.3) : g;
           expect(y).toBeGreaterThan(h - 0.5);
-          expect(y).toBeLessThan(Math.max(h, 3.3) + 0.3);
+          expect(y).toBeLessThan(h + 0.3);
         }
       }
     }

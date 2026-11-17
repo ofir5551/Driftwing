@@ -4,7 +4,15 @@ import type { ChunkDecor } from '../ChunkManager';
 import { withMist } from '../Mist';
 import { ShadowCasters } from '../ShadowCasters';
 import { Trees } from '../Trees';
-import { CITY_TREE_STRIDE, MESH, PART_STRIDE, STYLE, type CityLayout } from './CityLayout';
+import { BridgeDecks, type DeckColor } from './BridgeDecks';
+import {
+  CITY_TREE_STRIDE,
+  DECK_STRIDE,
+  MESH,
+  PART_STRIDE,
+  STYLE,
+  type CityLayout,
+} from './CityLayout';
 import {
   boxGeometry,
   cityTreeShapes,
@@ -24,6 +32,8 @@ export interface CityChunk {
   trees: number[];
   /** Street furniture, rooftop clutter and moored boats (props.ts records). */
   props: number[];
+  /** Bridge road surfaces (DECK_STRIDE records). */
+  decks: number[];
 }
 
 /** Starting instance capacities per mesh (grown on demand). */
@@ -71,6 +81,8 @@ export class CityDecor implements ChunkDecor<CityChunk> {
   private readonly propCasters: (ShadowCasters | null)[] = [];
   private readonly propCount = new Array<number>(PROP_KINDS).fill(0);
   private readonly contact = new ContactShadows(4000);
+  /** The bridges' road surfaces, in the ground's material (set by `useDecks`). */
+  private decks: BridgeDecks | null = null;
 
   constructor(
     private readonly city: CityLayout,
@@ -115,6 +127,12 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     this.group.add(...this.props, this.contact.mesh);
   }
 
+  /** Draw the bridges' road surfaces with the ground's material and colours. */
+  useDecks(material: THREE.Material, color: DeckColor): void {
+    this.decks = new BridgeDecks(this.city, material, color);
+    this.group.add(this.decks.mesh);
+  }
+
   private make(m: number, cap: number): THREE.InstancedMesh {
     const geo = this.geometries[m];
     geo.setAttribute('aStyle', new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2));
@@ -136,6 +154,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     const parts: number[] = [];
     const trees: number[] = [];
     const props: number[] = [];
+    const decks: number[] = [];
     for (let J = Math.floor((oz - pad) / S); J <= Math.floor((oz + size + pad) / S); J++)
       for (let I = Math.floor((ox - pad) / S); I <= Math.floor((ox + size + pad) / S); I++) {
         const sb = this.city.superblock(I, J);
@@ -160,8 +179,15 @@ export class CityDecor implements ChunkDecor<CityChunk> {
           if (x >= ox && x < ox + size && z >= oz && z < oz + size)
             for (let c = 0; c < PROP_STRIDE; c++) props.push(Q[k + c]);
         }
+        const D = sb.decks;
+        for (let k = 0; k < D.length; k += DECK_STRIDE) {
+          const x = D[k];
+          const z = D[k + 1];
+          if (x >= ox && x < ox + size && z >= oz && z < oz + size)
+            for (let c = 0; c < DECK_STRIDE; c++) decks.push(D[k + c]);
+        }
       }
-    return { parts, trees, props };
+    return { parts, trees, props, decks };
   }
 
   private color(hex: number): THREE.Color {
@@ -259,6 +285,11 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     for (const it of items) this.treeLists.push(it.trees);
     this.trees.rebuild(this.treeLists, px, pz, Config.render.treeDistance);
     this.placeProps(items, px, pz);
+    if (this.decks) {
+      this.decks.begin();
+      for (const it of items) this.decks.add(it.decks);
+      this.decks.end();
+    }
   }
 
   /** Refill every prop mesh, its casters and the contact shadows from the live chunks. */
@@ -353,5 +384,6 @@ export class CityDecor implements ChunkDecor<CityChunk> {
     this.boxMaterial.dispose();
     this.latticeMaterial.dispose();
     this.trees.dispose();
+    this.decks?.dispose();
   }
 }

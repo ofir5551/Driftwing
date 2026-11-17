@@ -69,6 +69,12 @@ export const PART_STRIDE = 11;
 export const CITY_TREE_STRIDE = 7;
 /** Floats per solid box: x0, y0, z0, x1, y1, z1. */
 export const BOX_STRIDE = 6;
+/**
+ * Floats per bridge deck's road surface: centre x, z; the unit direction it runs in (dx, dz);
+ * half its length and half its width; the surface height at its -along and +along ends (it
+ * slopes between them, so it meets the road at both banks).
+ */
+export const DECK_STRIDE = 8;
 
 export interface Superblock {
   readonly I: number;
@@ -82,6 +88,8 @@ export interface Superblock {
   readonly towers: number[];
   /** Street furniture, rooftop clutter and moored boats (props.ts records). */
   readonly props: number[];
+  /** Road surfaces of the bridges whose centres are in this superblock (DECK_STRIDE floats). */
+  readonly decks: number[];
 }
 
 export interface Tower {
@@ -103,6 +111,17 @@ const CACHE = 400;
 const CORNER = 16;
 /** The river's noise value at the top of its banks (where `river` reaches 0 and land is flat). */
 const BANK = 0.03;
+/** The river's noise value at the foot of its banks, where the channel's flat bed begins. */
+const CHANNEL = 0.016;
+/** Where the embankment walls end: the channel's edge, and this far down (below the water). */
+const WALL_FOOT = -3.6;
+/** The walls' stone coping reaches this far back over the top of the bank (m). */
+const WALL_BACK = 0.8;
+/** Top of the bayside road's deck over a river mouth. */
+const BAY_DECK = 3.3;
+/** A road crosses the river (on a bridge) where its direction is at least this far along the
+ * bank's normal: within about 65 degrees of square. */
+const ACROSS = 0.42;
 /** The shores stay inside these bands of z (their noise is within about [-1, 1]). */
 const NEAR_MIN = 150 - 115;
 const NEAR_MAX = 150 + 115;
@@ -125,6 +144,14 @@ const INK = 0x2b2833;
 const STONE_GREY = 0xb9b3a8;
 const LANTERN = 0xffc978;
 const CONCRETE = 0xa9a4ad;
+/** Dressed stone of the river embankments (the ground shader's own embankment colour). */
+const EMBANK = 0x8f8983;
+/** The embankments' coping and the walk's edge stones. */
+const COPING = 0xd2c9ba;
+/** Bridge decks: the concrete slab, the shadowed beam under it, the parapets. */
+const DECK_SLAB = 0xaba7a2;
+const DECK_BEAM = 0x6f6c6e;
+const DECK_RAIL = 0xd5cfc8;
 const CONTAINER_COLORS = [0xb8452f, 0x2f5f8f, 0x3f7f5a, 0xd09a3a, 0x8a8f96, 0xe2e0d8, 0x9a4a6f];
 /** Shop awnings: canvas in shop-front colours. */
 const AWNINGS = [0xc8423a, 0x2f6f8f, 0x3c7a4e, 0xe0a33a, 0x7a4a8c, 0xe9e3d6, 0x34404f];
@@ -176,6 +203,8 @@ export class CityLayout implements HarbourSink {
   readonly eastWestIn: number;
   /** Scratch: the direction a bank distance grows in. */
   private readonly dir = { x: 0, z: 0 };
+  /** Width of the bank slope (top to channel) at the last `bankDist` point near a river. */
+  private bankW = 6;
 
   /** The superblock being generated (the harbour's sink writes into it). */
   private cur: Superblock | null = null;
@@ -258,13 +287,14 @@ export class CityLayout implements HarbourSink {
       dir.x = gx * k;
       dir.z = gz * k;
     }
+    this.bankW = (BANK - CHANNEL) / g;
     return Math.min(200, (v - BANK) / g);
   }
 
   /** 0..1, 1 in the river channel. Like the highlands valleys: where a noise crosses zero. */
   river(x: number, z: number): number {
     const v = Math.abs(fbm(this.nR, x * 0.00065 + 3.1, z * 0.00065 - 1.7, 2));
-    return 1 - smoothstep(0.016, 0.03, v);
+    return 1 - smoothstep(CHANNEL, BANK, v);
   }
 
   /** Terrain without park ponds (used where block kinds are still being decided). */
@@ -538,6 +568,7 @@ export class CityLayout implements HarbourSink {
       cells: [],
       towers: [],
       props: [],
+      decks: [],
     };
     for (let l = 0; l < 3; l++)
       for (let k = 0; k < 3; k++) {
@@ -549,6 +580,7 @@ export class CityLayout implements HarbourSink {
     if (this.superKind(I, J) === 0) this.genPowerLines(sb, I, J);
     this.genBridges(sb, I, J);
     this.genWaterfront(sb, I, J);
+    this.genEmbankment(sb, I, J);
     this.genRiverWalk(sb, I, J);
     this.cur = sb;
     const z0 = J * this.S;
@@ -2128,7 +2160,10 @@ export class CityLayout implements HarbourSink {
     }
   }
 
-  /** Flat bridges where avenues and streets cross the river. */
+  /**
+   * Bridges where avenues and streets cross the river. Streets carry their sidewalks over too
+   * (2.5 m either side), so the deck is as wide as the road it continues.
+   */
   private genBridges(sb: Superblock, I: number, J: number): void {
     const S = this.S;
     const ax = I * S;
@@ -2137,11 +2172,20 @@ export class CityLayout implements HarbourSink {
     this.bridgeLine(sb, ax, az, 0, S, false, this.AH);
     if (this.superKind(I, J) !== 0) return;
     for (const c of [this.c1, this.c2]) {
-      this.bridgeLine(sb, ax + c, az, this.AH, S - this.AH, true, this.SH);
-      this.bridgeLine(sb, ax, az + c, this.AH, S - this.AH, false, this.SH);
+      this.bridgeLine(sb, ax + c, az, 0, S, true, this.SH + 2.5);
+      this.bridgeLine(sb, ax, az + c, 0, S, false, this.SH + 2.5);
     }
   }
 
+  /**
+   * One road line's bridges over [a0, a1) of its length. A crossing is a run of the line between
+   * the tops of the two banks (anywhere across its width); the superblock owns the runs whose middle is on its stretch (so a
+   * river on a superblock edge gets one bridge, kept with the superblock that holds its deck's
+   * centre). The deck's road surface meets the ground a little past each bank top and slopes
+   * evenly between those two heights; it is drawn by the ground's own material (`decks`), so the
+   * lanes, sidewalks and crossings run straight over it. Under it: a slab, a shadowed beam,
+   * stone abutments down each bank, and parapets at the edges.
+   */
   private bridgeLine(
     sb: Superblock,
     x: number,
@@ -2151,42 +2195,306 @@ export class CityLayout implements HarbourSink {
     northSouth: boolean,
     hw: number,
   ): void {
-    const step = 4;
-    let run = -1;
-    const flush = (end: number) => {
-      if (run < 0 || end - run > 150) return; // longer than a river: that's the bay
-      const s0 = run - 5;
-      const s1 = end + 5;
-      const deck = (
-        b0: number,
-        b1: number,
-        ya: number,
-        yb: number,
-        color: number,
-        solid: boolean,
-      ) => {
-        if (northSouth)
-          this.box(sb, x + b0, z + s0, x + b1, z + s1, ya, yb, color, STYLE.PLAIN, 0, solid);
-        else this.box(sb, x + s0, z + b0, x + s1, z + b1, ya, yb, color, STYLE.PLAIN, 0, solid);
-      };
-      deck(-hw, hw, 1.8, 3.3, 0xb7b0aa, true);
-      deck(-hw, -hw + 0.5, 3.3, 4.4, 0xd5cfc8, false);
-      deck(hw - 0.5, hw, 3.3, 4.4, 0xd5cfc8, false);
-    };
-    for (let a = a0; a <= a1; a += step) {
-      const px = northSouth ? x : x + a;
-      const pz = northSouth ? z + a : z;
-      // The grid stops at the bayside road, which has its own bridge over a river mouth.
-      const wet =
-        this.baseHeight(px, pz) < Config.world.waterLevel + 0.6 &&
-        this.shoreDist(px, pz) > this.roadIn;
-      if (wet && run < 0) run = a;
-      if (!wet && run >= 0) {
-        flush(a);
-        run = -1;
+    const px = (s: number, t: number) => (northSouth ? x + t : x + s);
+    const pz = (s: number, t: number) => (northSouth ? z + s : z + t);
+    // Across the whole width: a river crossing at a slant reaches one side of the road first.
+    const at = (s: number, t: number) =>
+      this.bankDist(px(s, t), pz(s, t)) < 0 && this.shoreDist(px(s, t), pz(s, t)) > this.roadIn;
+    const inBank = (s: number) => at(s, -hw) || at(s, 0) || at(s, hw);
+    const wet = (s: number) =>
+      this.river(px(s, -hw), pz(s, -hw)) > 0.99 ||
+      this.river(px(s, 0), pz(s, 0)) > 0.99 ||
+      this.river(px(s, hw), pz(s, hw)) > 0.99;
+    const reach = 300; // longer than a slanting crossing: the road runs along the river
+    // A run this superblock owns (its middle in [a0, a1), no longer than reach) starts after
+    // a0 - reach / 2 and before a1. Start outside a run, so every run is seen from its first metre.
+    let s = a0 - reach / 2;
+    while (s < a1 && inBank(s)) s++;
+    while (s < a1) {
+      if (!inBank(s)) {
+        // Bank distance is in metres: step past the stretch that can't reach a bank (with a
+        // margin, as it is a first-order estimate), a metre at a time near one.
+        const d = this.bankDist(px(s, 0), pz(s, 0)) - hw;
+        s += Math.max(1, Math.floor(d * 0.7));
+        continue;
       }
+      // The step past dry land is an estimate: back up to the run's true first metre.
+      for (let k = 0; k < reach && inBank(s - 1); k++) s--;
+      const sA = s;
+      let cA = NaN;
+      let cB = NaN;
+      while (s - sA <= reach && inBank(s)) {
+        if (wet(s)) {
+          if (Number.isNaN(cA)) cA = s;
+          cB = s;
+        }
+        s++;
+      }
+      if (s - sA > reach) {
+        // Along the river, not across it: no bridge, and no new run inside it.
+        while (s < a1 + reach && inBank(s)) s++;
+        continue;
+      }
+      const sB = s - 1;
+      const mid = (sA + sB) / 2;
+      if (Number.isNaN(cA) || mid < a0 || mid >= a1) continue;
+      // A road meeting the river at a glancing angle runs along it, not across: no deck there
+      // (it would roof the river over).
+      this.bankDist(px(mid, 0), pz(mid, 0), this.dir);
+      if (Math.abs(northSouth ? this.dir.z : this.dir.x) < ACROSS) continue;
+      this.bridge(sb, px, pz, northSouth, hw, sA - 2, sB + 2, cA, cB);
     }
-    if (run >= 0) flush(a1);
+  }
+
+  /** A bridge from s0 to s1 along its line (channel from cA to cB); see `bridgeLine`. */
+  private bridge(
+    sb: Superblock,
+    px: (s: number, t: number) => number,
+    pz: (s: number, t: number) => number,
+    northSouth: boolean,
+    hw: number,
+    s0: number,
+    s1: number,
+    cA: number,
+    cB: number,
+  ): void {
+    // Each end sits on the highest ground across the road there, so no terrain pokes through.
+    // A river mouth: a road that ends at the bayside road meets its deck there instead.
+    const end = (s: number) => {
+      const g = Math.max(
+        this.baseHeight(px(s, 0), pz(s, 0)),
+        this.baseHeight(px(s, -hw * 0.8), pz(s, -hw * 0.8)),
+        this.baseHeight(px(s, hw * 0.8), pz(s, hw * 0.8)),
+      );
+      if (g >= Config.world.waterLevel + 1) return g + 0.03;
+      const x = px(s, 0);
+      const z = pz(s, 0);
+      return this.mouthDeck(
+        x,
+        Math.abs(z - this.shoreNear(x)) < Math.abs(z - this.shoreFar(x)) ? 1 : -1,
+      );
+    };
+    const yA = end(s0);
+    const yB = end(s1);
+    const lo = Math.min(yA, yB);
+    const hi = Math.max(yA, yB);
+    const ha = (s1 - s0) / 2;
+    const sm = (s0 + s1) / 2;
+    sb.decks.push(px(sm, 0), pz(sm, 0), northSouth ? 0 : 1, northSouth ? 1 : 0, ha, hw, yA, yB);
+    // Boxes along the line: [sa, sb] x [ta, tb] (across), from y0 to y1.
+    const slab = (
+      sa: number,
+      sb2: number,
+      ta: number,
+      tb: number,
+      y0: number,
+      y1: number,
+      color: number,
+    ) => {
+      const xa = Math.min(px(sa, ta), px(sb2, tb));
+      const xb = Math.max(px(sa, ta), px(sb2, tb));
+      const za = Math.min(pz(sa, ta), pz(sb2, tb));
+      const zb = Math.max(pz(sa, ta), pz(sb2, tb));
+      this.box(sb, xa, za, xb, zb, y0, y1, color, STYLE.PLAIN, 0, false);
+    };
+    // The slab under the road surface, and the beam in its shadow.
+    slab(s0, s1, -hw, hw, lo - 1.2, lo - 0.04, DECK_SLAB);
+    slab(s0 + 1, s1 - 1, -hw + 1.2, hw - 1.2, lo - 1.9, lo - 1.2, DECK_BEAM);
+    // Stone abutments down each bank, a little wider than the deck, meeting the embankments.
+    for (const [a, b] of [
+      [s0, cA],
+      [cB, s1],
+    ]) {
+      slab(a, b, -hw - 3, hw + 3, WALL_FOOT, lo - 0.24, EMBANK);
+      slab(a, b, -hw - 3.05, hw + 3.05, lo - 0.24, lo - 0.05, COPING);
+    }
+    // Parapets along the edges, over the water and a metre onto each bank.
+    for (const t of [-hw, hw - 0.45])
+      slab(s0 + 1, s1 - 1, t, t + 0.45, lo - 0.1, hi + 0.95, DECK_RAIL);
+    // Collision boxes stepping up the slope (each as high as its upper end), so the ends sit
+    // on the road rather than a step above it.
+    const n = Math.min(8, Math.ceil((hi - lo) / 0.15) || 1);
+    for (let k = 0; k < n; k++) {
+      const sa = s0 + ((s1 - s0) * k) / n;
+      const sb2 = s0 + ((s1 - s0) * (k + 1)) / n;
+      const y1 = Math.max(yA + ((yB - yA) * k) / n, yA + ((yB - yA) * (k + 1)) / n);
+      const xa = Math.min(px(sa, -hw), px(sb2, hw));
+      const xb = Math.max(px(sa, -hw), px(sb2, hw));
+      const za = Math.min(pz(sa, -hw), pz(sb2, hw));
+      const zb = Math.max(pz(sa, -hw), pz(sb2, hw));
+      this.solid(sb, xa, lo - 1.9, za, xb, y1, zb);
+    }
+  }
+
+  /**
+   * Bridge deck surface at (x, z): the highest road surface of a deck there, or -Infinity.
+   * Decks belong to the superblock holding their centre and reach well under a superblock from
+   * it, so the neighbours are searched too.
+   */
+  deckAt(x: number, z: number): number {
+    const I = Math.floor(x / this.S);
+    const J = Math.floor(z / this.S);
+    let best = -Infinity;
+    for (let j = J - 1; j <= J + 1; j++)
+      for (let i = I - 1; i <= I + 1; i++) {
+        const D = this.superblock(i, j).decks;
+        for (let k = 0; k < D.length; k += DECK_STRIDE) {
+          const ox = x - D[k];
+          const oz = z - D[k + 1];
+          const s = ox * D[k + 2] + oz * D[k + 3];
+          const t = ox * D[k + 3] - oz * D[k + 2];
+          const ha = D[k + 4];
+          if (Math.abs(s) > ha || Math.abs(t) > D[k + 5]) continue;
+          best = Math.max(best, D[k + 6] + ((D[k + 7] - D[k + 6]) * (s + ha)) / (2 * ha));
+        }
+      }
+    return best;
+  }
+
+  /**
+   * On a road that crosses the river on a bridge (within m of its deck's sides), where the river
+   * runs across `dir` (its bank's normal). Roads meeting it at a glancing angle have no deck
+   * (see `bridgeLine`), so the embankment runs on past them.
+   */
+  private bridgeRoad(x: number, z: number, m: number, dir: { x: number; z: number }): boolean {
+    const S = this.S;
+    const I = Math.floor(x / S);
+    const J = Math.floor(z / S);
+    const u = x - I * S;
+    const v = z - J * S;
+    const ns = Math.abs(dir.z) >= ACROSS; // a north-south road crosses this stretch
+    const ew = Math.abs(dir.x) >= ACROSS;
+    const a = this.AH + m;
+    if ((ns && (u < a || u > S - a)) || (ew && (v < a || v > S - a))) return true;
+    if (this.superKind(I, J) !== 0) return false;
+    const w = this.SH + 2.5 + m;
+    return (
+      (ns && (Math.abs(u - this.c1) < w || Math.abs(u - this.c2) < w)) ||
+      (ew && (Math.abs(v - this.c1) < w || Math.abs(v - this.c2) < w))
+    );
+  }
+
+  /**
+   * Stone embankments along every river (after Meguro river): a wall from the channel's edge up
+   * to the top of the bank, its coping level with the river walk, so the river runs between
+   * straight stone sides rather than the terrain's sloped banks (which a 4 m ground mesh can
+   * only draw as ragged ramps). 6 m segments along the bank on a 4 m lattice (each cell's centre
+   * stepped onto the wall's middle line, kept if it lands in its own cell; 6 m covers a
+   * diagonal cell, so the wall has no gaps). Roads cross on their bridges' abutments instead.
+   */
+  private genEmbankment(sb: Superblock, I: number, J: number): void {
+    const S = this.S;
+    const cell = 4;
+    const len = 6;
+    const dir = this.dir;
+    // Blocks of 6 x 6 cells first: most of the city is nowhere near a river.
+    const block = cell * 6;
+    for (let bz = J * S; bz < (J + 1) * S; bz += block)
+      for (let bx = I * S; bx < (I + 1) * S; bx += block) {
+        if (this.bankDist(bx + block / 2, bz + block / 2) > (block * 0.71) / 0.7 + 12) continue;
+        for (let cz = bz + cell / 2; cz < bz + block && cz < (J + 1) * S; cz += cell)
+          for (let cx = bx + cell / 2; cx < bx + block && cx < (I + 1) * S; cx += cell)
+            this.embankmentCell(sb, cx, cz, cell, len, dir);
+      }
+  }
+
+  /** One lattice cell of `genEmbankment`. */
+  private embankmentCell(
+    sb: Superblock,
+    cx: number,
+    cz: number,
+    cell: number,
+    len: number,
+    dir: { x: number; z: number },
+  ): void {
+    let d = this.bankDist(cx, cz, dir);
+    if (d > 12 || d < -20) return;
+    let x = cx;
+    let z = cz;
+    for (let k = 0; k < 2; k++) {
+      const m = (WALL_BACK - this.bankW) / 2;
+      x -= (d - m) * dir.x;
+      z -= (d - m) * dir.z;
+      d = this.bankDist(x, z, dir);
+    }
+    const w = this.bankW;
+    if (Math.abs(d - (WALL_BACK - w) / 2) > 0.5 || w > 30) return;
+    if (Math.abs(x - cx) > cell / 2 || Math.abs(z - cz) > cell / 2) return;
+    const top = this.wallTop(x, z, d, dir);
+    if (top < Config.world.waterLevel + 1) return;
+    // The segment's footprint: along the bank (tx, tz), across it (dir).
+    const tx = -dir.z;
+    const tz = dir.x;
+    const half = (w + WALL_BACK) / 2;
+    if (this.shoreDist(x, z) < this.roadIn + 2) return;
+    // Clear of the roads' bridges (their abutments take over); a segment that touches one
+    // keeps whichever of its halves are clear, so the wall stops close to the abutment.
+    const clear = (a0: number, a1: number) => {
+      for (const a of [a0, a1])
+        for (const b of [-half, half])
+          if (this.bridgeRoad(x + tx * a + dir.x * b, z + tz * a + dir.z * b, 0.3, dir))
+            return false;
+      return true;
+    };
+    const rot = Math.atan2(-tz, tx);
+    // Dressed stone from below the water, then the coping on top (a hair apart in height per
+    // segment, so the overlaps don't flicker).
+    const e = hash2(Math.round(x * 2), Math.round(z * 2), this.seed + 961) * 0.02;
+    const wall = (a: number, l: number) => {
+      const wx = x + tx * a;
+      const wz = z + tz * a;
+      this.part(
+        sb,
+        MESH.BOX,
+        wx,
+        WALL_FOOT,
+        wz,
+        l,
+        top - 0.2 - WALL_FOOT,
+        2 * half,
+        rot,
+        EMBANK,
+        STYLE.PLAIN,
+        0,
+      );
+      this.part(
+        sb,
+        MESH.BOX,
+        wx,
+        top - 0.2,
+        wz,
+        l + 0.01,
+        0.2 + e,
+        2 * half + 0.1,
+        rot,
+        COPING,
+        STYLE.PLAIN,
+        0,
+      );
+    };
+    if (clear(-len / 2, len / 2)) wall(0, len);
+    else for (const a of [-len / 4, len / 4]) if (clear(a - len / 4, a + len / 4)) wall(a, len / 2);
+  }
+
+  /**
+   * Height of the embankment's coping for a point whose bank distance is d (dir is the way it
+   * grows, from `bankDist`): the ground just behind the bank's top, so the walk runs onto it.
+   */
+  private wallTop(x: number, z: number, d: number, dir: { x: number; z: number }): number {
+    const k = WALL_BACK + 0.4 - d;
+    return this.baseHeight(x + dir.x * k, z + dir.z * k) + 0.03;
+  }
+
+  /**
+   * Top of the embankment wall under (x, z), or -Infinity off the walls: the flight floor over
+   * the strip the walls cover (their segments' exact ends aside). Allocation-free.
+   */
+  embankmentTop(x: number, z: number): number {
+    const d = this.bankDist(x, z, this.dir);
+    if (d > WALL_BACK || d < -this.bankW || this.bankW > 30) return -Infinity;
+    if (this.shoreDist(x, z) < this.roadIn + 2 || this.bridgeRoad(x, z, 0.3, this.dir))
+      return -Infinity;
+    return this.wallTop(x, z, d, this.dir);
   }
 
   // --- The waterfront and the river walks -----------------------------------------------------
@@ -2203,7 +2511,6 @@ export class CityLayout implements HarbourSink {
     const z0 = J * S;
     const water = Config.world.waterLevel + 0.6;
     const half = this.roadIn / 2;
-    const deckTop = 3.3;
     const owns = (x: number, z: number) => x >= x0 && x < x0 + S && z >= z0 && z < z0 + S;
     for (const side of [1, -1]) {
       // side 1: the near shore, land toward -z; side -1: the far shore, land toward +z.
@@ -2214,14 +2521,6 @@ export class CityLayout implements HarbourSink {
       )
         continue;
       const edge = (x: number) => (side > 0 ? this.shoreNear(x) : this.shoreFar(x));
-      const wetAt = (x: number) => {
-        const e = edge(x);
-        return (
-          this.baseHeight(x, e - side * 2) < water ||
-          this.baseHeight(x, e - side * half) < water ||
-          this.baseHeight(x, e - side * (this.roadIn - 2)) < water
-        );
-      };
       // 6 m segments along the shore: railing, and the bridge deck over a river mouth.
       for (let x = x0; x < x0 + S; x += 6) {
         const xb = x + 6;
@@ -2230,7 +2529,7 @@ export class CityLayout implements HarbourSink {
         const dz = eb - ea;
         const len = Math.hypot(6, dz);
         const rot = Math.atan2(-dz, 6);
-        const wet = wetAt(x) || wetAt(xb) || wetAt(x - 6) || wetAt(xb + 6);
+        const wet = this.mouthSegment(x, side);
         const rail = (d: number, y: number) => {
           const mx = x + 3;
           const mz = (ea + eb) / 2 - side * d;
@@ -2245,29 +2544,35 @@ export class CityLayout implements HarbourSink {
         const mx = x + 3;
         const mz = (ea + eb) / 2 - side * half;
         if (!owns(mx, mz)) continue;
-        // The deck covers the promenade and the road; its collision box is the rotated deck's
-        // bounds (the shore is gentle, so that is only a little larger).
+        // The deck covers the promenade and the road, sloping evenly from the road's height on
+        // one side of the mouth to the other's; its collision box is the rotated deck's bounds
+        // (the shore is gentle, so that is only a little larger).
+        const yA = this.mouthDeck(x, side);
+        const yB = this.mouthDeck(xb, side);
+        const lo = Math.min(yA, yB);
         this.part(
           sb,
           MESH.BOX,
           mx,
-          1.8,
+          lo - 1.5,
           mz,
           len + 0.3,
-          deckTop - 1.8,
+          1.46,
           this.roadIn + 1,
           rot,
-          0xb7b0aa,
+          DECK_SLAB,
           STYLE.PLAIN,
           0,
         );
+        // Its road surface (promenade paving, the bayside road's lanes) in the ground's material.
+        sb.decks.push(mx, mz, 6 / len, dz / len, (len + 0.3) / 2, (this.roadIn + 1) / 2, yA, yB);
         const c = Math.abs(Math.cos(rot));
         const sn = Math.abs(Math.sin(rot));
         const hx = (c * (len + 0.3) + sn * (this.roadIn + 1)) / 2;
         const hz = (sn * (len + 0.3) + c * (this.roadIn + 1)) / 2;
-        this.solid(sb, mx - hx, 1.8, mz - hz, mx + hx, deckTop, mz + hz);
-        rail(0.4, deckTop);
-        rail(this.roadIn + 0.2, deckTop);
+        this.solid(sb, mx - hx, lo - 1.5, mz - hz, mx + hx, Math.max(yA, yB), mz + hz);
+        rail(0.4, lo - 0.05);
+        rail(this.roadIn + 0.2, lo - 0.05);
       }
       // Lamps by the railing, every 24 m.
       for (let x = Math.ceil(x0 / 24) * 24; x < x0 + S; x += 24) {
@@ -2296,6 +2601,60 @@ export class CityLayout implements HarbourSink {
         this.tree(sb, r < 0.5 ? TREE.PINE : TREE.CHERRY, x, z, 0.62 + r * 0.3, r, true);
       }
     }
+  }
+
+  /** Shore line on a side (1 the near shore, land toward -z; -1 the far one). */
+  private shoreEdge(x: number, side: number): number {
+    return side > 0 ? this.shoreNear(x) : this.shoreFar(x);
+  }
+
+  /** Water under the promenade or the bayside road at x (a river mouth). */
+  private mouthWet(x: number, side: number): boolean {
+    const e = this.shoreEdge(x, side);
+    const water = Config.world.waterLevel + 0.6;
+    return (
+      this.baseHeight(x, e - side * 2) < water ||
+      this.baseHeight(x, e - side * (this.roadIn / 2)) < water ||
+      this.baseHeight(x, e - side * (this.roadIn - 2)) < water
+    );
+  }
+
+  /** The 6 m waterfront segment from x (on the 6 m lattice) is part of a mouth's deck. */
+  private mouthSegment(x: number, side: number): boolean {
+    return (
+      this.mouthWet(x, side) ||
+      this.mouthWet(x + 6, side) ||
+      this.mouthWet(x - 6, side) ||
+      this.mouthWet(x + 12, side)
+    );
+  }
+
+  /**
+   * Road surface of the deck across a river mouth at x: level with the ground at each end of
+   * its run of segments, sloping evenly between (BAY_DECK if the run can't be found).
+   */
+  private mouthDeck(x: number, side: number): number {
+    let xs = Math.floor(x / 6) * 6;
+    if (!this.mouthSegment(xs, side)) xs -= 6; // x on the deck's far end
+    if (!this.mouthSegment(xs, side)) return BAY_DECK;
+    let xe = xs;
+    for (let k = 0; k < 40 && this.mouthSegment(xs - 6, side); k++) xs -= 6;
+    for (let k = 0; k < 40 && this.mouthSegment(xe + 6, side); k++) xe += 6;
+    xe += 6;
+    const end = (xx: number) => {
+      const e = this.shoreEdge(xx, side);
+      return (
+        Math.max(
+          this.baseHeight(xx, e - side * 2),
+          this.baseHeight(xx, e - side * (this.roadIn / 2)),
+          this.baseHeight(xx, e - side * (this.roadIn - 2)),
+        ) + 0.03
+      );
+    };
+    const a = end(xs);
+    const b = end(xe);
+    if (a < 1 || b < 1) return BAY_DECK;
+    return a + ((b - a) * (x - xs)) / (xe - xs);
   }
 
   /**
@@ -2329,14 +2688,16 @@ export class CityLayout implements HarbourSink {
         if (!this.tree(sb, TREE.CHERRY, x, z, 0.7 + r * 0.25, r, true)) continue;
         // Where a road crosses on its bridge the walk has no railing, bench or lamp.
         if (this.nearRoad(x, z, 8)) continue;
-        // The walk's railing along the bank's edge (along the tangent), a bench under every
-        // third tree facing the water, a lamp by every fourth.
+        // The walk's railing along the embankment's edge (along the tangent) on its coping, a
+        // bench under every third tree facing the water, a lamp by every fourth.
         const tx = -dir.z;
         const tz = dir.x;
-        const ex = x - dir.x * (line - 0.35);
-        const ez = z - dir.z * (line - 0.35);
-        const g = this.baseHeight(ex, ez);
-        if (g > Config.world.waterLevel + 1)
+        const top = this.wallTop(x, z, d, dir);
+        const back = line + this.bankW - 0.3;
+        const ex = x - dir.x * back;
+        const ez = z - dir.z * back;
+        const g = top;
+        if (g > Config.world.waterLevel + 1 && this.bankW < 30)
           this.part(
             sb,
             MESH.BOX,

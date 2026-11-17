@@ -337,9 +337,14 @@ export class TrafficPlan {
       } else if (shape === LINE_X) z = c + off;
       else z = c > 0 ? L.shoreNear(s) - off : L.shoreFar(s) + off;
       this.zs[li * SAMPLES + i] = z;
-      // Over a river the road is a bridge deck (the layout's decks top out at 3.3 m).
+      // Near a river or over the water the road may be a bridge deck: ride its surface (decks
+      // reach a couple of metres past each bank's top, where they meet the road).
       const g = L.baseHeight(x, z);
-      this.ys[li * SAMPLES + i] = L.river(x, z) > 0.001 || g < water ? Math.max(g, 3.3) : g;
+      // Where a road runs along a river rather than across it there is no deck: keep the cars
+      // above the water as before.
+      const deck = g < water || L.bankDist(x, z) < 3 ? L.deckAt(x, z) : -Infinity;
+      this.ys[li * SAMPLES + i] =
+        deck > -Infinity ? deck : L.river(x, z) > 0.001 || g < water ? Math.max(g, 3.3) : g;
     }
   }
 

@@ -59,9 +59,11 @@ export class CityWorld implements World {
       tint: (x, z) => tint(x * 0.01, z * 0.01),
     };
     this.decor = new CityDecor(L, this.uniforms);
+    const ground = withMist(createGroundMaterial(this.uniforms, L));
+    this.decor.useDecks(ground, (x, z, y, out) => this.groundColor(this.field, x, z, y, out));
     this.chunks = new ChunkManager(this.field, {
       decor: this.decor,
-      material: withMist(createGroundMaterial(this.uniforms, L)),
+      material: ground,
       color: (f, x, z, y, _slope, out) => this.groundColor(f, x, z, y, out),
       createGeometry: (res) => {
         const g = createChunkGeometry(res);
@@ -142,8 +144,10 @@ export class CityWorld implements World {
   }
 
   flightGround(x: number, z: number): number {
-    const h = this.layout.height(x, z);
-    return h < 1 ? h : h + this.layout.canopy(x, z);
+    const L = this.layout;
+    const h = L.height(x, z);
+    // The river's stone embankments stand over the sloped banks: their coping is the floor.
+    return Math.max(h < 1 ? h : h + L.canopy(x, z), L.embankmentTop(x, z));
   }
 
   surfaceBelow(x: number, y: number, z: number): number {

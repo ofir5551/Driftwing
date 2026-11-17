@@ -168,7 +168,14 @@ a green strip short of it rather than run alongside as one wide band of asphalt.
 cuts into become waterfront parks; every building keeps 3 m back from the road's kerb. Where the
 river meets the bay, the promenade and the road cross its mouth on one wide bridge. The river has
 a 7 m walk along the top of each stone embankment, lined with cherry trees leaning over the water
-(after Meguro river); buildings keep back from it, and the grid crosses on its bridges. North-
+(after Meguro river); buildings keep back from it, and the grid crosses on its bridges. The
+embankments are straight stone walls from below the water to a coping level with the walk (railing
+on its edge), and the coping is the flight floor over them. A bridge is the road it carries: its
+surface meets the road a couple of metres past each bank's top and slopes evenly between the two
+heights, painted by the ground's own street pass (lanes, sidewalks, crossings and rails run straight
+over), on a slab with a shadowed beam, parapets at the edges and stone abutments down the banks;
+cars ride that surface. A road meeting the river at a glancing angle (past about 65 degrees from
+square) runs along it and gets no deck, and the embankment runs on past it. North-
 south expressways cross the bay as bridges with no pier on the promenade or the road; east-west
 ones run only on avenues the bay never reaches, so no deck stops in mid-air. Dusk lights the city: a hashed share of windows, shop fronts, neon, lanterns
 and lamp pools on the avenues. Music: night-neon lo-fi at 78 BPM, koto plucks over a mellow
@@ -1326,6 +1333,19 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   so the shader cuts crisp bands from their interpolation even on the coarse LOD. The layout uses
   the same two (`shoreDist`, `bankDist`) to keep buildings, trees and expressway piers off the
   promenade, the bayside road and the river walks, and tests check it.
+- Bridges were one flat stone box at 3.3 m: no asphalt or lanes, and the road beside a river is
+  0.3-0.5 m higher, so the road's ground hid the deck's ends behind a ragged edge and cars sank
+  into it. Now the deck's road surface (`BridgeDecks`) is drawn with the ground material, whose
+  street pass reads only world position (the deck's `aEdge` says "far from any bank"), so the
+  markings line up with no new shader. Its height comes from one query, `CityLayout.deckAt`, used
+  by the traffic too. A crossing is the run of the road line between bank tops sampled across the
+  road's whole width (a slanting crossing reaches one side first), owned by the superblock that
+  holds its middle so a river on a superblock edge gets one bridge. Over a river mouth the bayside
+  road's deck slopes between the ground at the ends of its run in the same way.
+- The terrain mesh (4 m quads) can only draw a river bank as a ragged ramp, so the embankment walls
+  (6 m segments, each cell of a 4 m lattice stepped onto the wall's middle line) cover the slope
+  from the channel's edge to just past the top; a segment that touches a bridge keeps whichever
+  half is clear, and the bridge's abutments reach 3 m past its sides to meet them.
 - City collisions: boxes bucketed per superblock on an 8x8 grid (covering 24 m around it, since
   avenue structures straddle edges), so a point query checks one cell. The push leaves through the
   nearest face (undersides only for floating decks and beams). A wall contact kicks the turn rate

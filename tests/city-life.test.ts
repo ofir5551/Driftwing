@@ -12,7 +12,7 @@ import { flyBot } from './helpers';
 const city = new CityLayout(1337);
 
 /** Rough heights of each prop kind (m), for keeping them off the wisp ribbons. */
-const TALL = [7.2, 10.4, 1, 6, 2, 1, 2.6, 0.2, 1.4, 3.2, 6.5, 1.3, 2.5];
+const TALL = [7.2, 10.4, 1, 6, 2, 1, 2.6, 0.2, 1.4, 3.2, 6.5, 1.3, 2.5, 1.6];
 const STREET: number[] = [PROP.Lamp, PROP.Pole, PROP.Signal, PROP.Vending, PROP.BusStop, PROP.Pit];
 
 describe('a lived-in city', () => {

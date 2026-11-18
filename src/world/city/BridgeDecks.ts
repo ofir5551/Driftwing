@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { markUsed } from '../instances';
-import { DECK_STRIDE, type CityLayout } from './CityLayout';
+import { DECK, DECK_STRIDE, type CityLayout } from './CityLayout';
 
 /** Most deck surfaces drawn at once (a bridge is one; the bayside road's is one per 6 m). */
 const MAX_DECKS = 512;
 /** Vertices per deck: the road's top, then a skirt down each long side. */
 const VERTS = 12;
 const INDICES = 18;
+/** `aEdge.y` that marks an expressway deck for the ground shader (any bank distance is > -300). */
+export const EXPRESS = -500;
 /** The skirts reach this far below the deck's lower end (into the slab under it). */
 const SKIRT = 0.3;
 
@@ -44,6 +46,8 @@ export class BridgeDecks {
     g.setAttribute('color', new THREE.BufferAttribute(this.rgb, 3));
     g.setAttribute('aRoad', new THREE.BufferAttribute(this.road, 1));
     g.setAttribute('aEdge', new THREE.BufferAttribute(this.edge, 2));
+    // The ground material reads it (paved blocks); a deck is all road and walks: 0.
+    g.setAttribute('aCityLand', new THREE.BufferAttribute(new Float32Array(MAX_DECKS * VERTS), 1));
     const idx = new Uint16Array(MAX_DECKS * INDICES);
     for (let d = 0; d < MAX_DECKS; d++) {
       const v = d * VERTS;
@@ -89,16 +93,17 @@ export class BridgeDecks {
   add(D: readonly number[]): void {
     for (let k = 0; k < D.length && this.count < MAX_DECKS; k += DECK_STRIDE) {
       const d = this.count++;
-      const [cx, cz, dx, dz, ha, hw, yA, yB] = [
-        D[k],
-        D[k + 1],
-        D[k + 2],
-        D[k + 3],
-        D[k + 4],
-        D[k + 5],
-        D[k + 6],
-        D[k + 7],
-      ];
+      const cx = D[k];
+      const cz = D[k + 1];
+      const dx = D[k + 2];
+      const dz = D[k + 3];
+      const ha = D[k + 4];
+      const hw = D[k + 5];
+      const yA = D[k + 6];
+      const yB = D[k + 7];
+      // An expressway tells the shader so (bank distance EXPRESS, its axis in place of the
+      // seawall distance): it paints its own lanes instead of the street grid below it.
+      const kind = D[k + 8];
       // Across: (dz, -dx), the same handedness `deckAt` measures t in.
       const nx = dz;
       const nz = -dx;
@@ -128,8 +133,9 @@ export class BridgeDecks {
         this.rgb[o + 2] = col.b;
         this.road[v + i] = this.city.hasStreets(x, z) ? 1 : 0;
         // Metres from the seawall as on the ground; the river banks are far (the deck is road).
-        this.edge[(v + i) * 2] = Math.max(-60, Math.min(200, this.city.shoreDist(x, z)));
-        this.edge[(v + i) * 2 + 1] = 50;
+        this.edge[(v + i) * 2] =
+          kind === DECK.ROAD ? Math.max(-60, Math.min(200, this.city.shoreDist(x, z))) : kind;
+        this.edge[(v + i) * 2 + 1] = kind === DECK.ROAD ? 50 : EXPRESS;
       };
       corner(0, -ha, -hw, yA, 0, 1, 0);
       corner(1, ha, -hw, yB, 0, 1, 0);

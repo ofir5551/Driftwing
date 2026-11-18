@@ -44,17 +44,21 @@ const CASTS = [9000, 2000, 2500, 400, 300, 0];
 const mat4 = new THREE.Matrix4();
 
 /** Per prop kind: most instances drawn at once. */
-const PROP_CAP = [3000, 3000, 3000, 1500, 1500, 2000, 600, 6000, 1500, 4000, 4000, 6000, 800];
+const PROP_CAP = [3000, 3000, 3000, 1500, 1500, 2000, 600, 6000, 1500, 4000, 4000, 6000, 800, 2500];
 /** Per prop kind: casts a sun shadow near the bird on high (lamps, poles, signals, shelters,
  * rooftop kits). */
-const PROP_CASTS = [1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0];
+const PROP_CASTS = [1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0];
 /** Per prop kind: contact-shadow radius (0 = none). */
-const PROP_BLOB = [0.45, 0.55, 0, 0.55, 1.2, 1.1, 2.1, 0, 1.5, 2.6, 2.4, 0, 0];
+const PROP_BLOB = [0.45, 0.55, 0, 0.55, 1.2, 1.1, 2.1, 0, 1.5, 2.6, 2.4, 0, 0, 0];
 /** Vending machine bodies (sRGB): the drinks makers' white, red, blue and the odd yellow. */
 const VENDING = ['#f6f4f0', '#e2483e', '#3d6fc4', '#f6f4f0', '#f2c94a'].map(
   (h) => new THREE.Color(h),
 );
 const BOATS = ['#ffffff', '#f2ece0', '#e4eef6', '#f6e8e4'].map((h) => new THREE.Color(h));
+/** Parked cars (sRGB): mostly white, silver and black, as in any Tokyo car park. */
+const PARKED = ['#f4f4f2', '#f4f4f2', '#b9bec6', '#2b2d33', '#2f4f7f', '#c8423a', '#e9e4d6'].map(
+  (h) => new THREE.Color(h),
+);
 const tint = new THREE.Color();
 
 /**
@@ -341,6 +345,7 @@ export class CityDecor implements ChunkDecor<CityChunk> {
         const t = L[k + 8];
         if (kind === PROP.Vending) tint.copy(VENDING[Math.floor(t * VENDING.length) % 5]);
         else if (kind === PROP.Boat) tint.copy(BOATS[Math.floor(t * 4) % 4]);
+        else if (kind === PROP.ParkedCar) tint.copy(PARKED[Math.floor(t * 7.3) % PARKED.length]);
         else tint.setRGB(0.93 + t * 0.12, 0.93 + t * 0.09, 0.94 + (1 - t) * 0.08);
         const C = mesh.instanceColor!.array as Float32Array;
         C[i * 3] = tint.r;

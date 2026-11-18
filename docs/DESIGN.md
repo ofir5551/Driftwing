@@ -210,12 +210,25 @@ back of the sidewalk over the painted pools of lamplight, a bus shelter per aven
 signals on every crossing (the green lamp glows), vending machines on the corners, power poles
 and sagging cables along the low-rise side streets, awnings and lit signboards over the shop
 fronts. Flat roofs carry parapets, water tanks, condensers, antennas and stair huts; some
-podiums and apartment roofs are lawns with small trees. Parks grow lawns with a ring of flower
-beds round the centre and wildflower drifts; house gardens short grass (`cover.ts`). The
-promenade and the river walks have benches (and the river walk a railing and lamps). Traffic:
-cars down every avenue, the bayside road and the expressway decks (driving on the left), trams
-on every third avenue over painted rails, ferries looping across the bay and water taxis along
-its shores, their lights glowing after dark. Harbours stand along the bay (one always just west
+podiums and apartment roofs are lawns with small trees. Towers come in five shapes, each from
+its own dice so the blocks around them stay put: plain shafts, wedding cakes stepping in at half
+and four fifths of their height (a parapet on each ledge), slim pencils a little taller, twins
+on one podium (wisps circle the pair as one tower) and a few turned 45 degrees (solid as a
+stepped diamond of three boxes). Tall pencil buildings and apartment slabs step their top floors
+back from the street (Tokyo's slant-line rule), with the roof kit on the upper roof. The avenues
+have a planted median (kerb, clipped hedge, a small tree every 32 m but none under an
+expressway's pillars), open at every crossing; side streets meet them on zebras. Built blocks
+and plazas are paved in flags (`aCityLand` 0.2; the shader lays a running bond), and the ground
+their buildings leave is used: per block either a coin car park (parked cars nose-in) or trees
+in kerbed pits with a planter and bench here and there; plazas get benches round the fountain
+and a ring of trees round the edge. Expressway decks are painted with their own lanes (a double
+line, dashed lanes, solid edges) and carry pale sound walls between the buildings. Parks grow
+lawns with a ring of flower beds round the centre and wildflower drifts; house gardens short
+grass (`cover.ts`). The promenade and the river walks have benches (and the river walk a
+railing and lamps). Traffic: cars down every avenue, the bayside road and the expressway decks
+(driving on the left), mostly cars but kei cars, taxis (lit roof signs), box trucks and buses
+too, trams on every third avenue over painted rails, ferries looping across the bay and water
+taxis along its shores, their lights glowing after dark. Harbours stand along the bay (one always just west
 of the spawn): concrete piers with ship-to-shore gantry cranes (solid), container stacks, a
 cargo ship alongside and boats moored down the piers; the waterfront blocks behind become
 container yards. Towers, props and cranes cast sun shadows on high; props have contact shadows
@@ -1335,13 +1348,23 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   promenade, the bayside road and the river walks, and tests check it.
 - Bridges were one flat stone box at 3.3 m: no asphalt or lanes, and the road beside a river is
   0.3-0.5 m higher, so the road's ground hid the deck's ends behind a ragged edge and cars sank
-  into it. Now the deck's road surface (`BridgeDecks`) is drawn with the ground material, whose
+  into it. Now the deck's road surface (`BridgeDecks`, which paints the expressway decks too)
+  is drawn with the ground material, whose
   street pass reads only world position (the deck's `aEdge` says "far from any bank"), so the
   markings line up with no new shader. Its height comes from one query, `CityLayout.deckAt`, used
   by the traffic too. A crossing is the run of the road line between bank tops sampled across the
   road's whole width (a slanting crossing reaches one side first), owned by the superblock that
   holds its middle so a river on a superblock edge gets one bridge. Over a river mouth the bayside
   road's deck slopes between the ground at the ends of its run in the same way.
+- Neon Bay's realism pass (towers, stepped tops, medians, paving, gap filling, expressway
+  lanes, car bodies) moved the city's wisp routes. Measured over 16 seeds x 4 minutes the bot
+  did better than before (1.30 wisps/s and 0.66 wall glances a minute, from 1.11 and 1.81), and
+  the Crane's share of the Tern's haul rose (0.67 from 0.63 over 8 seeds), but single seeds
+  swing either way (a different tower ahead sends the bot somewhere else entirely). So the city's
+  bot test and the species test now pool their bars over several seeds instead of one or two.
+  Costs: a superblock takes ~15 % longer to lay out, and the view ~17 % more triangles (mostly
+  12-triangle boxes: medians, walls, tiers), with draw calls unchanged but for the new car
+  bodies.
 - The terrain mesh (4 m quads) can only draw a river bank as a ragged ramp, so the embankment walls
   (6 m segments, each cell of a 4 m lattice stepped onto the wall's middle line) cover the slope
   from the channel's edge to just past the top; a segment that touches a bridge keeps whichever

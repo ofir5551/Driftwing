@@ -7,8 +7,12 @@ const PETALS = ['#e2453a', '#f3b13a', '#f7f2e8', '#ef8fb4', '#8f6fd0', '#f6e27a'
 
 /**
  * `aCityLand` (per terrain vertex): 1 parks and groves, 0.85 the green strips by the bayside
- * road, 0.6 house gardens, 0 paved.
+ * road, 0.6 house gardens, 0.2 the paved ground of built blocks and plazas (the ground shader
+ * lays flags there), 0 other bare ground.
  */
+/** `aCityLand` of paved block ground. */
+export const PAVED = 0.2;
+
 export function cityLand(L: CityLayout, x: number, z: number): number {
   if (L.shoreDist(x, z) < L.roadIn + 3 || L.bankDist(x, z) < L.riverWalk) return 0;
   const zone = L.zoneAt(x, z);
@@ -17,6 +21,15 @@ export function cityLand(L: CityLayout, x: number, z: number): number {
     return !L.northSouthRoad(x) && L.shoreDist(x, z) < L.eastWestIn ? 0.85 : 0;
   if (zone === BK.PARK || zone === BK.FOREST) return 1;
   if (zone === BK.HOUSES) return 0.6;
+  if (
+    zone === BK.TOWERS ||
+    zone === BK.MIDRISE ||
+    zone === BK.APARTMENTS ||
+    zone === BK.PLAZA ||
+    zone === BK.LANDMARK ||
+    zone === BK.HARBOUR
+  )
+    return PAVED;
   if (zone === BK.SHRINE || zone === BK.TEMPLE) {
     // The sacred grove round the block's edge (the gravel court and the approach stay bare).
     const S = L.S;

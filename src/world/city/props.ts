@@ -29,9 +29,11 @@ export const PROP = {
   Parapet: 11,
   /** A small boat moored at a pier or along a quay (bow along local +x). */
   Boat: 12,
+  /** A parked car (nose along local +z), its paint from the tint. */
+  ParkedCar: 13,
 } as const;
-export const PROP_KINDS = 13;
+export const PROP_KINDS = 14;
 export const PROP_STRIDE = 9;
 
 /** Kinds drawn only within smallPropDistance (the rest within propDistance). */
-export const PROP_SMALL = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0];
+export const PROP_SMALL = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1];

@@ -226,7 +226,10 @@ export class TrafficPlan {
     return !(L.expressX(I) && Math.abs(x0 - I * S) < OVAL_R + 30);
   }
 
-  /** A street lane, clipped to the stretches of road (off the bay and short of the shore). */
+  /**
+   * A street lane, clipped to the stretches of road (off the bay, short of the shore, and not
+   * over a river without a bridge).
+   */
   private street(
     shape: number,
     c: number,
@@ -248,7 +251,11 @@ export class TrafficPlan {
       const s = a + i * 10;
       const x = shape === LINE_Z ? c + off : s;
       const z = shape === LINE_Z ? s : c + off;
-      const land = i < steps && L.shoreDist(x, z) > minSd;
+      // Land, and not a river the road has no bridge over (it ends at the river walk).
+      const land =
+        i < steps &&
+        L.shoreDist(x, z) > minSd &&
+        (L.river(x, z) < 0.001 || L.deckAt(x, z) > -Infinity);
       if (land && Number.isNaN(run)) run = s;
       if (!land && !Number.isNaN(run)) {
         if (s - run > 40)

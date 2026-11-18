@@ -159,9 +159,19 @@ describe('city traffic', () => {
     b.plan(30, -300, 320, 650, 160);
     expect(b.place(12.5, 30, -300, 320, 650, out)).toBe(na);
     expect(out.slice(0, na * VEHICLE_STRIDE)).toEqual(first);
-    // A second later the first car has moved about its speed along its lane.
-    b.place(13.5, 30, -300, 320, 650, out);
-    const moved = Math.hypot(out[1] - first[1], out[3] - first[3]);
+    // A second later the cars (each found by its kind and tint, which is its own) have moved
+    // about their speed along their lanes (one may have left the view or the end of its road).
+    const nc = b.place(13.5, 30, -300, 320, 650, out);
+    let moved = NaN;
+    for (let u = 0; u < na && Number.isNaN(moved); u++) {
+      const f = u * VEHICLE_STRIDE;
+      for (let v = 0; v < nc; v++) {
+        const w = v * VEHICLE_STRIDE;
+        if (out[w] !== first[f] || out[w + 6] !== first[f + 6]) continue;
+        moved = Math.hypot(out[w + 1] - first[f + 1], out[w + 3] - first[f + 3]);
+        break;
+      }
+    }
     expect(moved).toBeGreaterThan(5);
     expect(moved).toBeLessThan(30);
   });

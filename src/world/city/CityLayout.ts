@@ -2590,8 +2590,8 @@ export class CityLayout implements HarbourSink {
     const S = this.S;
     const ax = I * S;
     const az = J * S;
-    this.bridgeLine(sb, ax, az, 0, S, true, this.AH, true);
-    this.bridgeLine(sb, ax, az, 0, S, false, this.AH, true);
+    this.bridgeLine(sb, ax, az, 0, S, true, this.AH, this.avenueBridged(I, J, true));
+    this.bridgeLine(sb, ax, az, 0, S, false, this.AH, this.avenueBridged(I, J, false));
     if (this.superKind(I, J) !== 0) return;
     for (let k = 0; k < 2; k++) {
       const c = k === 0 ? this.c1 : this.c2;
@@ -2607,6 +2607,15 @@ export class CityLayout implements HarbourSink {
    * streets mostly end at the river walk, so only some of them get one (`Config.city
    * .streetBridges`), and a river runs long stretches between its bridges.
    */
+  /**
+   * Whether the avenue a superblock owns (north-south on its west edge, east-west on its south
+   * edge) crosses a river there on a bridge (`Config.city.avenueBridges`: all of them at 1; a
+   * big river's sparse bridges below that). One without stops at the river walk on each bank.
+   */
+  private avenueBridged(I: number, J: number, northSouth: boolean): boolean {
+    return hash2(I * 2 + (northSouth ? 0 : 1), J, this.seed + 762) < Config.city.avenueBridges;
+  }
+
   private streetBridged(I: number, J: number, northSouth: boolean, k: number): boolean {
     return hash2(I * 4 + (northSouth ? 0 : 2) + k, J, this.seed + 761) < Config.city.streetBridges;
   }
@@ -2852,7 +2861,11 @@ export class CityLayout implements HarbourSink {
     const ns = Math.abs(dir.z) >= ACROSS; // a north-south road crosses this stretch
     const ew = Math.abs(dir.x) >= ACROSS;
     const a = this.AH + m;
-    if ((ns && (u < a || u > S - a)) || (ew && (v < a || v > S - a))) return true;
+    // An avenue on a superblock's west (south) edge belongs to that superblock.
+    if (ns && u < a && this.avenueBridged(I, J, true)) return true;
+    if (ns && u > S - a && this.avenueBridged(I + 1, J, true)) return true;
+    if (ew && v < a && this.avenueBridged(I, J, false)) return true;
+    if (ew && v > S - a && this.avenueBridged(I, J + 1, false)) return true;
     if (this.superKind(I, J) !== 0) return false;
     // Only the side streets that have a bridge here.
     const w = this.SH + 2.5 + m;

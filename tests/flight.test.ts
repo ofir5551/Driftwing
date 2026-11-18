@@ -131,6 +131,23 @@ describe('FlightModel', () => {
     expect(s.y).toBeGreaterThan(84);
   });
 
+  it('keeps a press that comes just before the cooldown ends, drops one well before it', () => {
+    const { flapCooldown, flapBuffer } = Config.flight;
+    const tapAt = (t: number) => {
+      const s = createFlightState(0, 150, 0);
+      stepFlight(s, input(0, 0, true), flat(-50), DT); // the first flap
+      let flaps = 0;
+      for (let k = 1; k * DT < flapCooldown + 0.3; k++) {
+        const press = Math.abs(k * DT - t) < DT / 2;
+        stepFlight(s, input(0, 0, press), flat(-50), DT);
+        if (s.flapped) flaps++;
+      }
+      return flaps;
+    };
+    expect(tapAt(flapCooldown - flapBuffer * 0.5)).toBe(1); // kept: flaps when the cooldown ends
+    expect(tapAt(flapCooldown - flapBuffer - 0.1)).toBe(0); // too early: dropped
+  });
+
   it('nonstop flapping is a burst, not a dive: it stops adding speed at the cap', () => {
     const cap = Config.flight.flapSpeedCap;
     const { s } = run(createFlightState(0, 150, 0), 20, input(0, 0, true));

@@ -90,6 +90,8 @@ export interface FlightState {
   turnSpring: Spring; // x = current yaw rate (rad/s), +left
   bankSpring: Spring;
   flapTimer: number; // cooldown remaining
+  /** A press that came just before the cooldown ended: it flaps as soon as it does. */
+  flapQueued: boolean;
   /** Seconds since the last flap; Bird uses it to animate the wing beat. */
   sinceFlap: number;
   /** Set during a step: what the bird touched (for SFX/FX). */
@@ -130,6 +132,7 @@ export function createFlightState(
     turnSpring: { x: 0, v: 0 },
     bankSpring: { x: 0, v: 0 },
     flapTimer: 0,
+    flapQueued: false,
     sinceFlap: 99,
     contact: 'none',
     contactStrength: 0,
@@ -274,8 +277,13 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // --- Flap ----------------------------------------------------------------------------------
   // Taper the lift near the ceiling so mashing flap cannot punch through it.
   const ceilingFade = 1 - smoothstep(c.maxAltitude - 30, c.maxAltitude, s.y - water);
+  // A press in the last flapBuffer s of the cooldown is kept, not dropped: rhythmic tapping is
+  // never quite in step with the cooldown, and a lost tap reads as the game ignoring you. Earlier
+  // presses are still dropped, so a flap never comes long after the tap that asked for it.
+  if (input.flap && s.flapTimer > 0 && s.flapTimer <= c.flapBuffer) s.flapQueued = true;
   s.flapTimer = Math.max(0, s.flapTimer - dt);
-  if (input.flap && s.flapTimer <= 0) {
+  if ((input.flap || s.flapQueued) && s.flapTimer <= 0) {
+    s.flapQueued = false;
     s.flapTimer = flapCooldown;
     s.sinceFlap = 0;
     s.flapped = true;

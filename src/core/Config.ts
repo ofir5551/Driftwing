@@ -25,6 +25,7 @@ export const Config = {
     // out of cruise, and diving stays the way to go really fast (nonstop flaps used to reach ~67)
     flapSpeedCap: 45,
     flapCooldown: 0.45, // s between flaps while held
+    flapBuffer: 0.25, // s before the cooldown ends within which a press is kept and flaps on time
     liftDecay: 1.6, // 1/s, how quickly the extra vertical velocity fades
     climbBeatPitch: 0.12, // rad nose-up (while steering up) above which the bird beats its wings
     climbBeatInterval: 0.4, // s between climb wingbeats

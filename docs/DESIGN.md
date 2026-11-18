@@ -1737,3 +1737,6 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   a burst, and diving is how to go really fast.
 - The loop (flick or double-tap up) is gone, with its camera that watched it from the side, its
   scripted speed and its music run. Up has no trick now; rolls and the dive-bomb remain.
+- Taps faster than the flap cooldown were simply lost, which reads as the game ignoring you. A
+  press in the last `flapBuffer` (0.25 s) of the cooldown is now kept and flaps the moment it ends;
+  earlier presses are still dropped, so no flap comes long after its tap.

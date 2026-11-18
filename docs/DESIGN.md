@@ -175,13 +175,13 @@ surface meets the road a couple of metres past each bank's top and slopes evenly
 heights, painted by the ground's own street pass (lanes, sidewalks, crossings and rails run straight
 over), on a slab with a shadowed beam, parapets at the edges and stone abutments down the banks;
 cars ride that surface. A road meeting the river at a glancing angle (past about 65 degrees from
-square) runs along it and gets no deck, and the embankment runs on past it. Avenues always
-bridge the river; only a fifth of the side streets do (`streetBridges`), the rest end at the
-river walk with its railing in front of them, so the river runs long open stretches: about one
-bridge every 270 m of river (it was one every 125 m when every street crossed). `avenueBridges`
-(1 by default) can leave some avenues without a bridge too, for a big river's sparse crossings
-(half of them: about one every 780 m); such an avenue ends at the river walk on each bank and
-its traffic stops there, as it does wherever a road runs along a river without a deck. North-
+square) runs along it and gets no deck, and the embankment runs on past it. Most avenues and a
+few side streets bridge the river (`avenueBridges` 0.85, `streetBridges` 0.1); the rest end at
+the river walk on each bank, its railing in front of them, and their traffic stops there (as it
+does wherever a road runs along a river without a deck). The river runs long open stretches:
+about one bridge every 340 m of river. It was one every 125 m when every road crossed; players
+asked for fewer, and of four densities shown (125, 265, 360 and 780 m) chose 265 m, spaced a
+little more. North-
 south expressways cross the bay as bridges with no pier on the promenade or the road; east-west
 ones run only on avenues the bay never reaches, so no deck stops in mid-air. Dusk lights the city: a hashed share of windows, shop fronts, neon, lanterns
 and lamp pools on the avenues. Music: night-neon lo-fi at 78 BPM, koto plucks over a mellow

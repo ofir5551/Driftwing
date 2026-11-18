@@ -21,6 +21,9 @@ export const Config = {
     bankOmega: 5, // spring frequency for visual bank
     flapLift: 7.5, // m/s of upward velocity added per flap
     flapBoost: 4, // m/s of forward speed added per flap
+    // m/s above which flaps add no more speed (scaled by the bird's speed): boosting is a burst
+    // out of cruise, and diving stays the way to go really fast (nonstop flaps used to reach ~67)
+    flapSpeedCap: 45,
     flapCooldown: 0.45, // s between flaps while held
     liftDecay: 1.6, // 1/s, how quickly the extra vertical velocity fades
     climbBeatPitch: 0.12, // rad nose-up (while steering up) above which the bird beats its wings
@@ -49,11 +52,6 @@ export const Config = {
     rollAccel: 70, // rad/s^2 spin-up and braking
     rollHop: 5, // m sideways per turn, toward the roll
     maxRolls: 3, // turns a held roll can reach
-    loopRadiusPerSpeed: 0.34, // m of loop radius per m/s of entry speed (a loop takes ~2.4 s)
-    loopMin: 8, // m, smallest loop (a smaller fit becomes no loop at all)
-    loopMax: 26, // m, largest loop (after a fast dive)
-    loopDip: 0.2, // fraction of entry speed lost over the top (it comes back on the way down)
-    loopDrift: 0.18, // forward drift round the loop as a fraction of speed: exits ~1.1 r ahead
     divePitch: 1.2, // rad nose-down in a dive-bomb (~70 deg)
     diveMin: 0.6, // s, shortest stoop (a quick double tap)
     diveScalePerSec: 0.4, // score multiplier gained per second of stoop past diveMin (uncapped while held)
@@ -75,7 +73,6 @@ export const Config = {
     maxFov: 90,
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
-    loopWatch: 2.4, // distance (in loop radii) from which the camera watches a loop
   },
   input: {
     mouseDeadZone: 0.06, // fraction of half-screen

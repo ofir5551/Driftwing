@@ -194,7 +194,6 @@ export class Music {
     };
     if (kind === 'rollR') run([0, 1, 2, 3, 4], d / 4, 0.45);
     else if (kind === 'rollL') run([4, 3, 2, 1, 0], d / 4, 0.45);
-    else if (kind === 'loop') run([0, 2, 4, 6, 7, 6, 4, 2], d / 2, 0.5);
     else run([4, 2, 0], d / 4, 0.35);
   }
 

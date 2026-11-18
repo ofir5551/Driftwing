@@ -15,11 +15,8 @@ export interface Pose {
   pitch: number;
   bank: number;
   speed: number;
-  /** Loop angle on top of pitch, barrel-roll spin on top of bank (see FlightState). */
-  trickPitch: number;
+  /** Barrel-roll spin on top of bank (see FlightState). */
   spin: number;
-  /** Radius of the loop being flown, 0 when not looping (the camera watches loops). */
-  loopR: number;
 }
 
 const DOWNSTROKE = 0.3; // how far the downstroke goes, relative to the upstroke
@@ -541,7 +538,7 @@ export class Bird {
       this.glow.value =
         this.glowBase * (0.86 + 0.09 * Math.sin(time * 7.3) + 0.05 * Math.sin(time * 17.1));
     this.root.position.set(p.x, p.y, p.z);
-    this.root.rotation.set(-(p.pitch + p.trickPitch), p.yaw, p.bank + p.spin, 'YXZ');
+    this.root.rotation.set(-p.pitch, p.yaw, p.bank + p.spin, 'YXZ');
 
     const tuckTarget = WingBeat.tuck(p.speed, p.pitch);
     this.tuck += (tuckTarget - this.tuck) * expDecay(4, dt);

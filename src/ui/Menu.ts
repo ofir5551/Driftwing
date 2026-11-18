@@ -65,22 +65,22 @@ const CONTROLS_HTML = `<h2>Controls</h2>
     <ul class="controls touch-drag">
       <li><b>Drag</b> anywhere to steer, relative to where your finger went down</li>
       <li><b>Tap</b> to flap; keep tapping to keep boosting. One finger does it all</li>
-      <li><b>Flick</b> the steering finger for a trick: left or right rolls, up loops, down dives. Keep pushing to stretch it</li>
+      <li><b>Flick</b> the steering finger for a trick: left or right rolls, down dives. Keep pushing to stretch it</li>
     </ul>
     <ul class="controls touch-dpad">
       <li><b>D-pad</b> under one thumb to steer; rest between two arrows for a diagonal, or slide round without lifting</li>
       <li><b>Boost</b> under the other thumb to flap (hold to keep flapping)</li>
-      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls touch-split">
       <li><b>Two pads</b>: the left one turns <b>left</b>, the right one turns <b>right</b>, and both climb and dive. One works at a time: while you hold one, the other rests. Rest between two arrows for a diagonal, or slide round without lifting</li>
       <li><b>Boost</b> above one of the pads to flap (hold to keep flapping)</li>
-      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls touch-arrows">
       <li><b>Left</b> and <b>right</b> under each thumb, with <b>up</b> and <b>down</b> beside both, so one thumb turns while the other climbs or dives. Slide between them without lifting</li>
       <li><b>Boost</b> above one of the clusters to flap (hold to keep flapping)</li>
-      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, up loops, down dives. Keep holding it to stretch it</li>
+      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls">
       <li><b>Pause</b> with the button at the top right. Its <b>Settings</b> pick <b>Drag</b>, <b>D-pad</b>, <b>Arrows</b> or <b>Split</b> steering, and <b>Left-handed</b> swaps the buttons' sides</li>
@@ -96,7 +96,7 @@ const CONTROLS_HTML = `<h2>Controls</h2>
     <h3>Keyboard</h3>
     <ul class="controls">
       <li><b>WASD</b> or <b>arrows</b> to steer, <b>Space</b> to boost</li>
-      <li><b>Double-tap</b> a direction for a trick: left or right rolls, up loops, down dives</li>
+      <li><b>Double-tap</b> a direction for a trick: left or right rolls, down dives</li>
       <li><b>P</b> or <b>Esc</b> pause · <b>M</b> mute · <b>L</b> lock the pointer</li>
     </ul>
     <h3>Gamepad</h3>

@@ -19,7 +19,8 @@ Soft altitude bounds push back gently. Water contact skims with a splash and a s
 Land never bumps the bird (see "Ground floor" under decisions): it glides above it. Chase camera: spring-damped, FOV widens with speed, follows roll slightly, looks ahead.
 Thermals lift the bird for free. Soft ceiling at 400 m above water, above the cloud layer (300 m in Neon Bay, per level).
 Holding climb makes the bird beat its wings (a small lift and push every 0.4 s, stronger the
-steeper the climb, with a soft whoosh); the flap button stays the big boost. Nose-down pulls
+steeper the climb, with a soft whoosh); the flap button stays the big boost, but a burst out of
+cruise: flaps add no speed past `flapSpeedCap` (45 m/s, scaled per bird), only lift. Nose-down pulls
 harder (1.35x) and speed above cruise bleeds off slowly, so a full dive reaches ~70 m/s
 (cruise 26, top speed 68) with wings fully tucked, and the speed carries into a zoom climb.
 
@@ -1730,3 +1731,9 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - The herd cells (220 m) are wider than a chunk (160 m): a cell belongs to the chunk whose index
   range holds it (the ceil/ceil partition every scatter uses), not the chunk holding its jittered
   centre; checking both dropped most herds.
+- Tapping to boost (drag steering) made nonstop flapping the easy thing to do, and it reached
+  ~67 m/s in level flight while climbing 100 m in 12 s: as fast as a full dive (~70), with
+  height gained instead of spent. Flaps now stop adding speed at `flapSpeedCap` (45 m/s): boost is
+  a burst, and diving is how to go really fast.
+- The loop (flick or double-tap up) is gone, with its camera that watched it from the side, its
+  scripted speed and its music run. Up has no trick now; rolls and the dive-bomb remain.

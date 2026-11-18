@@ -131,6 +131,25 @@ describe('FlightModel', () => {
     expect(s.y).toBeGreaterThan(84);
   });
 
+  it('nonstop flapping is a burst, not a dive: it stops adding speed at the cap', () => {
+    const cap = Config.flight.flapSpeedCap;
+    const { s } = run(createFlightState(0, 150, 0), 20, input(0, 0, true));
+    expect(s.speed).toBeLessThanOrEqual(cap + 1e-6);
+    expect(s.speed).toBeGreaterThan(cap - 8);
+    // A dive still goes well past it.
+    const dive = run(createFlightState(0, 380, 0), 5, input(0, -1)).s;
+    expect(dive.speed).toBeGreaterThan(cap + 15);
+  });
+
+  it('a flap never takes speed away above the cap', () => {
+    const s = createFlightState(0, 150, 0);
+    s.speed = Config.flight.flapSpeedCap + 20;
+    const before = s.speed;
+    stepFlight(s, input(0, 0, true), flat(-50), DT);
+    expect(s.flapped).toBe(true);
+    expect(s.speed).toBeGreaterThan(before - 1);
+  });
+
   it('never goes through the ground; contact is soft', () => {
     const env = flat(20);
     const { s } = run(createFlightState(0, 60, 0), 10, input(0, -1), env);

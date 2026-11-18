@@ -52,9 +52,7 @@ export class Game {
     pitch: 0,
     bank: 0,
     speed: 0,
-    trickPitch: 0,
     spin: 0,
-    loopR: 0,
   };
   readonly chase: ChaseCamera;
   readonly bird = new Bird();
@@ -69,7 +67,6 @@ export class Game {
     pitch: 0,
     bank: 0,
     speed: 0,
-    trickPitch: 0,
     spin: 0,
   };
   private readonly sky = new Sky();
@@ -314,7 +311,6 @@ export class Game {
     p.pitch = s.pitch;
     p.bank = s.bank;
     p.speed = s.speed;
-    p.trickPitch = s.trickPitch;
     p.spin = s.spin;
   }
 
@@ -380,10 +376,8 @@ export class Game {
     o.pitch = lerp(p.pitch, s.pitch, alpha);
     o.bank = lerp(p.bank, s.bank, alpha);
     o.speed = lerp(p.speed, s.speed, alpha);
-    // Trick angles wrap back to 0 when a trick ends (a whole turn), so interpolate the short way.
-    o.trickPitch = p.trickPitch + angleDelta(p.trickPitch, s.trickPitch) * alpha;
+    // The roll's spin wraps back to 0 when it ends (a whole turn), so interpolate the short way.
     o.spin = p.spin + angleDelta(p.spin, s.spin) * alpha;
-    o.loopR = s.trick.kind === 'loop' ? s.trick.radius : 0;
 
     this.day.update(dt, Config.world.dayLength * this.level.dayScale);
     this.bird.update(o, s.sinceFlap + alpha * STEP, s.sinceClimbBeat + alpha * STEP, this.time, dt);

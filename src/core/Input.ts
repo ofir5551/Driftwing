@@ -89,7 +89,7 @@ export class Input {
       if (e.pointerType !== 'mouse') return;
       if (e.button === 0) this.mouseFlap = true;
       if (e.button === 2) {
-        // Right-click: a trick toward wherever the pointer is steering (centred: a loop).
+        // Right-click: a trick toward wherever the pointer is steering (centred or up: none).
         this.rightDown = true;
         this.device = 'mouse';
         const x = this.mx;
@@ -177,8 +177,10 @@ export class Input {
     s.trick = null;
     if (this.pending && this.enabled) {
       s.trick = trickFor(this.pending);
-      this.trickDir = this.pending;
-      s.trickHeld = true;
+      if (s.trick) {
+        this.trickDir = this.pending;
+        s.trickHeld = true;
+      }
     }
     this.pending = null;
     if (Config.input.invertY) y = -y;
@@ -230,10 +232,10 @@ function keyDir(code: string): Dir | null {
   return null;
 }
 
-/** Up (as steered: nose up, so it follows invert-Y) loops, down dive-bombs, sideways rolls. */
-function trickFor(dir: Dir): TrickKind {
+/** Sideways rolls, down (as steered: nose down, so it follows invert-Y) dive-bombs; up has none. */
+function trickFor(dir: Dir): TrickKind | null {
   const inv = Config.input.invertY;
   if (dir === 'left') return 'rollL';
   if (dir === 'right') return 'rollR';
-  return (dir === 'up') !== inv ? 'loop' : 'dive';
+  return (dir === 'up') !== inv ? null : 'dive';
 }

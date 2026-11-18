@@ -175,7 +175,10 @@ surface meets the road a couple of metres past each bank's top and slopes evenly
 heights, painted by the ground's own street pass (lanes, sidewalks, crossings and rails run straight
 over), on a slab with a shadowed beam, parapets at the edges and stone abutments down the banks;
 cars ride that surface. A road meeting the river at a glancing angle (past about 65 degrees from
-square) runs along it and gets no deck, and the embankment runs on past it. North-
+square) runs along it and gets no deck, and the embankment runs on past it. Avenues always
+bridge the river; only a fifth of the side streets do (`streetBridges`), the rest end at the
+river walk with its railing in front of them, so the river runs long open stretches: about one
+bridge every 270 m of river (it was one every 125 m when every street crossed). North-
 south expressways cross the bay as bridges with no pier on the promenade or the road; east-west
 ones run only on avenues the bay never reaches, so no deck stops in mid-air. Dusk lights the city: a hashed share of windows, shop fronts, neon, lanterns
 and lamp pools on the avenues. Music: night-neon lo-fi at 78 BPM, koto plucks over a mellow

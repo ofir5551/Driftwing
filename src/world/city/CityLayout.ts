@@ -2590,13 +2590,25 @@ export class CityLayout implements HarbourSink {
     const S = this.S;
     const ax = I * S;
     const az = J * S;
-    this.bridgeLine(sb, ax, az, 0, S, true, this.AH);
-    this.bridgeLine(sb, ax, az, 0, S, false, this.AH);
+    this.bridgeLine(sb, ax, az, 0, S, true, this.AH, true);
+    this.bridgeLine(sb, ax, az, 0, S, false, this.AH, true);
     if (this.superKind(I, J) !== 0) return;
-    for (const c of [this.c1, this.c2]) {
-      this.bridgeLine(sb, ax + c, az, 0, S, true, this.SH + 2.5);
-      this.bridgeLine(sb, ax, az + c, 0, S, false, this.SH + 2.5);
+    for (let k = 0; k < 2; k++) {
+      const c = k === 0 ? this.c1 : this.c2;
+      const hw = this.SH + 2.5;
+      this.bridgeLine(sb, ax + c, az, 0, S, true, hw, this.streetBridged(I, J, true, k));
+      this.bridgeLine(sb, ax, az + c, 0, S, false, hw, this.streetBridged(I, J, false, k));
     }
+  }
+
+  /**
+   * Whether a local street (the k-th of its superblock, running north-south or east-west)
+   * crosses the river on a bridge. Avenues always do (one every 240 m); a real city's side
+   * streets mostly end at the river walk, so only some of them get one (`Config.city
+   * .streetBridges`), and a river runs long stretches between its bridges.
+   */
+  private streetBridged(I: number, J: number, northSouth: boolean, k: number): boolean {
+    return hash2(I * 4 + (northSouth ? 0 : 2) + k, J, this.seed + 761) < Config.city.streetBridges;
   }
 
   /**
@@ -2606,7 +2618,8 @@ export class CityLayout implements HarbourSink {
    * centre). The deck's road surface meets the ground a little past each bank top and slopes
    * evenly between those two heights; it is drawn by the ground's own material (`decks`), so the
    * lanes, sidewalks and crossings run straight over it. Under it: a slab, a shadowed beam,
-   * stone abutments down each bank, and parapets at the edges.
+   * stone abutments down each bank, and parapets at the edges. A street without a bridge
+   * (`bridged` false) ends at each bank instead (`deadEnd`).
    */
   private bridgeLine(
     sb: Superblock,
@@ -2616,6 +2629,7 @@ export class CityLayout implements HarbourSink {
     a1: number,
     northSouth: boolean,
     hw: number,
+    bridged: boolean,
   ): void {
     const px = (s: number, t: number) => (northSouth ? x + t : x + s);
     const pz = (s: number, t: number) => (northSouth ? z + s : z + t);
@@ -2664,8 +2678,46 @@ export class CityLayout implements HarbourSink {
       // (it would roof the river over).
       this.bankDist(px(mid, 0), pz(mid, 0), this.dir);
       if (Math.abs(northSouth ? this.dir.z : this.dir.x) < ACROSS) continue;
-      this.bridge(sb, px, pz, northSouth, hw, sA - 2, sB + 2, cA, cB);
+      if (bridged) this.bridge(sb, px, pz, northSouth, hw, sA - 2, sB + 2, cA, cB);
+      else for (const e of [sA, sB]) this.deadEnd(sb, px(e, 0), pz(e, 0), northSouth, hw);
     }
+  }
+
+  /**
+   * Where a street ends at the river: the embankment runs on across its end, with the walk's
+   * railing along its edge in front of the street. (x, z) is the street's centre line just over
+   * the top of the bank.
+   */
+  private deadEnd(sb: Superblock, x: number, z: number, northSouth: boolean, hw: number): void {
+    const dir = this.dir;
+    const d = this.bankDist(x, z, dir);
+    const w = this.bankW;
+    if (w > 30) return;
+    // On the wall's coping, 0.3 m in from its face; as long as the street is wide where it
+    // meets the bank at a slant.
+    const k = -w + 0.3 - d;
+    const rx = x + dir.x * k;
+    const rz = z + dir.z * k;
+    const top = this.wallTop(rx, rz, -w + 0.3, dir);
+    if (top < Config.world.waterLevel + 1) return;
+    const across = Math.max(0.42, Math.abs(northSouth ? dir.z : dir.x));
+    const tx = -dir.z;
+    const tz = dir.x;
+    const len = (2 * hw + 3) / across;
+    this.part(
+      sb,
+      MESH.BOX,
+      rx,
+      top,
+      rz,
+      len,
+      1.05,
+      0.12,
+      Math.atan2(-tz, tx),
+      0xd9d4cc,
+      STYLE.PLAIN,
+      0,
+    );
   }
 
   /** A bridge from s0 to s1 along its line (channel from cA to cB); see `bridgeLine`. */
@@ -2788,7 +2840,8 @@ export class CityLayout implements HarbourSink {
   /**
    * On a road that crosses the river on a bridge (within m of its deck's sides), where the river
    * runs across `dir` (its bank's normal). Roads meeting it at a glancing angle have no deck
-   * (see `bridgeLine`), so the embankment runs on past them.
+   * (see `bridgeLine`), nor do most side streets (`streetBridged`), so the embankment runs on
+   * past them.
    */
   private bridgeRoad(x: number, z: number, m: number, dir: { x: number; z: number }): boolean {
     const S = this.S;
@@ -2801,11 +2854,14 @@ export class CityLayout implements HarbourSink {
     const a = this.AH + m;
     if ((ns && (u < a || u > S - a)) || (ew && (v < a || v > S - a))) return true;
     if (this.superKind(I, J) !== 0) return false;
+    // Only the side streets that have a bridge here.
     const w = this.SH + 2.5 + m;
-    return (
-      (ns && (Math.abs(u - this.c1) < w || Math.abs(u - this.c2) < w)) ||
-      (ew && (Math.abs(v - this.c1) < w || Math.abs(v - this.c2) < w))
-    );
+    for (let k = 0; k < 2; k++) {
+      const c = k === 0 ? this.c1 : this.c2;
+      if (ns && Math.abs(u - c) < w && this.streetBridged(I, J, true, k)) return true;
+      if (ew && Math.abs(v - c) < w && this.streetBridged(I, J, false, k)) return true;
+    }
+    return false;
   }
 
   /**

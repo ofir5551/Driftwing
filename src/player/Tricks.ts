@@ -5,26 +5,22 @@ import type { FlightEnv, FlightState } from './FlightModel';
  * Tricks: authored manoeuvres layered on the glide model. Pure (no Three.js, no DOM).
  *
  * A trick never takes the bird away from the player for long and can't fail: it owns only the
- * parts of the motion it shapes (spin for a roll, the loop angle and speed for a loop, the nose
- * for a dive-bomb) while the flight model keeps integrating everything else. Sizes are set by
- * the player: holding the gesture adds rolls or lengthens a dive, and entry speed sizes a loop.
+ * parts of the motion it shapes (spin for a roll, the nose for a dive-bomb) while the flight
+ * model keeps integrating everything else. Sizes are set by the player: holding the gesture adds
+ * rolls or lengthens a dive. (There is no loop: it was removed, so "up" has no trick.)
  */
-export type TrickKind = 'rollL' | 'rollR' | 'loop' | 'dive';
+export type TrickKind = 'rollL' | 'rollR' | 'dive';
 
 export interface TrickState {
   kind: TrickKind | null;
   /** Seconds since the trick began. */
   t: number;
-  /** Roll: spin so far (rad, unsigned). Loop: angle round the circle (rad). */
+  /** Roll: spin so far (rad, unsigned). */
   angle: number;
   /** Roll: spin rate (rad/s). */
   rate: number;
   /** Roll: rolls committed (the hold adds more). */
   turns: number;
-  /** Loop: radius (m). */
-  radius: number;
-  /** Loop: speed on entry (it leaves at the same speed). */
-  entrySpeed: number;
   /** Dive-bomb: true once the stoop is over and the bird is pulling out. */
   pulling: boolean;
   /** Dive-bomb: seconds spent stooping (its size). */
@@ -32,7 +28,7 @@ export interface TrickState {
   cooldown: number;
   /** Set only on the step a trick began. */
   started: TrickKind | null;
-  /** Set only on the step a trick ended, with `size` (rolls, loop radius, stoop seconds). */
+  /** Set only on the step a trick ended, with `size` (rolls, stoop seconds). */
   finished: TrickKind | null;
   size: number;
 }
@@ -44,8 +40,6 @@ export function createTrickState(): TrickState {
     angle: 0,
     rate: 0,
     turns: 0,
-    radius: 0,
-    entrySpeed: 0,
     pulling: false,
     stoop: 0,
     cooldown: 0,
@@ -60,48 +54,12 @@ const TAU = Math.PI * 2;
 const surface = (env: FlightEnv, x: number, z: number): number =>
   Math.max(env.groundAt(x, z), Config.world.waterLevel);
 
-/**
- * The largest loop radius up to `r` that clears the ground all the way round (sampled on the
- * predicted circle, drift included) and fits under the ceiling. 0 if not even a small loop fits.
- */
-export function fitLoop(s: FlightState, env: FlightEnv, r: number): number {
-  const c = Config.tricks;
-  const room = Config.world.waterLevel + Config.flight.maxAltitude - 8 - s.y;
-  // The loop must stay above the land floor as well as the old skim margin over water.
-  const clearBelow = Math.max(Config.flight.clearance * 2, Config.flight.groundHeight);
-  r = Math.min(r, room / 2);
-  const fx = Math.sin(s.yaw);
-  const fz = Math.cos(s.yaw);
-  for (let tries = 0; tries < 3 && r >= c.loopMin * 0.75; tries++, r *= 0.75) {
-    let clear = true;
-    for (let k = 1; k < 12 && clear; k++) {
-      const a = (k / 12) * TAU;
-      // Ahead by the circle plus the drift so far; drift time ~ arc length / speed.
-      const f = r * Math.sin(a) + c.loopDrift * r * a;
-      const up = r * (1 - Math.cos(a));
-      if (surface(env, s.x + fx * f, s.z + fz * f) + clearBelow > s.y + up) clear = false;
-    }
-    if (clear) return r;
-  }
-  return 0;
-}
-
 /** Start a trick if none is running. Returns false when it can't be done here (no room). */
 export function startTrick(s: FlightState, kind: TrickKind, env: FlightEnv): boolean {
   const tr = s.trick;
   const c = Config.tricks;
   if (tr.kind !== null || tr.cooldown > 0) return false;
-  if (kind === 'loop') {
-    const r = fitLoop(
-      s,
-      env,
-      Math.min(c.loopMax, Math.max(c.loopMin, s.speed * c.loopRadiusPerSpeed)),
-    );
-    if (r === 0) return false;
-    tr.radius = r;
-    // Speed is scripted round the loop; entering below cruise would make a sluggish circle.
-    tr.entrySpeed = Math.max(s.speed, Config.flight.cruiseSpeed * s.tune.speed * 0.9);
-  } else if (kind === 'dive') {
+  if (kind === 'dive') {
     if (s.y - surface(env, s.x, s.z) < c.diveMinHeight) return false;
     s.speed += c.diveBoost;
     tr.pulling = false;
@@ -126,12 +84,11 @@ function finish(s: FlightState, size: number): void {
   tr.kind = null;
   tr.cooldown = Config.tricks.cooldown;
   s.spin = 0;
-  s.trickPitch = 0;
 }
 
 /**
  * Advance the running trick by dt. Called by stepFlight before it shapes pitch and speed, so
- * `trickPitch`, `spin` and the dive phase are current for this step.
+ * `spin` and the dive phase are current for this step.
  */
 export function advanceTrick(s: FlightState, held: boolean, env: FlightEnv, dt: number): void {
   const tr = s.trick;
@@ -158,15 +115,6 @@ export function advanceTrick(s: FlightState, held: boolean, env: FlightEnv, dt: 
       return;
     }
     s.spin = (tr.kind === 'rollR' ? 1 : -1) * tr.angle;
-  } else if (tr.kind === 'loop') {
-    // Constant radius: the angle advances at v / r, so the path is a true circle at any speed.
-    tr.angle += (s.speed / tr.radius) * dt;
-    if (tr.angle >= TAU) {
-      s.speed = tr.entrySpeed;
-      finish(s, tr.radius);
-      return;
-    }
-    s.trickPitch = tr.angle;
   } else {
     if (!tr.pulling) {
       tr.stoop += dt;
@@ -191,30 +139,19 @@ export function advanceTrick(s: FlightState, held: boolean, env: FlightEnv, dt: 
   }
 }
 
-/** Speed round a loop: a gentle dip over the top instead of the stall real energy would give. */
-export function loopSpeed(tr: TrickState): number {
-  return tr.entrySpeed * (1 - Config.tricks.loopDip * 0.5 * (1 - Math.cos(tr.angle)));
-}
-
 /** Rolls either way are one trick for variety scoring. */
 export const trickFamily = (kind: TrickKind): string =>
   kind === 'rollL' || kind === 'rollR' ? 'roll' : kind;
 
-const range01 = (v: number, lo: number, hi: number): number =>
-  Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
-
 /** Score multiplier for a trick's size: committing to a bigger trick pays a little more. */
 export function trickScale(kind: TrickKind, size: number): number {
   const c = Config.tricks;
-  if (kind === 'loop') return 1 + 0.5 * range01(size, c.loopMin, c.loopMax);
   // Unlike the others a dive has no ceiling: the multiplier grows for as long as it is held.
   if (kind === 'dive') return 1 + c.diveScalePerSec * Math.max(0, size - c.diveMin);
   return 1 + 0.4 * (size - 1);
 }
 
 export function trickName(kind: TrickKind, size: number): string {
-  const c = Config.tricks;
-  if (kind === 'loop') return range01(size, c.loopMin, c.loopMax) > 0.6 ? 'Big loop' : 'Loop';
   if (kind === 'dive') return size > 1.6 ? 'Long dive-bomb' : 'Dive-bomb';
   return size >= 3 ? 'Triple roll' : size >= 2 ? 'Double roll' : 'Barrel roll';
 }

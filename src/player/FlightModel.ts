@@ -3,7 +3,6 @@ import { clamp, expDecay, smoothstep, springStep, type Spring } from '../core/ma
 import {
   advanceTrick,
   createTrickState,
-  loopSpeed,
   startTrick,
   type TrickKind,
   type TrickState,
@@ -91,6 +90,8 @@ export interface FlightState {
   turnSpring: Spring; // x = current yaw rate (rad/s), +left
   bankSpring: Spring;
   flapTimer: number; // cooldown remaining
+  /** A press that came just before the cooldown ended: it flaps as soon as it does. */
+  flapQueued: boolean;
   /** Seconds since the last flap; Bird uses it to animate the wing beat. */
   sinceFlap: number;
   /** Set during a step: what the bird touched (for SFX/FX). */
@@ -105,8 +106,6 @@ export interface FlightState {
   /** True only on the step a climb wingbeat fired. */
   climbBeat: boolean;
   trick: TrickState;
-  /** Extra pitch from a loop (0..2pi), on top of `pitch`, which stays the gliding pitch. */
-  trickPitch: number;
   /** Extra roll from a barrel roll, on top of `bank` (so the camera doesn't follow it). */
   spin: number;
   /** The bird's own flight (read every step, so the debug panel retunes it live). */
@@ -133,6 +132,7 @@ export function createFlightState(
     turnSpring: { x: 0, v: 0 },
     bankSpring: { x: 0, v: 0 },
     flapTimer: 0,
+    flapQueued: false,
     sinceFlap: 99,
     contact: 'none',
     contactStrength: 0,
@@ -141,7 +141,6 @@ export function createFlightState(
     sinceClimbBeat: 99,
     climbBeat: false,
     trick: createTrickState(),
-    trickPitch: 0,
     spin: 0,
     tune,
   };
@@ -185,7 +184,6 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   advanceTrick(s, input.trickHeld ?? false, env, dt);
   if (input.trick) startTrick(s, input.trick, env);
   const tr = s.trick;
-  const looping = tr.kind === 'loop';
   const diving = tr.kind === 'dive';
 
   // --- Pitch -------------------------------------------------------------------------------
@@ -195,10 +193,8 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const steerY = clamp(input.steerY, -1, 1);
   let targetPitch = steerY > 0 ? steerY * c.maxClimb * climbAuthority : steerY * c.maxDive;
   if (s.speed < minSpeed) targetPitch -= (minSpeed - s.speed) * 0.04;
-  // A loop carries the nose round in trickPitch; the gliding pitch eases level underneath it.
   // A dive-bomb holds the nose down, then pulls out firmly (terrain assist still applies).
-  if (looping) targetPitch = 0;
-  else if (diving)
+  if (diving)
     targetPitch = tr.pulling
       ? Config.tricks.pullPitch * (1 - tr.t / Config.tricks.pullTime)
       : -Config.tricks.divePitch;
@@ -217,7 +213,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     needed = Math.max(needed, Math.max(g, water) + margin);
   }
   const shortfall = needed - s.y;
-  if (shortfall > 0 && !looping) {
+  if (shortfall > 0) {
     targetPitch = Math.max(
       targetPitch,
       Math.min(c.maxClimb, (shortfall / ahead) * c.terrainAssist),
@@ -229,7 +225,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // Water is left out on purpose: skimming and splashing there is part of the game.
   const here = env.groundAt(s.x, s.z);
   const land = landWeight(here);
-  if (land > 0 && !looping) {
+  if (land > 0) {
     // Judge the height we will have in `groundLead` seconds at the current sink rate, not the one
     // we have now: the pitch spring lags, so a steep dive must start easing out well before the floor.
     const sink = Math.max(0, -(Math.sin(s.pitch) * s.speed + s.liftVy));
@@ -249,8 +245,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // The yaw *rate* follows the input through a critically damped spring: turns ease in and out
   // with no overshoot, and releasing input naturally levels the wings because bank is derived
   // from the current turn rate.
-  // No turning round a loop: yawing while inverted would scramble the circle.
-  const steerX = looping ? 0 : clamp(input.steerX, -1, 1);
+  const steerX = clamp(input.steerX, -1, 1);
   springStep(s.turnSpring, -steerX * c.maxTurnRate * m.turn, c.turnOmega * m.turn, dt);
   s.yaw += s.turnSpring.x * dt;
   const targetBank = clamp(-s.turnSpring.x * c.bankPerTurn, -c.maxBank, c.maxBank);
@@ -277,18 +272,25 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     const h = s.y - water - c.clearance;
     if (h < c.skimHeight) accel += m.waterSkim * (1 - Math.max(0, h) / c.skimHeight);
   }
-  s.speed = looping ? loopSpeed(tr) : Math.max(minSpeed * 0.6, s.speed + accel * dt);
+  s.speed = Math.max(minSpeed * 0.6, s.speed + accel * dt);
 
   // --- Flap ----------------------------------------------------------------------------------
   // Taper the lift near the ceiling so mashing flap cannot punch through it.
   const ceilingFade = 1 - smoothstep(c.maxAltitude - 30, c.maxAltitude, s.y - water);
+  // A press in the last flapBuffer s of the cooldown is kept, not dropped: rhythmic tapping is
+  // never quite in step with the cooldown, and a lost tap reads as the game ignoring you. Earlier
+  // presses are still dropped, so a flap never comes long after the tap that asked for it.
+  if (input.flap && s.flapTimer > 0 && s.flapTimer <= c.flapBuffer) s.flapQueued = true;
   s.flapTimer = Math.max(0, s.flapTimer - dt);
-  if (input.flap && s.flapTimer <= 0 && !looping) {
+  if ((input.flap || s.flapQueued) && s.flapTimer <= 0) {
+    s.flapQueued = false;
     s.flapTimer = flapCooldown;
     s.sinceFlap = 0;
     s.flapped = true;
     s.liftVy = Math.min(s.liftVy + flapLift * ceilingFade, flapLift * 1.6);
-    s.speed = Math.min(s.speed + c.flapBoost, maxSpeed + 4);
+    // Past the cap a flap only lifts: it never takes speed away, it just stops adding it.
+    const cap = c.flapSpeedCap * m.speed;
+    if (s.speed < cap) s.speed = Math.min(s.speed + c.flapBoost, cap);
   }
 
   // --- Climb wingbeats -----------------------------------------------------------------------
@@ -315,25 +317,19 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   }
 
   // --- Vertical extras: thermals and soft bounds ---------------------------------------------
-  // Round a loop the circle is the whole motion (its room was checked on entry).
-  if (!looping) {
-    s.liftVy += env.thermalAt(s.x, s.y, s.z) * m.thermal * dt;
-    const minY = water + c.minAltitude;
-    if (s.y < minY) s.liftVy += (minY - s.y) * c.boundsPush * 20 * dt;
-    if (over > 0) s.liftVy -= over * c.boundsPush * 20 * dt;
-  }
+  s.liftVy += env.thermalAt(s.x, s.y, s.z) * m.thermal * dt;
+  const minY = water + c.minAltitude;
+  if (s.y < minY) s.liftVy += (minY - s.y) * c.boundsPush * 20 * dt;
+  if (over > 0) s.liftVy -= over * c.boundsPush * 20 * dt;
   s.liftVy -= s.liftVy * expDecay(c.liftDecay, dt);
 
   // --- Integrate -----------------------------------------------------------------------------
-  const pitch = s.pitch + s.trickPitch;
-  const cp = Math.cos(pitch);
-  const vy = Math.sin(pitch) * s.speed + s.liftVy;
-  // A loop drifts forward so it comes out a little ahead of where it went in; a roll hops
-  // sideways (to its own side) by rollHop per turn.
-  let along = cp * s.speed;
+  const cp = Math.cos(s.pitch);
+  const vy = Math.sin(s.pitch) * s.speed + s.liftVy;
+  // A roll hops sideways (to its own side) by rollHop per turn.
+  const along = cp * s.speed;
   let side = 0;
-  if (looping) along += Config.tricks.loopDrift * s.speed;
-  else if (tr.kind === 'rollL' || tr.kind === 'rollR')
+  if (tr.kind === 'rollL' || tr.kind === 'rollR')
     side =
       ((tr.kind === 'rollR' ? 1 : -1) * Config.tricks.rollHop * m.rollHop * tr.rate) /
       (Math.PI * 2);
@@ -356,7 +352,7 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
     s.contactStrength = Math.max(0, -vy);
     s.y = floor;
     // Either way the nose comes up a little, so the bird levels out instead of grinding down.
-    if (s.pitchSpring.x < 0 && !looping) {
+    if (s.pitchSpring.x < 0) {
       s.pitchSpring.x *= 0.5;
       s.pitchSpring.v = Math.max(s.pitchSpring.v, 0.8);
     }
@@ -370,10 +366,9 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
 
 /** Unit forward vector of the nose, written into `out` (no allocation). */
 export function forwardOf(s: FlightState, out: { x: number; y: number; z: number }): void {
-  const pitch = s.pitch + s.trickPitch;
-  const cp = Math.cos(pitch);
+  const cp = Math.cos(s.pitch);
   out.x = Math.sin(s.yaw) * cp;
-  out.y = Math.sin(pitch);
+  out.y = Math.sin(s.pitch);
   out.z = Math.cos(s.yaw) * cp;
 }
 

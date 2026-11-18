@@ -167,7 +167,7 @@ const flapHint = () =>
     ? 'Hold Space or click to boost'
     : settings.touchSteer !== 'drag'
       ? 'Tap Boost to flap'
-      : 'Tap with a second finger to boost';
+      : 'Keep tapping the screen to boost';
 
 const handlers: MenuHandlers = {
   play() {

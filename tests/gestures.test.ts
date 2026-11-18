@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
-import { DoubleTap, Flick, nearest, padPress } from '../src/core/Gestures';
+import { DoubleTap, Flick, TapFlap, nearest, padPress } from '../src/core/Gestures';
 
 describe('DoubleTap', () => {
   it('fires on two presses of one direction inside the window', () => {
@@ -101,5 +101,58 @@ describe('nearest', () => {
     expect(nearest(xs, ys, 95, 80)).toBe(2);
     expect(nearest(xs, ys, 140, -60)).toBe(1); // far above and inside: still up
     expect(nearest(xs, ys, -40, 55)).toBe(0); // off the outer edge: still the turn
+  });
+});
+
+describe('TapFlap', () => {
+  const { tapMax, tapSlop, tapChain } = Config.input;
+
+  it('flaps once when a quick, still tap lifts', () => {
+    const t = new TapFlap();
+    expect(t.down(100, 100, 1)).toBe(false);
+    t.move(100 + tapSlop * 0.5, 100);
+    expect(t.up(1 + tapMax * 0.5)).toBe(true);
+  });
+
+  it('never flaps for a drag or a long press', () => {
+    const t = new TapFlap();
+    t.down(100, 100, 1);
+    t.move(100, 100 + tapSlop * 2);
+    t.move(100, 100); // back where it started: still a drag
+    expect(t.up(1.1)).toBe(false);
+    t.down(100, 100, 5);
+    expect(t.up(5 + tapMax * 1.5)).toBe(false);
+  });
+
+  it('flaps as it lands while tapping in a rhythm, and only once per tap', () => {
+    const t = new TapFlap();
+    let at = 0;
+    t.down(0, 0, at);
+    expect(t.up((at += 0.08))).toBe(true);
+    for (let i = 0; i < 4; i++) {
+      expect(t.down(3, 2, (at += tapChain * 0.5))).toBe(true);
+      expect(t.up((at += 0.08))).toBe(false);
+    }
+    // A pause ends the run: the next tap flaps on lifting again.
+    expect(t.down(0, 0, (at += tapChain * 2))).toBe(false);
+    expect(t.up(at + 0.08)).toBe(true);
+  });
+
+  it('lets a chained touch carry on into a drag, which breaks the run', () => {
+    const t = new TapFlap();
+    t.down(0, 0, 0);
+    t.up(0.08);
+    expect(t.down(0, 0, 0.2)).toBe(true); // boost...
+    t.move(80, 0); // ...then steer
+    expect(t.up(1.5)).toBe(false);
+    expect(t.down(0, 0, 1.6)).toBe(false);
+  });
+
+  it('forgets the run on reset', () => {
+    const t = new TapFlap();
+    t.down(0, 0, 0);
+    t.up(0.08);
+    t.reset();
+    expect(t.down(0, 0, 0.2)).toBe(false);
   });
 });

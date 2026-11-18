@@ -36,51 +36,6 @@ function perform(s: FlightState, kind: TrickKind, hold = 0, env = flat(-50)) {
   return { ...out, minY, contacts };
 }
 
-describe('loop', () => {
-  it('draws a circle and comes out on the same heading, a little ahead, at about the same height', () => {
-    const s = createFlightState(0, 100, 0, 0);
-    const r = perform(s, 'loop');
-    expect(r.started).toBe(true);
-    expect(r.finished).toBe('loop');
-    const radius = Config.flight.cruiseSpeed * Config.tricks.loopRadiusPerSpeed;
-    expect(r.size).toBeCloseTo(radius, 1);
-    expect(r.maxY - 100).toBeGreaterThan(radius * 1.8);
-    expect(r.maxY - 100).toBeLessThan(radius * 2.2);
-    expect(Math.abs(s.y - 100)).toBeLessThan(4);
-    expect(s.yaw).toBeCloseTo(0, 3);
-    expect(s.z).toBeGreaterThan(radius * 0.5);
-    expect(s.trickPitch).toBe(0);
-    expect(s.speed).toBeGreaterThan(Config.flight.cruiseSpeed * 0.85);
-  });
-
-  it('is bigger when entered fast', () => {
-    const s = createFlightState(0, 120, 0, 0);
-    s.speed = 60;
-    const r = perform(s, 'loop');
-    expect(r.size).toBeCloseTo(
-      Math.min(Config.tricks.loopMax, 60 * Config.tricks.loopRadiusPerSpeed),
-    );
-  });
-
-  it('shrinks to fit under the ceiling, and refuses when even a small one would not fit', () => {
-    const ceiling = Config.world.waterLevel + Config.flight.maxAltitude;
-    const s = createFlightState(0, ceiling - 50, 0, 0);
-    s.speed = 60;
-    const r = perform(s, 'loop');
-    expect(r.finished).toBe('loop');
-    expect(r.size).toBeLessThanOrEqual(21);
-    expect(r.maxY).toBeLessThan(ceiling);
-    const high = perform(createFlightState(0, ceiling - 12, 0, 0), 'loop');
-    expect(high.started).toBe(false);
-  });
-
-  it('refuses where a hill ahead would cut the circle', () => {
-    const hill: FlightEnv = { groundAt: (_x, z) => (z > 5 ? 110 : 0), thermalAt: () => 0 };
-    const r = perform(createFlightState(0, 100, 0, 0), 'loop', 0, hill);
-    expect(r.started).toBe(false);
-  });
-});
-
 describe('barrel roll', () => {
   it('spins a full turn and hops sideways toward the roll', () => {
     const s = createFlightState(0, 100, 0, 0);
@@ -153,7 +108,7 @@ describe('tricks', () => {
     const s = createFlightState(0, 100, 0, 0);
     const inp: FlightInput = { steerX: 0, steerY: 0, flap: false, trick: 'rollL' };
     stepFlight(s, inp, flat(-50), DT);
-    inp.trick = 'loop';
+    inp.trick = 'dive';
     stepFlight(s, inp, flat(-50), DT);
     expect(s.trick.kind).toBe('rollL');
   });
@@ -164,11 +119,9 @@ describe('trick names and sizes', () => {
     const c = Config.tricks;
     expect(trickName('rollL', 1)).toBe('Barrel roll');
     expect(trickName('rollR', 3)).toBe('Triple roll');
-    expect(trickName('loop', c.loopMax)).toBe('Big loop');
     expect(trickName('dive', 3)).toBe('Long dive-bomb');
     expect(trickScale('rollL', 1)).toBe(1);
     expect(trickScale('rollL', 2)).toBeGreaterThan(1);
-    expect(trickScale('loop', c.loopMax)).toBeCloseTo(1.5);
     expect(trickScale('dive', c.diveMin)).toBe(1);
     expect(trickScale('dive', c.diveMin + 5)).toBeCloseTo(1 + 5 * c.diveScalePerSec); // no ceiling
   });

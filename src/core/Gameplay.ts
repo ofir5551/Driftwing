@@ -345,7 +345,7 @@ export class Gameplay {
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);
     const cam = g.chase.camera.position;
-    // Tricks draw bright ribbons: a roll leaves a spiral, a loop a ring.
+    // Tricks draw bright ribbons: a roll leaves a spiral.
     const trailIntensity =
       g.flight.trick.kind !== null
         ? 0.9
@@ -358,10 +358,9 @@ export class Gameplay {
       this.wispColor,
       this.progress.flow,
     );
-    const pitch = pose.pitch + pose.trickPitch;
-    const cp = Math.cos(pitch);
+    const cp = Math.cos(pose.pitch);
     this.vel
-      .set(Math.sin(pose.yaw) * cp, Math.sin(pitch), Math.cos(pose.yaw) * cp)
+      .set(Math.sin(pose.yaw) * cp, Math.sin(pose.pitch), Math.cos(pose.yaw) * cp)
       .multiplyScalar(pose.speed);
     this.shedEmbers(dt, pose.x, pose.y, pose.z, pose.yaw, density);
     this.wind.update(

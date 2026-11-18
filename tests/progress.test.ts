@@ -93,7 +93,7 @@ describe('Progress / lanterns', () => {
 describe('Progress / tricks', () => {
   it('counts landed tricks for the flight', () => {
     const p = new Progress();
-    p.trick('loop', 1);
+    p.trick('dive', 1);
     p.trick('roll', 1);
     expect(p.tricks).toBe(2);
     p.reset();
@@ -102,7 +102,7 @@ describe('Progress / tricks', () => {
 
   it('a trick builds flow and points but no lantern progress', () => {
     const p = new Progress();
-    const { points } = p.trick('loop', 1);
+    const { points } = p.trick('dive', 1);
     expect(points).toBeGreaterThan(FlowTuning.basePoints);
     expect(p.flow).toBeGreaterThan(FlowTuning.gain);
     expect(p.count).toBe(0);
@@ -112,7 +112,7 @@ describe('Progress / tricks', () => {
     const p = new Progress();
     p.trick('roll', 1);
     expect(p.trick('roll', 1).variety).toBe(FlowTuning.trickRepeat);
-    expect(p.trick('loop', 1).variety).toBe(FlowTuning.trickVariety);
+    expect(p.trick('dive', 1).variety).toBe(FlowTuning.trickVariety);
     expect(p.trick('roll', 1).variety).toBe(1); // one of the last two
   });
 

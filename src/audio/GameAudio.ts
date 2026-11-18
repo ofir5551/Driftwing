@@ -33,7 +33,7 @@ export class GameAudio {
     game.events.on('trickStart', (e) => {
       this.music.trick(e.kind);
       if (e.kind === 'dive') this.sfx.dive();
-      else if (e.kind !== 'loop') this.sfx.roll();
+      else this.sfx.roll();
     });
     game.events.on('trick', (e) => this.music.land(e.kind));
     game.events.on('unlock', () => this.music.unlocked());

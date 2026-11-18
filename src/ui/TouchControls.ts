@@ -1,5 +1,5 @@
 import { Config } from '../core/Config';
-import { Flick, type Dir } from '../core/Gestures';
+import { Flick, TapFlap, type Dir } from '../core/Gestures';
 import { clamp } from '../core/math';
 import type { TouchSteer } from '../core/Settings';
 import { ArrowClusters, SIDE_ARROWS } from './ArrowClusters';
@@ -9,9 +9,9 @@ import { DirectionPad, type SteerHandlers } from './DirectionPad';
 /**
  * Touch: drag anywhere to steer, relative to where the finger went down (a floating stick).
  * Works in portrait and landscape because nothing is anchored to a fixed stick position.
- * While one finger steers, a second finger touching anywhere else flaps (held = repeat), so
- * there is no button to find and nothing covers the view. A fast flick of the steering finger
- * is a trick gesture (see Gestures). The Steering setting can swap all of this for on-screen
+ * It is one-handed: quick taps of that same finger flap, and tapping in a rhythm keeps boosting
+ * (see TapFlap), so there is no button to find and nothing covers the view. Other fingers are
+ * ignored. A fast flick of the steering finger is a trick gesture (see Gestures). The Steering setting can swap all of this for on-screen
  * buttons, a D-pad (DirectionPad), side arrows (ArrowClusters) or split, two D-pads (the left
  * one without a right turn, the right one without a left, one in use at a time), plus a Boost
  * button; touches elsewhere then do nothing.
@@ -19,7 +19,7 @@ import { DirectionPad, type SteerHandlers } from './DirectionPad';
 export class TouchControls {
   steerX = 0;
   steerY = 0;
-  /** Held flap (second finger), or a tap too quick for the 60 Hz step to see. */
+  /** Held flap (Boost button), or a flap too quick for the 60 Hz step to see (latched). */
   get flap(): boolean {
     const f = this.held || this.tap;
     this.tap = false;
@@ -28,6 +28,7 @@ export class TouchControls {
   private held = false;
   private tap = false;
   private readonly flicker = new Flick();
+  private readonly tapper = new TapFlap();
   private trick: Dir | null = null;
   /** Direction of a trick gesture (flick or arrow double tap) since the last call (consumed). */
   takeTrick(): Dir | null {
@@ -39,7 +40,6 @@ export class TouchControls {
   get steering(): boolean {
     return this.steerId !== null;
   }
-  private flapId: number | null = null;
   /** True once any touch has been seen: switches hints/UI to touch mode. */
   active = false;
   private steerId: number | null = null;
@@ -95,12 +95,10 @@ export class TouchControls {
         e.preventDefault();
         if (this.scheme !== 'drag') return;
         for (const t of Array.from(e.changedTouches)) {
-          if (this.steerId !== null && this.flapId === null) {
-            // A second finger anywhere flaps for as long as it stays down.
-            this.flapId = t.identifier;
-            this.setFlap(true);
-          } else if (this.steerId === null) {
+          // One finger: while it is down, other touches do nothing.
+          if (this.steerId === null) {
             this.steerId = t.identifier;
+            if (this.tapper.down(t.clientX, t.clientY, e.timeStamp / 1000)) this.pulseFlap();
             this.ox = t.clientX;
             this.oy = t.clientY;
             this.flicker.start(t.clientX, t.clientY, e.timeStamp / 1000);
@@ -117,6 +115,7 @@ export class TouchControls {
       (e) => {
         for (const t of Array.from(e.changedTouches)) {
           if (t.identifier !== this.steerId) continue;
+          this.tapper.move(t.clientX, t.clientY);
           this.trick = this.flicker.move(t.clientX, t.clientY, e.timeStamp / 1000) ?? this.trick;
           const r = Config.input.touchRadius;
           let dx = (t.clientX - this.ox) / r;
@@ -138,20 +137,17 @@ export class TouchControls {
       },
       { passive: false },
     );
-    const end = (e: TouchEvent) => {
+    const end = (e: TouchEvent, lifted: boolean) => {
       for (const t of Array.from(e.changedTouches)) {
-        if (t.identifier === this.flapId) this.releaseFlap();
-        if (t.identifier === this.steerId) this.releaseSteer();
+        if (t.identifier !== this.steerId) continue;
+        // A cancelled touch (the system took it) never flaps.
+        if (this.tapper.up(e.timeStamp / 1000) && lifted) this.pulseFlap();
+        this.releaseSteer();
       }
     };
-    surface.addEventListener('touchend', end);
-    surface.addEventListener('touchcancel', end);
+    surface.addEventListener('touchend', (e) => end(e, true));
+    surface.addEventListener('touchcancel', (e) => end(e, false));
     if (matchMedia('(pointer: coarse)').matches) this.setActive();
-  }
-
-  private releaseFlap(): void {
-    this.flapId = null;
-    this.setFlap(false);
   }
 
   private releaseSteer(): void {
@@ -162,11 +158,14 @@ export class TouchControls {
   }
 
   private setFlap(down: boolean): void {
-    if (down) {
-      this.tap = true;
-      navigator.vibrate?.(8); // a faint tick where supported (Android); ignored elsewhere
-    }
+    if (down) this.pulseFlap();
     this.held = down;
+  }
+
+  /** One flap, latched until the next step reads it. */
+  private pulseFlap(): void {
+    this.tap = true;
+    navigator.vibrate?.(8); // a faint tick where supported (Android); ignored elsewhere
   }
 
   private setActive(): void {
@@ -183,7 +182,8 @@ export class TouchControls {
     document.body.classList.toggle('steer-arrows', s === 'arrows');
     document.body.classList.toggle('steer-split', s === 'split');
     this.releaseSteer();
-    this.releaseFlap();
+    this.setFlap(false);
+    this.tapper.reset();
     this.setVisible(this.shown);
   }
 

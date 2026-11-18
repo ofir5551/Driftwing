@@ -177,7 +177,7 @@ npm run dev        # http://localhost:5173
 | Action       | Mouse / keyboard                             | Touch                                               | Gamepad    |
 | ------------ | -------------------------------------------- | --------------------------------------------------- | ---------- |
 | Steer        | Pointer offset from centre, or WASD / arrows | Drag anywhere (relative to where you touched)       | Left stick |
-| Boost (flap) | Click or hold Space                          | Tap or hold a second finger while steering          | A / RT     |
+| Boost (flap) | Click or hold Space                          | Tap the screen (keep tapping to keep boosting)      | A / RT     |
 | Buttons mode |                                              | Pause → Settings: D-pad, Arrows, Split; Left-handed |            |
 | Pause        | P or Esc                                     | Pause button (top right)                            | Start      |
 | Mute         | M                                            | Pause → Settings (the speaker)                      |            |

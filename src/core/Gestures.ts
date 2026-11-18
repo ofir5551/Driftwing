@@ -2,8 +2,8 @@ import { Config } from './Config';
 
 /**
  * Touch and trick gestures, kept free of the DOM so they are unit-tested: a double tap of a
- * direction (keys, gamepad stick, D-pad), a flick of the steering finger and the D-pad's
- * eight-way press. Times are in seconds.
+ * direction (keys, gamepad stick, D-pad), a flick of the steering finger, one-finger tap flaps
+ * and the D-pad's eight-way press. Times are in seconds.
  */
 export type Dir = 'left' | 'right' | 'up' | 'down';
 
@@ -65,6 +65,54 @@ export class Flick {
     this.y[this.head] = y;
     this.head = (this.head + 1) % SAMPLES;
     this.n = Math.min(this.n + 1, SAMPLES);
+  }
+}
+
+/**
+ * One-handed flapping for drag steering: the steering finger taps to flap, so no second finger
+ * is needed. A tap is a touch that lifts within Config.input.tapMax having moved less than
+ * tapSlop px; it flaps on lifting, since only then is it known not to be the start of a drag
+ * (drags never flap). Once tapping, a touch landing within tapChain of the last tap's lift
+ * flaps the moment it lands, so tapping in a rhythm feels instant and keeps boosting (the
+ * flight model's flap cooldown paces it). A tap that already flapped on landing doesn't flap
+ * again on lifting, and a chained touch may carry on into a drag: tap, tap, then steer.
+ */
+export class TapFlap {
+  private downAt = 0;
+  private sx = 0;
+  private sy = 0;
+  private moved = false;
+  private flapped = false;
+  private lastTap = -Infinity;
+
+  /** Finger down at (x, y) px. True if it flaps now (it continues a run of taps). */
+  down(x: number, y: number, now: number): boolean {
+    this.downAt = now;
+    this.sx = x;
+    this.sy = y;
+    this.moved = false;
+    this.flapped = now - this.lastTap <= Config.input.tapChain;
+    return this.flapped;
+  }
+
+  /** Finger moved to (x, y) px. Past tapSlop the touch is a drag, not a tap. */
+  move(x: number, y: number): void {
+    const dx = x - this.sx;
+    const dy = y - this.sy;
+    const slop = Config.input.tapSlop;
+    if (dx * dx + dy * dy > slop * slop) this.moved = true;
+  }
+
+  /** Finger lifted. True if it flaps now (a tap that didn't flap on landing). */
+  up(now: number): boolean {
+    const tap = !this.moved && now - this.downAt <= Config.input.tapMax;
+    this.lastTap = tap ? now : -Infinity;
+    return tap && !this.flapped;
+  }
+
+  /** Forget the run (scheme change, controls hidden). */
+  reset(): void {
+    this.lastTap = -Infinity;
   }
 }
 

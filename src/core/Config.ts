@@ -84,6 +84,9 @@ export const Config = {
     doubleTap: 0.26, // s between two presses of a direction that make a trick gesture
     flickDistance: 110, // px the steering finger must travel within flickTime to flick a trick
     flickTime: 0.12, // s
+    tapMax: 0.22, // s, longest touch of the steering finger that still counts as a tap (flaps)
+    tapSlop: 14, // px a tap may move before it counts as a drag
+    tapChain: 0.35, // s from a tap's lift within which the next touch flaps as it lands
     padDeadZone: 0.22, // fraction of the D-pad's radius round its centre that presses nothing
     invertY: false,
   },

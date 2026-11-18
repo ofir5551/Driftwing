@@ -27,9 +27,14 @@ harder (1.35x) and speed above cruise bleeds off slowly, so a full dive reaches 
 
 Mouse: pointer offset from centre steers (optional pointer lock). Click/Space flaps.
 Keyboard: WASD/arrows steer, Space flap, M mute, P/Esc pause.
-Touch: drag relative to touch start steers; a second finger tapped (or held) anywhere while one
-steers flaps (boosts); very quick taps are latched so no step misses them. There is no on-screen
-flap button: it covered the view and a second finger works for either hand. A Steering setting
+Touch: drag relative to touch start steers, and the same finger taps to flap (boost), so drag is
+one-handed. A tap is a touch that lifts quickly (`Config.input.tapMax`) without moving past
+`tapSlop`; it flaps on lifting, as only then is it known not to start a drag, so drags never flap.
+Once tapping, a touch landing within `tapChain` of the last tap flaps as it lands: rhythmic tapping
+feels instant and keeps boosting (the flap cooldown paces it), and a tap-tap-drag boosts then
+steers. Flaps are latched so no step misses them. Other fingers are ignored. (It used to be a
+second finger tapped or held, which a one-handed player can't do.) There is no on-screen flap
+button: it covered the view. A Steering setting
 (pause menu, touch only) swaps that for on-screen buttons plus a Boost button (held = keep
 flapping): a D-pad, eight-way at the bottom left (rest between two arrows for a diagonal, slide
 round without lifting), or Side arrows, a compact cluster under each thumb: a tall turn button at
@@ -1668,7 +1673,7 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - The city's trees got a distant shape (one crown, ~26 tris) beyond `treeFar`; it pays for the
   props and traffic, so medium's triangles went down while it gained ~18 draw calls.
 - Traffic is endless lanes, not paths with spawn points: vehicle k on a lane sits at
-  k * spacing + jitter(k) + speed * t, so cars never pop when the lanes are replanned and the
+  k _ spacing + jitter(k) + speed _ t, so cars never pop when the lanes are replanned and the
   frame's placement is arithmetic over arrays. Lanes are clipped to the road (an avenue's T at
   the bayside road, east-west roads' green strips) and fade over 8 m at a clipped end. Crossing
   traffic passes through itself at junctions; at this density it is rarely seen.

@@ -64,7 +64,7 @@ const CONTROLS_HTML = `<h2>Controls</h2>
   <div class="controls-list touch-only">
     <ul class="controls touch-drag">
       <li><b>Drag</b> anywhere to steer, relative to where your finger went down</li>
-      <li><b>Tap with a second finger</b> while steering to boost (hold to keep flapping)</li>
+      <li><b>Tap</b> to flap; keep tapping to keep boosting. One finger does it all</li>
       <li><b>Flick</b> the steering finger for a trick: left or right rolls, up loops, down dives. Keep pushing to stretch it</li>
     </ul>
     <ul class="controls touch-dpad">

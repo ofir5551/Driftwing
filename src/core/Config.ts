@@ -357,6 +357,9 @@ export const Config = {
     superblock: 240, // m between avenue centre lines
     avenueHalf: 20, // half width of an avenue: 40 m boulevards with 4 m tree-lined sidewalks
     streetHalf: 6, // half width of a local street
+    avenueBridges: 0.47, // share of avenues that cross a river on a bridge (the rest end at it)
+    streetBridges: 0.05, // share of side streets that cross a river on a bridge
+    medianHalf: 1.4, // half width of the planted median down each avenue (inner lanes at 2.75 m)
     canopy: 7, // m, park and forest canopy counts as soft ground this high
     // The waterfront (the layout and the ground shader read these when a city is created). The
     // grid is straight and the shore curves, so the grid stops at a bayside road that follows

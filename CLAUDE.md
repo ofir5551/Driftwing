@@ -80,7 +80,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   piers, gantry cranes, containers, a ship, moored boats; solids clipped per superblock), `props`
   (records), `traffic` (pure `TrafficPlan`: endless lanes, clipped and sampled per plan, vehicles
   placed per frame into preallocated buffers), `CityTraffic` (car, tram, ferry instancing),
-  `collide` (pure look-ahead + wall glance), `CityWisps` (avenue/spiral/glide planner, paths
+  `collide` (pure look-ahead + wall glance), `BridgeDecks` (bridge and expressway road surfaces in
+  the ground material; heights from `deckAt`, the embankments are in the layout), `CityWisps` (avenue/spiral/glide planner, paths
   checked clear), `CityDecor` (instanced buildings, trees in three distances, props, casters,
   contact shadows), `cover` (ground-cover style, `aCityLand`), `shapes` (props, vehicles),
   `geometry` (incl. soft city trees), `materials` (painterly facade, street and prop shaders),

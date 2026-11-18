@@ -352,8 +352,10 @@ export function createGroundMaterial(u: CityUniforms, city: CityLayout): THREE.M
         /* glsl */ `#include <common>
 attribute float aRoad;
 attribute vec2 aEdge;
+attribute float aCityLand;
 varying float vRoad;
 varying vec2 vEdge;
+varying float vLand;
 varying vec3 vGround;`,
       )
       .replace(
@@ -361,7 +363,8 @@ varying vec3 vGround;`,
         /* glsl */ `#include <project_vertex>
 vGround = (modelMatrix * vec4(transformed, 1.0)).xyz;
 vRoad = aRoad;
-vEdge = aEdge;`,
+vEdge = aEdge;
+vLand = aCityLand;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -371,6 +374,7 @@ uniform float uCityNight;
 uniform float uCityLights;
 varying float vRoad;
 varying vec2 vEdge;
+varying float vLand;
 varying vec3 vGround;
 #define PROM ${f(Config.city.promenade)}
 #define BR ${f(Config.city.bayRoad)}
@@ -446,7 +450,12 @@ vec3 groundEmit = vec3(0.0);
   float zx = step(0.5, fract(p.y / 1.5)) * avZ * step(AH + 0.6, da.x) * (1.0 - step(AH + 4.4, da.x)) * (1.0 - step(AH - 4.0, da.y));
   float zz = step(0.5, fract(p.x / 1.5)) * avX * step(AH + 0.6, da.y) * (1.0 - step(AH + 4.4, da.y)) * (1.0 - step(AH - 4.0, da.x));
   float stLine = (1.0 - smoothstep(w, w + aa, min(ds.x, ds.y))) * step(0.5, fract((stX > stZ ? p.y : p.x) / 7.0)) * st;
-  float marks = min(1.0, lanes * (1.0 - walk) + max(zx, zz) + stLine) * lineFade;
+  // Zebras across each side street where it meets an avenue, just off the avenue's sidewalk
+  // (bars 0.5 m wide along the street), its centre line stopping short of them.
+  float zsx = step(0.5, fract(p.x / 1.0)) * stX * step(AH + 0.8, da.y) * (1.0 - step(AH + 3.8, da.y));
+  float zsz = step(0.5, fract(p.y / 1.0)) * stZ * step(AH + 0.8, da.x) * (1.0 - step(AH + 3.8, da.x));
+  stLine *= step(AH + 6.0, stX > stZ ? da.y : da.x);
+  float marks = min(1.0, lanes * (1.0 - walk) + max(max(zx, zz), max(zsx, zsz)) + stLine) * lineFade;
   // Each N-S avenue and street crosses the kerb on a zebra where it meets the bayside road.
   float zb = step(0.5, fract(p.x / 1.5)) * max(avX * (1.0 - avZ), stX) * step(RIN + 0.6, sd) * (1.0 - step(RIN + 4.4, sd));
   marks = max(marks, zb * lineFade);
@@ -463,6 +472,16 @@ vec3 groundEmit = vec3(0.0);
     1.0 - smoothstep(sw, sw + aa, abs(fract(sd / 2.5 + 0.5) - 0.5) * 2.5)) * lineFade;
   float coping = 1.0 - smoothstep(0.8 - aa, 0.8 + aa, sd);
   vec3 col = diffuseColor.rgb;
+  // Built blocks and plazas are paved, not bare: 2 x 1.5 m flags in a running bond, each a
+  // shade lighter or darker, with fine joints (aCityLand marks them; walks and roads paint over).
+  float paved = smoothstep(0.1, 0.16, vLand) * (1.0 - smoothstep(0.26, 0.34, vLand)) * dry;
+  vec2 fq = vec2(p.x / 2.0, p.y / 1.5);
+  fq.x += 0.5 * mod(floor(fq.y), 2.0);
+  float tone = fract(sin(dot(floor(fq), vec2(12.9898, 78.233))) * 43758.5453);
+  vec2 fe = min(fract(fq), 1.0 - fract(fq)) * vec2(2.0, 1.5);
+  float joint = (1.0 - smoothstep(0.05 + aa * 0.5, 0.05 + aa * 1.5, min(fe.x, fe.y))) * lineFade;
+  vec3 flag = mix(${lin('#b9b6b0')}, ${lin('#c6c1b8')}, tone);
+  col = mix(col, mix(flag, ${lin('#a29e98')}, joint * 0.5), paved);
   col = mix(col, mix(${lin('#d3c7b5')}, ${lin('#b4aa9c')}, max(seam * 0.6, coping)), prom * dry);
   col = mix(col, ${lin('#d6ccba')}, rwalk * dry);
   col = mix(col, ${lin('#b9b2ad')}, max(walk, kerb) * dry);
@@ -471,6 +490,16 @@ vec3 groundEmit = vec3(0.0);
   col = mix(col, ${lin('#a7a6ad')}, rails * road * dry * 0.8);
   // The seawall and the river embankments: dressed stone down to the water.
   col = mix(col, ${lin('#8f8983')}, embank * dry);
+  // An expressway deck (BridgeDecks marks it): its own asphalt, a double line down the middle,
+  // dashed lines between its two lanes each way and solid edges; nothing of the grid below.
+  float xw = 1.0 - step(-400.0, bd);
+  float lat = vEdge.x < 1.5 ? da.x : da.y;
+  float xalong = vEdge.x < 1.5 ? p.y : p.x;
+  float xmarks = (1.0 - smoothstep(w, w + aa, abs(lat - 0.2)))
+    + (1.0 - smoothstep(w, w + aa, abs(lat - 3.8))) * step(0.55, fract(xalong / 12.0))
+    + (1.0 - smoothstep(w, w + aa, abs(lat - 6.6)));
+  vec3 xcol = mix(${lin('#67636d')}, ${lin('#ecebe6')}, min(1.0, xmarks) * lineFade * 0.85);
+  col = mix(col, xcol, xw);
   diffuseColor.rgb = col;
   // Lamplight pools along the avenue sidewalks after dark.
   vec2 qx = vec2(da.x - (AH - 2.5), mod(p.y, 26.0) - 13.0);

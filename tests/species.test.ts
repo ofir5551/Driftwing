@@ -141,10 +141,13 @@ describe('Species', () => {
     const tern = run(canyon, TERN);
     for (const b of SPECIES) expect(run(canyon, b.tuning), b.id).toBeGreaterThan(tern * 0.9);
     // Neon Bay is the skill level: its runs change lanes and turn tight, so a slow turner pays
-    // (the Crane gathers ~45 % of the Tern's there). Every bird must still gather a fair share.
-    const city = () => new CityWorld(42);
-    const cityTern = run(city, TERN);
-    for (const b of SPECIES) expect(run(city, b.tuning), b.id).toBeGreaterThan(cityTern * 0.4);
+    // (the Crane gathers ~45-65 % of the Tern's there). Every bird must still gather a fair
+    // share, pooled over three seeds (one seed's route is chaotic: a different tower ahead sends
+    // the bot somewhere else entirely).
+    const cities = [42, 2024, 99].map((seed) => () => new CityWorld(seed));
+    const pooled = (tune: FlightTuning) => cities.reduce((sum, city) => sum + run(city, tune), 0);
+    const cityTern = pooled(TERN);
+    for (const b of SPECIES) expect(pooled(b.tuning), b.id).toBeGreaterThan(cityTern * 0.4);
   });
 
   it('makes the Phoenix the last thing on the journey', () => {

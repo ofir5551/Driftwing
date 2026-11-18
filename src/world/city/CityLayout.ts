@@ -69,6 +69,14 @@ export const PART_STRIDE = 11;
 export const CITY_TREE_STRIDE = 7;
 /** Floats per solid box: x0, y0, z0, x1, y1, z1. */
 export const BOX_STRIDE = 6;
+/**
+ * Floats per deck's road surface: centre x, z; the unit direction it runs in (dx, dz); half its
+ * length and half its width; the surface height at its -along and +along ends (it slopes between
+ * them, so it meets the road at both banks); its kind (DECK).
+ */
+export const DECK_STRIDE = 9;
+/** Deck kinds: a road's bridge (cars ride it), an expressway running north-south or east-west. */
+export const DECK = { ROAD: 0, EXPRESS_NS: 1, EXPRESS_EW: 2 } as const;
 
 export interface Superblock {
   readonly I: number;
@@ -82,6 +90,8 @@ export interface Superblock {
   readonly towers: number[];
   /** Street furniture, rooftop clutter and moored boats (props.ts records). */
   readonly props: number[];
+  /** Road surfaces of the bridges whose centres are in this superblock (DECK_STRIDE floats). */
+  readonly decks: number[];
 }
 
 export interface Tower {
@@ -103,6 +113,17 @@ const CACHE = 400;
 const CORNER = 16;
 /** The river's noise value at the top of its banks (where `river` reaches 0 and land is flat). */
 const BANK = 0.03;
+/** The river's noise value at the foot of its banks, where the channel's flat bed begins. */
+const CHANNEL = 0.016;
+/** Where the embankment walls end: the channel's edge, and this far down (below the water). */
+const WALL_FOOT = -3.6;
+/** The walls' stone coping reaches this far back over the top of the bank (m). */
+const WALL_BACK = 0.8;
+/** Top of the bayside road's deck over a river mouth. */
+const BAY_DECK = 3.3;
+/** A road crosses the river (on a bridge) where its direction is at least this far along the
+ * bank's normal: within about 65 degrees of square. */
+const ACROSS = 0.42;
 /** The shores stay inside these bands of z (their noise is within about [-1, 1]). */
 const NEAR_MIN = 150 - 115;
 const NEAR_MAX = 150 + 115;
@@ -125,9 +146,20 @@ const INK = 0x2b2833;
 const STONE_GREY = 0xb9b3a8;
 const LANTERN = 0xffc978;
 const CONCRETE = 0xa9a4ad;
+/** Dressed stone of the river embankments (the ground shader's own embankment colour). */
+const EMBANK = 0x8f8983;
+/** The embankments' coping and the walk's edge stones. */
+const COPING = 0xd2c9ba;
+/** Bridge decks: the concrete slab, the shadowed beam under it, the parapets. */
+const DECK_SLAB = 0xaba7a2;
+const DECK_BEAM = 0x6f6c6e;
+const DECK_RAIL = 0xd5cfc8;
 const CONTAINER_COLORS = [0xb8452f, 0x2f5f8f, 0x3f7f5a, 0xd09a3a, 0x8a8f96, 0xe2e0d8, 0x9a4a6f];
 /** Shop awnings: canvas in shop-front colours. */
 const AWNINGS = [0xc8423a, 0x2f6f8f, 0x3c7a4e, 0xe0a33a, 0x7a4a8c, 0xe9e3d6, 0x34404f];
+
+/** Tower shapes (genTowers). */
+const TOWER_SHAPE = { PLAIN: 0, CAKE: 1, PENCIL: 2, TWIN: 3, TURNED: 4 } as const;
 
 const pick = <T>(a: readonly T[], r: number): T =>
   a[Math.min(a.length - 1, Math.floor(r * a.length))];
@@ -176,6 +208,8 @@ export class CityLayout implements HarbourSink {
   readonly eastWestIn: number;
   /** Scratch: the direction a bank distance grows in. */
   private readonly dir = { x: 0, z: 0 };
+  /** Width of the bank slope (top to channel) at the last `bankDist` point near a river. */
+  private bankW = 6;
 
   /** The superblock being generated (the harbour's sink writes into it). */
   private cur: Superblock | null = null;
@@ -258,13 +292,14 @@ export class CityLayout implements HarbourSink {
       dir.x = gx * k;
       dir.z = gz * k;
     }
+    this.bankW = (BANK - CHANNEL) / g;
     return Math.min(200, (v - BANK) / g);
   }
 
   /** 0..1, 1 in the river channel. Like the highlands valleys: where a noise crosses zero. */
   river(x: number, z: number): number {
     const v = Math.abs(fbm(this.nR, x * 0.00065 + 3.1, z * 0.00065 - 1.7, 2));
-    return 1 - smoothstep(0.016, 0.03, v);
+    return 1 - smoothstep(CHANNEL, BANK, v);
   }
 
   /** Terrain without park ponds (used where block kinds are still being decided). */
@@ -538,6 +573,7 @@ export class CityLayout implements HarbourSink {
       cells: [],
       towers: [],
       props: [],
+      decks: [],
     };
     for (let l = 0; l < 3; l++)
       for (let k = 0; k < 3; k++) {
@@ -546,9 +582,11 @@ export class CityLayout implements HarbourSink {
         this.genBlock(sb, bi, bj, this.blockKind(bi, bj));
       }
     this.genAvenues(sb, I, J);
+    this.genMedians(sb, I, J);
     if (this.superKind(I, J) === 0) this.genPowerLines(sb, I, J);
     this.genBridges(sb, I, J);
     this.genWaterfront(sb, I, J);
+    this.genEmbankment(sb, I, J);
     this.genRiverWalk(sb, I, J);
     this.cur = sb;
     const z0 = J * this.S;
@@ -875,6 +913,7 @@ export class CityLayout implements HarbourSink {
     const ix1 = x0 + this.B - inset;
     const iz1 = z0 + this.B - inset;
     const d = this.density(Math.floor(bi / 3), Math.floor(bj / 3));
+    const b0 = sb.boxes.length;
     // Blocks on a superblock corner leave the corner by the avenue crossing open.
     const k = mod3(bi);
     const l = mod3(bj);
@@ -897,13 +936,16 @@ export class CityLayout implements HarbourSink {
     }
     switch (kind) {
       case BK.TOWERS:
-        return this.genTowers(sb, ix0, iz0, ix1, iz1, d, rnd);
+        this.genTowers(sb, ix0, iz0, ix1, iz1, d, rnd);
+        return this.fillGaps(sb, ix0, iz0, ix1, iz1, b0);
       case BK.MIDRISE:
-        return this.genMidrise(sb, ix0, iz0, ix1, iz1, d, rnd);
+        this.genMidrise(sb, ix0, iz0, ix1, iz1, d, rnd);
+        return this.fillGaps(sb, ix0, iz0, ix1, iz1, b0);
       case BK.HOUSES:
         return this.genHouses(sb, ix0, iz0, ix1, iz1, rnd);
       case BK.APARTMENTS:
-        return this.genApartments(sb, ix0, iz0, ix1, iz1, rnd);
+        this.genApartments(sb, ix0, iz0, ix1, iz1, rnd);
+        return this.fillGaps(sb, ix0, iz0, ix1, iz1, b0);
       case BK.PARK:
       case BK.FOREST:
         return this.genPark(sb, ix0, iz0, ix1, iz1, kind === BK.FOREST, rnd);
@@ -918,6 +960,79 @@ export class CityLayout implements HarbourSink {
       case BK.LANDMARK:
         return this.genLatticeTower(sb, (x0 + x0 + this.B) / 2, (z0 + z0 + this.B) / 2);
     }
+  }
+
+  /**
+   * The open ground a block's buildings leave (lots that didn't fit, the setback from a river
+   * walk, round a podium) read as bare: give it a use. On an 8 m lattice, every cell clear of
+   * the block's buildings, its corner plaza, the water and the walks becomes, per block, either
+   * a coin car park (two or three cars nose-in per cell, as in every Tokyo gap between buildings)
+   * or planted: a tree in a kerbed pit, now and then a planter and a bench.
+   */
+  private fillGaps(
+    sb: Superblock,
+    ix0: number,
+    iz0: number,
+    ix1: number,
+    iz1: number,
+    b0: number,
+  ): void {
+    const cell = 8;
+    const B = sb.boxes;
+    const k = this.keep;
+    const clear = (x: number, z: number) => {
+      const h = cell / 2 + 1;
+      if (x + h > k[0] && x - h < k[2] && z + h > k[1] && z - h < k[3]) return false;
+      for (let b = b0; b < B.length; b += BOX_STRIDE)
+        if (x + h > B[b] && x - h < B[b + 3] && z + h > B[b + 2] && z - h < B[b + 5]) return false;
+      return this.dry(x - cell / 2, z - cell / 2, x + cell / 2, z + cell / 2);
+    };
+    const cx = (ix0 + ix1) / 2;
+    const cz = (iz0 + iz1) / 2;
+    const parking = this.ph(cx, cz, 731) < 0.4;
+    // Cars face across the lot's shorter side, in rows along the longer one.
+    const alongX = ix1 - ix0 >= iz1 - iz0;
+    const n = Math.floor((ix1 - ix0 - 2) / cell);
+    const m = Math.floor((iz1 - iz0 - 2) / cell);
+    const ox = ix0 + (ix1 - ix0 - n * cell) / 2 + cell / 2;
+    const oz = iz0 + (iz1 - iz0 - m * cell) / 2 + cell / 2;
+    for (let j = 0; j < m; j++)
+      for (let i = 0; i < n; i++) {
+        const x = ox + i * cell;
+        const z = oz + j * cell;
+        if (!clear(x, z)) continue;
+        const g = this.baseHeight(x, z);
+        const r = this.ph(x, z, 732);
+        if (parking) {
+          // Three bays of 2.6 m, a car in most; a white line between them.
+          for (let q = -1; q <= 1; q++) {
+            const t = this.ph(x + q, z, 733 + q);
+            const px = alongX ? x + q * 2.6 : x;
+            const pz = alongX ? z : z + q * 2.6;
+            if (t < 0.78)
+              this.prop(
+                sb,
+                PROP.ParkedCar,
+                px,
+                g,
+                pz,
+                alongX ? (r < 0.5 ? 0 : Math.PI) : Math.PI / 2,
+                1,
+                1,
+                1,
+                t,
+              );
+          }
+          continue;
+        }
+        if (r < 0.62) {
+          if (this.tree(sb, r < 0.18 ? TREE.CHERRY : TREE.ROUND, x, z, 0.5 + r * 0.3, r))
+            this.prop(sb, PROP.Pit, x, g, z, 0, 1.3, 1, 1.3, r);
+        } else if (r < 0.8) {
+          this.prop(sb, PROP.Planter, x - 1.5, g, z, 0, 1, 1, 1, r);
+          this.prop(sb, PROP.Bench, x + 1.2, g, z, r < 0.7 ? 0 : Math.PI, 1, 1, 1, r);
+        }
+      }
   }
 
   /** A kōban (police box) or a couple of trees on the open corner by a crossing. */
@@ -1027,113 +1142,194 @@ export class CityLayout implements HarbourSink {
         STYLE.OFFICE,
         seed,
       );
-      const w = (lx1 - lx0) * (0.5 + 0.3 * rnd());
-      const dd = (lz1 - lz0) * (0.5 + 0.3 * rnd());
+      let w = (lx1 - lx0) * (0.5 + 0.3 * rnd());
+      let dd = (lz1 - lz0) * (0.5 + 0.3 * rnd());
       const cx = lx0 + w / 2 + 1.5 + rnd() * (lx1 - lx0 - w - 3);
       const cz = lz0 + dd / 2 + 1.5 + rnd() * (lz1 - lz0 - dd - 3);
-      const H = clamp((55 + 140 * Math.pow(rnd(), 1.6)) * (0.6 + 0.55 * boost), 40, 215);
+      let H = clamp((55 + 140 * Math.pow(rnd(), 1.6)) * (0.6 + 0.55 * boost), 40, 215);
       const glass = pick(GLASS, rnd());
-      this.box(
-        sb,
-        cx - w / 2,
-        cz - dd / 2,
-        cx + w / 2,
-        cz + dd / 2,
-        g + podium - 1,
-        g + H,
-        glass,
-        STYLE.GLASS,
-        seed,
-      );
-      let top = g + H;
-      let tw = w;
-      let td = dd;
-      if (rnd() < 0.5) {
-        // Setback crown tier.
-        tw *= 0.68;
-        td *= 0.68;
-        const h2 = H * (0.1 + rnd() * 0.15);
-        this.box(
-          sb,
-          cx - tw / 2,
-          cz - td / 2,
-          cx + tw / 2,
-          cz + td / 2,
-          top - 0.5,
-          top + h2,
-          glass,
-          STYLE.GLASS,
-          seed + 0.31,
+      // The crown's dice, drawn in the order they always were.
+      const crownTier = rnd() < 0.5;
+      const tierH = crownTier ? rnd() : 0;
+      const crownH = rnd();
+      // The tower's shape, from its own dice (the block's stay as they were): plain shafts,
+      // wedding cakes stepping in twice, slim pencils, twins on one podium, and a few turned
+      // 45 degrees on their podium.
+      const kind = this.ph(lx0 + lx1, lz0 + lz1, 701);
+      const shape =
+        kind < 0.38
+          ? TOWER_SHAPE.PLAIN
+          : kind < 0.6
+            ? TOWER_SHAPE.CAKE
+            : kind < 0.72
+              ? TOWER_SHAPE.PENCIL
+              : kind < 0.86 && Math.max(lx1 - lx0, lz1 - lz0) > 34
+                ? TOWER_SHAPE.TWIN
+                : TOWER_SHAPE.TURNED;
+      const base = g + podium - 1;
+      // Occupied footprint on the podium (for its roof garden).
+      let ox0: number;
+      let ox1: number;
+      let oz0: number;
+      let oz1: number;
+      if (shape === TOWER_SHAPE.TWIN) {
+        // Two shafts along the podium's long side, 5 m apart, the second a little lower.
+        const alongX = lx1 - lx0 >= lz1 - lz0;
+        const span = (alongX ? lx1 - lx0 : lz1 - lz0) - 2;
+        const q = (span - 5) / 2;
+        const a = q * 0.86;
+        const b = Math.min(alongX ? lz1 - lz0 : lx1 - lx0, alongX ? dd : w) - 1;
+        const c0 = (alongX ? lx0 : lz0) + 1 + q / 2;
+        const c1 = c0 + q + 5;
+        const other = alongX ? cz : cx;
+        const tops: number[] = [];
+        for (const [c, f] of [
+          [c0, 1],
+          [c1, 0.72 + this.ph(c1, other, 702) * 0.18],
+        ]) {
+          const tx = alongX ? c : other;
+          const tz = alongX ? other : c;
+          const tw2 = alongX ? a : b;
+          const td2 = alongX ? b : a;
+          const top = g + H * f;
+          this.box(
+            sb,
+            tx - tw2 / 2,
+            tz - td2 / 2,
+            tx + tw2 / 2,
+            tz + td2 / 2,
+            base,
+            top,
+            glass,
+            STYLE.GLASS,
+            seed + f,
+          );
+          this.crown(sb, tx, tz, tw2, td2, top, f === 1 ? crownH : 0.9, H * f, rnd);
+          tops.push(top);
+        }
+        if (alongX) {
+          ox0 = c0 - q / 2;
+          ox1 = c1 + q / 2;
+          oz0 = other - b / 2;
+          oz1 = other + b / 2;
+        } else {
+          oz0 = c0 - q / 2;
+          oz1 = c1 + q / 2;
+          ox0 = other - b / 2;
+          ox1 = other + b / 2;
+        }
+        // Wisps circle the pair as one tower (a circle round one would cut through the other).
+        sb.towers.push(
+          (ox0 + ox1) / 2,
+          (oz0 + oz1) / 2,
+          Math.hypot(ox1 - ox0, oz1 - oz0) / 2,
+          Math.max(...tops),
         );
-        top += h2;
-      }
-      const crown = rnd();
-      if (crown < 0.35) {
-        const ah = 10 + rnd() * 14;
-        this.part(sb, MESH.CYL, cx, top, cz, 1, ah, 1, 0, 0xd8d4d0, STYLE.PLAIN, 0);
-        this.part(sb, MESH.BOX, cx, top + ah, cz, 1.3, 1.3, 1.3, 0, 0xff3b30, STYLE.BEACON, rnd());
-      } else if (crown < 0.65) {
-        this.box(
-          sb,
-          cx - tw * 0.3,
-          cz - td * 0.25,
-          cx + tw * 0.1,
-          cz + td * 0.25,
-          top,
-          top + 3.5,
-          CONCRETE,
-          STYLE.PLAIN,
-          0,
-          false,
-        );
-        this.part(
-          sb,
-          MESH.CYL,
-          cx + tw * 0.28,
-          top,
-          cz - td * 0.2,
-          4,
-          3,
-          4,
-          0,
-          0xc9c4bd,
-          STYLE.PLAIN,
-          0,
-        );
-      } else if (crown < 0.8) {
-        const ph = Math.min(tw, td) * 0.45;
-        this.part(sb, MESH.HIP, cx, top, cz, tw * 1.02, ph, td * 1.02, 0, 0x4c5566, STYLE.PLAIN, 0);
-        top += ph * 0.6;
-      }
-      if (H > 100) {
-        // Red aviation lights blinking on the corners: the city's night pulse.
-        for (const sx of [-1, 1])
+      } else if (shape === TOWER_SHAPE.TURNED) {
+        // A square turned 45 degrees inside the footprint (its corners touch the old sides).
+        const side = Math.min(w, dd) * 0.7;
+        const R = side / Math.SQRT2;
+        let top = g + H;
+        this.turned(sb, cx, cz, side, base, top, glass, seed);
+        if (crownTier) {
+          const h2 = H * (0.1 + tierH * 0.15);
+          this.turned(sb, cx, cz, side * 0.66, top - 0.5, top + h2, glass, seed + 0.31);
+          top += h2;
+        }
+        if (crownH < 0.45) {
+          const ah = 10 + crownH * 30;
+          this.part(sb, MESH.CYL, cx, top, cz, 1, ah, 1, 0, 0xd8d4d0, STYLE.PLAIN, 0);
           this.part(
             sb,
             MESH.BOX,
-            cx + (sx * tw) / 2.3,
-            top,
-            cz + (sx * td) / 2.3,
-            1,
-            1,
-            1,
+            cx,
+            top + ah,
+            cz,
+            1.3,
+            1.3,
+            1.3,
             0,
             0xff3b30,
             STYLE.BEACON,
-            rnd(),
+            crownH,
           );
+        }
+        sb.towers.push(cx, cz, R, top);
+        ox0 = cx - R;
+        ox1 = cx + R;
+        oz0 = cz - R;
+        oz1 = cz + R;
+      } else {
+        if (shape === TOWER_SHAPE.PENCIL) {
+          // Slim and a little taller.
+          w = Math.max(12, w * 0.62);
+          dd = Math.max(12, dd * 0.62);
+          H = Math.min(215, H * 1.15);
+        }
+        let tw = w;
+        let td = dd;
+        let y0 = base;
+        // A wedding cake steps in at half and at four fifths of its height.
+        const tiers = shape === TOWER_SHAPE.CAKE ? [0.5, 0.78, 1] : [1];
+        for (let k = 0; k < tiers.length; k++) {
+          const y1 = g + H * tiers[k];
+          this.box(
+            sb,
+            cx - tw / 2,
+            cz - td / 2,
+            cx + tw / 2,
+            cz + td / 2,
+            y0,
+            y1,
+            glass,
+            STYLE.GLASS,
+            seed + k * 0.17,
+          );
+          if (k < tiers.length - 1) {
+            // The ledge's parapet, and the next tier stepped in.
+            this.prop(sb, PROP.Parapet, cx, y1, cz, 0, tw, 1.1, td, 0.4);
+            tw *= 0.78;
+            td *= 0.78;
+            y0 = y1 - 0.5;
+          }
+        }
+        let top = g + H;
+        if (crownTier) {
+          // Setback crown tier.
+          tw *= 0.68;
+          td *= 0.68;
+          const h2 = H * (0.1 + tierH * 0.15);
+          this.box(
+            sb,
+            cx - tw / 2,
+            cz - td / 2,
+            cx + tw / 2,
+            cz + td / 2,
+            top - 0.5,
+            top + h2,
+            glass,
+            STYLE.GLASS,
+            seed + 0.31,
+          );
+          top += h2;
+        }
+        top = this.crown(sb, cx, cz, tw, td, top, crownH, H, rnd);
+        sb.towers.push(cx, cz, Math.hypot(w, dd) / 2, top);
+        ox0 = cx - w / 2;
+        ox1 = cx + w / 2;
+        oz0 = cz - dd / 2;
+        oz1 = cz + dd / 2;
       }
-      sb.towers.push(cx, cz, Math.hypot(w, dd) / 2, top);
       // The podium's roof: a garden on its widest strip beside the tower, or plant and a parapet.
       const px0 = lx0 + 1;
       const pz0 = lz0 + 1;
       const px1 = lx1 - 1;
       const pz1 = lz1 - 1;
       const strips = [
-        [px0, pz0, cx - w / 2, pz1],
-        [cx + w / 2, pz0, px1, pz1],
-        [px0, pz0, px1, cz - dd / 2],
-        [px0, cz + dd / 2, px1, pz1],
+        [px0, pz0, ox0, pz1],
+        [ox1, pz0, px1, pz1],
+        [px0, pz0, px1, oz0],
+        [px0, oz1, px1, pz1],
       ];
       let best = strips[0];
       for (const st of strips)
@@ -1155,6 +1351,103 @@ export class CityLayout implements HarbourSink {
         0.5,
       );
     }
+  }
+
+  /**
+   * A tower's crown on a (tw x td) roof at `top`: a mast with a beacon, roof plant, or a hip
+   * roof (by `crown`), then aviation lights on the corners of the tall ones. Returns the top.
+   */
+  private crown(
+    sb: Superblock,
+    cx: number,
+    cz: number,
+    tw: number,
+    td: number,
+    top: number,
+    crown: number,
+    H: number,
+    rnd: () => number,
+  ): number {
+    if (crown < 0.35) {
+      const ah = 10 + rnd() * 14;
+      this.part(sb, MESH.CYL, cx, top, cz, 1, ah, 1, 0, 0xd8d4d0, STYLE.PLAIN, 0);
+      this.part(sb, MESH.BOX, cx, top + ah, cz, 1.3, 1.3, 1.3, 0, 0xff3b30, STYLE.BEACON, rnd());
+    } else if (crown < 0.65) {
+      this.box(
+        sb,
+        cx - tw * 0.3,
+        cz - td * 0.25,
+        cx + tw * 0.1,
+        cz + td * 0.25,
+        top,
+        top + 3.5,
+        CONCRETE,
+        STYLE.PLAIN,
+        0,
+        false,
+      );
+      this.part(
+        sb,
+        MESH.CYL,
+        cx + tw * 0.28,
+        top,
+        cz - td * 0.2,
+        4,
+        3,
+        4,
+        0,
+        0xc9c4bd,
+        STYLE.PLAIN,
+        0,
+      );
+    } else if (crown < 0.8) {
+      const ph = Math.min(tw, td) * 0.45;
+      this.part(sb, MESH.HIP, cx, top, cz, tw * 1.02, ph, td * 1.02, 0, 0x4c5566, STYLE.PLAIN, 0);
+      top += ph * 0.6;
+    }
+    if (H > 100)
+      // Red aviation lights blinking on the corners: the city's night pulse.
+      for (const sx of [-1, 1])
+        this.part(
+          sb,
+          MESH.BOX,
+          cx + (sx * tw) / 2.3,
+          top,
+          cz + (sx * td) / 2.3,
+          1,
+          1,
+          1,
+          0,
+          0xff3b30,
+          STYLE.BEACON,
+          rnd(),
+        );
+    return top;
+  }
+
+  /**
+   * A square shaft of `side` turned 45 degrees about (cx, cz), from y0 to y1. Collision boxes
+   * are axis-aligned, so it is solid as a stepped diamond: a square in the middle and two bars
+   * through it (its corners a little soft, like every wall here).
+   */
+  private turned(
+    sb: Superblock,
+    cx: number,
+    cz: number,
+    side: number,
+    y0: number,
+    y1: number,
+    color: number,
+    seed: number,
+  ): void {
+    this.part(sb, MESH.BOX, cx, y0, cz, side, y1 - y0, side, Math.PI / 4, color, STYLE.GLASS, seed);
+    const R = side / Math.SQRT2;
+    for (const [a, b] of [
+      [0.5, 0.5],
+      [0.75, 0.25],
+      [0.25, 0.75],
+    ])
+      this.solid(sb, cx - a * R, y0, cz - b * R, cx + a * R, y1, cz + b * R);
   }
 
   private genMidrise(
@@ -1193,9 +1486,37 @@ export class CityLayout implements HarbourSink {
         const g = this.baseHeight((xa + xb) / 2, (za + zb) / 2);
         const h = (11 + 34 * Math.pow(rnd(), 1.3)) * tall;
         const seed = rnd();
-        this.box(sb, xa, za, xb, zb, g - 3, g + h, pick(SHOPS, rnd()), STYLE.OFFICE, seed);
+        const color = pick(SHOPS, rnd());
+        // Tokyo's slant-line rule: on a tall one the top floors step back from the street, in
+        // one or two terraces. (ra, rb) is the roof the kit stands on; `set` how far back it is.
+        let ra = za;
+        let rb = zb;
+        let set = 0;
+        const steps = h > 20 && depth > 12 ? Math.floor(this.ph(xa, front, 711) * 3) : 0;
+        let y0 = g - 3;
+        for (let k = 0; k < steps; k++) {
+          const y1 = g + h - 2.9 * (1 + this.ph(xa, front, 712 + k) * 1.2) * (steps - k);
+          this.box(sb, xa, ra, xb, rb, y0, y1, color, STYLE.OFFICE, seed);
+          this.prop(
+            sb,
+            PROP.Parapet,
+            (xa + xb) / 2,
+            y1,
+            (ra + rb) / 2,
+            0,
+            xb - xa,
+            1,
+            rb - ra,
+            0.4,
+          );
+          set += 2.4 + this.ph(xb, front, 714 + k) * 1.2;
+          if (facing < 0) ra = front + set;
+          else rb = front - set;
+          y0 = y1 - 0.3;
+        }
+        this.box(sb, xa, ra, xb, rb, y0, g + h, color, STYLE.OFFICE, seed);
         this.shopFront(sb, xa, xb, front, facing, g);
-        this.roofKit(sb, xa, za, xb, zb, g + h);
+        this.roofKit(sb, xa, ra, xb, rb, g + h);
         if (rnd() < signP) {
           const sx = rnd() < 0.5 ? xa + 1 : xb - 1;
           const sh = clamp(h * (0.45 + rnd() * 0.3), 5, 16);
@@ -1222,7 +1543,7 @@ export class CityLayout implements HarbourSink {
             MESH.BOX,
             (xa + xb) / 2,
             g + h + 1,
-            front - facing * 1.5,
+            front - facing * (set + 1.5),
             (xb - xa) * 0.85,
             4.5,
             0.5,
@@ -1236,7 +1557,7 @@ export class CityLayout implements HarbourSink {
             MESH.BOX,
             (xa + xb) / 2,
             g + h,
-            front - facing * 1.5,
+            front - facing * (set + 1.5),
             (xb - xa) * 0.6,
             1,
             0.3,
@@ -1251,7 +1572,7 @@ export class CityLayout implements HarbourSink {
             MESH.CYL,
             (xa + xb) / 2,
             g + h,
-            (za + zb) / 2,
+            (ra + rb) / 2,
             3.2,
             2.6,
             3.2,
@@ -1362,13 +1683,31 @@ export class CityLayout implements HarbourSink {
       const pz = alongX ? cz + o : cz;
       const r = [px - sx / 2, pz - sz / 2, px + sx / 2, pz + sz / 2];
       this.trim(r);
-      const [xa, za, xb, zb] = r;
+      let [xa, za, xb, zb] = r;
       if (xb - xa < 10 || zb - za < 10 || !this.fits(xa, za, xb, zb)) continue;
       const g = this.baseHeight((xa + xb) / 2, (za + zb) / 2);
-      const ex = (xa + xb) / 2;
-      const ez = (za + zb) / 2;
+      let ex = (xa + xb) / 2;
+      let ez = (za + zb) / 2;
       const h = (5 + Math.floor(rnd() * 10)) * 2.9 + 1;
-      this.box(sb, xa, za, xb, zb, g - 3, g + h, pick(FLATS, rnd()), STYLE.APART, rnd());
+      const color = pick(FLATS, rnd());
+      const aseed = rnd();
+      // Tall slabs step their top two or three floors back from one long side (the slant
+      // line again), leaving a terrace; the roof's life moves up onto the upper roof.
+      if (h > 22 && this.ph(ex, ez, 721) < 0.6) {
+        const top = g + h - 2.9 * (2 + Math.floor(this.ph(ex, ez, 722) * 2));
+        this.box(sb, xa, za, xb, zb, g - 3, top, color, STYLE.APART, aseed);
+        this.prop(sb, PROP.Parapet, ex, top, ez, 0, xb - xa, 1.05, zb - za, 0.3);
+        const back = 3 + this.ph(ex, ez, 723) * 1.5;
+        const low = this.ph(ex, ez, 724) < 0.5;
+        if (alongX) {
+          if (low) za += back;
+          else zb -= back;
+        } else if (low) xa += back;
+        else xb -= back;
+        this.box(sb, xa, za, xb, zb, top - 0.3, g + h, color, STYLE.APART, aseed);
+        ex = (xa + xb) / 2;
+        ez = (za + zb) / 2;
+      } else this.box(sb, xa, za, xb, zb, g - 3, g + h, color, STYLE.APART, aseed);
       // Half the roof a garden (or plant), the other half round the stair hut.
       const half = alongX ? (xb - xa) / 2 : (zb - za) / 2;
       const ga = alongX ? [xa, za, xa + half - 3, zb] : [xa, za, xb, za + half - 3];
@@ -1519,6 +1858,41 @@ export class CityLayout implements HarbourSink {
     this.part(sb, MESH.CYL, cx, g - 0.5, cz, 11, 1.2, 11, 0, 0xc9c2ba, STYLE.PLAIN, 0);
     this.part(sb, MESH.CYL, cx, g, cz, 2, 3.2, 2, 0, 0xd8d2ca, STYLE.PLAIN, 0);
     this.part(sb, MESH.CYL, cx, g + 3.2, cz, 0.6, 1.2, 0.6, 0, LANTERN, STYLE.LAMP, 0);
+    // Benches round the fountain facing it, planters between them, and a row of trees in kerbed
+    // pits round the plaza's edge with lamps between them.
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3;
+      const bx = cx + Math.cos(a) * 9;
+      const bz = cz + Math.sin(a) * 9;
+      this.prop(sb, PROP.Bench, bx, g, bz, Math.atan2(cx - bx, cz - bz), 1, 1, 1, 0.5);
+      const pa = a + Math.PI / 6;
+      this.prop(
+        sb,
+        PROP.Planter,
+        cx + Math.cos(pa) * 10,
+        g,
+        cz + Math.sin(pa) * 10,
+        pa,
+        1,
+        1,
+        1,
+        0.4,
+      );
+    }
+    const inset = 4;
+    for (let t = ix0 + inset; t <= ix1 - inset + 0.1; t += 9)
+      for (const [x, z] of [
+        [t, iz0 + inset],
+        [t, iz1 - inset],
+        [ix0 + inset, t - ix0 + iz0],
+        [ix1 - inset, t - ix0 + iz0],
+      ]) {
+        if (!this.dry(x - 1, z - 1, x + 1, z + 1)) continue;
+        const r = this.ph(x, z, 741);
+        const gz = this.baseHeight(x, z);
+        if (this.tree(sb, r < 0.3 ? TREE.CHERRY : TREE.ROUND, x, z, 0.55 + r * 0.2, r))
+          this.prop(sb, PROP.Pit, x, gz, z, 0, 1.3, 1, 1.3, r);
+      }
     for (let i = 0; i < 10; i++) {
       const a = (i / 10) * Math.PI * 2;
       const r = 17 + rnd() * 5;
@@ -2088,6 +2462,64 @@ export class CityLayout implements HarbourSink {
   }
 
   /** One superblock-long expressway segment: deck, barriers, lamps and T-pillars. */
+  /**
+   * A planted median down the middle of each avenue this superblock owns (Tokyo's boulevards
+   * have them): a kerb, a clipped hedge and, except under an expressway (its pillars stand
+   * there), a small tree every 32 m. It stops short of each crossing's zebras so turns stay
+   * open, and leaves the river (its bridges), the bay and the bayside road's end bare. Built in
+   * 16 m pieces, each on its own ground, as the street rises and falls.
+   */
+  private genMedians(sb: Superblock, I: number, J: number): void {
+    const S = this.S;
+    const AH = this.AH;
+    const ax = I * S;
+    const az = J * S;
+    const half = Config.city.medianHalf;
+    const piece = 16;
+    for (const northSouth of [true, false]) {
+      const shaded = northSouth ? this.expressX(I) : this.expressZ(J);
+      for (let a = AH + 6; a + piece <= S - AH - 6 + 0.01; a += piece) {
+        const m = a + piece / 2;
+        const x = northSouth ? ax : ax + m;
+        const z = northSouth ? az + m : az;
+        // Clear of the river and its bridges, the bay and where the avenue ends at the bay road.
+        let ok = true;
+        for (const t of [a, m, a + piece]) {
+          const px = northSouth ? ax : ax + t;
+          const pz = northSouth ? az + t : az;
+          ok &&=
+            this.baseHeight(px, pz) > Config.world.waterLevel + 1.2 &&
+            this.bankDist(px, pz) > this.riverWalk + 2 &&
+            this.shoreDist(px, pz) > this.eastWestIn + 6;
+        }
+        if (!ok) continue;
+        const g = this.baseHeight(x, z);
+        const sx = northSouth ? 2 * half : piece;
+        const sz = northSouth ? piece : 2 * half;
+        this.part(sb, MESH.BOX, x, g - 0.4, z, sx, 0.62, sz, 0, 0xcfcac2, STYLE.PLAIN, 0);
+        this.part(
+          sb,
+          MESH.BOX,
+          x,
+          g + 0.2,
+          z,
+          sx - 0.8,
+          0.75,
+          sz - 0.8,
+          0,
+          0x5f8a4c,
+          STYLE.PLAIN,
+          0,
+        );
+        const k = Math.round(m / piece);
+        if (!shaded && k % 2 === 0) {
+          const r = this.ph(x, z, 751);
+          this.tree(sb, r < 0.2 ? TREE.CHERRY : TREE.ROUND, x, z, 0.42 + r * 0.12, r);
+        }
+      }
+    }
+  }
+
   private expressway(sb: Superblock, ax: number, az: number, northSouth: boolean): void {
     const S = this.S;
     const y0 = northSouth ? 15 : 23;
@@ -2112,6 +2544,28 @@ export class CityLayout implements HarbourSink {
     rect(0, S, -hw, hw, y0, y1, 0xa8a3ab, STYLE.PLAIN, true);
     rect(0, S, -hw, -hw + 0.4, y1, y1 + 1.1, 0xc9c5c9, STYLE.PLAIN, false);
     rect(0, S, hw - 0.4, hw, y1, y1 + 1.1, 0xc9c5c9, STYLE.PLAIN, false);
+    // Its road surface: asphalt and lane lines, in the ground's material.
+    const m = S / 2;
+    sb.decks.push(
+      northSouth ? ax : ax + m,
+      northSouth ? az + m : az,
+      northSouth ? 0 : 1,
+      northSouth ? 1 : 0,
+      m,
+      hw - 0.4,
+      y1 + 0.02,
+      y1 + 0.02,
+      northSouth ? DECK.EXPRESS_NS : DECK.EXPRESS_EW,
+    );
+    // Sound walls above the barriers where it runs between buildings (not over the bay): pale
+    // panels in 40 m runs.
+    for (let a = 0; a < S; a += 40) {
+      const px = northSouth ? ax : ax + a + 20;
+      const pz = northSouth ? az + a + 20 : az;
+      if (this.shoreDist(px, pz) < this.roadIn + 10) continue;
+      for (const b of [-hw + 0.1, hw - 0.3])
+        rect(a + 0.6, a + 39.4, b, b + 0.2, y1 + 1.1, y1 + 3, 0xaebfc8, STYLE.PLAIN, false);
+    }
     for (let a = 20; a < S; a += 40) {
       const px = northSouth ? ax : ax + a;
       const pz = northSouth ? az + a : az;
@@ -2128,20 +2582,54 @@ export class CityLayout implements HarbourSink {
     }
   }
 
-  /** Flat bridges where avenues and streets cross the river. */
+  /**
+   * Bridges where avenues and streets cross the river. Streets carry their sidewalks over too
+   * (2.5 m either side), so the deck is as wide as the road it continues.
+   */
   private genBridges(sb: Superblock, I: number, J: number): void {
     const S = this.S;
     const ax = I * S;
     const az = J * S;
-    this.bridgeLine(sb, ax, az, 0, S, true, this.AH);
-    this.bridgeLine(sb, ax, az, 0, S, false, this.AH);
+    this.bridgeLine(sb, ax, az, 0, S, true, this.AH, this.avenueBridged(I, J, true));
+    this.bridgeLine(sb, ax, az, 0, S, false, this.AH, this.avenueBridged(I, J, false));
     if (this.superKind(I, J) !== 0) return;
-    for (const c of [this.c1, this.c2]) {
-      this.bridgeLine(sb, ax + c, az, this.AH, S - this.AH, true, this.SH);
-      this.bridgeLine(sb, ax, az + c, this.AH, S - this.AH, false, this.SH);
+    for (let k = 0; k < 2; k++) {
+      const c = k === 0 ? this.c1 : this.c2;
+      const hw = this.SH + 2.5;
+      this.bridgeLine(sb, ax + c, az, 0, S, true, hw, this.streetBridged(I, J, true, k));
+      this.bridgeLine(sb, ax, az + c, 0, S, false, hw, this.streetBridged(I, J, false, k));
     }
   }
 
+  /**
+   * Whether a local street (the k-th of its superblock, running north-south or east-west)
+   * crosses the river on a bridge. Avenues always do (one every 240 m); a real city's side
+   * streets mostly end at the river walk, so only some of them get one (`Config.city
+   * .streetBridges`), and a river runs long stretches between its bridges.
+   */
+  /**
+   * Whether the avenue a superblock owns (north-south on its west edge, east-west on its south
+   * edge) crosses a river there on a bridge (`Config.city.avenueBridges`: all of them at 1; a
+   * big river's sparse bridges below that). One without stops at the river walk on each bank.
+   */
+  private avenueBridged(I: number, J: number, northSouth: boolean): boolean {
+    return hash2(I * 2 + (northSouth ? 0 : 1), J, this.seed + 762) < Config.city.avenueBridges;
+  }
+
+  private streetBridged(I: number, J: number, northSouth: boolean, k: number): boolean {
+    return hash2(I * 4 + (northSouth ? 0 : 2) + k, J, this.seed + 761) < Config.city.streetBridges;
+  }
+
+  /**
+   * One road line's bridges over [a0, a1) of its length. A crossing is a run of the line between
+   * the tops of the two banks (anywhere across its width); the superblock owns the runs whose middle is on its stretch (so a
+   * river on a superblock edge gets one bridge, kept with the superblock that holds its deck's
+   * centre). The deck's road surface meets the ground a little past each bank top and slopes
+   * evenly between those two heights; it is drawn by the ground's own material (`decks`), so the
+   * lanes, sidewalks and crossings run straight over it. Under it: a slab, a shadowed beam,
+   * stone abutments down each bank, and parapets at the edges. A street without a bridge
+   * (`bridged` false) ends at each bank instead (`deadEnd`).
+   */
   private bridgeLine(
     sb: Superblock,
     x: number,
@@ -2150,43 +2638,366 @@ export class CityLayout implements HarbourSink {
     a1: number,
     northSouth: boolean,
     hw: number,
+    bridged: boolean,
   ): void {
-    const step = 4;
-    let run = -1;
-    const flush = (end: number) => {
-      if (run < 0 || end - run > 150) return; // longer than a river: that's the bay
-      const s0 = run - 5;
-      const s1 = end + 5;
-      const deck = (
-        b0: number,
-        b1: number,
-        ya: number,
-        yb: number,
-        color: number,
-        solid: boolean,
-      ) => {
-        if (northSouth)
-          this.box(sb, x + b0, z + s0, x + b1, z + s1, ya, yb, color, STYLE.PLAIN, 0, solid);
-        else this.box(sb, x + s0, z + b0, x + s1, z + b1, ya, yb, color, STYLE.PLAIN, 0, solid);
-      };
-      deck(-hw, hw, 1.8, 3.3, 0xb7b0aa, true);
-      deck(-hw, -hw + 0.5, 3.3, 4.4, 0xd5cfc8, false);
-      deck(hw - 0.5, hw, 3.3, 4.4, 0xd5cfc8, false);
-    };
-    for (let a = a0; a <= a1; a += step) {
-      const px = northSouth ? x : x + a;
-      const pz = northSouth ? z + a : z;
-      // The grid stops at the bayside road, which has its own bridge over a river mouth.
-      const wet =
-        this.baseHeight(px, pz) < Config.world.waterLevel + 0.6 &&
-        this.shoreDist(px, pz) > this.roadIn;
-      if (wet && run < 0) run = a;
-      if (!wet && run >= 0) {
-        flush(a);
-        run = -1;
+    const px = (s: number, t: number) => (northSouth ? x + t : x + s);
+    const pz = (s: number, t: number) => (northSouth ? z + s : z + t);
+    // Across the whole width: a river crossing at a slant reaches one side of the road first.
+    const at = (s: number, t: number) =>
+      this.bankDist(px(s, t), pz(s, t)) < 0 && this.shoreDist(px(s, t), pz(s, t)) > this.roadIn;
+    const inBank = (s: number) => at(s, -hw) || at(s, 0) || at(s, hw);
+    const wet = (s: number) =>
+      this.river(px(s, -hw), pz(s, -hw)) > 0.99 ||
+      this.river(px(s, 0), pz(s, 0)) > 0.99 ||
+      this.river(px(s, hw), pz(s, hw)) > 0.99;
+    const reach = 300; // longer than a slanting crossing: the road runs along the river
+    // A run this superblock owns (its middle in [a0, a1), no longer than reach) starts after
+    // a0 - reach / 2 and before a1. Start outside a run, so every run is seen from its first metre.
+    let s = a0 - reach / 2;
+    while (s < a1 && inBank(s)) s++;
+    while (s < a1) {
+      if (!inBank(s)) {
+        // Bank distance is in metres: step past the stretch that can't reach a bank (with a
+        // margin, as it is a first-order estimate), a metre at a time near one.
+        const d = this.bankDist(px(s, 0), pz(s, 0)) - hw;
+        s += Math.max(1, Math.floor(d * 0.7));
+        continue;
       }
+      // The step past dry land is an estimate: back up to the run's true first metre.
+      for (let k = 0; k < reach && inBank(s - 1); k++) s--;
+      const sA = s;
+      let cA = NaN;
+      let cB = NaN;
+      while (s - sA <= reach && inBank(s)) {
+        if (wet(s)) {
+          if (Number.isNaN(cA)) cA = s;
+          cB = s;
+        }
+        s++;
+      }
+      if (s - sA > reach) {
+        // Along the river, not across it: no bridge, and no new run inside it.
+        while (s < a1 + reach && inBank(s)) s++;
+        continue;
+      }
+      const sB = s - 1;
+      const mid = (sA + sB) / 2;
+      if (Number.isNaN(cA) || mid < a0 || mid >= a1) continue;
+      // A road meeting the river at a glancing angle runs along it, not across: no deck there
+      // (it would roof the river over).
+      this.bankDist(px(mid, 0), pz(mid, 0), this.dir);
+      if (Math.abs(northSouth ? this.dir.z : this.dir.x) < ACROSS) continue;
+      if (bridged) this.bridge(sb, px, pz, northSouth, hw, sA - 2, sB + 2, cA, cB);
+      else for (const e of [sA, sB]) this.deadEnd(sb, px(e, 0), pz(e, 0), northSouth, hw);
     }
-    if (run >= 0) flush(a1);
+  }
+
+  /**
+   * Where a street ends at the river: the embankment runs on across its end, with the walk's
+   * railing along its edge in front of the street. (x, z) is the street's centre line just over
+   * the top of the bank.
+   */
+  private deadEnd(sb: Superblock, x: number, z: number, northSouth: boolean, hw: number): void {
+    const dir = this.dir;
+    const d = this.bankDist(x, z, dir);
+    const w = this.bankW;
+    if (w > 30) return;
+    // On the wall's coping, 0.3 m in from its face; as long as the street is wide where it
+    // meets the bank at a slant.
+    const k = -w + 0.3 - d;
+    const rx = x + dir.x * k;
+    const rz = z + dir.z * k;
+    const top = this.wallTop(rx, rz, -w + 0.3, dir);
+    if (top < Config.world.waterLevel + 1) return;
+    const across = Math.max(0.42, Math.abs(northSouth ? dir.z : dir.x));
+    const tx = -dir.z;
+    const tz = dir.x;
+    const len = (2 * hw + 3) / across;
+    this.part(
+      sb,
+      MESH.BOX,
+      rx,
+      top,
+      rz,
+      len,
+      1.05,
+      0.12,
+      Math.atan2(-tz, tx),
+      0xd9d4cc,
+      STYLE.PLAIN,
+      0,
+    );
+  }
+
+  /** A bridge from s0 to s1 along its line (channel from cA to cB); see `bridgeLine`. */
+  private bridge(
+    sb: Superblock,
+    px: (s: number, t: number) => number,
+    pz: (s: number, t: number) => number,
+    northSouth: boolean,
+    hw: number,
+    s0: number,
+    s1: number,
+    cA: number,
+    cB: number,
+  ): void {
+    // Each end sits on the highest ground across the road there, so no terrain pokes through.
+    // A river mouth: a road that ends at the bayside road meets its deck there instead.
+    const end = (s: number) => {
+      const g = Math.max(
+        this.baseHeight(px(s, 0), pz(s, 0)),
+        this.baseHeight(px(s, -hw * 0.8), pz(s, -hw * 0.8)),
+        this.baseHeight(px(s, hw * 0.8), pz(s, hw * 0.8)),
+      );
+      if (g >= Config.world.waterLevel + 1) return g + 0.03;
+      const x = px(s, 0);
+      const z = pz(s, 0);
+      return this.mouthDeck(
+        x,
+        Math.abs(z - this.shoreNear(x)) < Math.abs(z - this.shoreFar(x)) ? 1 : -1,
+      );
+    };
+    const yA = end(s0);
+    const yB = end(s1);
+    const lo = Math.min(yA, yB);
+    const hi = Math.max(yA, yB);
+    const ha = (s1 - s0) / 2;
+    const sm = (s0 + s1) / 2;
+    sb.decks.push(
+      px(sm, 0),
+      pz(sm, 0),
+      northSouth ? 0 : 1,
+      northSouth ? 1 : 0,
+      ha,
+      hw,
+      yA,
+      yB,
+      DECK.ROAD,
+    );
+    // Boxes along the line: [sa, sb] x [ta, tb] (across), from y0 to y1.
+    const slab = (
+      sa: number,
+      sb2: number,
+      ta: number,
+      tb: number,
+      y0: number,
+      y1: number,
+      color: number,
+    ) => {
+      const xa = Math.min(px(sa, ta), px(sb2, tb));
+      const xb = Math.max(px(sa, ta), px(sb2, tb));
+      const za = Math.min(pz(sa, ta), pz(sb2, tb));
+      const zb = Math.max(pz(sa, ta), pz(sb2, tb));
+      this.box(sb, xa, za, xb, zb, y0, y1, color, STYLE.PLAIN, 0, false);
+    };
+    // The slab under the road surface, and the beam in its shadow.
+    slab(s0, s1, -hw, hw, lo - 1.2, lo - 0.04, DECK_SLAB);
+    slab(s0 + 1, s1 - 1, -hw + 1.2, hw - 1.2, lo - 1.9, lo - 1.2, DECK_BEAM);
+    // Stone abutments down each bank, a little wider than the deck, meeting the embankments.
+    for (const [a, b] of [
+      [s0, cA],
+      [cB, s1],
+    ]) {
+      slab(a, b, -hw - 3, hw + 3, WALL_FOOT, lo - 0.24, EMBANK);
+      slab(a, b, -hw - 3.05, hw + 3.05, lo - 0.24, lo - 0.05, COPING);
+    }
+    // Parapets along the edges, over the water and a metre onto each bank.
+    for (const t of [-hw, hw - 0.45])
+      slab(s0 + 1, s1 - 1, t, t + 0.45, lo - 0.1, hi + 0.95, DECK_RAIL);
+    // Collision boxes stepping up the slope (each as high as its upper end), so the ends sit
+    // on the road rather than a step above it.
+    const n = Math.min(8, Math.ceil((hi - lo) / 0.15) || 1);
+    for (let k = 0; k < n; k++) {
+      const sa = s0 + ((s1 - s0) * k) / n;
+      const sb2 = s0 + ((s1 - s0) * (k + 1)) / n;
+      const y1 = Math.max(yA + ((yB - yA) * k) / n, yA + ((yB - yA) * (k + 1)) / n);
+      const xa = Math.min(px(sa, -hw), px(sb2, hw));
+      const xb = Math.max(px(sa, -hw), px(sb2, hw));
+      const za = Math.min(pz(sa, -hw), pz(sb2, hw));
+      const zb = Math.max(pz(sa, -hw), pz(sb2, hw));
+      this.solid(sb, xa, lo - 1.9, za, xb, y1, zb);
+    }
+  }
+
+  /**
+   * Bridge deck surface at (x, z): the highest road surface of a bridge there (not counting the
+   * expressways overhead), or -Infinity.
+   * Decks belong to the superblock holding their centre and reach well under a superblock from
+   * it, so the neighbours are searched too.
+   */
+  deckAt(x: number, z: number): number {
+    const I = Math.floor(x / this.S);
+    const J = Math.floor(z / this.S);
+    let best = -Infinity;
+    for (let j = J - 1; j <= J + 1; j++)
+      for (let i = I - 1; i <= I + 1; i++) {
+        const D = this.superblock(i, j).decks;
+        for (let k = 0; k < D.length; k += DECK_STRIDE) {
+          if (D[k + 8] !== DECK.ROAD) continue; // expressways carry their own lanes' heights
+          const ox = x - D[k];
+          const oz = z - D[k + 1];
+          const s = ox * D[k + 2] + oz * D[k + 3];
+          const t = ox * D[k + 3] - oz * D[k + 2];
+          const ha = D[k + 4];
+          if (Math.abs(s) > ha || Math.abs(t) > D[k + 5]) continue;
+          best = Math.max(best, D[k + 6] + ((D[k + 7] - D[k + 6]) * (s + ha)) / (2 * ha));
+        }
+      }
+    return best;
+  }
+
+  /**
+   * On a road that crosses the river on a bridge (within m of its deck's sides), where the river
+   * runs across `dir` (its bank's normal). Roads meeting it at a glancing angle have no deck
+   * (see `bridgeLine`), nor do most side streets (`streetBridged`), so the embankment runs on
+   * past them.
+   */
+  private bridgeRoad(x: number, z: number, m: number, dir: { x: number; z: number }): boolean {
+    const S = this.S;
+    const I = Math.floor(x / S);
+    const J = Math.floor(z / S);
+    const u = x - I * S;
+    const v = z - J * S;
+    const ns = Math.abs(dir.z) >= ACROSS; // a north-south road crosses this stretch
+    const ew = Math.abs(dir.x) >= ACROSS;
+    const a = this.AH + m;
+    // An avenue on a superblock's west (south) edge belongs to that superblock.
+    if (ns && u < a && this.avenueBridged(I, J, true)) return true;
+    if (ns && u > S - a && this.avenueBridged(I + 1, J, true)) return true;
+    if (ew && v < a && this.avenueBridged(I, J, false)) return true;
+    if (ew && v > S - a && this.avenueBridged(I, J + 1, false)) return true;
+    if (this.superKind(I, J) !== 0) return false;
+    // Only the side streets that have a bridge here.
+    const w = this.SH + 2.5 + m;
+    for (let k = 0; k < 2; k++) {
+      const c = k === 0 ? this.c1 : this.c2;
+      if (ns && Math.abs(u - c) < w && this.streetBridged(I, J, true, k)) return true;
+      if (ew && Math.abs(v - c) < w && this.streetBridged(I, J, false, k)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Stone embankments along every river (after Meguro river): a wall from the channel's edge up
+   * to the top of the bank, its coping level with the river walk, so the river runs between
+   * straight stone sides rather than the terrain's sloped banks (which a 4 m ground mesh can
+   * only draw as ragged ramps). 6 m segments along the bank on a 4 m lattice (each cell's centre
+   * stepped onto the wall's middle line, kept if it lands in its own cell; 6 m covers a
+   * diagonal cell, so the wall has no gaps). Roads cross on their bridges' abutments instead.
+   */
+  private genEmbankment(sb: Superblock, I: number, J: number): void {
+    const S = this.S;
+    const cell = 4;
+    const len = 6;
+    const dir = this.dir;
+    // Blocks of 6 x 6 cells first: most of the city is nowhere near a river.
+    const block = cell * 6;
+    for (let bz = J * S; bz < (J + 1) * S; bz += block)
+      for (let bx = I * S; bx < (I + 1) * S; bx += block) {
+        if (this.bankDist(bx + block / 2, bz + block / 2) > (block * 0.71) / 0.7 + 12) continue;
+        for (let cz = bz + cell / 2; cz < bz + block && cz < (J + 1) * S; cz += cell)
+          for (let cx = bx + cell / 2; cx < bx + block && cx < (I + 1) * S; cx += cell)
+            this.embankmentCell(sb, cx, cz, cell, len, dir);
+      }
+  }
+
+  /** One lattice cell of `genEmbankment`. */
+  private embankmentCell(
+    sb: Superblock,
+    cx: number,
+    cz: number,
+    cell: number,
+    len: number,
+    dir: { x: number; z: number },
+  ): void {
+    let d = this.bankDist(cx, cz, dir);
+    if (d > 12 || d < -20) return;
+    let x = cx;
+    let z = cz;
+    for (let k = 0; k < 2; k++) {
+      const m = (WALL_BACK - this.bankW) / 2;
+      x -= (d - m) * dir.x;
+      z -= (d - m) * dir.z;
+      d = this.bankDist(x, z, dir);
+    }
+    const w = this.bankW;
+    if (Math.abs(d - (WALL_BACK - w) / 2) > 0.5 || w > 30) return;
+    if (Math.abs(x - cx) > cell / 2 || Math.abs(z - cz) > cell / 2) return;
+    const top = this.wallTop(x, z, d, dir);
+    if (top < Config.world.waterLevel + 1) return;
+    // The segment's footprint: along the bank (tx, tz), across it (dir).
+    const tx = -dir.z;
+    const tz = dir.x;
+    const half = (w + WALL_BACK) / 2;
+    if (this.shoreDist(x, z) < this.roadIn + 2) return;
+    // Clear of the roads' bridges (their abutments take over); a segment that touches one
+    // keeps whichever of its halves are clear, so the wall stops close to the abutment.
+    const clear = (a0: number, a1: number) => {
+      for (const a of [a0, a1])
+        for (const b of [-half, half])
+          if (this.bridgeRoad(x + tx * a + dir.x * b, z + tz * a + dir.z * b, 0.3, dir))
+            return false;
+      return true;
+    };
+    const rot = Math.atan2(-tz, tx);
+    // Dressed stone from below the water, then the coping on top (a hair apart in height per
+    // segment, so the overlaps don't flicker).
+    const e = hash2(Math.round(x * 2), Math.round(z * 2), this.seed + 961) * 0.02;
+    const wall = (a: number, l: number) => {
+      const wx = x + tx * a;
+      const wz = z + tz * a;
+      this.part(
+        sb,
+        MESH.BOX,
+        wx,
+        WALL_FOOT,
+        wz,
+        l,
+        top - 0.2 - WALL_FOOT,
+        2 * half,
+        rot,
+        EMBANK,
+        STYLE.PLAIN,
+        0,
+      );
+      this.part(
+        sb,
+        MESH.BOX,
+        wx,
+        top - 0.2,
+        wz,
+        l + 0.01,
+        0.2 + e,
+        2 * half + 0.1,
+        rot,
+        COPING,
+        STYLE.PLAIN,
+        0,
+      );
+    };
+    if (clear(-len / 2, len / 2)) wall(0, len);
+    else for (const a of [-len / 4, len / 4]) if (clear(a - len / 4, a + len / 4)) wall(a, len / 2);
+  }
+
+  /**
+   * Height of the embankment's coping for a point whose bank distance is d (dir is the way it
+   * grows, from `bankDist`): the ground just behind the bank's top, so the walk runs onto it.
+   */
+  private wallTop(x: number, z: number, d: number, dir: { x: number; z: number }): number {
+    const k = WALL_BACK + 0.4 - d;
+    return this.baseHeight(x + dir.x * k, z + dir.z * k) + 0.03;
+  }
+
+  /**
+   * Top of the embankment wall under (x, z), or -Infinity off the walls: the flight floor over
+   * the strip the walls cover (their segments' exact ends aside). Allocation-free.
+   */
+  embankmentTop(x: number, z: number): number {
+    const d = this.bankDist(x, z, this.dir);
+    if (d > WALL_BACK || d < -this.bankW || this.bankW > 30) return -Infinity;
+    if (this.shoreDist(x, z) < this.roadIn + 2 || this.bridgeRoad(x, z, 0.3, this.dir))
+      return -Infinity;
+    return this.wallTop(x, z, d, this.dir);
   }
 
   // --- The waterfront and the river walks -----------------------------------------------------
@@ -2203,7 +3014,6 @@ export class CityLayout implements HarbourSink {
     const z0 = J * S;
     const water = Config.world.waterLevel + 0.6;
     const half = this.roadIn / 2;
-    const deckTop = 3.3;
     const owns = (x: number, z: number) => x >= x0 && x < x0 + S && z >= z0 && z < z0 + S;
     for (const side of [1, -1]) {
       // side 1: the near shore, land toward -z; side -1: the far shore, land toward +z.
@@ -2214,14 +3024,6 @@ export class CityLayout implements HarbourSink {
       )
         continue;
       const edge = (x: number) => (side > 0 ? this.shoreNear(x) : this.shoreFar(x));
-      const wetAt = (x: number) => {
-        const e = edge(x);
-        return (
-          this.baseHeight(x, e - side * 2) < water ||
-          this.baseHeight(x, e - side * half) < water ||
-          this.baseHeight(x, e - side * (this.roadIn - 2)) < water
-        );
-      };
       // 6 m segments along the shore: railing, and the bridge deck over a river mouth.
       for (let x = x0; x < x0 + S; x += 6) {
         const xb = x + 6;
@@ -2230,7 +3032,7 @@ export class CityLayout implements HarbourSink {
         const dz = eb - ea;
         const len = Math.hypot(6, dz);
         const rot = Math.atan2(-dz, 6);
-        const wet = wetAt(x) || wetAt(xb) || wetAt(x - 6) || wetAt(xb + 6);
+        const wet = this.mouthSegment(x, side);
         const rail = (d: number, y: number) => {
           const mx = x + 3;
           const mz = (ea + eb) / 2 - side * d;
@@ -2245,29 +3047,45 @@ export class CityLayout implements HarbourSink {
         const mx = x + 3;
         const mz = (ea + eb) / 2 - side * half;
         if (!owns(mx, mz)) continue;
-        // The deck covers the promenade and the road; its collision box is the rotated deck's
-        // bounds (the shore is gentle, so that is only a little larger).
+        // The deck covers the promenade and the road, sloping evenly from the road's height on
+        // one side of the mouth to the other's; its collision box is the rotated deck's bounds
+        // (the shore is gentle, so that is only a little larger).
+        const yA = this.mouthDeck(x, side);
+        const yB = this.mouthDeck(xb, side);
+        const lo = Math.min(yA, yB);
         this.part(
           sb,
           MESH.BOX,
           mx,
-          1.8,
+          lo - 1.5,
           mz,
           len + 0.3,
-          deckTop - 1.8,
+          1.46,
           this.roadIn + 1,
           rot,
-          0xb7b0aa,
+          DECK_SLAB,
           STYLE.PLAIN,
           0,
+        );
+        // Its road surface (promenade paving, the bayside road's lanes) in the ground's material.
+        sb.decks.push(
+          mx,
+          mz,
+          6 / len,
+          dz / len,
+          (len + 0.3) / 2,
+          (this.roadIn + 1) / 2,
+          yA,
+          yB,
+          DECK.ROAD,
         );
         const c = Math.abs(Math.cos(rot));
         const sn = Math.abs(Math.sin(rot));
         const hx = (c * (len + 0.3) + sn * (this.roadIn + 1)) / 2;
         const hz = (sn * (len + 0.3) + c * (this.roadIn + 1)) / 2;
-        this.solid(sb, mx - hx, 1.8, mz - hz, mx + hx, deckTop, mz + hz);
-        rail(0.4, deckTop);
-        rail(this.roadIn + 0.2, deckTop);
+        this.solid(sb, mx - hx, lo - 1.5, mz - hz, mx + hx, Math.max(yA, yB), mz + hz);
+        rail(0.4, lo - 0.05);
+        rail(this.roadIn + 0.2, lo - 0.05);
       }
       // Lamps by the railing, every 24 m.
       for (let x = Math.ceil(x0 / 24) * 24; x < x0 + S; x += 24) {
@@ -2296,6 +3114,60 @@ export class CityLayout implements HarbourSink {
         this.tree(sb, r < 0.5 ? TREE.PINE : TREE.CHERRY, x, z, 0.62 + r * 0.3, r, true);
       }
     }
+  }
+
+  /** Shore line on a side (1 the near shore, land toward -z; -1 the far one). */
+  private shoreEdge(x: number, side: number): number {
+    return side > 0 ? this.shoreNear(x) : this.shoreFar(x);
+  }
+
+  /** Water under the promenade or the bayside road at x (a river mouth). */
+  private mouthWet(x: number, side: number): boolean {
+    const e = this.shoreEdge(x, side);
+    const water = Config.world.waterLevel + 0.6;
+    return (
+      this.baseHeight(x, e - side * 2) < water ||
+      this.baseHeight(x, e - side * (this.roadIn / 2)) < water ||
+      this.baseHeight(x, e - side * (this.roadIn - 2)) < water
+    );
+  }
+
+  /** The 6 m waterfront segment from x (on the 6 m lattice) is part of a mouth's deck. */
+  private mouthSegment(x: number, side: number): boolean {
+    return (
+      this.mouthWet(x, side) ||
+      this.mouthWet(x + 6, side) ||
+      this.mouthWet(x - 6, side) ||
+      this.mouthWet(x + 12, side)
+    );
+  }
+
+  /**
+   * Road surface of the deck across a river mouth at x: level with the ground at each end of
+   * its run of segments, sloping evenly between (BAY_DECK if the run can't be found).
+   */
+  private mouthDeck(x: number, side: number): number {
+    let xs = Math.floor(x / 6) * 6;
+    if (!this.mouthSegment(xs, side)) xs -= 6; // x on the deck's far end
+    if (!this.mouthSegment(xs, side)) return BAY_DECK;
+    let xe = xs;
+    for (let k = 0; k < 40 && this.mouthSegment(xs - 6, side); k++) xs -= 6;
+    for (let k = 0; k < 40 && this.mouthSegment(xe + 6, side); k++) xe += 6;
+    xe += 6;
+    const end = (xx: number) => {
+      const e = this.shoreEdge(xx, side);
+      return (
+        Math.max(
+          this.baseHeight(xx, e - side * 2),
+          this.baseHeight(xx, e - side * (this.roadIn / 2)),
+          this.baseHeight(xx, e - side * (this.roadIn - 2)),
+        ) + 0.03
+      );
+    };
+    const a = end(xs);
+    const b = end(xe);
+    if (a < 1 || b < 1) return BAY_DECK;
+    return a + ((b - a) * (x - xs)) / (xe - xs);
   }
 
   /**
@@ -2329,14 +3201,16 @@ export class CityLayout implements HarbourSink {
         if (!this.tree(sb, TREE.CHERRY, x, z, 0.7 + r * 0.25, r, true)) continue;
         // Where a road crosses on its bridge the walk has no railing, bench or lamp.
         if (this.nearRoad(x, z, 8)) continue;
-        // The walk's railing along the bank's edge (along the tangent), a bench under every
-        // third tree facing the water, a lamp by every fourth.
+        // The walk's railing along the embankment's edge (along the tangent) on its coping, a
+        // bench under every third tree facing the water, a lamp by every fourth.
         const tx = -dir.z;
         const tz = dir.x;
-        const ex = x - dir.x * (line - 0.35);
-        const ez = z - dir.z * (line - 0.35);
-        const g = this.baseHeight(ex, ez);
-        if (g > Config.world.waterLevel + 1)
+        const top = this.wallTop(x, z, d, dir);
+        const back = line + this.bankW - 0.3;
+        const ex = x - dir.x * back;
+        const ez = z - dir.z * back;
+        const g = top;
+        if (g > Config.world.waterLevel + 1 && this.bankW < 30)
           this.part(
             sb,
             MESH.BOX,

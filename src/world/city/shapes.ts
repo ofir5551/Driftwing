@@ -310,6 +310,7 @@ export function propGeometries(): THREE.BufferGeometry[] {
   g[PROP.RoofB] = roofB();
   g[PROP.Parapet] = parapet();
   g[PROP.Boat] = boat();
+  g[PROP.ParkedCar] = parkedCar();
   return g;
 }
 
@@ -341,6 +342,56 @@ export function carGeometry(): THREE.BufferGeometry {
     box(1.56, 0.58, 2.3, 0, 1.0, -0.25, '#3a4250'),
     quad(1.5, 0.2, 0, 0.72, 2.21, 1, '#fff4dc', 1),
     quad(1.5, 0.16, 0, 0.78, -2.21, -1, '#ff3a30', 0.9),
+  ]);
+}
+
+/** A parked car: the moving car's shape with its lights off. */
+function parkedCar(): THREE.BufferGeometry {
+  return merge([
+    quad(2.0, 4.8, 0, 0.05, 0, 0, '#1e1f26'),
+    box(1.76, 0.78, 4.4, 0, 0.22, 0, '#ffffff'),
+    box(1.56, 0.58, 2.3, 0, 1.0, -0.25, '#3a4250'),
+  ]);
+}
+
+/** A kei car (~30 tris): Japan's small boxy runabout, tall and short, nose along +z. */
+export function keiGeometry(): THREE.BufferGeometry {
+  return merge([
+    quad(1.7, 3.6, 0, 0.05, 0, 0, '#1e1f26'),
+    box(1.48, 0.95, 3.4, 0, 0.2, 0, '#ffffff'),
+    box(1.42, 0.62, 2.5, 0, 1.15, -0.25, '#3a4250'),
+    box(1.46, 0.08, 2.4, 0, 1.77, -0.25, '#ffffff'),
+    quad(1.2, 0.18, 0, 0.75, 1.71, 1, '#fff4dc', 1),
+    quad(1.2, 0.16, 0, 0.8, -1.71, -1, '#ff3a30', 0.9),
+  ]);
+}
+
+/** A taxi (~36 tris): the car with a lit sign on its roof. */
+export function taxiGeometry(): THREE.BufferGeometry {
+  return merge([carGeometry(), box(0.55, 0.24, 0.3, 0, 1.58, -0.2, '#fff1c8', 0.8)]);
+}
+
+/** A box truck (~40 tris): a cab and a tall cargo box, nose along +z. */
+export function truckGeometry(): THREE.BufferGeometry {
+  return merge([
+    quad(2.4, 7.4, 0, 0.05, 0, 0, '#1e1f26'),
+    box(2.1, 1.9, 1.9, 0, 0.35, 2.55, '#ffffff'),
+    box(2.0, 0.7, 0.1, 0, 1.4, 3.51, '#3a4250'),
+    box(2.3, 2.6, 5.0, 0, 0.55, -1.05, '#eceae4'),
+    quad(1.7, 0.2, 0, 0.7, 3.56, 1, '#fff4dc', 1),
+    quad(1.9, 0.16, 0, 0.8, -3.56, -1, '#ff3a30', 0.9),
+  ]);
+}
+
+/** A city bus (~44 tris): long and tall, a band of windows that lights up after dark. */
+export function busGeometry(): THREE.BufferGeometry {
+  return merge([
+    quad(2.8, 11.6, 0, 0.05, 0, 0, '#1e1f26'),
+    box(2.5, 2.7, 10.8, 0, 0.3, 0, '#ffffff'),
+    box(2.56, 0.85, 10.2, 0, 1.45, -0.2, '#f6ead0', 0.6),
+    box(2.3, 1.1, 0.08, 0, 1.2, 5.41, '#3a4250'),
+    quad(1.8, 0.22, 0, 0.75, 5.42, 1, '#fff4dc', 1),
+    quad(1.8, 0.2, 0, 0.9, -5.42, -1, '#ff3a30', 0.9),
   ]);
 }
 

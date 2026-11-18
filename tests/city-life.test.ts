@@ -12,7 +12,7 @@ import { flyBot } from './helpers';
 const city = new CityLayout(1337);
 
 /** Rough heights of each prop kind (m), for keeping them off the wisp ribbons. */
-const TALL = [7.2, 10.4, 1, 6, 2, 1, 2.6, 0.2, 1.4, 3.2, 6.5, 1.3, 2.5];
+const TALL = [7.2, 10.4, 1, 6, 2, 1, 2.6, 0.2, 1.4, 3.2, 6.5, 1.3, 2.5, 1.6];
 const STREET: number[] = [PROP.Lamp, PROP.Pole, PROP.Signal, PROP.Vending, PROP.BusStop, PROP.Pit];
 
 describe('a lived-in city', () => {
@@ -159,9 +159,19 @@ describe('city traffic', () => {
     b.plan(30, -300, 320, 650, 160);
     expect(b.place(12.5, 30, -300, 320, 650, out)).toBe(na);
     expect(out.slice(0, na * VEHICLE_STRIDE)).toEqual(first);
-    // A second later the first car has moved about its speed along its lane.
-    b.place(13.5, 30, -300, 320, 650, out);
-    const moved = Math.hypot(out[1] - first[1], out[3] - first[3]);
+    // A second later the cars (each found by its kind and tint, which is its own) have moved
+    // about their speed along their lanes (one may have left the view or the end of its road).
+    const nc = b.place(13.5, 30, -300, 320, 650, out);
+    let moved = NaN;
+    for (let u = 0; u < na && Number.isNaN(moved); u++) {
+      const f = u * VEHICLE_STRIDE;
+      for (let v = 0; v < nc; v++) {
+        const w = v * VEHICLE_STRIDE;
+        if (out[w] !== first[f] || out[w + 6] !== first[f + 6]) continue;
+        moved = Math.hypot(out[w + 1] - first[f + 1], out[w + 3] - first[f + 3]);
+        break;
+      }
+    }
     expect(moved).toBeGreaterThan(5);
     expect(moved).toBeLessThan(30);
   });
@@ -207,10 +217,13 @@ describe('city traffic', () => {
           const onAvenue = Math.min(u, v2) < city.AH - 4;
           expect(onBay || onAvenue).toBe(true);
           expect(city.inSea(x, z)).toBe(false);
-          // Riding the road: on the ground, or up on a bridge deck (3.3 m) over the river.
-          const h = city.height(x, z);
+          // Riding the road: on the ground, or on a bridge deck's surface over the river (and
+          // at 3.3 m where an avenue runs along a river, over the water with no deck).
+          const g = city.height(x, z);
+          const deck = city.deckAt(x, z);
+          const h = deck > -Infinity ? deck : city.river(x, z) > 0.001 ? Math.max(g, 3.3) : g;
           expect(y).toBeGreaterThan(h - 0.5);
-          expect(y).toBeLessThan(Math.max(h, 3.3) + 0.3);
+          expect(y).toBeLessThan(h + 0.3);
         }
       }
     }

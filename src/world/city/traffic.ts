@@ -226,7 +226,10 @@ export class TrafficPlan {
     return !(L.expressX(I) && Math.abs(x0 - I * S) < OVAL_R + 30);
   }
 
-  /** A street lane, clipped to the stretches of road (off the bay and short of the shore). */
+  /**
+   * A street lane, clipped to the stretches of road (off the bay, short of the shore, and not
+   * over a river without a bridge).
+   */
   private street(
     shape: number,
     c: number,
@@ -248,7 +251,11 @@ export class TrafficPlan {
       const s = a + i * 10;
       const x = shape === LINE_Z ? c + off : s;
       const z = shape === LINE_Z ? s : c + off;
-      const land = i < steps && L.shoreDist(x, z) > minSd;
+      // Land, and not a river the road has no bridge over (it ends at the river walk).
+      const land =
+        i < steps &&
+        L.shoreDist(x, z) > minSd &&
+        (L.river(x, z) < 0.001 || L.deckAt(x, z) > -Infinity);
       if (land && Number.isNaN(run)) run = s;
       if (!land && !Number.isNaN(run)) {
         if (s - run > 40)
@@ -337,9 +344,14 @@ export class TrafficPlan {
       } else if (shape === LINE_X) z = c + off;
       else z = c > 0 ? L.shoreNear(s) - off : L.shoreFar(s) + off;
       this.zs[li * SAMPLES + i] = z;
-      // Over a river the road is a bridge deck (the layout's decks top out at 3.3 m).
+      // Near a river or over the water the road may be a bridge deck: ride its surface (decks
+      // reach a couple of metres past each bank's top, where they meet the road).
       const g = L.baseHeight(x, z);
-      this.ys[li * SAMPLES + i] = L.river(x, z) > 0.001 || g < water ? Math.max(g, 3.3) : g;
+      // Where a road runs along a river rather than across it there is no deck: keep the cars
+      // above the water as before.
+      const deck = g < water || L.bankDist(x, z) < 3 ? L.deckAt(x, z) : -Infinity;
+      this.ys[li * SAMPLES + i] =
+        deck > -Infinity ? deck : L.river(x, z) > 0.001 || g < water ? Math.max(g, 3.3) : g;
     }
   }
 

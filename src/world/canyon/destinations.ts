@@ -1,4 +1,6 @@
 import { Config } from '../../core/Config';
+import { clamp } from '../../core/math';
+import { FLOCK_TINTS } from '../flockTints';
 import type { Destination, DestinationSource } from '../Destinations';
 import { ARCH_OUT_Y, type Arch, type CanyonLayout } from './CanyonLayout';
 
@@ -92,7 +94,7 @@ export function canyonDestinations(L: CanyonLayout): DestinationSource {
           if (!a.canyon || a === L.great || skip.has(archId(a))) continue;
           if (Math.hypot(a.x - x, a.z - z) > ON_LINE) continue;
           route.push(a.x, a.z);
-          return arrival(a, Float64Array.from(route));
+          return arrival(L, a, Float64Array.from(route));
         }
       }
       return null;
@@ -100,7 +102,22 @@ export function canyonDestinations(L: CanyonLayout): DestinationSource {
   };
 }
 
-function arrival(a: Arch, route: Float64Array): Destination {
+/**
+ * The cairn stands on the floor inside the opening, beside one leg, out of the river and clear
+ * of the ribbon (which threads the middle, high): seen framed in the arch on the way in.
+ */
+function roostAt(L: CanyonLayout, a: Arch) {
+  const c = Math.cos(a.yaw);
+  const s = Math.sin(a.yaw);
+  const side = a.seed < 0.5 ? -1 : 1;
+  const u = side * clamp(Math.max(L.river(a.x, a.z) + 6, a.r * 0.62), 0, a.r - 4);
+  // Along the opening's width: inArch measures it as dx cos(yaw) - dz sin(yaw).
+  const x = a.x + u * c;
+  const z = a.z - u * s;
+  return { x, y: Math.max(L.ground(x, z), 0), z, yaw: a.yaw + side * 0.9 };
+}
+
+function arrival(L: CanyonLayout, a: Arch, route: Float64Array): Destination {
   // Through the opening, round its legs or over the top: anywhere close counts.
   const r = Math.max(a.r * 1.35, 40);
   const top = a.y0 + a.h * ARCH_OUT_Y + 40;
@@ -111,6 +128,8 @@ function arrival(a: Arch, route: Float64Array): Destination {
     y: a.y0,
     z: a.z,
     route,
+    roost: roostAt(L, a),
+    tint: Math.floor(((a.seed * 7.31) % 1) * FLOCK_TINTS.length),
     reached: (x, y, z) => y < top && (x - a.x) ** 2 + (z - a.z) ** 2 < r * r,
   };
 }

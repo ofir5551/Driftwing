@@ -21,7 +21,7 @@ export interface GameEvents {
   /** A journey began: a beacon rose over its destination (only while playing). */
   destination: { name: string; x: number; y: number; z: number; first: boolean };
   /** The bird reached the journey's destination (only while playing). */
-  arrival: { id: string; name: string; x: number; y: number; z: number };
+  arrival: { id: string; name: string; x: number; y: number; z: number; tint: number };
   /** Journey milestones just opened (names, lowest first). */
   unlock: { names: readonly string[] };
 }

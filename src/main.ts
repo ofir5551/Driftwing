@@ -50,6 +50,14 @@ if (!journey.isLevelOpen(settings.level)) settings.level = 'highlands';
 const urlLevel = params.get('level');
 const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level, settings.timeOfDay);
 const gameplay = new Gameplay(game, ui);
+// The flock flies from the start (the title's backdrop too). `?flock=N` shows N birds for
+// screenshots without touching the save.
+const testFlock = params.get('flock');
+gameplay.flock.setBirds(
+  testFlock === null
+    ? journey.flock
+    : Array.from({ length: Math.max(0, Math.floor(Number(testFlock)) || 0) }, (_, i) => i % 8),
+);
 const audio = new GameAudio(game, gameplay.progress);
 // A find already made is never made again (in any session that keeps the journey).
 gameplay.discoveries.known = (id) => journey.hasFound(id);
@@ -209,6 +217,7 @@ const handlers: MenuHandlers = {
         seconds: playTime,
         finds: journey.flightFinds.map(findName),
         reached: [...gameplay.destinations.reachedNames],
+        flock: earns ? journey.flock.length : gameplay.destinations.reachedNames.length,
       },
       journey.unrevealed(),
     );
@@ -302,7 +311,12 @@ game.events.on('discovery', (e) => {
   earn(Config.discoveries.light);
   bankJourney(); // a find is worth saving at once
 });
-game.events.on('arrival', () => {
+game.events.on('arrival', (e) => {
+  if (earns) {
+    journey.joinFlock(e.tint);
+    // The first bird ever says what the flock is; after that, seeing one join says it.
+    if (journey.flock.length === 1) gameplay.hud.notice('A bird joins your flock');
+  }
   earn(Config.destinations.light);
   bankJourney(); // a journey's end is worth saving at once
 });

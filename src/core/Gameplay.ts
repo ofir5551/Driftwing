@@ -16,6 +16,8 @@ import { Thermals } from '../world/Thermals';
 import { Wisps } from '../world/Wisps';
 import { DiscoveryTracker, type DiscoveryDef } from '../world/Discoveries';
 import { Beacon } from '../world/Beacon';
+import { Flock } from '../world/Flock';
+import { LANTERN, PERCH_HEIGHT, Roost } from '../world/Roost';
 import { DestinationTracker } from '../world/Destinations';
 
 const GOLD = new THREE.Color('#ffd27a');
@@ -41,6 +43,11 @@ export class Gameplay {
   /** The flight's journeys: the destination ahead and those reached (main.ts restarts it). */
   readonly destinations = new DestinationTracker();
   private readonly beacon = new Beacon();
+  /** The birds gathered on the journeys (main.ts hands it the kept flock). */
+  readonly flock = new Flock();
+  private readonly roost = new Roost();
+  /** Rising sparks round the cairn while its stray waits (accumulator). */
+  private roostSpark = 0;
   private readonly lanterns = new Lanterns();
   private readonly glow = new Particles(2400, true);
   private readonly soft = new Particles(900, false);
@@ -89,6 +96,8 @@ export class Gameplay {
       this.wind.mesh,
       this.shadow.mesh,
       this.beacon.mesh,
+      this.flock.mesh,
+      this.roost.group,
     );
     this.thermals.update(game.flight.x, game.flight.z);
     this.discoveries.setLevel(game.world.discoveries);
@@ -98,6 +107,7 @@ export class Gameplay {
     game.onFrame((dt, time) => this.frame(dt, time));
     game.events.on('contact', (e) => this.onContact(e.kind, e.x, e.y, e.z, e.strength));
     game.events.on('level', () => this.onLevel());
+    game.events.on('flap', () => this.flock.flap());
   }
 
   /**
@@ -156,6 +166,8 @@ export class Gameplay {
   /** The flight is over (Rest, the title): the beacon goes out and the ribbons wander freely. */
   endFlight(): void {
     this.beacon.hide();
+    this.roost.hide();
+    this.flock.clearPerch();
     this.wisps.planner?.setGoal?.(null);
   }
 
@@ -170,6 +182,9 @@ export class Gameplay {
     this.discoveries.setLevel(g.world.discoveries);
     this.destinations.setSource(g.world.destinations ?? null);
     this.beacon.hide();
+    this.roost.hide();
+    this.flock.clearPerch();
+    this.flock.snap();
     g.autopilotTarget = null;
   }
 
@@ -243,6 +258,9 @@ export class Gameplay {
     const g = this.game;
     const d = this.destinations.current!;
     this.beacon.show(d.x, d.y, d.z);
+    const r = d.roost;
+    this.roost.show(r.x, r.y, r.z, r.yaw);
+    this.flock.perchAt(r.x, r.y + PERCH_HEIGHT, r.z, r.yaw, d.tint);
     this.wisps.planner?.setGoal?.(d.route);
     const first = this.destinations.reachedNames.length === 0;
     // Words only for where it leads; the column of light says the rest.
@@ -258,6 +276,10 @@ export class Gameplay {
     const K = Config.destinations;
     this.beacon.arrive();
     this.wisps.planner?.setGoal?.(null);
+    // The stray takes off from its cairn and joins (a puff of feathers as it goes).
+    const tint = this.flock.join(s.x, s.y, s.z);
+    const r = d.roost;
+    this.soft.burst(10, r.x, r.y + PERCH_HEIGHT, r.z, 3, 0.9, 0.5, WHITE, -1, 1.5);
     gust(s, K.boost, K.lift);
     this.glow.burst(70, s.x, s.y, s.z, 16, 1.8, 2, GOLD, -0.8, 5);
     this.glow.burst(50, d.x, s.y + 20, d.z, 26, 2.8, 2.4, WHITE, 2, 12);
@@ -265,7 +287,7 @@ export class Gameplay {
     this.progress.flow = 1;
     this.hud.toast(`${d.name} reached`, 3.5);
     this.hud.pulse();
-    g.events.emit('arrival', { id: d.id, name: d.name, x: s.x, y: s.y, z: s.z });
+    g.events.emit('arrival', { id: d.id, name: d.name, x: s.x, y: s.y, z: s.z, tint });
   }
 
   /** A hidden find: no words in flight (the Rest card names it), just light and a chime. */
@@ -396,6 +418,22 @@ export class Gameplay {
     this.thermals.render(time, halfH, this.tmp.copy(WHITE).lerp(pal.sun, 0.3));
     this.lanterns.update(dt, time, this.lanternSpark, 14 * density);
     this.beacon.update(dt, time, g.chase.camera);
+    this.roost.update(time, pal.stars);
+    this.flock.update(dt, time, pose, g.world);
+    // Sparks rise from the cairn's lantern while its stray waits, so it reads up close.
+    const cur = this.destinations.current;
+    if (cur && dt > 0 && Math.hypot(cur.roost.x - pose.x, cur.roost.z - pose.z) < 300) {
+      this.roostSpark -= dt * 5 * density;
+      if (this.roostSpark < 0) {
+        this.roostSpark += 1;
+        // The lantern in the cairn's frame, turned by its yaw.
+        const r = cur.roost;
+        const c = Math.cos(r.yaw);
+        const sn = Math.sin(r.yaw);
+        const L = LANTERN;
+        this.lanternSpark(r.x + L.x * c + L.z * sn, r.y + L.y + 0.2, r.z - L.x * sn + L.z * c);
+      }
+    }
 
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);

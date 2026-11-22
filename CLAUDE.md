@@ -14,7 +14,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
   `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon`,
-  `?unlocked` (every level, plumage and trail open, nothing granted or saved).
+  `?unlocked` (every level, plumage and trail open, nothing granted or saved), `?flock=N` (fly N
+  flock birds, never saved).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
   `__journey` (Journey: lifetime light and unlocks).
@@ -60,7 +61,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `world/Destinations.ts`: a flight's journeys (pure tracker: a beacon over a landmark ahead, the
   wisps lean toward it via `WispPlanner.setGoal`, arrival ends it). A level offers them as
   `World.destinations` (Red Canyons only so far: `world/canyon/destinations.ts`); `world/Beacon.ts`
-  draws the column of light. See DESIGN's Destinations.
+  draws the column of light, `world/Roost.ts` the lit cairn where a stray perches. Arriving adds
+  it to the flock: `world/Flock.ts` (instanced birds round the player's, in every level; saved
+  in the journey) with the pure slot/spring math in `world/formation.ts`. See DESIGN's Destinations.
 - `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, discovery, destination, arrival, unlock) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics; a bird's `FlightTuning` (its
   `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built

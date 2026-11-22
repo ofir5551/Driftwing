@@ -76,6 +76,8 @@ export interface JourneyData {
   seen: UnlockId[];
   /** Discoveries made (ids from world/Discoveries). Older saves have none. */
   found: string[];
+  /** The flock: each bird's plumage (an index into FLOCK_TINTS), in the order they joined. */
+  flock: number[];
 }
 
 /** Reads saved data defensively: anything missing or malformed falls back to a fresh start. */
@@ -92,7 +94,12 @@ export function parseJourney(raw: unknown): JourneyData {
     : [...granted];
   const seen = Array.isArray(o.seen) ? [...new Set(o.seen.filter(isUnlockId))] : [...LEGACY_SEEN];
   const found = Array.isArray(o.found) ? [...new Set(o.found.filter(isFindId))] : [];
-  return { v: 1, light, granted, revealed, seen, found };
+  const flock = Array.isArray(o.flock)
+    ? o.flock
+        .filter((t): t is number => Number.isInteger(t) && t >= 0 && t < 64)
+        .slice(-Config.flock.keep)
+    : [];
+  return { v: 1, light, granted, revealed, seen, found, flock };
 }
 
 const NONE: readonly Unlock[] = [];
@@ -114,6 +121,10 @@ export class Journey {
   allOpen = false;
   /** Discoveries made this flight, in order (the Rest card names them). */
   readonly flightFinds: string[] = [];
+  /** The flock: each bird's plumage, oldest first (kept for good, up to Config.flock.keep). */
+  readonly flock: number[] = [];
+  /** Birds that joined during the current flight. */
+  flightJoined = 0;
   private readonly granted = new Set<UnlockId>();
   private readonly revealed = new Set<UnlockId>();
   private readonly found = new Set<string>();
@@ -125,6 +136,7 @@ export class Journey {
       for (const id of data.granted) this.granted.add(id);
       for (const id of data.revealed) this.revealed.add(id);
       for (const id of data.found) this.found.add(id);
+      this.flock.push(...data.flock);
     }
     // Milestones already passed but not recorded open now: quietly if a retune lowered one,
     // with a card still to come if it is new to the track (a bird added since the save).
@@ -218,6 +230,14 @@ export class Journey {
     return true;
   }
 
+  /** A stray joined the flock (on arriving at a destination). */
+  joinFlock(tint: number): void {
+    this.flock.push(tint);
+    if (this.flock.length > Config.flock.keep) this.flock.shift();
+    this.flightJoined++;
+    this.dirty = true;
+  }
+
   hasFound(id: string): boolean {
     return this.found.has(id);
   }
@@ -231,6 +251,7 @@ export class Journey {
 
   newFlight(): void {
     this.flightFinds.length = 0;
+    this.flightJoined = 0;
     this.flightLight = 0;
     this.flightOpened = 0;
     this.startLight = this.light;
@@ -246,6 +267,7 @@ export class Journey {
       revealed: ids(this.revealed),
       seen: UNLOCKS.map((u) => u.id),
       found: [...this.found],
+      flock: [...this.flock],
     };
   }
 

@@ -991,8 +991,45 @@ and a missed approach is just circling back.
   a level's source as `World.destinations` (`world/canyon/destinations.ts`), the planner's
   optional `WispPlanner.setGoal(route)`, `arrival`/`destination` events (light in `main.ts`,
   `Music.arrived`), `Config.destinations`.
-- Next (see the roadmap): the flock (stray birds along the way that join and stay), approach
-  courses with calm medals (gates threaded, no clock), then the other eight levels' sources.
+- Next: approach courses with calm medals (gates threaded, no clock), then the other eight
+  levels' sources.
+
+### What waits there: a lit cairn and a stray (built)
+
+Step 1 left the destination an ordinary arch: nothing said "you have arrived somewhere". Now
+each destination has a **cairn** (stacked sandstone, ~3 m, a lantern on a post that flickers
+and glows brighter at night, sparks rising from it while its bird waits), standing on the floor
+inside the opening beside one leg, out of the river and well under the ribbon's line, so it is
+framed in the arch on the way in. On its top stone perches a **stray**, wings folded. On arrival
+it takes off and joins the player's **flock**.
+
+- The flock is kept for good (the save's `flock`: each bird's plumage, oldest first, up to 400)
+  and flies with the bird in every level, on the title's backdrop too, so progress is something
+  seen, not a number. A screen holds the newest 12; the rest are kept and counted. The first
+  bird ever is announced ("A bird joins your flock"); after that, seeing it join says it.
+- Where they fly: round and a little ahead of the bird (4.5-15 m), not in a V behind it. The
+  camera sits 6 m behind and, on a phone held upright, sees a narrow cone: a trailing V would be
+  off screen or in the lens. Each slot's sideways reach grows with how far ahead it is (the view
+  widens), slots are spread by low-discrepancy sequences (any flock size fills the space and a
+  bird keeps its place as more join), and they drift slowly. A little below the bird on average:
+  the camera is 1.5 m up, so it sees their backs, not edge-on wings.
+- How they follow: each bird's offset from the bird springs (critically damped, its own
+  stiffness) toward its slot turned by the bird's heading and pitch. Offsets, not positions: a
+  world-position spring trails 2v/w behind (30 m at a Phoenix's cruise); offsets keep up at any
+  speed and lag only in turns, so the flock swings round a bend together. A joining bird starts
+  from its perch's offset and climbs to its place, flapping. They flap when the bird flaps (each
+  a little late), while it climbs, and now and then on their own; otherwise they glide with
+  wings in a V. The level's `pushPoint` and flight floor keep them out of rock and off the ground.
+- Look: one instanced mesh (~60 triangles a bird, wingbeat and fold in the vertex shader from a
+  per-vertex `aWing` and per-instance `aBird`), near-white vertex shading times a pastel tint
+  (eight, `world/flockTints.ts`: the save keeps indices, so the list only grows), and the
+  player bird's trick of a soft self-light on faces turned away. Grey shading times mid-toned
+  tints read as dark brown blots against red rock; flat wings from behind read as dotted lines.
+- The Rest card adds "A bird joined · a flock of 7" under the journeys. `?flock=N` flies N birds
+  for screenshots without touching the save.
+- Code: `world/Flock.ts` (mesh, springs, perch), `world/formation.ts` (pure: slots, the
+  heading-turned offset, the spring; tested), `world/Roost.ts` (the cairn), a destination's
+  `roost` and `tint`, `Journey.joinFlock`.
 
 ## Progression (proposed)
 
@@ -1251,7 +1288,7 @@ The "mix" beyond birds, and what gives the cosmetics a purpose beyond light:
 ### Save format
 
 `driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], seen: string[],
-found: string[] }`,
+found: string[], flock: number[] }`,
 loaded with the same guards as settings (bad or missing fields fall back to defaults; storage
 errors mean no progress is saved, never a crash). `revealed` makes each unlock card show once;
 `seen` is the track as the save knew it (see Species). The Aviary picks (`species`, `plumage`,
@@ -1841,3 +1878,6 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   the plateau failed: a ribbon down in a canyon cannot climb its 125 m walls toward a goal across
   them, and climbing out along the canyon flip-flopped when the goal lay square across it. Walking
   down the bird's own canyon works (the ribbons already run there), once arches stand often enough.
+- The flock flies ahead of the bird, not behind: on a phone held upright the chase camera sees a
+  cone a few metres wide at the bird, so a V behind it was invisible. Followers spring their
+  offsets from the bird rather than world positions, so they keep up at any speed.

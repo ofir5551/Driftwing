@@ -53,7 +53,15 @@ describe('Journey', () => {
   });
 
   it('tracks the light of the current flight separately', () => {
-    const j = new Journey({ v: 1, light: 500, granted: [], revealed: [], seen: ALL, found: [] });
+    const j = new Journey({
+      v: 1,
+      light: 500,
+      granted: [],
+      revealed: [],
+      seen: ALL,
+      found: [],
+      flock: [],
+    });
     j.earn(12);
     expect(j.flightLight).toBe(12);
     j.newFlight();
@@ -72,7 +80,15 @@ describe('Journey', () => {
 
   it('quietly opens milestones a retune lowered below the saved light', () => {
     Config.unlocks.gildedPlumage = 5;
-    const j = new Journey({ v: 1, light: 10, granted: [], revealed: [], seen: ALL, found: [] });
+    const j = new Journey({
+      v: 1,
+      light: 10,
+      granted: [],
+      revealed: [],
+      seen: ALL,
+      found: [],
+      flock: [],
+    });
     expect(j.isUnlocked('gildedPlumage')).toBe(true);
     expect(j.dirty).toBe(true);
     expect(j.unrevealed()).toEqual([]);
@@ -192,6 +208,32 @@ describe('Journey / Rest cards', () => {
   });
 });
 
+describe('the flock', () => {
+  it('keeps each bird that joins, in order, through a save', () => {
+    const j = new Journey();
+    j.joinFlock(2);
+    j.joinFlock(5);
+    expect(j.flightJoined).toBe(2);
+    expect(j.dirty).toBe(true);
+    const back = new Journey(parseJourney(JSON.parse(JSON.stringify(j.toData()))));
+    expect(back.flock).toEqual([2, 5]);
+    back.newFlight();
+    expect(back.flightJoined).toBe(0);
+  });
+
+  it('starts empty on old saves and drops anything malformed', () => {
+    expect(parseJourney({ light: 10 }).flock).toEqual([]);
+    expect(parseJourney({ flock: [1, -1, 2.5, 'x', 3, 99] }).flock).toEqual([1, 3]);
+  });
+
+  it('keeps at most Config.flock.keep birds (the newest)', () => {
+    const j = new Journey();
+    for (let i = 0; i < Config.flock.keep + 5; i++) j.joinFlock(i % 8);
+    expect(j.flock.length).toBe(Config.flock.keep);
+    expect(j.flock[j.flock.length - 1]).toBe((Config.flock.keep + 4) % 8);
+  });
+});
+
 describe('parseJourney', () => {
   it('falls back to a fresh start on garbage', () => {
     for (const raw of [null, undefined, 42, 'x', [], { light: 'lots' }, { light: Infinity }])
@@ -204,6 +246,7 @@ describe('parseJourney', () => {
           (id) => !['swallow', 'crane', 'phoenix', 'peaks', 'atoll', 'ringmoon'].includes(id),
         ),
         found: [],
+        flock: [],
       });
   });
 
@@ -217,6 +260,7 @@ describe('parseJourney', () => {
       revealed: ['city'],
       seen: ['city'],
       found: [],
+      flock: [],
     });
     expect(parseJourney({ light: 12.7 }).light).toBe(12);
   });

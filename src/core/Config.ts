@@ -679,7 +679,28 @@ export const Config = {
     beamRadius: 9, // m, its radius at the foot (it widens upward)
     beamFar: 0.85, // share of the camera's far plane at which farther beacons are drawn, scaled
     beamWiden: 700, // m from the camera beyond which the beam widens, so it stays readable far off
-    beamNear: 90, // m from its axis inside which the beam fades, so it never floods the screen
+    beamNear: 200, // m from its axis inside which the beam fades, so it never floods the screen
+  },
+  flock: {
+    // Each destination's stray, perched on its lit cairn, joins the flock on arrival. The flock
+    // is kept for good and flies with the bird in every level (DESIGN: The flock).
+    visible: 12, // most birds flown with at once (more are kept and counted)
+    keep: 400, // most birds the save keeps
+    aheadMin: 4.5, // m ahead of the bird, nearest slot
+    aheadMax: 15, // m ahead, farthest slot (farther, they shrink to specks on a phone)
+    sideMin: 1.4, // m either side at the bird
+    sideGrow: 0.34, // m more either side per metre ahead (the camera's view widens with distance)
+    upMid: -0.2, // m above the bird, on average (a little below: the camera, 1.5 m up, sees their backs)
+    upSpread: 2, // m up or down from that
+    drift: 1.1, // m each slot wanders, slowly
+    stiffness: 2.2, // rad/s of the springs that keep birds in place (they settle in ~2 s)
+    stiffnessVar: 0.35, // share by which each bird's spring differs (they never move as one)
+    scale: 0.78, // size of a flock bird (its geometry spans 2.3 m: ~1.8 m wingspan)
+    clearance: 1.6, // m every bird keeps from the ground and from rock
+    flapAfter: 0.7, // s the flock flaps after the bird flaps (each a little late)
+    joinFlap: 2.2, // s a bird that just joined flaps as it climbs to its place
+    cairnLight: 1.4, // brightness of the cairn's lantern by day (night adds `cairnNight`)
+    cairnNight: 1.8,
   },
   hints: {
     // First-flight lessons, each learned by doing it once (saved), so a returning player is

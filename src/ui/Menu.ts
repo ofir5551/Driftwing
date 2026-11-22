@@ -186,8 +186,10 @@ export interface RestTally {
   seconds: number;
   /** Names of the discoveries made this flight. */
   finds: readonly string[];
-  /** Names of the journeys' destinations reached this flight. */
+  /** Names of the journeys' destinations reached this flight (a bird joined at each). */
   reached: readonly string[];
+  /** Birds in the flock now. */
+  flock: number;
 }
 
 const KIND_LABEL: Record<UnlockKind, string> = {
@@ -685,7 +687,12 @@ export class Menu {
     best.classList.toggle('new', t.newBest);
     const reached = r.querySelector<HTMLElement>('.rest-reached')!;
     reached.hidden = t.reached.length === 0;
-    reached.textContent = `Journeyed to ${t.reached.join(' · ')}`;
+    const n = t.reached.length;
+    reached.replaceChildren(
+      `Journeyed to ${t.reached.join(' · ')}`,
+      document.createElement('br'),
+      `${n === 1 ? 'A bird' : `${n} birds`} joined · a flock of ${t.flock}`,
+    );
     const finds = r.querySelector<HTMLElement>('.rest-finds')!;
     finds.hidden = t.finds.length === 0;
     finds.textContent = `Found: ${t.finds.join(' · ')}`;

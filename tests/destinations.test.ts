@@ -27,6 +27,8 @@ function fakeSource(log: { first: boolean; skip: number }[]): DestinationSource 
         y: 0,
         z: z + 1000,
         route: Float64Array.of(x, z, x, z + 1000),
+        roost: { x, y: 0, z: z + 1000, yaw: 0 },
+        tint: 0,
         reached: (px, _py, pz) => Math.hypot(px - x, pz - (z + 1000)) < 30,
       };
       return d;
@@ -116,6 +118,18 @@ describe('canyon destinations', () => {
       expect(d.reached(d.x, d.y + 10, d.z)).toBe(true);
       expect(d.reached(d.x + 200, d.y + 10, d.z)).toBe(false);
       expect(d.reached(d.x, d.y + 400, d.z)).toBe(false);
+      // The cairn: on dry floor inside the opening, beside a leg, well under the ribbon's line.
+      const a = L.nearArches(d.x, d.z).find((q) => q.x === d.x && q.z === d.z)!;
+      const ro = d.roost;
+      const u = (ro.x - a.x) * Math.cos(a.yaw) - (ro.z - a.z) * Math.sin(a.yaw);
+      const v = (ro.x - a.x) * Math.sin(a.yaw) + (ro.z - a.z) * Math.cos(a.yaw);
+      expect(Math.abs(v)).toBeLessThan(0.01);
+      expect(Math.abs(u)).toBeLessThanOrEqual(a.r - 4 + 1e-9);
+      expect(Math.abs(u)).toBeGreaterThan(L.river(a.x, a.z) + 5);
+      expect(ro.y).toBeGreaterThan(0.2);
+      expect(ro.y + 3).toBeLessThan(a.y0 + a.h * 0.42);
+      expect(L.solidTop(ro.x, ro.y + 1, ro.z, 0)).toBe(-Infinity);
+      expect(d.tint).toBeGreaterThanOrEqual(0);
       // Each arch keeps its id and name.
       const again = canyonDestinations(new CanyonLayout(seed)).next(
         s.x,

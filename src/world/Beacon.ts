@@ -118,9 +118,9 @@ export class Beacon {
     // Fade near its axis, so flying through it never floods the screen.
     const p = this.mesh.position;
     const cam = camera.position;
-    const near = clamp(Math.hypot(cam.x - p.x, cam.z - p.z) / K.beamNear, 0.15, 1);
+    const near = clamp(Math.hypot(cam.x - p.x, cam.z - p.z) / K.beamNear, 0.04, 1) ** 1.5;
     const u = this.mat.uniforms;
-    u.uIntensity.value = (this.level * 0.55 + this.flare * 0.9) * near;
+    u.uIntensity.value = (this.level * 0.55 + this.flare * 0.6) * near;
     u.uTime.value = time;
     u.uFar.value = camera.far * K.beamFar;
     u.uWiden.value = K.beamWiden;

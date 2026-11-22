@@ -15,6 +15,12 @@ const WIDE_TURNS = [1.9, -1.9, 2.5, -2.5, Math.PI];
 const ARCH_REACH = 95;
 /** Share of an arch's rise a ribbon threads it at. */
 const ARCH_THREAD = 0.42;
+/** Route points (40 m apart) ahead of the nearest that the ribbons aim for on a journey. */
+const GOAL_AHEAD = 8;
+/** On the last this many route points (40 m apart) the ribbon comes down to the arch's floor. */
+const GOAL_APPROACH = 17;
+/** m off the route within which the cursor counts as on that run. */
+const GOAL_ON = 250;
 
 /**
  * Red Canyons' wisp patterns. The canyon is the spine: low ribbons run down it between the
@@ -32,8 +38,46 @@ export class CanyonPlanner implements WispPlanner {
   private trendX = 0;
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
+  /** The current destination's route (x, z pairs down the canyon to its arch), or null. */
+  private route: Float64Array | null = null;
+  /** From the last `goalHeading`: is the cursor on the route, and on its last run to the arch? */
+  private onRoute = false;
+  private approaching = false;
+  /** From the last `goalHeading`: the route's own direction at its point nearest the cursor. */
+  private routeDir = 0;
 
   constructor(private readonly L: CanyonLayout) {}
+
+  setGoal(route: Float64Array | null): void {
+    this.route = route;
+  }
+
+  /**
+   * Heading from the cursor to a point a little way along the route past its nearest point,
+   * or null with no route or once the cursor has reached its end (the ribbon then runs on as
+   * it would, never doubling back to an arch it has passed).
+   */
+  private goalHeading(c: WispCursor): number | null {
+    const R = this.route;
+    this.onRoute = this.approaching = false;
+    if (!R) return null;
+    const last = R.length / 2 - 1;
+    let bi = 0;
+    let bd = Infinity;
+    for (let i = 0; i <= last; i++) {
+      const d = (R[i * 2] - c.x) ** 2 + (R[i * 2 + 1] - c.z) ** 2;
+      if (d < bd) {
+        bd = d;
+        bi = i;
+      }
+    }
+    if (bi >= last) return null;
+    this.onRoute = bd < GOAL_ON * GOAL_ON;
+    this.approaching = this.onRoute && bi >= last - GOAL_APPROACH;
+    this.routeDir = Math.atan2(R[bi * 2 + 2] - R[bi * 2], R[bi * 2 + 3] - R[bi * 2 + 1]);
+    const k = Math.min(bi + GOAL_AHEAD, last);
+    return Math.atan2(R[k * 2] - c.x, R[k * 2 + 1] - c.z);
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -41,6 +85,12 @@ export class CanyonPlanner implements WispPlanner {
     if (Math.abs(c.x - this.expect.x) + Math.abs(c.z - this.expect.z) > 1) {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
+    }
+    // On a journey the trend is the way to the destination: down the canyon to its arch.
+    const goal = this.goalHeading(c);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
     }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (!this.introDone) {
@@ -53,8 +103,20 @@ export class CanyonPlanner implements WispPlanner {
     const K = Config.canyon;
     // Now and then let the generic patterns run (they bring the thermal spirals), but only far
     // out in the desert: they know nothing of walls and would ask for a climb no bird can make.
-    if (rand() < 0.15 && L.canyon(c.x, c.z) > K.wall + 220) return false;
+    // Not on a journey: they know nothing of the way either.
+    const generic = rand() < 0.15;
+    if (generic && goal === null && L.canyon(c.x, c.z) > K.wall + 220) return false;
     const along = L.heading(c.x, c.z, base);
+    if (goal !== null && this.onRoute && L.canyon(c.x, c.z) < 0) {
+      // On the way: run down the canyon the way the route goes (the aim point ahead can lie
+      // across a hairpin's wall, which would send the ribbon up over the rim). On the last
+      // stretch it comes down to the floor from any height, so it threads the arch.
+      const h = L.heading(c.x, c.z, this.routeDir);
+      this.pts.length = 0;
+      if (this.approaching) this.canyon(c, h, 18, 12, 0);
+      else this.canyon(c, h, 12 + rand() * 14, 10 + Math.floor(rand() * 6), (rand() - 0.5) * 0.9);
+      if (this.commit(c, spawn)) return true;
+    }
     if (L.canyon(c.x, c.z) < 0 && c.y < 70 && Math.abs(angleDelta(base, along)) < 1.2) {
       this.pts.length = 0;
       this.canyon(c, along, 12 + rand() * 14, 10 + Math.floor(rand() * 6), (rand() - 0.5) * 0.9);

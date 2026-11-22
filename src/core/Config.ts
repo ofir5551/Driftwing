@@ -149,6 +149,7 @@ export const Config = {
     plateauVar: 16, // m, rim and plateau swell either way
     mesa: 70, // m, flat-topped mesas and buttes rising off the plateau
     archCell: 420, // m, grid cell that may hold one arch (in the canyon or out on the plateau)
+    archTries: 6, // spots a cell tries for a canyon arch (the first also decides a plateau fin)
     greatAhead: 330, // m along the canyon from the spawn to the Great Arch
     greatSpan: 46, // m, half span of the Great Arch's opening
     greatRise: 62, // m, height of its opening
@@ -658,6 +659,27 @@ export const Config = {
     night: 0.6, // sky stars (0..1) from which a night-only find can be made
     light: 25, // journey light a find gives
     flash: 0.3, // screen flash on a find (a lantern lighting is 0.6)
+  },
+  destinations: {
+    // Each flight is a journey: a beacon marks a landmark far ahead, the wisps lean toward it,
+    // and reaching it ends the journey (light, a chord, a line on the Rest card), then the next
+    // beacon rises. No clock and nothing to fail: see DESIGN's Destinations.
+    firstDelay: 4, // s into a flight before the first beacon rises (after "Follow the wisps")
+    nextDelay: 7, // s after an arrival before the next beacon rises (time to enjoy it)
+    retry: 5, // s before asking again when no destination could be found from here
+    stray: 5200, // m from the beacon beyond which a new, nearer one is chosen
+    firstRoute: 1000, // m along the way, at least, to the flight's first destination (~40 s)
+    minRoute: 1600, // m along the way, at least, to every later one (about a minute)
+    maxRoute: 4600, // m along the way searched for one (ahead only; none in reach: ask again later)
+    light: 40, // journey light for reaching a destination (a lantern gives 10)
+    flash: 0.7, // screen flash on arrival
+    boost: 8, // m/s forward surge on arrival
+    lift: 5, // m/s upward lift on arrival
+    beamHeight: 900, // m, the beacon's column of light
+    beamRadius: 9, // m, its radius at the foot (it widens upward)
+    beamFar: 0.85, // share of the camera's far plane at which farther beacons are drawn, scaled
+    beamWiden: 700, // m from the camera beyond which the beam widens, so it stays readable far off
+    beamNear: 90, // m from its axis inside which the beam fades, so it never floods the screen
   },
   hints: {
     // First-flight lessons, each learned by doing it once (saved), so a returning player is

@@ -488,9 +488,28 @@ export class CanyonLayout {
 
   private makeArch(i: number, j: number): Arch | null {
     const K = Config.canyon;
-    const C = K.archCell;
     const s = this.seed;
     if (cellHash(i, j, s + 611) > 0.7) return null;
+    // The first spot decides as it always has (a canyon arch, a plateau fin or nothing); if it
+    // found no canyon arch and stood no fin, a few more spots are tried for one, so arches
+    // stand often enough down every canyon for the journeys to lead to (DESIGN: Destinations).
+    const first = this.archAt(i, j, 0);
+    if (first !== undefined) return first;
+    for (let t = 1; t < K.archTries; t++) {
+      const a = this.archAt(i, j, t);
+      if (a) return a;
+    }
+    return null;
+  }
+
+  /**
+   * The arch at try `t`'s spot in cell (i, j): an Arch, null for nothing (the cell decided),
+   * or undefined when this spot found no canyon arch and a later try may look again.
+   */
+  private archAt(i: number, j: number, t: number): Arch | null | undefined {
+    const K = Config.canyon;
+    const C = K.archCell;
+    const s = this.seed + t * 1009;
     let x = (i + 0.2 + 0.6 * cellHash(i, j, s + 612)) * C;
     let z = (j + 0.2 + 0.6 * cellHash(i, j, s + 613)) * C;
     const bank = this.canyon(x, z);
@@ -507,20 +526,21 @@ export class CanyonLayout {
       // Keep to the cell's middle (so neighbours never crowd), clear of the opening reach and
       // the Great Arch, on a straight stretch (ribbons thread it head on).
       const m = 0.15 * C;
-      if (x < i * C + m || x > (i + 1) * C - m || z < j * C + m || z > (j + 1) * C - m) return null;
-      if (Math.hypot(x - S.x, z - S.z) < K.greatAhead + 160) return null;
-      if (Math.hypot(x - G.x, z - G.z) < 300) return null;
+      if (x < i * C + m || x > (i + 1) * C - m || z < j * C + m || z > (j + 1) * C - m)
+        return undefined;
+      if (Math.hypot(x - S.x, z - S.z) < K.greatAhead + 160) return undefined;
+      if (Math.hypot(x - G.x, z - G.z) < 300) return undefined;
       const yaw = this.heading(x, z, cellHash(i, j, s + 614) * Math.PI * 2);
       for (const d of [-60, 60]) {
         const h = this.heading(x + Math.sin(yaw) * d, z + Math.cos(yaw) * d, yaw);
-        if (Math.abs(angleDelta(yaw, h)) > 0.3) return null;
+        if (Math.abs(angleDelta(yaw, h)) > 0.3) return undefined;
       }
       // The snap must have landed on the centre line (from far off it can wander).
-      if (this.canyon(x, z) > -this.cw * 0.8) return null;
+      if (this.canyon(x, z) > -this.cw * 0.8) return undefined;
       const floor = this.cw;
       const rw = this.river(x, z);
       const r = Math.min((floor * 0.88) / ARCH_OUT_X, 40);
-      if (r < Math.max(rw + 5, 20)) return null;
+      if (r < Math.max(rw + 5, 20)) return undefined;
       const a: Arch = {
         x,
         z,
@@ -535,7 +555,8 @@ export class CanyonLayout {
       a.y0 = this.legFloor(a) - 0.4;
       return a;
     }
-    if (bank < K.wall + 120) return null;
+    // Between canyon and plateau, or a later try out of the canyon: nothing at this spot.
+    if (bank < K.wall + 120 || t > 0) return undefined;
     // Out on the plateau: a fin of rock with a window through it, on level ground.
     const r = 12 + 14 * cellHash(i, j, s + 615);
     const a: Arch = {

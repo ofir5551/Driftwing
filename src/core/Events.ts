@@ -18,6 +18,10 @@ export interface GameEvents {
   level: { id: LevelId };
   /** A level's hidden find was made (only while playing, each once). */
   discovery: { id: string; name: string; x: number; y: number; z: number };
+  /** A journey began: a beacon rose over its destination (only while playing). */
+  destination: { name: string; x: number; y: number; z: number; first: boolean };
+  /** The bird reached the journey's destination (only while playing). */
+  arrival: { id: string; name: string; x: number; y: number; z: number };
   /** Journey milestones just opened (names, lowest first). */
   unlock: { names: readonly string[] };
 }

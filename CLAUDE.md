@@ -57,7 +57,11 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `world/Discoveries.ts`: every level's hidden finds (names, `LEVEL_FINDS`) and the tracker
   (pure); each level's tests are `world/<level>/finds.ts` (Highlands: `world/highlands/`), handed
   to Gameplay as `World.discoveries`. Finds must stay off the wisps' ribbons (a test flies them).
-- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, discovery, unlock) so audio/fx/ui stay decoupled.
+- `world/Destinations.ts`: a flight's journeys (pure tracker: a beacon over a landmark ahead, the
+  wisps lean toward it via `WispPlanner.setGoal`, arrival ends it). A level offers them as
+  `World.destinations` (Red Canyons only so far: `world/canyon/destinations.ts`); `world/Beacon.ts`
+  draws the column of light. See DESIGN's Destinations.
+- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, discovery, destination, arrival, unlock) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics; a bird's `FlightTuning` (its
   `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
@@ -122,7 +126,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   of the spawn) and hoodoos; walls are terrain that `solidTop` reports, arches report their
   span's underside), `CanyonSites` (pure: ranches and cliff dwellings under a solid brow; pads,
   flight floor), `CanyonScatter` (pure: trees, sites, small props per chunk), `CanyonWisps`
-  (canyon runs that thread arches, glides), `CanyonDecor` (instancing, near/far, casters,
+  (canyon runs that thread arches, glides; on a journey, runs down the route to its arch),
+  `destinations` (the journeys: down the bird's canyon to an arch), `CanyonDecor` (instancing, near/far, casters,
   contact shadows), `rock` (per-pixel strata, varnish, flutes, the road/wash/slickrock paint from
   `aLand`, bounce light), `cover`, `geometry`, `shapes`, `materials`, `CanyonWorld` (per-chunk
   diagonals, haze). Mesas are the `mesas` backdrop.

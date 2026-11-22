@@ -14,6 +14,8 @@ import { CanyonDecor, type CanyonChunk } from './CanyonDecor';
 import { CanyonLayout } from './CanyonLayout';
 import { CanyonPlanner } from './CanyonWisps';
 import type { DiscoveryDef } from '../Discoveries';
+import { canyonDestinations } from './destinations';
+import type { DestinationSource } from '../Destinations';
 import { canyonFinds } from './finds';
 import { canyonCover } from './cover';
 import { canyonTime, dustUniforms } from './materials';
@@ -51,6 +53,7 @@ export class CanyonWorld implements World {
   readonly layout: CanyonLayout;
   readonly planner: CanyonPlanner;
   readonly discoveries: readonly DiscoveryDef[];
+  readonly destinations: DestinationSource;
   private readonly chunks: ChunkManager<CanyonChunk>;
   private readonly decor: CanyonDecor;
   private readonly n = { x: 0, y: 0, z: 0 };
@@ -58,6 +61,7 @@ export class CanyonWorld implements World {
   constructor(seed: number) {
     const L = (this.layout = new CanyonLayout(seed));
     this.discoveries = canyonFinds(L);
+    this.destinations = canyonDestinations(L);
     const tint = createNoise2D(seed + 620);
     this.field = {
       height: (x, z) => L.height(x, z),

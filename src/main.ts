@@ -176,6 +176,7 @@ const handlers: MenuHandlers = {
     gameplay.progress.reset();
     journey.newFlight();
     gameplay.discoveries.restart();
+    gameplay.newFlight();
     bestBefore = loadBest(game.level.id);
     game.setMode('playing');
     gameplay.hud.visible = true;
@@ -195,6 +196,7 @@ const handlers: MenuHandlers = {
     document.body.classList.remove('paused');
     gameplay.hud.visible = false;
     gameplay.hud.clearMessages(); // unlock notices still waiting are on the card instead
+    gameplay.endFlight();
     menu.showRest(
       {
         level: game.level.name,
@@ -206,6 +208,7 @@ const handlers: MenuHandlers = {
         newBest: p.score > bestBefore,
         seconds: playTime,
         finds: journey.flightFinds.map(findName),
+        reached: [...gameplay.destinations.reachedNames],
       },
       journey.unrevealed(),
     );
@@ -274,6 +277,7 @@ const handlers: MenuHandlers = {
         game.setMode('menu');
         document.body.classList.remove('paused');
         gameplay.hud.visible = false;
+        gameplay.endFlight();
         menu.showStart(gameplay.progress.best, game.level.id);
       }
       veil.classList.remove('show');
@@ -297,6 +301,10 @@ game.events.on('discovery', (e) => {
   if (!earns || !journey.discover(e.id)) return;
   earn(Config.discoveries.light);
   bankJourney(); // a find is worth saving at once
+});
+game.events.on('arrival', () => {
+  earn(Config.destinations.light);
+  bankJourney(); // a journey's end is worth saving at once
 });
 game.events.on('lantern', persist);
 game.onFrame((dt) => {

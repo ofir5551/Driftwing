@@ -43,6 +43,11 @@ export interface WispPlanner {
     /** Free wisps in the pool: a pattern longer than this is cut short. */
     free: number,
   ): boolean;
+  /**
+   * The current destination's route (x, z pairs ending at it), or null: a planner that knows
+   * one leans its ribbons along it, so following the wisps leads there.
+   */
+  setGoal?(route: Float64Array | null): void;
 }
 
 const vert = /* glsl */ `

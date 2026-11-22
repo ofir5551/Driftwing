@@ -1207,6 +1207,14 @@ body.steer-split .controls.touch-split {
   opacity: 0.85;
 }
 
+.rest-reached {
+  margin: -6px 0 12px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #ffeedd;
+  text-shadow: 0 0 12px rgba(255, 225, 200, 0.75);
+}
+
 .rest-finds {
   margin: -4px 0 14px;
   font-size: 14px;

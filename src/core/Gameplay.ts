@@ -15,6 +15,8 @@ import { Lanterns } from '../world/Lanterns';
 import { Thermals } from '../world/Thermals';
 import { Wisps } from '../world/Wisps';
 import { DiscoveryTracker, type DiscoveryDef } from '../world/Discoveries';
+import { Beacon } from '../world/Beacon';
+import { DestinationTracker } from '../world/Destinations';
 
 const GOLD = new THREE.Color('#ffd27a');
 const MOON = new THREE.Color('#a9e8ff');
@@ -36,6 +38,9 @@ export class Gameplay {
   readonly thermals: Thermals;
   /** The level's hidden finds (main.ts tells it which are already found). */
   readonly discoveries = new DiscoveryTracker();
+  /** The flight's journeys: the destination ahead and those reached (main.ts restarts it). */
+  readonly destinations = new DestinationTracker();
+  private readonly beacon = new Beacon();
   private readonly lanterns = new Lanterns();
   private readonly glow = new Particles(2400, true);
   private readonly soft = new Particles(900, false);
@@ -83,9 +88,11 @@ export class Gameplay {
       this.trails.group,
       this.wind.mesh,
       this.shadow.mesh,
+      this.beacon.mesh,
     );
     this.thermals.update(game.flight.x, game.flight.z);
     this.discoveries.setLevel(game.world.discoveries);
+    this.destinations.setSource(game.world.destinations ?? null);
 
     game.onStep((dt) => this.step(dt));
     game.onFrame((dt, time) => this.frame(dt, time));
@@ -140,6 +147,18 @@ export class Gameplay {
     this.trails.setStyle(style);
   }
 
+  /** A new flight: the old journey ends; the first beacon of this one rises shortly. */
+  newFlight(): void {
+    this.destinations.restart();
+    this.endFlight();
+  }
+
+  /** The flight is over (Rest, the title): the beacon goes out and the ribbons wander freely. */
+  endFlight(): void {
+    this.beacon.hide();
+    this.wisps.planner?.setGoal?.(null);
+  }
+
   /** New level: clear the old world's wisps, thermals and lanterns; the path restarts at the bird. */
   private onLevel(): void {
     const g = this.game;
@@ -149,6 +168,8 @@ export class Gameplay {
     this.thermals.update(g.flight.x, g.flight.z);
     this.lanterns.reset();
     this.discoveries.setLevel(g.world.discoveries);
+    this.destinations.setSource(g.world.destinations ?? null);
+    this.beacon.hide();
     g.autopilotTarget = null;
   }
 
@@ -187,6 +208,9 @@ export class Gameplay {
       if (orb) this.reachLantern(orb.x, orb.y, orb.z);
       const find = this.discoveries.step(dt, s.x, s.y, s.z, g.day.palette.stars);
       if (find) this.discover(find);
+      const change = this.destinations.step(dt, s.x, s.y, s.z, s.yaw);
+      if (change === 'set') this.beginJourney();
+      else if (change === 'arrived') this.arrive();
     }
     // The bot prefers a lantern still to reach over the wisps (lanterns only light while scoring).
     const lantern = scoring ? this.lanterns.pending(s.x, s.z, Config.lantern.guide) : null;
@@ -212,6 +236,36 @@ export class Gameplay {
     this.hud.trick('Lantern reached', 0);
     this.hud.pulse();
     g.events.emit('lanternReached', { x, y, z, points });
+  }
+
+  /** A beacon rises over the next destination, and the ribbons start leaning toward it. */
+  private beginJourney(): void {
+    const g = this.game;
+    const d = this.destinations.current!;
+    this.beacon.show(d.x, d.y, d.z);
+    this.wisps.planner?.setGoal?.(d.route);
+    const first = this.destinations.reachedNames.length === 0;
+    // Words only for where it leads; the column of light says the rest.
+    this.hud.notice(first ? `A beacon rises over ${d.name}` : `Onward to ${d.name}`);
+    g.events.emit('destination', { name: d.name, x: d.x, y: d.y, z: d.z, first });
+  }
+
+  /** Reached the journey's end: the beacon flares, light and a surge, and its name. */
+  private arrive(): void {
+    const g = this.game;
+    const s = g.flight;
+    const d = this.destinations.last!;
+    const K = Config.destinations;
+    this.beacon.arrive();
+    this.wisps.planner?.setGoal?.(null);
+    gust(s, K.boost, K.lift);
+    this.glow.burst(70, s.x, s.y, s.z, 16, 1.8, 2, GOLD, -0.8, 5);
+    this.glow.burst(50, d.x, s.y + 20, d.z, 26, 2.8, 2.4, WHITE, 2, 12);
+    g.composer.flash = Math.max(g.composer.flash, K.flash);
+    this.progress.flow = 1;
+    this.hud.toast(`${d.name} reached`, 3.5);
+    this.hud.pulse();
+    g.events.emit('arrival', { id: d.id, name: d.name, x: s.x, y: s.y, z: s.z });
   }
 
   /** A hidden find: no words in flight (the Rest card names it), just light and a chime. */
@@ -341,6 +395,7 @@ export class Gameplay {
     this.soft.update(dt, halfH);
     this.thermals.render(time, halfH, this.tmp.copy(WHITE).lerp(pal.sun, 0.3));
     this.lanterns.update(dt, time, this.lanternSpark, 14 * density);
+    this.beacon.update(dt, time, g.chase.camera);
 
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);

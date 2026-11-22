@@ -6,6 +6,7 @@ import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 import type { DiscoveryDef } from '../world/Discoveries';
+import type { DestinationSource } from '../world/Destinations';
 
 export type LevelId =
   | 'highlands'
@@ -54,6 +55,8 @@ export interface World {
   readonly planner: WispPlanner | null;
   /** The level's hidden finds (`world/<level>/finds.ts`). */
   readonly discoveries: readonly DiscoveryDef[];
+  /** Where the level's journeys lead (null: none yet; see DESIGN's Destinations). */
+  readonly destinations?: DestinationSource | null;
   readonly chunkCount: number;
   readonly pending: number;
   dispose(): void;

@@ -525,7 +525,10 @@ Arches: one shape for all of them, a band between two half ellipses (the opening
 Arch (46 m half span, 62 m rise) stands across the floor ~330 m down the canyon from the spawn,
 where the floor opens out to hold its legs; smaller ones stand across straight reaches of the
 canyons (one in a 420 m grid cell at most, snapped to the centre line), and fins with a window
-through them stand on level ground out on the plateau. Painted mesas and buttes ring the horizon
+through them stand on level ground out on the plateau. A cell's first spot decides as it always
+did; when it found no canyon arch and stood no fin, up to `archTries` (6) more spots look for a
+canyon arch, so one stands every ~1 km down a canyon (gaps of 4-7 km used to leave the journeys
+nowhere to go; see Destinations). Painted mesas and buttes ring the horizon
 in three washes of the rock's shade.
 
 Atmosphere: a dust haze layers the far rims and mesas all day; a little mist lies in the canyons
@@ -947,6 +950,49 @@ the Rest card, out of the sightline while flying, and a reached lantern says "La
 without its points (light and the bell say the rest). Only the first lantern to light gets a
 toast. Start screen, pause menu (volume, quality, invert-Y), settings and best score in
 localStorage.
+
+## Destinations (built in Red Canyons)
+
+Players said the game felt good for a while and then aimless, and they lost interest within the
+first flight: following wisps has no beginning, middle or end. So each flight is now a run of
+journeys. A **beacon**, a tall column of warm light, rises over a landmark far ahead; the
+wisps lean toward it, so simply following them gets there; reaching it ends the journey with a
+flare, a surge, a held chord, flow refilled, "<name> reached" and 40 light (a lantern gives 10).
+Seven seconds later the next beacon rises. Calm by design: no clock, nothing to fail or miss,
+and a missed approach is just circling back.
+
+- Pacing: the first beacon rises 4 s into a flight ("A beacon rises over Hidden Window", queued
+  behind any hint), at least 1 km along the way (about 40-80 s). Later ones are at least 1.6 km
+  along (about a minute or two). A bird that strays more than 5.2 km from a beacon gets a nearer
+  one. Only while playing: the title's bot flies with no beacon.
+- The Rest card lists the flight's journeys ("Journeyed to Hidden Window · Owl Gate").
+- Red Canyons: the destinations are the canyon arches (never the Great Arch, which the opening
+  ribbon already threads). From the bird, a walk snaps to the nearest canyon's centre line and
+  follows it the way the bird faces until a canyon arch far enough along; its route is that
+  centre line. Only ahead: a destination behind would turn the ribbon back past the bird, so with
+  none in reach (4.6 km) there is none for now and the tracker asks again 5 s later. Each arch
+  keeps its name (a first word and a kind from its seed: "Coyote Arch", "Hidden Window").
+- The canyon planner leans its trend along the route (toward the point 320 m past its nearest
+  one). While the cursor is down in the canyon within 250 m of the route, its runs follow the
+  route's own direction there (aiming ahead cut across hairpins and sent the ribbon over the
+  rim), and on the last 680 m they come down to the floor from any height, so the ribbon threads
+  the arch. The generic patterns stay out while a journey is on.
+- Arrival is generous: within 1.35x the arch's half span (at least 40 m) of its middle and below
+  40 m over its top: through, round the legs or over it all count.
+- The beacon (`world/Beacon.ts`): an additive cylinder, brightest facing the camera, fading
+  upward and near its axis (so flying into it never floods the screen). The far plane follows
+  the draw distance (845 m on low quality) and a beacon can be 4 km off, so the vertex shader
+  draws a far one at 85 % of the far plane along the same line of sight, scaled about the camera
+  (the projection is unchanged), widening with distance so it stays a stroke on a phone.
+- Tested headless: the bot (no flaps, no eyes for the beacon) gets its first arrival in 42-80 s
+  on six seeds and about four in six minutes on most. It can lose the ribbon round a tight
+  hairpin (one seed manages two), which a player looking at the beacon would not.
+- Code: `world/Destinations.ts` (pure: `Destination`, `DestinationSource`, `DestinationTracker`),
+  a level's source as `World.destinations` (`world/canyon/destinations.ts`), the planner's
+  optional `WispPlanner.setGoal(route)`, `arrival`/`destination` events (light in `main.ts`,
+  `Music.arrived`), `Config.destinations`.
+- Next (see the roadmap): the flock (stray birds along the way that join and stay), approach
+  courses with calm medals (gates threaded, no clock), then the other eight levels' sources.
 
 ## Progression (proposed)
 
@@ -1789,3 +1835,9 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Taps faster than the flap cooldown were simply lost, which reads as the game ignoring you. A
   press in the last `flapBuffer` (0.25 s) of the cooldown is now kept and flaps the moment it ends;
   earlier presses are still dropped, so no flap comes long after its tap.
+- Destinations: a flight needed an arc. A beacon over a landmark ahead that the wisps lead to, and
+  an arrival, was chosen over a timer or a fail state (the first pillar stands). Red Canyons
+  first: its arches are natural ends. Picking any canyon arch across the land and routing over
+  the plateau failed: a ribbon down in a canyon cannot climb its 125 m walls toward a goal across
+  them, and climbing out along the canyon flip-flopped when the goal lay square across it. Walking
+  down the bird's own canyon works (the ribbons already run there), once arches stand often enough.

@@ -23,6 +23,8 @@ export interface Landmark {
    * should pass beside, not through or under (a floating isle's hanging rock).
    */
   aside?: number;
+  /** Where the route ends instead (default: the landmark, or beside it): an open way in. */
+  end?: { x: number; z: number };
 }
 
 /** A level's landmarks within `radius` of (x, z), pushed into `out` (cleared by the caller). */
@@ -98,8 +100,8 @@ function toDestination(x: number, z: number, l: Landmark): Destination {
   // The route's end: the landmark, or a point beside it (to the right of the way in).
   const run0 = Math.hypot(l.x - x, l.z - z) || 1;
   const a = l.aside ?? 0;
-  const ex = l.x - ((l.z - z) / run0) * a;
-  const ez = l.z + ((l.x - x) / run0) * a;
+  const ex = l.end ? l.end.x : l.x - ((l.z - z) / run0) * a;
+  const ez = l.end ? l.end.z : l.z + ((l.x - x) / run0) * a;
   const run = Math.hypot(ex - x, ez - z);
   const steps = Math.max(1, Math.round(run / STEP));
   const route = new Float64Array((steps + 1) * 2);

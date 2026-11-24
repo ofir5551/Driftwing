@@ -19,6 +19,8 @@ import { KarstPlanner } from './KarstWisps';
 import { RiverMist } from './RiverMist';
 import type { DiscoveryDef } from '../Discoveries';
 import { karstFinds } from './finds';
+import { karstDestinations } from './destinations';
+import type { DestinationSource } from '../Destinations';
 
 const WHITE = new THREE.Color('#fff');
 
@@ -34,6 +36,7 @@ export class KarstWorld implements World {
   readonly layout: KarstLayout;
   readonly planner: KarstPlanner;
   readonly discoveries: readonly DiscoveryDef[];
+  readonly destinations: DestinationSource;
   private readonly chunks: ChunkManager<KarstChunk>;
   private readonly decor: KarstDecor;
   private readonly banks: Clouds;
@@ -44,6 +47,7 @@ export class KarstWorld implements World {
   constructor(seed: number) {
     const L = (this.layout = new KarstLayout(seed));
     this.discoveries = karstFinds(L);
+    this.destinations = karstDestinations(L);
     const tint = createNoise2D(seed + 320);
     this.field = {
       height: (x, z) => L.height(x, z),

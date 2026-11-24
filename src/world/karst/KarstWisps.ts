@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
+import { GoalLean } from '../goal';
 import type { KarstLayout, Pillar } from './KarstLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
@@ -38,7 +39,14 @@ export class KarstPlanner implements WispPlanner {
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
 
+  /** The way to the current destination, if a journey is on. */
+  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+
   constructor(private readonly L: KarstLayout) {}
+
+  setGoal(route: Float64Array | null): void {
+    this.lean.route = route;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -48,6 +56,12 @@ export class KarstPlanner implements WispPlanner {
     if (Math.abs(c.x - this.expect.x) + Math.abs(c.z - this.expect.z) > 1) {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
+    }
+    // On a journey the trend is the way to the destination.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
     }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (!this.introDone) {
@@ -60,12 +74,24 @@ export class KarstPlanner implements WispPlanner {
     // Now and then let the generic patterns run (they bring the thermal spirals).
     if (rand() < 0.1) return false;
     this.sinceSpiral++;
-    if (this.sinceSpiral > 4 && rand() < 0.3) {
+    // No spirals round a pillar mid-journey: they would lead the bird off the way.
+    if (this.sinceSpiral > 4 && rand() < 0.3 && goal === null) {
       this.pts.length = 0;
       if (this.spiral(c, base, rand) && this.commit(c, spawn)) {
         this.sinceSpiral = 0;
         return true;
       }
+    }
+    // On the way: down the river the way the route goes (as the canyon's runs), low.
+    if (goal !== null && this.lean.onRoute && L.river(c.x, c.z) < 15) {
+      this.pts.length = 0;
+      this.river(
+        c,
+        L.riverHeading(c.x, c.z, this.lean.routeDir),
+        9 + rand() * 7,
+        9 + Math.floor(rand() * 5),
+      );
+      if (this.commit(c, spawn)) return true;
     }
     const along = L.riverHeading(c.x, c.z, base);
     if (L.river(c.x, c.z) < 15 && c.y < 60 && Math.abs(angleDelta(base, along)) < 1.1) {

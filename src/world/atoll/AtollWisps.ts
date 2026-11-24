@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
+import { GoalLean } from '../goal';
 import type { AtollLayout, Island } from './AtollLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
@@ -40,7 +41,14 @@ export class AtollPlanner implements WispPlanner {
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
 
+  /** The way to the current destination, if a journey is on. */
+  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+
   constructor(private readonly L: AtollLayout) {}
+
+  setGoal(route: Float64Array | null): void {
+    this.lean.route = route;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -50,6 +58,12 @@ export class AtollPlanner implements WispPlanner {
     if (Math.abs(c.x - this.expect.x) + Math.abs(c.z - this.expect.z) > 1) {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
+    }
+    // On a journey the trend is the way to the destination.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
     }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (!this.introDone) {
@@ -63,7 +77,8 @@ export class AtollPlanner implements WispPlanner {
     // Now and then let the generic patterns run (they bring the thermal spirals).
     if (rand() < 0.1) return false;
     this.sinceSwing++;
-    if (this.sinceSwing > 3 && rand() < 0.5) {
+    // No swings round an island mid-journey: they would lead the bird off the way.
+    if (this.sinceSwing > 3 && rand() < 0.5 && goal === null) {
       this.pts.length = 0;
       if (this.swing(c, base, rand) && this.commit(c, spawn)) {
         this.sinceSwing = 0;
@@ -72,7 +87,8 @@ export class AtollPlanner implements WispPlanner {
     }
     // Near a reef: now and then run along it a while.
     const rs = L.ring(c.x, c.z);
-    if (Math.abs(rs) < 150 && rand() < 0.6) {
+    // (Not mid-journey: a run round the ring is a long way round.)
+    if (Math.abs(rs) < 150 && rand() < 0.6 && goal === null) {
       this.pts.length = 0;
       if (this.rim(c, base, rand) && this.commit(c, spawn)) return true;
     }

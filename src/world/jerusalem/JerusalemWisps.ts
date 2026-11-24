@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
+import { GoalLean } from '../goal';
 import type { JerusalemLayout, Landmark } from './JerusalemLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
@@ -45,7 +46,14 @@ export class JerusalemPlanner implements WispPlanner {
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
 
+  /** The way to the current destination, if a journey is on. */
+  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+
   constructor(private readonly L: JerusalemLayout) {}
+
+  setGoal(route: Float64Array | null): void {
+    this.lean.route = route;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -55,6 +63,12 @@ export class JerusalemPlanner implements WispPlanner {
     if (Math.abs(c.x - this.expect.x) + Math.abs(c.z - this.expect.z) > 1) {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
+    }
+    // On a journey (after the opening) the trend is the way to the destination.
+    const goal = this.intro < 3 ? null : this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
     }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (this.intro < 3) {
@@ -81,7 +95,8 @@ export class JerusalemPlanner implements WispPlanner {
     if (rand() < 0.12 && L.skyline(ax, az, 200) === -Infinity && !L.inOldCity(ax, az, -200))
       return false;
     this.sinceSwing++;
-    if (this.sinceSwing > 3 && rand() < 0.4) {
+    // No swings round a landmark mid-journey: they would lead the bird off the way.
+    if (this.sinceSwing > 3 && rand() < 0.4 && goal === null) {
       this.pts.length = 0;
       if (this.swing(c, base) && this.commit(c, spawn)) {
         this.sinceSwing = 0;

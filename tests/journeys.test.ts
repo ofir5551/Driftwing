@@ -25,6 +25,7 @@ const BARS: Partial<Record<LevelId, Bar>> = {
   // Rivers meander: a walk down one can loop far round before its bridge or pagoda.
   karst: { first: 220, total: 4, each: 0 },
   fjord: { first: 80, total: 14 },
+  jerusalem: { first: 180, total: 7 },
 };
 
 describe('journeys on every level', () => {

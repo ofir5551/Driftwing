@@ -42,12 +42,12 @@ export class PeaksPlanner implements WispPlanner {
   private readonly expect = { x: NaN, z: NaN };
 
   /** The way to the current destination, if a journey is on. */
-  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+  private lean = new GoalLean();
 
   constructor(private readonly L: PeaksLayout) {}
 
-  setGoal(route: Float64Array | null): void {
-    this.lean.route = route;
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
   }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
@@ -70,6 +70,12 @@ export class PeaksPlanner implements WispPlanner {
       this.introDone = true;
       this.pts.length = 0;
       this.intro(c);
+      if (this.commit(c, spawn)) return true;
+    }
+    // The last stretch: straight through the beacon's light.
+    if (goal !== null && this.lean.endDist(c.x, c.z) < Config.wisps.goalLineUp) {
+      this.pts.length = 0;
+      this.glide(c, goal, 9);
       if (this.commit(c, spawn)) return true;
     }
     // Now and then let the generic patterns run (they bring the thermal spirals), but only out

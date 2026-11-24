@@ -30,12 +30,12 @@ export class FjordPlanner implements WispPlanner {
   private readonly expect = { x: NaN, z: NaN };
 
   /** The way to the current destination (down the fjord to it), if a journey is on. */
-  private readonly lean = new GoalLean(8, 17, 250);
+  private lean = new GoalLean();
 
   constructor(private readonly L: FjordLayout) {}
 
-  setGoal(route: Float64Array | null): void {
-    this.lean.route = route;
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
   }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {

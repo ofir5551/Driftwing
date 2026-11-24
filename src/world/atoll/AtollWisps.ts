@@ -42,12 +42,12 @@ export class AtollPlanner implements WispPlanner {
   private readonly expect = { x: NaN, z: NaN };
 
   /** The way to the current destination, if a journey is on. */
-  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+  private lean = new GoalLean();
 
   constructor(private readonly L: AtollLayout) {}
 
-  setGoal(route: Float64Array | null): void {
-    this.lean.route = route;
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
   }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
@@ -72,6 +72,12 @@ export class AtollPlanner implements WispPlanner {
       const I = L.atoll(0, 0)!.island!;
       this.pts.length = 0;
       this.hops(c, Math.atan2(I.tx - c.x, I.tz - c.z), 15, 0, 3.5);
+      if (this.commit(c, spawn)) return true;
+    }
+    // The last stretch: straight through the beacon's light.
+    if (goal !== null && this.lean.endDist(c.x, c.z) < Config.wisps.goalLineUp) {
+      this.pts.length = 0;
+      this.glide(c, goal);
       if (this.commit(c, spawn)) return true;
     }
     // Now and then let the generic patterns run (they bring the thermal spirals).

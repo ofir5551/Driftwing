@@ -10,20 +10,14 @@ export interface Landmark {
   name: string;
   x: number;
   z: number;
-  /** Foot of the beacon. */
-  y: number;
-  /** Highest point that counts: arrival is below `top` + 40 m. */
-  top: number;
-  /** Arrival radius round (x, z), generous: over, round or through all count. */
-  r: number;
   /** The lit cairn's spot (ground) and which way its stray faces. */
   roost: { x: number; y: number; z: number; yaw: number };
   /**
-   * Metres to one side of (x, z) that the route ends (default 0): for a landmark the ribbon
-   * should pass beside, not through or under (a floating isle's hanging rock).
+   * Metres to one side of (x, z) that the route ends, and the beacon stands (default 0): for a
+   * landmark the bird should pass beside, not through or under (a floating isle's rock).
    */
   aside?: number;
-  /** Where the route ends instead (default: the landmark, or beside it): an open way in. */
+  /** Where the route ends and the beacon stands instead: an open way in, by the landmark. */
   end?: { x: number; z: number };
 }
 
@@ -44,12 +38,18 @@ function hashId(s: string): number {
 
 /**
  * Journeys for an open level: the landmark ahead of the bird (within a cone, then anywhere)
- * nearest the wanted distance (about 1.3x the least), and a straight route to it. The level's
+ * nearest the wanted distance (about 1.3x the least), and a straight route to it. The beacon
+ * stands where the route ends (at the landmark, beside it or at its way in), and arriving is
+ * flying through its light. The level's
  * planner leans its ribbons along the route; on open ground (unlike the canyons' walls) a
  * straight line is a fine way there. A landmark behind the bird is taken only if none lies
  * ahead, so the ribbon rarely has to turn round.
  */
-export function landmarkDestinations(query: LandmarkQuery): DestinationSource {
+export function landmarkDestinations(
+  query: LandmarkQuery,
+  /** Ground (or water) height, for the beacon's foot. */
+  ground: (x: number, z: number) => number,
+): DestinationSource {
   const found: Landmark[] = [];
   /** Names handed out lately: two different landmarks may share one, but never in a row. */
   const recent: string[] = [];
@@ -91,12 +91,17 @@ export function landmarkDestinations(query: LandmarkQuery): DestinationSource {
       if (!l) return null;
       recent.push(l.name);
       if (recent.length > 6) recent.shift();
-      return toDestination(x, z, l);
+      return toDestination(x, z, l, ground);
     },
   };
 }
 
-function toDestination(x: number, z: number, l: Landmark): Destination {
+function toDestination(
+  x: number,
+  z: number,
+  l: Landmark,
+  ground: (x: number, z: number) => number,
+): Destination {
   // The route's end: the landmark, or a point beside it (to the right of the way in).
   const run0 = Math.hypot(l.x - x, l.z - z) || 1;
   const a = l.aside ?? 0;
@@ -109,19 +114,25 @@ function toDestination(x: number, z: number, l: Landmark): Destination {
     route[i * 2] = x + ((ex - x) * i) / steps;
     route[i * 2 + 1] = z + ((ez - z) * i) / steps;
   }
-  const r2 = l.r * l.r;
-  const top = l.top + 40;
+  const y = ground(ex, ez);
   return {
     id: l.id,
     name: l.name,
-    x: l.x,
-    y: l.y,
-    z: l.z,
+    x: ex,
+    y,
+    z: ez,
     route,
     roost: l.roost,
     tint: hashId(l.id) % FLOCK_TINTS.length,
-    reached: (px, py, pz) => py < top && (px - l.x) ** 2 + (pz - l.z) ** 2 < r2,
+    reached: throughLight(ex, y, ez),
   };
+}
+
+/** Inside the beacon's column of light at (x, z), foot y: what arriving means. */
+export function throughLight(x: number, y: number, z: number) {
+  const K = Config.destinations;
+  return (px: number, py: number, pz: number): boolean =>
+    py > y - K.reachBelow && (px - x) ** 2 + (pz - z) ** 2 < K.reach * K.reach;
 }
 
 /**

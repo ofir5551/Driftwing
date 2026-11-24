@@ -672,6 +672,8 @@ export const Config = {
     minRoute: 1600, // m along the way, at least, to every later one (about a minute)
     maxRoute: 4600, // m along the way searched for one (ahead only; none in reach: ask again later)
     light: 40, // journey light for reaching a destination (a lantern gives 10)
+    reach: 18, // m from the beacon's axis that counts as flying through its light (it is ~9-16 wide)
+    reachBelow: 15, // m below the beacon's foot that still counts (skimming its foot)
     flash: 0.7, // screen flash on arrival
     boost: 8, // m/s forward surge on arrival
     lift: 5, // m/s upward lift on arrival
@@ -679,7 +681,7 @@ export const Config = {
     beamRadius: 9, // m, its radius at the foot (it widens upward)
     beamFar: 0.85, // share of the camera's far plane at which farther beacons are drawn, scaled
     beamWiden: 700, // m from the camera beyond which the beam widens, so it stays readable far off
-    beamNear: 200, // m from its axis inside which the beam fades, so it never floods the screen
+    beamNear: 70, // m from its axis inside which the beam fades (to a quarter), so it never floods the screen
   },
   flock: {
     // Each destination's stray, perched on its lit cairn, joins the flock on arrival. The flock
@@ -761,7 +763,8 @@ export const Config = {
     maxRise: 6, // m per wisp the path may climb, so it never asks for more than a flapping bird can do
     climbGain: 35, // m of extra height a 'climb' pattern adds to the path
     goalTurn: 0.6, // rad a generic pattern turns toward a journey's destination, at most
-    goalComeBack: 500, // m past a destination (not reached) beyond which the ribbon turns back
+    goalLineUp: 260, // m from a journey's beacon within which every planner flies straight through it
+    goalComeBack: 250, // m past a beacon (no wisp through its light) beyond which the ribbon turns back
     spiralCount: 24, // wisps in a thermal spiral
     spiralRise: 4.5, // m per wisp up the thermal spiral
     reanchorHeight: 150, // m between the path and the player before the path restarts at the player

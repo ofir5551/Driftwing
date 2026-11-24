@@ -7,8 +7,9 @@ const SEEDS = [1337, 42, 7, 2024];
 
 /**
  * Per level: the latest first arrival allowed on any seed (s), and the least arrivals over all
- * four seeds in six minutes. The bot never flaps and has no eyes for the beacon, so it loses
- * the ribbon now and then where a player would not; the bars are set below what it manages.
+ * four seeds in six minutes. Arriving is flying through the beacon's light, not near it. The bot
+ * never flaps and has no eyes for the beacon, so it loses the ribbon now and then where a player
+ * would not; the bars are set at what it manages.
  */
 interface Bar {
   /** Latest first arrival allowed (s), on seeds that arrive at all. */
@@ -21,14 +22,14 @@ interface Bar {
 const BARS: Partial<Record<LevelId, Bar>> = {
   highlands: { first: 200, total: 7 },
   // The street grid is the hardest to lead through: the bot loses the ribbon at corners.
-  city: { first: 330, total: 4 },
+  city: { first: 330, total: 3, each: 0 },
   // Rivers meander: a walk down one can loop far round before its bridge or pagoda.
   karst: { first: 220, total: 4, each: 0 },
   fjord: { first: 80, total: 14 },
-  jerusalem: { first: 180, total: 7 },
-  peaks: { first: 220, total: 7 },
+  jerusalem: { first: 180, total: 6, each: 0 },
+  peaks: { first: 220, total: 5, each: 0 },
   atoll: { first: 280, total: 9 },
-  ringmoon: { first: 130, total: 5 },
+  ringmoon: { first: 300, total: 6 },
 };
 
 describe('journeys on every level', () => {

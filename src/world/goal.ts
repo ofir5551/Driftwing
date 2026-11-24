@@ -1,8 +1,10 @@
 /**
  * How a wisp planner leans its ribbons toward a journey's destination (world/Destinations.ts).
  * Pure: the route is x, z pairs from where the journey began to the landmark, and every
- * planner (and the generic patterns) asks the same three things of it: which way to aim, whether
- * the cursor is on the route (and which way it runs there), and whether this is the last stretch.
+ * planner (and the generic patterns) asks the same things of it: which way to aim, whether the
+ * cursor is on the route (and which way it runs there), whether this is the last stretch, and
+ * how far the beacon is. One is shared by the ribbons and their level's planner (Wisps owns it),
+ * so it can note every wisp laid and know whether one went through the beacon's light.
  */
 export class GoalLean {
   /** The current destination's route, or null when no journey is on. */
@@ -13,6 +15,8 @@ export class GoalLean {
   approaching = false;
   /** From the last `heading`: the route's own direction at its point nearest the cursor. */
   routeDir = 0;
+  /** Has a wisp been laid in the beacon's light (at the route's end) this journey? */
+  threaded = false;
 
   /**
    * @param ahead route points (40 m apart) past the nearest one to aim at
@@ -32,8 +36,29 @@ export class GoalLean {
   /**
    * Heading from (x, z) to the point a little way along the route past its nearest point, or
    * null with no route or once that nearest point is its end (the ribbon then runs on as it
-   * would, never doubling back to a landmark it has passed), unless it is `comeBack` metres past.
+   * would, never doubling back to a landmark it has passed), unless no wisp went through the
+   * beacon's light and it is `comeBack` metres past: then back toward it.
    */
+  /** A new journey's route (or null: none). */
+  setRoute(route: Float64Array | null): void {
+    this.route = route;
+    this.threaded = false;
+  }
+
+  /** A wisp was laid at (x, z): note whether it lies in the beacon's light (within `reach`). */
+  note(x: number, z: number, reach: number): void {
+    const d = this.endDist(x, z);
+    if (d < reach) this.threaded = true;
+  }
+
+  /** Distance (m) from (x, z) to the route's end (the beacon), or Infinity with no route. */
+  endDist(x: number, z: number): number {
+    const R = this.route;
+    if (!R) return Infinity;
+    const n = R.length;
+    return Math.hypot(R[n - 2] - x, R[n - 1] - z);
+  }
+
   heading(x: number, z: number): number | null {
     const R = this.route;
     this.onRoute = this.approaching = false;
@@ -51,7 +76,10 @@ export class GoalLean {
     if (bi >= last) {
       const ex = R[last * 2] - x;
       const ez = R[last * 2 + 1] - z;
-      if (this.comeBack <= 0 || ex * ex + ez * ez < this.comeBack * this.comeBack) return null;
+      // Past the end: run on if a wisp went through the light (the bird will follow it there),
+      // else, once well past, turn back for another pass.
+      if (this.threaded || this.comeBack <= 0 || ex * ex + ez * ez < this.comeBack * this.comeBack)
+        return null;
       this.approaching = true;
       return Math.atan2(ex, ez);
     }

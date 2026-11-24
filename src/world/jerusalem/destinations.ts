@@ -31,27 +31,27 @@ const OLD_CITY = 1700;
  * opening ribbon's, never a destination.
  */
 export function jerusalemDestinations(L: JerusalemLayout): DestinationSource {
-  return landmarkDestinations((x, z, R, out) => {
-    for (let j = Math.floor((z - R) / CELL); j <= Math.floor((z + R) / CELL); j++)
-      for (let i = Math.floor((x - R) / CELL); i <= Math.floor((x + R) / CELL); i++) {
-        const tx = (i + 0.2 + 0.6 * hash2(i, j, 761)) * CELL;
-        const tz = (j + 0.2 + 0.6 * hash2(i, j, 762)) * CELL;
-        if (Math.hypot(tx, tz) < OLD_CITY) continue;
-        L.at(tx, tz);
-        if (L.town < HEART) continue;
-        const g = L.ground(tx, tz);
-        // Among the roofs: on whatever stands there (a house's roof), else the ground.
-        const roof = Math.max(g, L.roofBelow(tx, g + 80, tz));
-        out.push({
-          id: `town:${i},${j}`,
-          name: landmarkName(hash2(i, j, 763), FIRST, KIND),
-          x: tx,
-          z: tz,
-          y: g,
-          top: g + 40,
-          r: 110,
-          roost: { x: tx, y: roof, z: tz, yaw: hash2(i, j, 764) * Math.PI * 2 },
-        });
-      }
-  });
+  return landmarkDestinations(
+    (x, z, R, out) => {
+      for (let j = Math.floor((z - R) / CELL); j <= Math.floor((z + R) / CELL); j++)
+        for (let i = Math.floor((x - R) / CELL); i <= Math.floor((x + R) / CELL); i++) {
+          const tx = (i + 0.2 + 0.6 * hash2(i, j, 761)) * CELL;
+          const tz = (j + 0.2 + 0.6 * hash2(i, j, 762)) * CELL;
+          if (Math.hypot(tx, tz) < OLD_CITY) continue;
+          L.at(tx, tz);
+          if (L.town < HEART) continue;
+          const g = L.ground(tx, tz);
+          // Among the roofs: on whatever stands there (a house's roof), else the ground.
+          const roof = Math.max(g, L.roofBelow(tx, g + 80, tz));
+          out.push({
+            id: `town:${i},${j}`,
+            name: landmarkName(hash2(i, j, 763), FIRST, KIND),
+            x: tx,
+            z: tz,
+            roost: { x: tx, y: roof, z: tz, yaw: hash2(i, j, 764) * Math.PI * 2 },
+          });
+        }
+    },
+    (x, z) => L.ground(x, z),
+  );
 }

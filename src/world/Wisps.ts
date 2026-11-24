@@ -48,10 +48,11 @@ export interface WispPlanner {
     free: number,
   ): boolean;
   /**
-   * The current destination's route (x, z pairs ending at it), or null: a planner that knows
-   * one leans its ribbons along it, so following the wisps leads there.
+   * The way to the current journey's beacon (shared with the ribbons, which note every wisp
+   * laid): a planner that knows it leans its ribbons along it, so following the wisps leads
+   * through the light. Handed over whenever a journey begins or ends.
    */
-  setGoal?(route: Float64Array | null): void;
+  setGoal?(lean: GoalLean): void;
 }
 
 const vert = /* glsl */ `
@@ -162,6 +163,8 @@ export class Wisps {
   }
 
   private spawn(x: number, y: number, z: number, exact = false): boolean {
+    // Mid-journey, note whether the ribbon goes through the beacon's light.
+    if (this.lean.route) this.lean.note(x, z, Config.destinations.reach * 0.7);
     const w = this.list.find((v) => !v.alive);
     if (!w) return false;
     w.x = x;
@@ -203,13 +206,13 @@ export class Wisps {
     this.cursor.valid = false;
   }
 
-  /** The way to a journey's destination, for the generic patterns (planners keep their own). */
+  /** The way to a journey's beacon, shared with the level's planner. */
   private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
 
   /** A journey began (its route) or ended (null): the ribbons lean toward it. */
   setGoal(route: Float64Array | null): void {
-    this.lean.route = route;
-    this.planner?.setGoal?.(route);
+    this.lean.setRoute(route);
+    this.planner?.setGoal?.(this.lean);
   }
 
   /** Of headings near `goal`, the one whose next ~300 m is lowest (a little cost to straying). */

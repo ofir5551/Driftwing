@@ -115,10 +115,11 @@ export class Beacon {
       this.mesh.visible = false;
       return;
     }
-    // Fade near its axis, so flying through it never floods the screen.
     const p = this.mesh.position;
     const cam = camera.position;
-    const near = clamp(Math.hypot(cam.x - p.x, cam.z - p.z) / K.beamNear, 0.04, 1) ** 1.5;
+    // Fade near its axis, so flying into it never floods the screen, but never out: the bird
+    // must fly through it, so it stays a clear target to the last.
+    const near = clamp(Math.hypot(cam.x - p.x, cam.z - p.z) / K.beamNear, 0.25, 1);
     const u = this.mat.uniforms;
     u.uIntensity.value = (this.level * 0.55 + this.flare * 0.6) * near;
     u.uTime.value = time;

@@ -114,10 +114,11 @@ describe('canyon destinations', () => {
       }
       expect(len).toBeGreaterThan(Config.destinations.firstRoute - 50);
       expect(len).toBeLessThan(Config.destinations.maxRoute + 100);
-      // Through the opening counts; far off or high above it does not.
+      // Through the light (it stands in the opening, at any height) counts; beside it does not.
       expect(d.reached(d.x, d.y + 10, d.z)).toBe(true);
+      expect(d.reached(d.x + 12, d.y + 300, d.z)).toBe(true);
+      expect(d.reached(d.x + 30, d.y + 10, d.z)).toBe(false);
       expect(d.reached(d.x + 200, d.y + 10, d.z)).toBe(false);
-      expect(d.reached(d.x, d.y + 400, d.z)).toBe(false);
       // The cairn: on dry floor inside the opening, beside a leg, well under the ribbon's line.
       const a = L.nearArches(d.x, d.z).find((q) => q.x === d.x && q.z === d.z)!;
       const ro = d.roost;
@@ -185,7 +186,9 @@ describe('canyon destinations', () => {
       expect(arrivals.length, `seed ${seed}`).toBeGreaterThanOrEqual(2);
       total += arrivals.length;
       expect(r.inside).toBe(0);
-      expect(r.glances).toBeLessThanOrEqual(3);
+      // One seed glances a wall 4 times since arriving means flying through the light (the
+      // ribbon may turn back for another pass).
+      expect(r.glances).toBeLessThanOrEqual(4);
     }
     expect(total).toBeGreaterThanOrEqual(18);
   });

@@ -24,6 +24,7 @@ export function fjordDestinations(L: FjordLayout): DestinationSource {
   return walkDestinations({
     heading: (x, z, yaw) => L.heading(x, z, yaw),
     toCentre: (x, z, out) => L.toCentre(x, z, out),
+    ground: (x, z) => Math.max(L.ground(x, z), 0),
     inside: (x, z) => L.fjord(x, z) < 0,
     near: (x, z, out) => {
       L.fjord(x, z);
@@ -39,9 +40,6 @@ export function fjordDestinations(L: FjordLayout): DestinationSource {
           name: landmarkName(v.seed, VILLAGE_FIRST, VILLAGE_KIND),
           x: v.x,
           z: v.z,
-          y: Math.max(L.ground(v.x, v.z), 0),
-          top: Math.max(L.ground(v.x, v.z), 0) + 30,
-          r: d + 50,
           roost: {
             x: ex,
             y: Math.max(L.ground(ex, ez), 0),
@@ -60,9 +58,6 @@ export function fjordDestinations(L: FjordLayout): DestinationSource {
           name: landmarkName(hash2(Math.round(f.x1), Math.round(f.z1), 751), FALL_FIRST, FALL_KIND),
           x: f.x1,
           z: f.z1,
-          y: Math.max(L.ground(f.x1, f.z1), 0),
-          top: L.ground(f.x0, f.z0) + 10,
-          r: Math.hypot(f.x1 - x, f.z1 - z) + 50,
           roost: { x: rx, y: Math.max(L.ground(rx, rz), 0), z: rz, yaw: Math.atan2(-f.nx, -f.nz) },
         });
       }

@@ -16,12 +16,6 @@ const WIDE_TURNS = [1.9, -1.9, 2.5, -2.5, Math.PI];
 const ARCH_REACH = 95;
 /** Share of an arch's rise a ribbon threads it at. */
 const ARCH_THREAD = 0.42;
-/** Route points (40 m apart) ahead of the nearest that the ribbons aim for on a journey. */
-const GOAL_AHEAD = 8;
-/** On the last this many route points (40 m apart) the ribbon comes down to the arch's floor. */
-const GOAL_APPROACH = 17;
-/** m off the route within which the cursor counts as on that run. */
-const GOAL_ON = 250;
 
 /**
  * Red Canyons' wisp patterns. The canyon is the spine: low ribbons run down it between the
@@ -40,12 +34,12 @@ export class CanyonPlanner implements WispPlanner {
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
   /** The way to the current destination (down the canyon to its arch), if a journey is on. */
-  private readonly lean = new GoalLean(GOAL_AHEAD, GOAL_APPROACH, GOAL_ON);
+  private lean = new GoalLean();
 
   constructor(private readonly L: CanyonLayout) {}
 
-  setGoal(route: Float64Array | null): void {
-    this.lean.route = route;
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
   }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {

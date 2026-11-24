@@ -61,12 +61,12 @@ export class CityPlanner implements WispPlanner {
   private lastTower = { x: NaN, z: NaN };
 
   /** The way to the current destination, if a journey is on. */
-  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+  private lean = new GoalLean();
 
   constructor(private readonly city: CityLayout) {}
 
-  setGoal(route: Float64Array | null): void {
-    this.lean.route = route;
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
   }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
@@ -107,6 +107,19 @@ export class CityPlanner implements WispPlanner {
     if (goal !== null) {
       this.trendX = Math.sin(goal);
       this.trendZ = Math.cos(goal);
+    }
+    // The last stretch: straight through the beacon's light.
+    // (From farther out than elsewhere: the street grid turns the ribbon away again otherwise.)
+    if (goal !== null && this.lean.endDist(c.x, c.z) < Config.wisps.goalLineUp * 1.75) {
+      const y0 = c.y;
+      const lifted = Math.max(y0, this.city.skyline(c.x, c.z, 14) + 10);
+      for (const y of y0 === lifted ? [y0] : [y0, lifted]) {
+        this.pts.length = 0;
+        c.y = y;
+        this.glide(c, goal);
+        if (this.commit(c, spawn, true)) return true;
+      }
+      c.y = y0;
     }
     // A journey whose way lies well off the ribbon's heading: glide over the roofs, turning
     // toward it a little per stretch (no U-turns), and back into the avenues once lined up.

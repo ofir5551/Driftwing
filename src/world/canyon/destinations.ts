@@ -2,7 +2,8 @@ import { Config } from '../../core/Config';
 import { clamp } from '../../core/math';
 import { FLOCK_TINTS } from '../flockTints';
 import type { Destination, DestinationSource } from '../Destinations';
-import { ARCH_OUT_Y, type Arch, type CanyonLayout } from './CanyonLayout';
+import type { Arch, CanyonLayout } from './CanyonLayout';
+import { throughLight } from '../landmarks';
 
 /** m between steps of the walk down a canyon. */
 const STEP = 20;
@@ -118,9 +119,6 @@ function roostAt(L: CanyonLayout, a: Arch) {
 }
 
 function arrival(L: CanyonLayout, a: Arch, route: Float64Array): Destination {
-  // Through the opening, round its legs or over the top: anywhere close counts.
-  const r = Math.max(a.r * 1.35, 40);
-  const top = a.y0 + a.h * ARCH_OUT_Y + 40;
   return {
     id: archId(a),
     name: archName(a.seed),
@@ -130,6 +128,7 @@ function arrival(L: CanyonLayout, a: Arch, route: Float64Array): Destination {
     route,
     roost: roostAt(L, a),
     tint: Math.floor(((a.seed * 7.31) % 1) * FLOCK_TINTS.length),
-    reached: (x, y, z) => y < top && (x - a.x) ** 2 + (z - a.z) ** 2 < r * r,
+    // Through the light, which stands in the opening: the ribbons thread its middle.
+    reached: throughLight(a.x, a.y0, a.z),
   };
 }

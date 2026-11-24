@@ -45,6 +45,7 @@ export function karstDestinations(L: KarstLayout): DestinationSource {
   return walkDestinations({
     heading: (x, z, yaw) => L.riverHeading(x, z, yaw),
     toCentre: (x, z, out) => L.toCentre(x, z, out),
+    ground: (x, z) => Math.max(L.height(x, z), 0),
     inside: (x, z) => L.river(x, z) < 0,
     near: (x, z, out) => {
       // A stone bridge over the river: under or over it arrives; the cairn on its bank.
@@ -61,9 +62,6 @@ export function karstDestinations(L: KarstLayout): DestinationSource {
           ),
           x: b.x,
           z: b.z,
-          y: b.crown,
-          top: b.crown + 10,
-          r: 50,
           roost: { x: ex, y: Math.max(L.height(ex, ez), 0), z: ez, yaw: b.yaw },
         });
       }
@@ -83,9 +81,6 @@ export function karstDestinations(L: KarstLayout): DestinationSource {
               name: landmarkName(hash2(i, j, Math.round(p.seed * 1000)), FIRST, KIND),
               x: p.x + p.lx,
               z: p.z + p.lz,
-              y: p.top,
-              top: p.top,
-              r: d + 45,
               roost: { x: fx, y: Math.max(L.height(fx, fz), 0), z: fz, yaw: a },
             });
           }

@@ -83,7 +83,10 @@ export class HighlandsWorld implements World {
     });
     this.islands = new Islands(this.field);
     this.discoveries = highlandsFinds(() => this.islands.active);
-    this.destinations = landmarkDestinations((x, z, R, out) => this.isleLandmarks(x, z, R, out));
+    this.destinations = landmarkDestinations(
+      (x, z, R, out) => this.isleLandmarks(x, z, R, out),
+      (x, z) => Math.max(this.field.height(x, z), Config.world.waterLevel),
+    );
     this.group.add(this.chunks.group, this.islands.group);
   }
 
@@ -128,9 +131,6 @@ export class HighlandsWorld implements World {
           name: landmarkName(hash2(i, j, 991), ISLE_FIRST, ISLE_KIND),
           x: I.x,
           z: I.z,
-          y: I.y,
-          top: I.y + 14,
-          r: I.r + 48,
           aside: I.r + 24,
           // The cap's top is 0.09 of the radius above the island's surface height.
           roost: {

@@ -1,6 +1,6 @@
 import { Config } from '../core/Config';
 import type { Destination, DestinationSource } from './Destinations';
-import type { Landmark } from './landmarks';
+import { throughLight, type Landmark } from './landmarks';
 import { FLOCK_TINTS } from './flockTints';
 
 /** A level whose natural ways are channels along a noise's zero contour (rivers, fjords). */
@@ -11,6 +11,8 @@ export interface Channels {
   toCentre(x: number, z: number, out: { x: number; z: number }): void;
   /** Is (x, z) in a channel (on the water)? */
   inside(x: number, z: number): boolean;
+  /** Ground (or water) height, for the beacon's foot. */
+  ground(x: number, z: number): number;
   /** Landmarks beside the channel near (x, z) (the walk's point), pushed into `out`. */
   near(x: number, z: number, out: Landmark[]): void;
 }
@@ -29,7 +31,8 @@ function hashId(s: string): number {
 /**
  * Journeys down the channel the bird is in (as Red Canyons' to its arches): snap to the nearest
  * centre line, walk along it the way the bird faces, and take the first landmark beside it far
- * enough along. The route is the centre line, the way the level's ribbons already run. Only
+ * enough along. The route is the centre line, the way the level's ribbons already run, and the
+ * beacon stands on it beside the landmark: arriving is flying through its light. Only
  * ahead: with none in reach, none for now (the tracker asks again further on).
  */
 export function walkDestinations(W: Channels): DestinationSource {
@@ -66,18 +69,18 @@ export function walkDestinations(W: Channels): DestinationSource {
           recent.push(l.name);
           if (recent.length > 6) recent.shift();
           route.push(x, z);
-          const r2 = l.r * l.r;
-          const top = l.top + 40;
+          // The beacon stands on the channel beside the landmark, where the ribbons run.
+          const y = W.ground(x, z);
           const dest: Destination = {
             id: l.id,
             name: l.name,
-            x: l.x,
-            y: l.y,
-            z: l.z,
+            x,
+            y,
+            z,
             route: Float64Array.from(route),
             roost: l.roost,
             tint: hashId(l.id) % FLOCK_TINTS.length,
-            reached: (px, py, pz) => py < top && (px - l.x) ** 2 + (pz - l.z) ** 2 < r2,
+            reached: throughLight(x, y, z),
           };
           return dest;
         }

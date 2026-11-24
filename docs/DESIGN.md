@@ -977,8 +977,17 @@ and a missed approach is just circling back.
   route's own direction there (aiming ahead cut across hairpins and sent the ribbon over the
   rim), and on the last 680 m they come down to the floor from any height, so the ribbon threads
   the arch. The generic patterns stay out while a journey is on.
-- Arrival is generous: within 1.35x the arch's half span (at least 40 m) of its middle and below
-  40 m over its top: through, round the legs or over it all count.
+- Arriving is flying **through the beacon's light**, as with a lantern: within 18 m of its axis
+  (`Config.destinations.reach`), at any height down to 15 m below its foot. At first anywhere
+  near the landmark counted; the stray joining then felt unearned. So the column stands where
+  the route ends, where the ribbons run: in the arch's opening, on the river or fjord beside
+  the landmark, beside an isle, spire or high island, on the avenue round Neon Bay's centre
+  block, over a town or outpost. The cairn and its stray stay by the landmark itself.
+- Leading through it: within `goalLineUp` (260 m; Neon Bay 455 m, its grid turns ribbons away)
+  every open-country planner flies straight at the column, and the ribbons and their planner
+  share one `GoalLean` that notes each wisp laid: a ribbon that runs 250 m past without one
+  in the light turns back for another pass. The beam fades near its axis only to a quarter
+  (it used to vanish within 200 m, fine when passing near was enough).
 - The beacon (`world/Beacon.ts`): an additive cylinder, brightest facing the camera, fading
   upward and near its axis (so flying into it never floods the screen). The far plane follows
   the draw distance (845 m on low quality) and a beacon can be 4 km off, so the vertex shader
@@ -1928,3 +1937,8 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   forest failed (the ribbons could not thread to one); walking down the river to the next one
   works. Neon Bay's ribbons first circled round towers near the goal and U-turned at the
   opening; both are now ruled out mid-journey.
+- Arrival means flying through the beacon's light, not passing near the landmark. Bot arrivals
+  over four seeds in six minutes, near -> through: Red Canyons 16 -> 16, Aurora Fjords 16 -> 16,
+  Coral Atolls 10 -> 10, Highlands 9 -> 8, City of Gold 7 -> 7, Ringmoon 5 -> 7, Sea of
+  Clouds 8 -> 6, Jade River 4 -> 4, Neon Bay 4 -> 4 (two seeds there, and one each in Jade
+  River, City of Gold and Sea of Clouds, arrive nowhere in six minutes).

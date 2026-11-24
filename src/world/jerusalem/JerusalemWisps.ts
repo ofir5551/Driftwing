@@ -11,6 +11,8 @@ type Spawn = (x: number, y: number, z: number) => void;
  * ribbon cuts the inside of every bend.
  */
 const MARGIN = 9;
+/** Only straight on (the line-up through a beacon). */
+const STRAIGHT = [0];
 /** Swoop headings to try, relative to the trend (radians). */
 const TURNS = [0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8, 1.1, -1.1];
 /** Height a swoop keeps over the soft ground: lower over roofs, where the view is. */
@@ -47,12 +49,12 @@ export class JerusalemPlanner implements WispPlanner {
   private readonly expect = { x: NaN, z: NaN };
 
   /** The way to the current destination, if a journey is on. */
-  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+  private lean = new GoalLean();
 
   constructor(private readonly L: JerusalemLayout) {}
 
-  setGoal(route: Float64Array | null): void {
-    this.lean.route = route;
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
   }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
@@ -87,6 +89,11 @@ export class JerusalemPlanner implements WispPlanner {
         );
       if (this.commit(c, spawn)) return true;
       this.intro = 3;
+    }
+    // The last stretch: straight through the beacon's light (a swoop with no weave).
+    if (goal !== null && this.lean.endDist(c.x, c.z) < Config.wisps.goalLineUp) {
+      this.pts.length = 0;
+      if (this.swoop(c, goal, rand, 0, STRAIGHT) && this.commit(c, spawn)) return true;
     }
     // Now and then let the generic patterns run (they bring the thermal spirals), but only
     // over open land: they don't plan round stone.
@@ -157,13 +164,19 @@ export class JerusalemPlanner implements WispPlanner {
    * Swoop along each candidate heading: a gentle S either side of it that hugs the land.
    * Of the clear candidates, the one passing most roofs and stone (the view) wins.
    */
-  private swoop(c: WispCursor, base: number, rand: () => number, amp: number): boolean {
+  private swoop(
+    c: WispCursor,
+    base: number,
+    rand: () => number,
+    amp: number,
+    turns: readonly number[] = TURNS,
+  ): boolean {
     const L = this.L;
     const sp = Config.wisps.spacing;
     const n = 10;
     const phase = rand() < 0.5 ? 0 : Math.PI;
     let bestScore = -Infinity;
-    for (const turn of TURNS) {
+    for (const turn of turns) {
       this.pts.length = 0;
       const h = base + turn;
       const fx = Math.sin(h);

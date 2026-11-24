@@ -12,6 +12,8 @@ const SEEDS = [1337, 42, 7, 2024];
  */
 const BARS: Partial<Record<LevelId, { first: number; total: number }>> = {
   highlands: { first: 200, total: 7 },
+  // The street grid is the hardest to lead through: the bot loses the ribbon at corners.
+  city: { first: 330, total: 4 },
 };
 
 describe('journeys on every level', () => {

@@ -15,6 +15,8 @@ import { avoidSolids, glanceOffWall } from './collide';
 import { createCityUniforms, createGroundMaterial, type CityUniforms } from './materials';
 import type { DiscoveryDef } from '../Discoveries';
 import { cityFinds } from './finds';
+import { cityDestinations } from './destinations';
+import type { DestinationSource } from '../Destinations';
 import { cityCover, cityLand } from './cover';
 import { CityTraffic } from './CityTraffic';
 
@@ -39,6 +41,7 @@ export class CityWorld implements World {
   readonly layout: CityLayout;
   readonly planner: CityPlanner;
   readonly discoveries: readonly DiscoveryDef[];
+  readonly destinations: DestinationSource;
   private readonly uniforms: CityUniforms;
   private readonly chunks: ChunkManager<CityChunk>;
   readonly decor: CityDecor;
@@ -51,6 +54,7 @@ export class CityWorld implements World {
   constructor(seed: number) {
     const L = (this.layout = new CityLayout(seed));
     this.discoveries = cityFinds(L);
+    this.destinations = cityDestinations(L);
     this.uniforms = createCityUniforms();
     const tint = createNoise2D(seed + 205);
     this.field = {

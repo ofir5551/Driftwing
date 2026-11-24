@@ -168,7 +168,7 @@ export class Gameplay {
     this.beacon.hide();
     this.roost.hide();
     this.flock.clearPerch();
-    this.wisps.planner?.setGoal?.(null);
+    this.wisps.setGoal(null);
   }
 
   /** New level: clear the old world's wisps, thermals and lanterns; the path restarts at the bird. */
@@ -176,6 +176,7 @@ export class Gameplay {
     const g = this.game;
     this.wisps.reset();
     this.wisps.planner = g.world.planner;
+    this.wisps.setGoal(null);
     this.thermals.reset();
     this.thermals.update(g.flight.x, g.flight.z);
     this.lanterns.reset();
@@ -261,7 +262,7 @@ export class Gameplay {
     const r = d.roost;
     this.roost.show(r.x, r.y, r.z, r.yaw);
     this.flock.perchAt(r.x, r.y + PERCH_HEIGHT, r.z, r.yaw, d.tint);
-    this.wisps.planner?.setGoal?.(d.route);
+    this.wisps.setGoal(d.route);
     const first = this.destinations.reachedNames.length === 0;
     // Words only for where it leads; the column of light says the rest.
     this.hud.notice(first ? `A beacon rises over ${d.name}` : `Onward to ${d.name}`);
@@ -275,7 +276,7 @@ export class Gameplay {
     const d = this.destinations.last!;
     const K = Config.destinations;
     this.beacon.arrive();
-    this.wisps.planner?.setGoal?.(null);
+    this.wisps.setGoal(null);
     // The stray takes off from its cairn and joins (a puff of feathers as it goes).
     const tint = this.flock.join(s.x, s.y, s.z);
     const r = d.roost;

@@ -164,15 +164,15 @@ describe('canyon destinations', () => {
         360,
         (x, y, z) => y < w.layout.ground(x, z) || w.layout.solidTop(x, y, z, 0) > y,
         undefined,
-        (x, y, z) => {
+        (x, y, z, wisps) => {
           time += 1 / 60;
           if (Math.hypot(x - px, z - pz) > 0.01) yaw = Math.atan2(x - px, z - pz);
           px = x;
           pz = z;
           const ch = t.step(1 / 60, x, y, z, yaw);
-          if (ch === 'set') w.planner.setGoal(t.current!.route);
+          if (ch === 'set') wisps.setGoal(t.current!.route);
           else if (ch === 'arrived') {
-            w.planner.setGoal(null);
+            wisps.setGoal(null);
             arrivals.push(time);
           }
         },

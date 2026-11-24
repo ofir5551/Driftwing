@@ -2,6 +2,7 @@ import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
 import type { Arch, CanyonLayout } from './CanyonLayout';
+import { GoalLean } from '../goal';
 
 type Spawn = (x: number, y: number, z: number) => void;
 
@@ -38,45 +39,13 @@ export class CanyonPlanner implements WispPlanner {
   private trendX = 0;
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
-  /** The current destination's route (x, z pairs down the canyon to its arch), or null. */
-  private route: Float64Array | null = null;
-  /** From the last `goalHeading`: is the cursor on the route, and on its last run to the arch? */
-  private onRoute = false;
-  private approaching = false;
-  /** From the last `goalHeading`: the route's own direction at its point nearest the cursor. */
-  private routeDir = 0;
+  /** The way to the current destination (down the canyon to its arch), if a journey is on. */
+  private readonly lean = new GoalLean(GOAL_AHEAD, GOAL_APPROACH, GOAL_ON);
 
   constructor(private readonly L: CanyonLayout) {}
 
   setGoal(route: Float64Array | null): void {
-    this.route = route;
-  }
-
-  /**
-   * Heading from the cursor to a point a little way along the route past its nearest point,
-   * or null with no route or once the cursor has reached its end (the ribbon then runs on as
-   * it would, never doubling back to an arch it has passed).
-   */
-  private goalHeading(c: WispCursor): number | null {
-    const R = this.route;
-    this.onRoute = this.approaching = false;
-    if (!R) return null;
-    const last = R.length / 2 - 1;
-    let bi = 0;
-    let bd = Infinity;
-    for (let i = 0; i <= last; i++) {
-      const d = (R[i * 2] - c.x) ** 2 + (R[i * 2 + 1] - c.z) ** 2;
-      if (d < bd) {
-        bd = d;
-        bi = i;
-      }
-    }
-    if (bi >= last) return null;
-    this.onRoute = bd < GOAL_ON * GOAL_ON;
-    this.approaching = this.onRoute && bi >= last - GOAL_APPROACH;
-    this.routeDir = Math.atan2(R[bi * 2 + 2] - R[bi * 2], R[bi * 2 + 3] - R[bi * 2 + 1]);
-    const k = Math.min(bi + GOAL_AHEAD, last);
-    return Math.atan2(R[k * 2] - c.x, R[k * 2 + 1] - c.z);
+    this.lean.route = route;
   }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
@@ -87,7 +56,7 @@ export class CanyonPlanner implements WispPlanner {
       this.trendZ = Math.cos(c.heading);
     }
     // On a journey the trend is the way to the destination: down the canyon to its arch.
-    const goal = this.goalHeading(c);
+    const goal = this.lean.heading(c.x, c.z);
     if (goal !== null) {
       this.trendX = Math.sin(goal);
       this.trendZ = Math.cos(goal);
@@ -107,13 +76,13 @@ export class CanyonPlanner implements WispPlanner {
     const generic = rand() < 0.15;
     if (generic && goal === null && L.canyon(c.x, c.z) > K.wall + 220) return false;
     const along = L.heading(c.x, c.z, base);
-    if (goal !== null && this.onRoute && L.canyon(c.x, c.z) < 0) {
+    if (goal !== null && this.lean.onRoute && L.canyon(c.x, c.z) < 0) {
       // On the way: run down the canyon the way the route goes (the aim point ahead can lie
       // across a hairpin's wall, which would send the ribbon up over the rim). On the last
       // stretch it comes down to the floor from any height, so it threads the arch.
-      const h = L.heading(c.x, c.z, this.routeDir);
+      const h = L.heading(c.x, c.z, this.lean.routeDir);
       this.pts.length = 0;
-      if (this.approaching) this.canyon(c, h, 18, 12, 0);
+      if (this.lean.approaching) this.canyon(c, h, 18, 12, 0);
       else this.canyon(c, h, 12 + rand() * 14, 10 + Math.floor(rand() * 6), (rand() - 0.5) * 0.9);
       if (this.commit(c, spawn)) return true;
     }

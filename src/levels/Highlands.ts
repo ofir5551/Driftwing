@@ -5,7 +5,7 @@ import { HIGHLANDS_MUSIC } from '../audio/styles';
 import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
 import { highlandsCover } from '../world/highlands/crops';
-import { Islands } from '../world/Islands';
+import { ISLAND_CELL, Islands } from '../world/Islands';
 import { createHeightField, getToonGradient, type LandField } from '../world/Terrain';
 import { withGroundDetail } from '../world/GroundDetail';
 import { mistUniforms, withMist } from '../world/Mist';
@@ -17,6 +17,32 @@ import { createLandGeometry, fillLand, landColor, withLand } from '../world/high
 import type { LevelDef, World } from './World';
 import type { DiscoveryDef } from '../world/Discoveries';
 import { highlandsFinds } from '../world/highlands/finds';
+import type { DestinationSource } from '../world/Destinations';
+import { landmarkDestinations, landmarkName, type Landmark } from '../world/landmarks';
+import { hash2 } from '../world/noise';
+
+/** Names for the floating isles the Highlands' journeys lead to. */
+const ISLE_FIRST = [
+  'Heron',
+  'Thistle',
+  'Lark',
+  'Fern',
+  'Rowan',
+  'Heather',
+  'Bracken',
+  'Willow',
+  'Clover',
+  'Kestrel',
+  'Bramble',
+  'Curlew',
+  'Hazel',
+  'Moss',
+  'Sorrel',
+  'Wren',
+  'Linnet',
+  'Birch',
+];
+const ISLE_KIND = ['Isle', 'Isle', 'Holm', 'Crag', 'Rock'];
 
 const WHITE = new THREE.Color('#fff');
 
@@ -29,6 +55,7 @@ export class HighlandsWorld implements World {
   readonly field: LandField;
   readonly planner = null;
   readonly discoveries: readonly DiscoveryDef[];
+  readonly destinations: DestinationSource;
   private readonly chunks: ChunkManager<HighlandsChunk>;
   private readonly decor: HighlandsDecor;
   private readonly islands: Islands;
@@ -56,6 +83,7 @@ export class HighlandsWorld implements World {
     });
     this.islands = new Islands(this.field);
     this.discoveries = highlandsFinds(() => this.islands.active);
+    this.destinations = landmarkDestinations((x, z, R, out) => this.isleLandmarks(x, z, R, out));
     this.group.add(this.chunks.group, this.islands.group);
   }
 
@@ -81,6 +109,38 @@ export class HighlandsWorld implements World {
   prime(px: number, pz: number): void {
     this.chunks.prime(px, pz);
     this.islands.update(px, pz);
+  }
+
+  /**
+   * The Highlands' journeys lead to its floating isles. The beacon rises from the isle's top and
+   * the cairn stands on its turf; the route ends beside the isle, not under it (its hanging rock
+   * is a hidden find, and the ribbons fly far below the top), and passing alongside arrives.
+   */
+  private isleLandmarks(x: number, z: number, R: number, out: Landmark[]): void {
+    const C = ISLAND_CELL;
+    for (let j = Math.floor((z - R) / C); j <= Math.floor((z + R) / C); j++)
+      for (let i = Math.floor((x - R) / C); i <= Math.floor((x + R) / C); i++) {
+        const I = this.islands.islandAt(i, j);
+        if (!I) continue;
+        const a = hash2(i, j, 993) * Math.PI * 2;
+        out.push({
+          id: `isle:${i},${j}`,
+          name: landmarkName(hash2(i, j, 991), ISLE_FIRST, ISLE_KIND),
+          x: I.x,
+          z: I.z,
+          y: I.y,
+          top: I.y + 14,
+          r: I.r + 48,
+          aside: I.r + 24,
+          // The cap's top is 0.09 of the radius above the island's surface height.
+          roost: {
+            x: I.x + Math.sin(a) * I.r * 0.35,
+            y: I.y + I.r * 0.09,
+            z: I.z + Math.cos(a) * I.r * 0.35,
+            yaw: a,
+          },
+        });
+      }
   }
 
   update(px: number, pz: number): void {

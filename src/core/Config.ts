@@ -760,6 +760,8 @@ export const Config = {
     glideSink: 1.5, // m per wisp the path sinks back toward cruiseClearance: a long, gentle glide down
     maxRise: 6, // m per wisp the path may climb, so it never asks for more than a flapping bird can do
     climbGain: 35, // m of extra height a 'climb' pattern adds to the path
+    goalTurn: 0.6, // rad a generic pattern turns toward a journey's destination, at most
+    goalComeBack: 500, // m past a destination (not reached) beyond which the ribbon turns back
     spiralCount: 24, // wisps in a thermal spiral
     spiralRise: 4.5, // m per wisp up the thermal spiral
     reanchorHeight: 150, // m between the path and the player before the path restarts at the player

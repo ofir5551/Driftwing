@@ -16,7 +16,9 @@ export interface Island {
   mesh: THREE.Mesh | null;
 }
 
-const CELL = 560;
+/** m, grid cell that may hold one island. */
+export const ISLAND_CELL = 560;
+const CELL = ISLAND_CELL;
 
 const ROCK_LIGHT = new THREE.Color('#c2abbf');
 const ROCK_DARK = new THREE.Color('#7a6a8b');
@@ -126,7 +128,7 @@ export class Islands {
   }
 
   /** Island for a grid cell, or null. Pure function of the seed, so islands never move. */
-  private islandAt(i: number, j: number): Island | null {
+  islandAt(i: number, j: number): Island | null {
     const seed = Config.world.seed;
     if (hash2(i, j, seed + 40) > 0.45 || (i === 0 && j === 0)) return null;
     const x = (i + 0.2 + hash2(i, j, seed + 41) * 0.6) * CELL;

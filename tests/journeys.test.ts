@@ -26,6 +26,7 @@ const BARS: Partial<Record<LevelId, Bar>> = {
   karst: { first: 220, total: 4, each: 0 },
   fjord: { first: 80, total: 14 },
   jerusalem: { first: 180, total: 7 },
+  peaks: { first: 220, total: 7 },
 };
 
 describe('journeys on every level', () => {

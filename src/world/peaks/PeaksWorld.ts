@@ -20,6 +20,8 @@ import { PeaksLayout } from './PeaksLayout';
 import { PeaksPlanner } from './PeaksWisps';
 import type { DiscoveryDef } from '../Discoveries';
 import { peaksFinds } from './finds';
+import { peaksDestinations } from './destinations';
+import type { DestinationSource } from '../Destinations';
 
 const C = {
   trough: new THREE.Color('#bdb8d6'),
@@ -47,6 +49,7 @@ export class PeaksWorld implements World {
   readonly layout: PeaksLayout;
   readonly planner: PeaksPlanner;
   readonly discoveries: readonly DiscoveryDef[];
+  readonly destinations: DestinationSource;
   readonly skimColor = PUFF;
   private readonly chunks: ChunkManager<PeaksChunk>;
   private readonly decor: PeaksDecor;
@@ -66,6 +69,7 @@ export class PeaksWorld implements World {
   constructor(seed: number) {
     const L = (this.layout = new PeaksLayout(seed));
     this.discoveries = peaksFinds(L);
+    this.destinations = peaksDestinations(L);
     const tint = createNoise2D(seed + 520);
     this.field = {
       // The cloud sea as drawn, with its gaps; the bird flies over `height` (see surface()).

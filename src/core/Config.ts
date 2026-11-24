@@ -42,12 +42,16 @@ export const Config = {
     groundLead: 0.7, // s of current sink rate the cushion looks ahead, so fast dives ease out early
     // Soft cloud (a level's softAt, the Sea of Clouds): a dive sinks in and is buoyed back out.
     cloudSkim: 2.5, // m over the cloud tops the bird rests (it brushes them; the land floor is groundHeight)
-    cloudLead: 0.1, // share of groundLead the cushion keeps over cloud, so a fast dive carries through the top
-    cloudDip: 14, // m under the cloud top the bird can sink at most (a backstop; buoyancy turns it first)
-    cloudBuoyancy: 2, // m/s^2 of lift per metre under the resting height
-    cloudDrag: 1, // 1/s, how fast the cloud soaks up the bird's sinking
-    cloudPitch: 0.06, // rad of nose-up per metre under the resting height, so the bird swims out
-    cloudVeil: 2.4, // m over the cloud top through which the bird fades into the cloud's colour
+    cloudDepth: 6, // m under the cloud top the bird glides down to (its cushion's floor in the cloud)
+    cloudHold: 2.5, // s the cloud lets the bird stay under before it eases it back up
+    cloudRecover: 1, // how fast that breath comes back out of the cloud (s per s)
+    cloudDip: 14, // m under the cloud top the bird can sink at most (a backstop; the cushion turns it first)
+    cloudDrag: 1.2, // 1/s, how fast the cloud soaks up the bird's sinking and any extra lift
+    cloudPitch: 0.08, // rad of nose-up per metre under the cushion's floor, so the bird rises out
+    cloudClimb: 0.22, // rad, the steepest the cloud lifts the nose (a gentle climb out, no leap)
+    cloudLead: 0.5, // s of the current climb the cloud's lift looks ahead, so the bird arrives at the tops level
+    cloudVeil: 2.4, // m over the cloud top through which the bird's lower parts fade into the cloud's colour
+    cloudFade: 1.5, // m either side of the cloud top over which the whole bird melts into the mist
     cloudIn: 0.6, // m under the top at which the bird counts as plunged in (it is out again at the top)
     cloudMuffle: 4, // m under the cloud top at which the whole mix is fully muffled
     cloudCutoff: 600, // Hz, the muffle's lowpass at its deepest
@@ -85,10 +89,12 @@ export const Config = {
     maxFov: 90,
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
-    cloudLift: 3.5, // m the camera rises over its floor while the bird is under soft cloud (it looks down on the wake)
-    cloudSoft: 4, // m over which the lifted camera eases onto its floor instead of stopping dead
-    cloudOmega: 5, // spring frequency of the lifted camera's height
-    cloudEase: 3, // 1/s, how quickly the lifted camera follows the cloud's heaps (higher is stiffer, lower is smoother)
+    cloudHeight: 3.5, // m over the cloud tops the camera glides while the bird is in the cloud (about where it rode as the bird skimmed them)
+    cloudLift: 0, // m more it rises then, to look down on the cloud where the bird went in
+    cloudAim: 0, // m over the cloud top the camera aims while the bird is in the cloud
+    cloudSoft: 4, // m over which the camera eases onto that height instead of stopping dead
+    cloudOmega: 4, // spring frequency of the camera's height while the bird is in the cloud
+    cloudEase: 2.5, // 1/s, how quickly it follows the cloud's heaps then (higher is stiffer, lower is smoother)
   },
   input: {
     mouseDeadZone: 0.06, // fraction of half-screen

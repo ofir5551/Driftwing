@@ -171,6 +171,8 @@ function wingSurface(
  */
 export const birdVeil = {
   uVeil: { value: 0 },
+  /** 0..1: the whole bird melting into the cloud as it sinks through its top (a slow fade). */
+  uVeilBody: { value: 0 },
   uVeilTime: { value: 0 },
   uVeilY: { value: -1e9 },
   uVeilBand: { value: 2 },
@@ -191,6 +193,7 @@ function veil(shader: THREE.WebGLProgramParametersWithUniforms): void {
       `#include <common>
 varying vec3 vVeilP;
 uniform float uVeil;
+uniform float uVeilBody;
 uniform float uVeilTime;
 uniform float uVeilY;
 uniform float uVeilBand;
@@ -213,7 +216,7 @@ float veilNoise(vec3 p) {
     )
     .replace(
       '#include <tonemapping_fragment>',
-      `float veilK = uVeil * smoothstep(uVeilY + uVeilBand, uVeilY - 0.4, vVeilP.y);
+      `float veilK = max(uVeil * smoothstep(uVeilY + uVeilBand, uVeilY - 0.4, vVeilP.y), uVeilBody);
 if (veilK > 0.0) {
   // Vapour curling up over the bird: the noise rises, so the dissolving edge streams upward.
   vec3 vq = vVeilP * 2.2 - vec3(0.0, uVeilTime * 1.6, 0.0);

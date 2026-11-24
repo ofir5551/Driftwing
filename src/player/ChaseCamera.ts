@@ -34,16 +34,17 @@ export class ChaseCamera {
   /** The species' chase distance (a small bird is watched from a little closer). */
   distanceScale = 1;
   /**
-   * 0..1: the bird is under soft cloud. The camera stays over the cloud and rises by
-   * `camera.cloudLift` to look down on where the bird churns it, rather than skimming the tops
-   * blind. Eased here so the rise and fall are smooth.
+   * 0..1: the bird is sinking into soft cloud (below its resting skim). The camera does not
+   * follow it in: it glides on over the tops at the height it had while the bird skimmed them
+   * (`camera.cloudHeight`, plus `cloudLift` to look down from higher if wanted), and watches the
+   * cloud where the bird went in. Eased here (`engage`) so it takes over and lets go smoothly.
    */
   submerged = 0;
-  private lift = 0;
-  /** The lifted floor and the cloud top over the bird, eased (see update). */
+  private engage = 0;
+  /** The camera's floor over the cloud and the cloud top over the bird, eased (see update). */
   private floorY = 0;
   private topY = 0;
-  /** The lens's height while lifted (sprung; tracks it otherwise, for a smooth hand-over). */
+  /** The lens's height while the bird is in the cloud (sprung; tracks it otherwise, for a smooth hand-over). */
   private readonly ySpring: Spring = { x: 0, v: 0 };
 
   constructor(aspect: number) {
@@ -68,7 +69,7 @@ export class ChaseCamera {
     const here = groundAt(p.x, p.z);
     const fresh = !this.initialised;
     if (fresh) {
-      this.lift = 0;
+      this.engage = 0;
       this.topY = here;
       this.yaw.x = p.yaw;
       this.pitch.x = targetPitch;
@@ -85,37 +86,46 @@ export class ChaseCamera {
     const back = d * Math.cos(this.pitch.x);
     const cx = p.x - Math.sin(this.yaw.x) * back;
     const cz = p.z - Math.cos(this.yaw.x) * back;
-    this.lift +=
-      (this.submerged * c.cloudLift - this.lift) * expDecay(this.submerged > 0 ? 3 : 1.5, dt);
-    // How far the camera is lifted (0..1): only while the bird is under soft cloud.
-    const k = Math.min(1, this.lift / c.cloudLift);
+    this.engage +=
+      (this.submerged - this.engage) * expDecay(this.submerged > this.engage ? 3 : 1.2, dt);
+    const k = this.engage;
     const ground = Math.max(groundAt(cx, cz), Config.world.waterLevel);
     let floor = ground + 1.2;
     // The cloud top over the bird, eased: the cloud's heaps meet in sharp creases, so taken
-    // straight at dive speed it jolts the lens (a shake) each time the bird crosses one.
+    // straight at speed it jolts the lens (a shake) each time the bird crosses one.
     this.topY += (here - this.topY) * expDecay(c.cloudEase, dt);
     if (k > 0.001) {
-      // Lifted, the floor clears the cloud over the bird as well as under the lens (the lens may
-      // be in a trough between heaps, which would hide the bird's spot behind the heap it is
-      // under), and it is eased for the same reason; it never lets the lens below the cloud.
-      const want = Math.max(ground, this.topY) + 1.2 + this.lift;
-      this.floorY = this.lift < c.cloudLift * 0.02 ? want : this.floorY;
-      this.floorY += (want - this.floorY) * expDecay(c.cloudEase, dt);
-      // The eased floor takes over in the lift's first quarter, before the raw one can jolt.
+      // Engaged, the floor is where the lens rode while the bird skimmed the tops, over the
+      // cloud at the bird as well as under the lens (the lens may be in a trough between heaps,
+      // which would hide where the bird went in).
+      // The heaps ahead count too (where the lens will be in 0.3 and 0.6 s), so the floor has
+      // already risen when the lens reaches one, rather than skimming it a hand's breadth up.
+      // It is not eased here: the height's spring below smooths it, and two lags stacked left
+      // the lens behind the heaps.
+      const run = p.speed * 0.3;
+      const fwx = Math.sin(this.yaw.x) * run;
+      const fwz = Math.cos(this.yaw.x) * run;
+      const heaps = Math.max(
+        ground,
+        groundAt(cx + fwx, cz + fwz),
+        groundAt(cx + 2 * fwx, cz + 2 * fwz),
+      );
+      const want = Math.max(heaps + 1.2, this.topY + c.cloudHeight + k * c.cloudLift);
+      this.floorY = want;
+      // The eased floor takes over early, before the raw one can jolt.
       floor = Math.max(ground + 0.5, floor + (this.floorY - floor) * Math.min(1, k * 4));
     } else this.floorY = floor;
     const cam = this.camera;
     const fx = Math.sin(p.yaw);
     const fz = Math.cos(p.yaw);
-    // Following a dive down, the lens would stop dead on its floor in one frame and jolt, and the
-    // lift starting to rise would reverse it in one. Lifted, the floor is a soft limit (a smooth
-    // max over `cloudSoft` m) and the height rides a spring; unlifted, the spring only tracks the
-    // lens (its height and speed), so it takes over without a step and slows the lens over a few
-    // frames, never in one. Everywhere else the floor is the plain one, as before.
-    const lifted = this.lift > 0.01;
+    // Following the bird down, the lens would stop dead on its floor in one frame and jolt.
+    // Engaged, the floor is a soft limit (a smooth max over `cloudSoft` m) and the height rides a
+    // spring; otherwise the spring only tracks the lens (its height and speed), so it takes over
+    // without a step and slows the lens over a few frames, never in one. Off soft cloud the floor
+    // is the plain one, as before.
     let y = p.y + c.height - Math.sin(this.pitch.x) * d;
     const ys = this.ySpring;
-    if (lifted) {
+    if (k > 0.01) {
       springStep(ys, smoothMax(y, floor, c.cloudSoft), c.cloudOmega, dt);
       y = Math.max(ys.x, ground + 0.5);
     } else {
@@ -129,11 +139,10 @@ export class ChaseCamera {
 
     const la = c.lookAhead;
     this.target.set(p.x + fx * la, p.y + Math.sin(p.pitch) * la * 0.5 + 1.1, p.z + fz * la);
-    // A bird under soft cloud (the cloud sea) is watched where its wake churns the tops: the lens
-    // stays over the cloud, so aiming under it would only fill the view with the cloud's top.
-    // Elsewhere the bird always flies above the ground and this never binds.
-    // Eased by the same lift, so the aim drifts down to the cloud rather than snapping to it.
-    const aim = this.topY - 1;
+    // A bird under soft cloud (the cloud sea) is watched where it went in, along the tops: the
+    // lens stays over the cloud, so aiming under it would only fill the view with the cloud.
+    // Eased by the same engagement, so the aim settles on the tops rather than snapping to them.
+    const aim = this.topY + c.cloudAim;
     if (k > 0.001 && aim > this.target.y) this.target.y += (aim - this.target.y) * k;
     cam.up.set(0, 1, 0);
     cam.lookAt(this.target);

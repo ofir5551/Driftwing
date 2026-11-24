@@ -4,7 +4,7 @@ import { Config, QUALITY, type QualityLevel } from './Config';
 import { Events } from './Events';
 import { Input } from './Input';
 import { Loop, STEP } from './Loop';
-import { angleDelta, clamp, lerp } from './math';
+import { angleDelta, clamp, lerp, smoothstep } from './math';
 import { createDebugPanel } from './DebugPanel';
 import { Bird, birdVeil, type Pose } from '../player/Bird';
 import { ChaseCamera } from '../player/ChaseCamera';
@@ -365,8 +365,14 @@ export class Game {
     w.swim?.(o.x, o.z, o.yaw, this.flight.cloud);
     const soft = w.softGround && w.cloudColor ? w.softGround(o.x, o.z) : 0;
     birdVeil.uVeil.value = soft;
+    birdVeil.uVeilBody.value = 0;
     if (soft <= 0 || !w.cloudColor) return;
-    birdVeil.uVeilY.value = w.flightGround(o.x, o.z);
+    const top = w.flightGround(o.x, o.z);
+    const c = Config.flight;
+    // The whole bird melts into the mist over the last metres above the top and is gone a little
+    // under it; it comes back the same way, so it never pops in or out.
+    birdVeil.uVeilBody.value = soft * smoothstep(c.cloudFade, -c.cloudFade, o.y - top);
+    birdVeil.uVeilY.value = top;
     birdVeil.uVeilBand.value = Config.flight.cloudVeil;
     birdVeil.uVeilTime.value = this.time;
     birdVeil.uVeilColor.value.copy(w.cloudColor);
@@ -411,7 +417,10 @@ export class Game {
 
     this.day.update(dt, Config.world.dayLength * this.level.dayScale);
     this.bird.update(o, s.sinceFlap + alpha * STEP, s.sinceClimbBeat + alpha * STEP, this.time, dt);
-    this.chase.submerged = Math.min(1, s.cloud / 1.5);
+    // The camera starts to glide over the tops as the bird sinks below its resting skim.
+    const top = this.world.flightGround(o.x, o.z);
+    const soft = this.world.softGround ? this.world.softGround(o.x, o.z) : 0;
+    this.chase.submerged = soft * smoothstep(Config.flight.cloudSkim + 1, 0, o.y - top);
     this.chase.update(o, Math.max(dt, 1e-4), this.camGround, this.camPush);
     this.world.update(o.x, o.z);
     this.world.frame(dt, this.time, this.day);

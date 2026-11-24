@@ -153,8 +153,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   lichen, moss, snow), `cloudSea` (the sea's shader: lobes, heave, gaps, warm glow, lining,
   the marks of a dive into it), `geometry`, `shapes` (props), `materials` (flags, cranes,
   sunbeams), `PeaksWorld`. Snow peaks are the `summits` backdrop; the mist rests on the cloud
-  tops via `uMistBase`. Open cloud is soft (`softness`, `World.softGround`): a dive sinks in and
-  is buoyed out (`FlightEnv.softAt`), the bird dissolving into it (`Bird`'s veil).
+  tops via `uMistBase`. Open cloud is soft (`softness`, `World.softGround`): a descent glides in for
+  a breath and out (`FlightEnv.softAt`), the bird melting into it (`Bird`'s veil).
 - `world/atoll/`: `AtollLayout` (pure: atolls on a coarse grid, each a wobbly reef ring with
   motus and passes round a lagoon, a crest that dries in patches, sand bars, seagrass; mushroom
   rocks lathed from one notched profile; high islands (the home one's fang ahead of the spawn)

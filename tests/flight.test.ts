@@ -264,3 +264,51 @@ describe('FlightModel', () => {
     expect(s.liftVy).toBeLessThanOrEqual(Config.flight.flapLift * 1.6);
   });
 });
+
+describe('soft cloud', () => {
+  const cloud = (soft: number): FlightEnv => ({
+    groundAt: () => 40,
+    thermalAt: () => 0,
+    softAt: () => soft,
+  });
+
+  /** Fly with `steerY` held for `hold` s then let go; the deepest dip and the time spent under. */
+  function dip(y0: number, steerY: number, hold: number, env: FlightEnv) {
+    const s = createFlightState(0, y0, 0);
+    let deepest = 0;
+    let under = 0;
+    let after = 0;
+    for (let t = 0; t < 12; t += DT) {
+      stepFlight(s, input(0, t < hold ? steerY : 0), env, DT);
+      deepest = Math.max(deepest, s.cloud);
+      if (s.cloud > Config.flight.cloudIn) under += DT;
+      else if (under > 0) after = Math.max(after, s.y - 40);
+    }
+    return { s, deepest, under, after };
+  }
+
+  it('a steep dive sinks a few metres into the cloud and is buoyed back out', () => {
+    for (const y0 of [70, 110, 160]) {
+      const d = dip(y0, -1, 12, cloud(1));
+      expect(d.deepest).toBeGreaterThan(3);
+      expect(d.deepest).toBeLessThan(Config.flight.cloudDip);
+      // Brief: out again within a couple of seconds even with the stick held down.
+      expect(d.under).toBeGreaterThan(0.4);
+      expect(d.under).toBeLessThan(3);
+      expect(d.after).toBeGreaterThan(Config.flight.cloudSkim);
+      expect(d.s.cloud).toBe(0);
+    }
+  });
+
+  it('a gentle descent levels out on the cloud tops without going in', () => {
+    const d = dip(60, -0.3, 12, cloud(1));
+    expect(d.under).toBe(0);
+    expect(d.s.y - 40).toBeCloseTo(Config.flight.cloudSkim, 0);
+  });
+
+  it('solid ground (no softness) keeps the usual floor', () => {
+    const d = dip(110, -1, 12, cloud(0));
+    expect(d.deepest).toBe(0);
+    expect(d.s.y - 40).toBeGreaterThanOrEqual(Config.flight.groundHeight - 1e-6);
+  });
+});

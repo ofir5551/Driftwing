@@ -98,6 +98,18 @@ export class Sfx {
     this.burst('bandpass', 600, 1600, 1.6, 0.1, 0.4, 0.05);
   }
 
+  /**
+   * Into the cloud: a soft, falling 'fwump' as the vapour closes over the bird. Out: a rising
+   * rush as it bursts free. Louder the harder it went in or came out.
+   */
+  cloud(inside: boolean, strength: number): void {
+    const s = Math.min(1, 0.4 + strength * 0.05);
+    if (inside) {
+      this.burst('lowpass', 1600, 220, 0.9, 0.26 * s, 0.75, 0.015);
+      this.burst('bandpass', 900, 380, 1.2, 0.1 * s, 0.5, 0.01);
+    } else this.burst('bandpass', 260, 1500, 1.1, 0.18 * s, 0.65, 0.06);
+  }
+
   thermal(inside: boolean): void {
     if (inside) this.burst('bandpass', 250, 1300, 2, 0.12, 1.6, 0.5);
   }

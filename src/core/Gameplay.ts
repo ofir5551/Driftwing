@@ -26,6 +26,8 @@ const SPLASH = new THREE.Color('#eaf6ff');
 const DUST = new THREE.Color('#e3cfa8');
 const LEAF = new THREE.Color('#a6d17e');
 const WHITE = new THREE.Color('#ffffff');
+/** Multiplier for cloud puffs in their own shade (a cool lilac, as the cloud sea's creases). */
+const SHADE = new THREE.Color('#dedaf0');
 const EMBER = new THREE.Color('#ff8a33');
 const EMBER_HOT = new THREE.Color('#ffd27a');
 
@@ -59,6 +61,10 @@ export class Gameplay {
   private readonly lanternTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
   private contactFx = 0;
+  /** Seconds until the next puff of the wake churned up over a bird under the cloud. */
+  private wakeTimer = 0;
+  /** Puffs in the cloud's shade (lilac), mixed in so the churned cloud reads as heaped. */
+  private readonly cloudShade = new THREE.Color();
   /** Embers owed but not yet shed (a fractional count carried between frames). */
   private emberDebt = 0;
   /** Lowest trail opacity, so the Aviary can show the trail on a lazy glide (0 in play). */
@@ -108,6 +114,7 @@ export class Gameplay {
     game.events.on('contact', (e) => this.onContact(e.kind, e.x, e.y, e.z, e.strength));
     game.events.on('level', () => this.onLevel());
     game.events.on('flap', () => this.flock.flap());
+    game.events.on('cloud', (e) => this.onCloud(e.inside, e.x, e.z, e.strength));
   }
 
   /**
@@ -380,6 +387,96 @@ export class Gameplay {
     }
   }
 
+  /**
+   * Plunging into the cloud throws a crown of cloud up round the hole and out across the tops;
+   * bursting out, vapour streams off the bird and trails it up into the air.
+   */
+  private onCloud(inside: boolean, x: number, z: number, strength: number): void {
+    const g = this.game;
+    const col = g.world.cloudColor ?? WHITE;
+    const shade = this.cloudShade.copy(col).multiply(SHADE);
+    // Puffs sit a little over the tops: a flat sprite crossing the cloud's surface is cut sharp.
+    const top = g.flightGround(x, z) + 1.2;
+    const k = Math.min(1, 0.4 + strength / 18);
+    const n = Math.round((14 + 22 * k) * this.soft.density);
+    const s = g.flight;
+    const fx = Math.sin(s.yaw);
+    const fz = Math.cos(s.yaw);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      if (inside) {
+        // A ring rolling outward low over the tops, and a few thrown higher from the hole.
+        const out = 3 + Math.random() * 6 * k;
+        const high = i % 4 === 0;
+        this.soft.emit(
+          x + ca * 1.5,
+          top + 0.6,
+          z + sa * 1.5,
+          ca * out + fx * s.speed * 0.15,
+          high ? 5 + Math.random() * 6 * k : 1 + Math.random() * 2.5,
+          sa * out + fz * s.speed * 0.15,
+          1.3 + Math.random() * 0.8,
+          high ? 2 + Math.random() * 1.5 : 3 + Math.random() * 2.5,
+          i % 3 === 1 ? shade : col,
+          high ? 3 : -0.2,
+          1.6,
+        );
+      } else {
+        // Vapour peeling off the bird as it rises: carried up with it, then left behind.
+        const r = Math.random() * 2;
+        const carry = 0.25 + Math.random() * 0.4;
+        this.soft.emit(
+          s.x + ca * r,
+          Math.max(top + 0.4, s.y - Math.random() * 2),
+          s.z + sa * r,
+          fx * s.speed * carry + ca * 2,
+          2 + Math.random() * 4 * k,
+          fz * s.speed * carry + sa * 2,
+          0.9 + Math.random() * 0.8,
+          2 + Math.random() * 2,
+          i % 3 === 1 ? shade : col,
+          -0.4,
+          1.8,
+        );
+      }
+    }
+  }
+
+  /** While the bird is under the cloud a trail of churned puffs rises over it, to follow it by. */
+  private frameWake(dt: number): void {
+    const g = this.game;
+    const s = g.flight;
+    if (s.cloud <= Config.flight.cloudIn || dt <= 0) {
+      this.wakeTimer = 0;
+      return;
+    }
+    const col = g.world.cloudColor ?? WHITE;
+    const shade = this.cloudShade.copy(col).multiply(SHADE);
+    this.wakeTimer -= dt;
+    let n = 0;
+    while (this.wakeTimer <= 0) {
+      this.wakeTimer += 1 / (30 * this.soft.density + 1e-3);
+      const top = g.flightGround(s.x, s.z);
+      // Deeper, the swell over the bird is broader and gentler.
+      const spread = 1 + s.cloud * 0.25;
+      this.soft.emit(
+        s.x + (Math.random() - 0.5) * 2 * spread,
+        top + 1.3,
+        s.z + (Math.random() - 0.5) * 2 * spread,
+        (Math.random() - 0.5) * 2,
+        1 + Math.random() * 2,
+        (Math.random() - 0.5) * 2,
+        0.9 + Math.random() * 0.6,
+        2 + Math.random() * 1.6 * spread,
+        n++ % 3 === 1 ? shade : col,
+        -0.2,
+        1.4,
+      );
+    }
+  }
+
   private frame(dt: number, time: number): void {
     const g = this.game;
     const pal = g.day.palette;
@@ -387,6 +484,7 @@ export class Gameplay {
     this.contactFx -= dt;
     const density = QUALITY[g.quality].particles;
     this.glow.density = this.soft.density = density;
+    this.frameWake(dt);
 
     // Wisps glow gold by day and turn moonlit cyan as the stars come out.
     this.wispColor.copy(GOLD).lerp(MOON, smoothstep(0.3, 0.9, pal.stars));

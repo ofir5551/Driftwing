@@ -51,6 +51,17 @@ export interface World {
   thermalOk(x: number, z: number, r: number): boolean;
   /** Colour of the puff a ground skim throws up (default: dust, or leaves over canopy). */
   readonly skimColor?: THREE.Color;
+  /**
+   * 0..1: how far the ground at x,z is soft cloud a dive can sink into and be buoyed out of
+   * (`FlightEnv.softAt`). Missing: solid ground everywhere.
+   */
+  softGround?(x: number, z: number): number;
+  /** The soft cloud's colour in the current light (the bird's veil and the plunge puffs). */
+  readonly cloudColor?: THREE.Color;
+  /** The bird plunged into the soft cloud at x,z or burst out of it (ripples on the surface). */
+  plunge?(x: number, z: number, strength: number): void;
+  /** Each frame: where the bird is, its heading and how deep under the soft cloud (0: out). */
+  swim?(x: number, z: number, yaw: number, depth: number): void;
   /** Optional level-specific wisp patterns. */
   readonly planner: WispPlanner | null;
   /** The level's hidden finds (`world/<level>/finds.ts`). */

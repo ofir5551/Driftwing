@@ -38,7 +38,9 @@ export class BlobShadow {
     const water = Config.world.waterLevel;
     const surface = Math.max(g, water);
     const h = y - surface;
-    const fade = 1 - smoothstep(4, 45, h);
+    // Gone once the bird sinks into what it is over (soft cloud): no shadow on top of it then.
+    // Everywhere else the bird stays a floor's height up and this never binds.
+    const fade = (1 - smoothstep(4, 45, h)) * smoothstep(0, 1.5, h);
     this.mesh.visible = fade > 0.01;
     if (!this.mesh.visible) return;
     // Tilt to the local slope so the blob hugs hillsides.

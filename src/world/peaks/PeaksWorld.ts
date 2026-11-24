@@ -51,6 +51,10 @@ export class PeaksWorld implements World {
   readonly discoveries: readonly DiscoveryDef[];
   readonly destinations: DestinationSource;
   readonly skimColor = PUFF;
+  /** The cloud sea's colour in this light (set each frame): the bird's veil, the plunge puffs. */
+  readonly cloudColor = new THREE.Color('#f4f1f6');
+  /** Next slot in the cloud sea's ring of plunge ripples. */
+  private plungeNext = 0;
   private readonly chunks: ChunkManager<PeaksChunk>;
   private readonly decor: PeaksDecor;
   private readonly seaMaterial: THREE.MeshToonMaterial;
@@ -140,6 +144,23 @@ export class PeaksWorld implements World {
 
   flightGround(x: number, z: number): number {
     return this.layout.height(x, z);
+  }
+
+  /** Open cloud is soft: a dive sinks in and is buoyed out (not near rock or a gap). */
+  softGround(x: number, z: number): number {
+    return this.layout.softness(x, z);
+  }
+
+  /** The cloud swells over the bird while it swims under, so it can be followed. */
+  swim(x: number, z: number, yaw: number, depth: number): void {
+    cloudSeaUniforms.uCSwim.value.set(x, z, depth, yaw);
+  }
+
+  /** A ripple of churned cloud spreading from where the bird went in or burst out. */
+  plunge(x: number, z: number, strength: number): void {
+    const slots = cloudSeaUniforms.uCPlunge.value;
+    slots[this.plungeNext].set(x, z, cloudSeaUniforms.uCTime.value, strength);
+    this.plungeNext = (this.plungeNext + 1) % slots.length;
   }
 
   surfaceBelow(x: number, y: number, z: number): number {
@@ -240,6 +261,15 @@ export class PeaksWorld implements World {
     u.uMistFar.value = P.mistFar;
     // The mist is the cloud sea's own colour in this light: its sunlit side toward the fog.
     u.uMistColor.value.copy(p.fog).lerp(p.sun, 0.12).lerp(p.hemiSky, 0.2);
+    // The cloud tops in this light: the mist's colour, a little brighter where the sun is on it.
+    // Capped: the boost lifts the dim hours (the lit tops outshine the mist most at night), but by
+    // day it would push the puffs past the bloom and they would glow like lamps.
+    const cc = this.cloudColor
+      .copy(u.uMistColor.value)
+      .lerp(p.sun, 0.1)
+      .multiplyScalar(P.veilLight);
+    const top = Math.max(cc.r, cc.g, cc.b);
+    if (top > P.veilMax) cc.multiplyScalar(P.veilMax / top);
     u.uMistTime.value = time;
     cloudSeaUniforms.uCTime.value = time;
     // The sea's moving heaps ride the same wind as the banks (Clouds drifts along (1, 0.4)).
@@ -312,5 +342,7 @@ export class PeaksWorld implements World {
     mistUniforms.uMistFar.value = 0;
     mistUniforms.uMistBase.value = 0;
     mistUniforms.uMistColor.value.copy(WHITE);
+    for (const v of cloudSeaUniforms.uCPlunge.value) v.set(0, 0, 0, 0);
+    cloudSeaUniforms.uCSwim.value.set(0, 0, 0, 0);
   }
 }

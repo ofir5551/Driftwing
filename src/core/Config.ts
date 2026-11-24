@@ -40,6 +40,17 @@ export const Config = {
     groundHeight: 4, // m the bird never goes below over land (treetops, roofs and cloud sea too)
     groundCushion: 6, // m above that floor over which the nose is eased level, so it glides in
     groundLead: 0.7, // s of current sink rate the cushion looks ahead, so fast dives ease out early
+    // Soft cloud (a level's softAt, the Sea of Clouds): a dive sinks in and is buoyed back out.
+    cloudSkim: 2.5, // m over the cloud tops the bird rests (it brushes them; the land floor is groundHeight)
+    cloudLead: 0.1, // share of groundLead the cushion keeps over cloud, so a fast dive carries through the top
+    cloudDip: 14, // m under the cloud top the bird can sink at most (a backstop; buoyancy turns it first)
+    cloudBuoyancy: 2, // m/s^2 of lift per metre under the resting height
+    cloudDrag: 1, // 1/s, how fast the cloud soaks up the bird's sinking
+    cloudPitch: 0.06, // rad of nose-up per metre under the resting height, so the bird swims out
+    cloudVeil: 2.4, // m over the cloud top through which the bird fades into the cloud's colour
+    cloudIn: 0.6, // m under the top at which the bird counts as plunged in (it is out again at the top)
+    cloudMuffle: 4, // m under the cloud top at which the whole mix is fully muffled
+    cloudCutoff: 600, // Hz, the muffle's lowpass at its deepest
     shoreBlend: 3, // m of terrain above the water over which the water margin blends into the land floor
     terrainLookahead: 1.4, // s ahead to sample the ground for the climb assist
     terrainAssist: 1.6, // how strongly the nose lifts to clear terrain ahead
@@ -74,6 +85,7 @@ export const Config = {
     maxFov: 90,
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
+    cloudLift: 3.5, // m the camera rises over its floor while the bird is under soft cloud (it looks down on the wake)
   },
   input: {
     mouseDeadZone: 0.06, // fraction of half-screen
@@ -443,6 +455,12 @@ export const Config = {
     gapFloor: 5, // m, the valley floor seen through a gap (the water plane is at 0)
     gapRim: 5, // m, cloud heaped round a gap's rim
     gapHome: [-80, 150], // m from the spawn (x, z) to the home gap, left of the opening glide
+    // Diving into the cloud sea (the bird sinks in and is buoyed out; Config.flight.cloud*).
+    softNear: 8, // m off a spire's reach inside which the cloud is solid floor again (rock under it)
+    softFar: 30, // m off it beyond which the cloud is fully soft
+    veilLight: 1.3, // brightness of the veil and plunge puffs against the mist's colour (the lit tops are brighter)
+    veilMax: 0.78, // brightest channel of that colour (linear), so the puffs never bloom
+    ripple: 1, // strength of the churned ring spreading on the cloud sea from a plunge
     // Atmosphere and light.
     mist: 0.75, // the cloud sea's breath: mist hugging its surface, dissolving the spires' feet
     mistRise: 30, // m above the cloud sea that mist reaches

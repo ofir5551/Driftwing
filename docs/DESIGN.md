@@ -651,6 +651,26 @@ tops and each other) through ShadowCasters, and the screen-space shafts are a li
 (0.7); huts, pavilions, shrines, boulders and dwarf pines get contact shadows on medium and high.
 
 Flight: the cloud sea is soft ground, skimmed like water with a puff of cloud (`World.skimColor`).
+
+Diving into the cloud: out on open cloud the sea is soft (`PeaksLayout.softness`, the flight
+model's `softAt`): the bird rests lower over it (`cloudSkim`, 2.5 m, brushing the tops), and a
+dive carries through the top and sinks a few metres (about 4 m from a short dive, 8-9 m from a
+long one or a dive-bomb), then buoyancy (lift and a nose-up growing with depth, a drag on
+sinking) brings it back out within a second or two, like a dolphin; a gentle descent still
+levels out on the tops. Holding the dive porpoises in and out; nothing is gained or lost, it is
+only feel. Near rock (within `softNear`-`softFar` of a spire's reach, where the rock goes on
+down under the cloud and a glance off it would be unseen) and round a gap (whose walls would
+show the bird) the cloud is the usual floor. Going in: the bird dissolves into wisps of the
+cloud's colour through a rising noise over the top's last couple of metres (`Bird`'s veil), a
+crown of puffs (some in the cloud's lilac shade) rolls out from the hole, a hollow closes over
+it and a ring of churned cloud spreads on the tops (`cloudSea`'s plunges); a soft "fwump" plays
+and the whole mix closes through a lowpass (`AudioEngine.setMuffle`). Under: the camera stays
+over the cloud and rises a few metres (`camera.cloudLift`, over the top at the bird too, so a
+heap between them cannot hide it) to look down where the bird is: a swell of cloud rides over
+it with the bird's dim shape showing through (fading with depth), puffs churning up over it.
+Out: vapour peels off the bird as it rises through the veil, another ring spreads and a rising
+rush plays. The blob shadow fades as the bird sinks. Tuned in `Config.flight.cloud*`,
+`camera.cloudLift` and `peaks.soft*`, `veil*`, `ripple`.
 Spires are solid but soft, flown with the city's look-ahead and wall glance; summits push up
 (skim them). The bridge is a solid box with an underside: the look-ahead eases the nose under
 it, and touching it pushes the bird up off the deck or down under it. Ledge cover, huts and
@@ -1707,6 +1727,16 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - The cloud sea's motion is a vertex heave in its shader, not a moving height field: the flight
   model, wisps, finds and look-ahead keep a fixed ground. It stays under `groundHeight` (the
   bird's floor over the sea) and flattens round the camera, whose floor is 1.2 m over the field.
+- Diving into the cloud sea is a soft floor in the flight model (`FlightEnv.softAt`), not a
+  volume the bird flies in: the dip is a few metres and brief, so a buoyancy spring on the
+  existing floor gives it, and wisps, finds and the look-ahead keep the cloud top. The cloud sea
+  is opaque terrain, so the bird is hidden by the depth test alone; the veil (fade and noisy
+  dissolve over the top's last metres) is what keeps the cloud from reading as a floor the bird
+  is cut by. Its marks (hollow, ring, swell, the bird's shape) multiply the lit colour, not the
+  paint: the sunlit tops are close to white, and a darker paint alone vanished under the light.
+  The camera stays over the cloud rather than following the bird in (looking down at the cloud's
+  top from inside it shows nothing), and the puffs' colour is the mist's lifted and capped, as
+  the lit tops outshine the mist most at night but by day the lift made the puffs bloom.
 - Sea of Clouds hands over to the generic wisp patterns only out over open cloud (no spire within
   260 m), and when nothing fits it wheels round with short glides instead: near a spire a
   generic pattern lifts its path straight over the summit, a 100 m jump the bot could not climb

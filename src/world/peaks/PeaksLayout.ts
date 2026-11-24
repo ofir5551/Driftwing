@@ -232,6 +232,43 @@ export class PeaksLayout {
   gapRim = 0;
 
   /**
+   * 0..1: how soft the cloud sea is to a dive at (x, z): 1 out on open cloud, where the bird can
+   * sink in and be buoyed out; fading to 0 near a spire (its rock goes on down under the cloud,
+   * and a glance off it there would be unseen) and round a gap (whose walls would show the bird).
+   */
+  softness(x: number, z: number): number {
+    const P = Config.peaks;
+    let k = 1;
+    const C = P.spireCell;
+    const R = 60 + P.softFar;
+    const i0 = Math.floor((x - R) / C);
+    const i1 = Math.floor((x + R) / C);
+    const j0 = Math.floor((z - R) / C);
+    const j1 = Math.floor((z + R) / C);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const list = this.cell(i, j);
+        for (let n = 0; n < list.length; n++) {
+          const p = list[n];
+          const d = Math.hypot(x - p.x, z - p.z) - p.reach;
+          if (d < P.softFar) k = Math.min(k, smoothstep(P.softNear, P.softFar, d));
+        }
+      }
+    if (k <= 0) return 0;
+    const G = P.gapCell;
+    const g0 = Math.floor((x - P.gapMax * 2) / G);
+    const g1 = Math.floor((x + P.gapMax * 2) / G);
+    const h0 = Math.floor((z - P.gapMax * 2) / G);
+    const h1 = Math.floor((z + P.gapMax * 2) / G);
+    for (let j = h0; j <= h1; j++)
+      for (let i = g0; i <= g1; i++) {
+        const g = this.gap(i, j);
+        if (g) k = Math.min(k, smoothstep(g.r * 1.45, g.r * 1.9, Math.hypot(x - g.x, z - g.z)));
+      }
+    return k;
+  }
+
+  /**
    * The cloud sea as drawn: `height` with the gaps opened down to the valleys (and their rims
    * heaped a little). Flight, wisps and spires use `height`: over a gap the bird floats on air
    * that is still cloud for it, a thin veil it can't see.

@@ -11,6 +11,8 @@ export interface GameEvents {
   /** The bird flew through a lit lantern's light. */
   lanternReached: { x: number; y: number; z: number; points: number };
   thermal: { inside: boolean };
+  /** The bird plunged into soft cloud (the cloud sea) or burst back out; strength in m/s. */
+  cloud: { inside: boolean; x: number; y: number; z: number; strength: number };
   /** A trick began (the motion and its music start together). */
   trickStart: { kind: TrickKind; x: number; y: number; z: number };
   /** A trick landed (scored only while playing). */

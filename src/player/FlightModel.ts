@@ -31,6 +31,11 @@ export interface FlightEnv {
   groundAt(x: number, z: number): number;
   /** Upward acceleration from thermals at a position (m/s^2). */
   thermalAt(x: number, y: number, z: number): number;
+  /**
+   * 0..1: how far the ground at x,z is soft cloud a dive can sink into (Sea of Clouds' cloud
+   * sea). Missing or 0: the usual solid floor.
+   */
+  softAt?(x: number, z: number): number;
 }
 
 export type Contact = 'none' | 'ground' | 'water';
@@ -110,6 +115,8 @@ export interface FlightState {
   spin: number;
   /** The bird's own flight (read every step, so the debug panel retunes it live). */
   tune: Readonly<FlightTuning>;
+  /** Metres the bird is under the top of soft cloud (0 out of it, or over solid ground). */
+  cloud: number;
 }
 
 export function createFlightState(
@@ -143,6 +150,7 @@ export function createFlightState(
     trick: createTrickState(),
     spin: 0,
     tune,
+    cloud: 0,
   };
 }
 
@@ -206,10 +214,14 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const ahead = Math.max(1, s.speed * c.terrainLookahead);
   // Each sample asks for its own margin: a wide berth over land (the floor plus room to level out),
   // the old skim margin over water.
+  // Over soft cloud it asks only for the resting skim: the cloud is no wall to climb away from.
   let needed = -Infinity;
   for (let k = 1; k <= 2; k++) {
-    const g = env.groundAt(s.x + fx * ahead * (k / 2), s.z + fz * ahead * (k / 2));
-    const margin = c.clearance * 3 + (c.groundHeight * 1.5 - c.clearance * 3) * landWeight(g);
+    const ax = s.x + fx * ahead * (k / 2);
+    const az = s.z + fz * ahead * (k / 2);
+    const g = env.groundAt(ax, az);
+    let margin = c.clearance * 3 + (c.groundHeight * 1.5 - c.clearance * 3) * landWeight(g);
+    if (env.softAt) margin += (c.cloudSkim - margin) * env.softAt(ax, az);
     needed = Math.max(needed, Math.max(g, water) + margin);
   }
   const shortfall = needed - s.y;
@@ -225,13 +237,24 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // Water is left out on purpose: skimming and splashing there is part of the game.
   const here = env.groundAt(s.x, s.z);
   const land = landWeight(here);
+  // Soft cloud (0..1 here): the bird rests lower over it (`cloudSkim`, brushing the tops) and the
+  // cushion looks only a little ahead, so a gentle descent still levels out on the tops while a
+  // fast dive carries through them; the buoyancy below then brings it back out.
+  const soft = env.softAt ? env.softAt(s.x, s.z) : 0;
+  const rest = c.groundHeight + (c.cloudSkim - c.groundHeight) * soft;
   if (land > 0) {
     // Judge the height we will have in `groundLead` seconds at the current sink rate, not the one
     // we have now: the pitch spring lags, so a steep dive must start easing out well before the floor.
     const sink = Math.max(0, -(Math.sin(s.pitch) * s.speed + s.liftVy));
-    const free = smoothstep(0, c.groundCushion, s.y - here - c.groundHeight - sink * c.groundLead);
+    const lead = c.groundLead * (1 - soft * (1 - c.cloudLead));
+    const free = smoothstep(0, c.groundCushion, s.y - here - rest - sink * lead);
     targetPitch = Math.max(targetPitch, -c.maxDive * (1 - land * (1 - free)));
   }
+  // Under the cloud's resting height the nose comes up with depth, so the bird swims back out
+  // on its own, like a dolphin surfacing; deeper dives turn up harder.
+  const under = soft > 0 ? here + rest - s.y : 0;
+  if (under > 0)
+    targetPitch = Math.max(targetPitch, soft * Math.min(c.maxClimb, under * c.cloudPitch));
 
   // Soft altitude bounds bias the nose too, so the push feels like a gentle hand, not a wall.
   const over = s.y - (water + c.maxAltitude);
@@ -321,6 +344,13 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   const minY = water + c.minAltitude;
   if (s.y < minY) s.liftVy += (minY - s.y) * c.boundsPush * 20 * dt;
   if (over > 0) s.liftVy -= over * c.boundsPush * 20 * dt;
+  if (under > 0) {
+    // Buoyancy: cloud pushes back up harder the deeper the bird goes, and soaks up its sinking
+    // (a drag on downward motion only), so a dive sinks a few metres and is turned, never stopped.
+    s.liftVy += soft * under * c.cloudBuoyancy * dt;
+    const sinking = Math.sin(s.pitch) * s.speed + s.liftVy;
+    if (sinking < 0) s.liftVy -= sinking * soft * expDecay(c.cloudDrag, dt);
+  }
   s.liftVy -= s.liftVy * expDecay(c.liftDecay, dt);
 
   // --- Integrate -----------------------------------------------------------------------------
@@ -345,7 +375,12 @@ export function stepFlight(s: FlightState, input: FlightInput, env: FlightEnv, d
   // off a steep wall (that is what the 'ground' flag is for); the FX for it come from there.
   // Water keeps the old soft bounce, splash and slowdown: skimming it is part of the game.
   const ground = env.groundAt(s.x, s.z);
-  const floor = Math.max(ground, water) + floorMargin(ground);
+  const softNow = env.softAt ? env.softAt(s.x, s.z) : 0;
+  // Soft cloud lets the bird under its top, down to `cloudDip` at most (a backstop: buoyancy
+  // turns it well before).
+  const margin = floorMargin(ground);
+  const floor = Math.max(ground, water) + margin - (margin + c.cloudDip) * softNow;
+  s.cloud = softNow > 0 ? Math.max(0, ground - s.y) : 0;
   if (s.y < floor) {
     const onLand = ground >= water;
     s.contact = onLand ? 'ground' : 'water';

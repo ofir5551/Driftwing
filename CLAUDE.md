@@ -70,7 +70,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   draws the column of light, `world/Roost.ts` the lit cairn where a stray perches. Arriving adds
   it to the flock: `world/Flock.ts` (instanced birds round the player's, in every level; saved
   in the journey) with the pure slot/spring math in `world/formation.ts`. See DESIGN's Destinations.
-- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, discovery, destination, arrival, unlock) so audio/fx/ui stay decoupled.
+- `core/Events.ts`: typed bus (flap, contact, cloud, wisp, lantern, thermal, discovery, destination, arrival, unlock) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics; a bird's `FlightTuning` (its
   `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
@@ -150,9 +150,11 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   pavilions, temples, lanterns and windows per spire), `PeaksWisps` (gate ribbon, cloud skims,
   slaloms, tangent swings over summits), `PeaksDecor` (three spire tiers, near/far props,
   casters, contact shadows), `granite` (per-pixel joints round the spire's axis from `aRock`,
-  lichen, moss, snow), `cloudSea` (the sea's shader: lobes, heave, gaps, warm glow, lining),
-  `geometry`, `shapes` (props), `materials` (flags, cranes, sunbeams), `PeaksWorld`. Snow peaks
-  are the `summits` backdrop; the mist rests on the cloud tops via `uMistBase`.
+  lichen, moss, snow), `cloudSea` (the sea's shader: lobes, heave, gaps, warm glow, lining,
+  the marks of a dive into it), `geometry`, `shapes` (props), `materials` (flags, cranes,
+  sunbeams), `PeaksWorld`. Snow peaks are the `summits` backdrop; the mist rests on the cloud
+  tops via `uMistBase`. Open cloud is soft (`softness`, `World.softGround`): a dive sinks in and
+  is buoyed out (`FlightEnv.softAt`), the bird dissolving into it (`Bird`'s veil).
 - `world/atoll/`: `AtollLayout` (pure: atolls on a coarse grid, each a wobbly reef ring with
   motus and passes round a lagoon, a crest that dries in patches, sand bars, seagrass; mushroom
   rocks lathed from one notched profile; high islands (the home one's fang ahead of the spawn)

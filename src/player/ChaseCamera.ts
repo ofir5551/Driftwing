@@ -26,6 +26,13 @@ export class ChaseCamera {
   private readonly chasePos = new THREE.Vector3();
   /** The species' chase distance (a small bird is watched from a little closer). */
   distanceScale = 1;
+  /**
+   * 0..1: the bird is under soft cloud. The camera stays over the cloud and rises by
+   * `camera.cloudLift` to look down on where the bird churns it, rather than skimming the tops
+   * blind. Eased here so the rise and fall are smooth.
+   */
+  submerged = 0;
+  private lift = 0;
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(Config.camera.baseFov, aspect, 0.3, 2000);
@@ -62,7 +69,15 @@ export class ChaseCamera {
     const back = d * Math.cos(this.pitch.x);
     const cx = p.x - Math.sin(this.yaw.x) * back;
     const cz = p.z - Math.cos(this.yaw.x) * back;
-    const floor = Math.max(groundAt(cx, cz), Config.world.waterLevel) + 1.2;
+    this.lift +=
+      (this.submerged * c.cloudLift - this.lift) * expDecay(this.submerged > 0 ? 3 : 1.5, dt);
+    // Lifted, the floor also clears the cloud over the bird (the camera may be in a trough
+    // between heaps, which would hide the bird's spot behind the heap it is under).
+    const here = groundAt(p.x, p.z);
+    let ground = Math.max(groundAt(cx, cz), Config.world.waterLevel);
+    if (this.lift > 0.01)
+      ground += Math.max(0, here - ground) * Math.min(1, this.lift / c.cloudLift);
+    const floor = ground + 1.2 + this.lift;
     const cam = this.camera;
     const fx = Math.sin(p.yaw);
     const fz = Math.cos(p.yaw);
@@ -72,6 +87,10 @@ export class ChaseCamera {
 
     const la = c.lookAhead;
     this.target.set(p.x + fx * la, p.y + Math.sin(p.pitch) * la * 0.5 + 1.1, p.z + fz * la);
+    // A bird under soft cloud (the cloud sea) is watched where its wake churns the tops: the lens
+    // stays over the cloud, so aiming under it would only fill the view with the cloud's top.
+    // Elsewhere the bird always flies above the ground and this never binds.
+    this.target.y = Math.max(this.target.y, here - 1);
     cam.up.set(0, 1, 0);
     cam.lookAt(this.target);
     this.roll += (p.bank * c.rollFollow - this.roll) * expDecay(6, dt);

@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
+import { GoalLean } from '../goal';
 import type { FjordLayout } from './FjordLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
@@ -28,7 +29,14 @@ export class FjordPlanner implements WispPlanner {
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
 
+  /** The way to the current destination (down the fjord to it), if a journey is on. */
+  private readonly lean = new GoalLean(8, 17, 250);
+
   constructor(private readonly L: FjordLayout) {}
+
+  setGoal(route: Float64Array | null): void {
+    this.lean.route = route;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -36,6 +44,12 @@ export class FjordPlanner implements WispPlanner {
     if (Math.abs(c.x - this.expect.x) + Math.abs(c.z - this.expect.z) > 1) {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
+    }
+    // On a journey the trend is the way to the destination: down the fjord to it.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
     }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (!this.introDone) {
@@ -47,8 +61,19 @@ export class FjordPlanner implements WispPlanner {
     }
     // Now and then let the generic patterns run (they bring the thermal spirals), but only out
     // on the plateau: they know nothing of walls and would ask for a climb no bird can make.
-    if (rand() < 0.15 && L.fjord(c.x, c.z) > Config.fjord.wall + 150) return false;
+    // Not on a journey: they know nothing of the way either.
+    const generic = rand() < 0.15;
+    if (generic && goal === null && L.fjord(c.x, c.z) > Config.fjord.wall + 150) return false;
     const along = L.heading(c.x, c.z, base);
+    // On the way: down the fjord the way the route goes (its aim ahead can cut across a bend's
+    // wall), coming down to the water on the last stretch from any height.
+    if (goal !== null && this.lean.onRoute && L.fjord(c.x, c.z) < 0) {
+      const h = L.heading(c.x, c.z, this.lean.routeDir);
+      this.pts.length = 0;
+      if (this.lean.approaching) this.fjord(c, h, 16, 12, 0);
+      else this.fjord(c, h, 10 + rand() * 12, 10 + Math.floor(rand() * 5), (rand() - 0.5) * 0.9);
+      if (this.commit(c, spawn)) return true;
+    }
     if (L.fjord(c.x, c.z) < 0 && c.y < 80 && Math.abs(angleDelta(base, along)) < 1.2) {
       this.pts.length = 0;
       this.fjord(c, along, 10 + rand() * 12, 10 + Math.floor(rand() * 5), (rand() - 0.5) * 0.9);

@@ -1039,11 +1039,11 @@ Two shapes of journey, both in shared code, each level giving only its landmarks
   goal unless that turns back on the ribbon (a U-turn ribbon runs back past the bird, which
   loses it, and the ribbon restarts ahead of the bird for ever); while the goal lies well off to
   one side the ribbon glides over the roofs, turning a little each time.
-- Tested headless (`tests/journeys.test.ts`, four seeds, six minutes): every level arrives, with
-  per-level bars set below what the bot manages. Best: Aurora Fjords (3-5 journeys a seed,
-  first in 36-48 s). Hardest: Neon Bay (the street grid; first arrival up to ~280 s, and the bot
-  glances walls about twice as often as without a journey) and Jade River (rivers meander: a
-  walk can loop far round; one seed arrives nowhere in six minutes).
+- Tested headless (`tests/journeys.test.ts`, four seeds, six minutes, through the light): bars
+  set at what the bot manages. Best: Red Canyons and Aurora Fjords (4 journeys a seed). Hardest:
+  Neon Bay (the street grid: 4 arrivals, two seeds none, and the bot glances walls about twice
+  as often as without a journey); Jade River, City of Gold and Sea of Clouds each have one seed
+  that arrives nowhere in six minutes.
 
 ### What waits there: a lit cairn and a stray (built)
 

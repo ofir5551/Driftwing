@@ -20,6 +20,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      dev: ${{ steps.devbuild.outcome }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +48,7 @@ jobs:
           ref: dev
           path: dev
       - name: Build dev
+        id: devbuild
         if: steps.dev.outcome == 'success'
         continue-on-error: true
         working-directory: dev
@@ -72,3 +75,15 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # A failed dev build never blocks the players' deploy, but it must not hide either: the run
+  # turns red here (after main is live). The site is replaced whole, so /dev/ is missing until
+  # the dev build passes again.
+  dev-status:
+    needs: [build, deploy]
+    if: always() && needs.build.outputs.dev == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::The dev build failed (see the build job's 'Build dev' step), so /dev/ is not on the site. The players' build deployed as usual."
+          exit 1

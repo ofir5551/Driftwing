@@ -23,7 +23,7 @@ const BARS: Partial<Record<LevelId, Bar>> = {
   // The street grid is the hardest to lead through: the bot loses the ribbon at corners.
   city: { first: 330, total: 4 },
   // Rivers meander: a walk down one can loop far round before its bridge or pagoda.
-  karst: { first: 220, total: 5, each: 0 },
+  karst: { first: 220, total: 4, each: 0 },
 };
 
 describe('journeys on every level', () => {

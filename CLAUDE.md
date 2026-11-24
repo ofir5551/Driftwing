@@ -38,6 +38,10 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 ## Architecture
 
 - `main.ts`: wires Game + Gameplay + GameAudio + Menu, settings persistence, pause/mute/hints.
+- Two channels on one Pages site (`.github/workflows/pages.yml`, same file on both branches):
+  `main` at the root for players, `dev` under `/dev/` built with `VITE_CHANNEL=dev`
+  (`core/channel.ts`: everything unlocked, no journey saved, its own settings keys, no service
+  worker; URL flags still apply). Ship by merging `dev` into `main`.
 - `pwa.ts` + `sw.ts`: installable app. The service worker precaches each build (offline play);
   `vite.config.ts` builds it to `sw.js` with the file list. Updates reload only on the title.
   Files added to `public/` must be listed in `PUBLIC_FILES` there. Icons: `scripts/icons.mjs`.

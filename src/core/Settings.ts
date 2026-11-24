@@ -1,3 +1,4 @@
+import { DEV_CHANNEL } from './channel';
 import type { QualityLevel } from './Config';
 import { parseJourney, type JourneyData } from './Journey';
 import { isLevelId } from '../levels';
@@ -41,8 +42,10 @@ export interface Settings {
   taught: Taught;
 }
 
-const KEY = 'driftwing:settings';
-const BEST = 'driftwing:best';
+// The dev channel keeps its own settings and bests (same site as the players' build).
+const PREFIX = DEV_CHANNEL ? 'driftwing-dev:' : 'driftwing:';
+const KEY = `${PREFIX}settings`;
+const BEST = `${PREFIX}best`;
 const DEFAULTS: Settings = {
   volume: 0.8,
   muted: false,
@@ -118,7 +121,7 @@ export function saveBest(level: LevelId, score: number): void {
   }
 }
 
-const JOURNEY = 'driftwing:journey';
+const JOURNEY = `${PREFIX}journey`;
 
 export function loadJourney(): JourneyData {
   try {

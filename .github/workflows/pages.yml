@@ -1,8 +1,11 @@
 name: Deploy to GitHub Pages
 
+# One Pages site, two builds: `main` (the players' game) at the root, and `dev` (everything
+# unlocked, nothing saved; see src/core/channel.ts) under /dev/. A push to either branch
+# rebuilds both, so neither ever replaces the other. Keep this file the same on both branches.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -19,19 +22,46 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - run: npx vite build
+      # The players' build: checked as before.
+      - name: Build main
+        working-directory: main
+        run: |
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test
+          npx vite build
+      # The dev build, if the branch exists: tested too, but a failure there never blocks main.
+      - name: Check out dev
+        id: dev
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          path: dev
+      - name: Build dev
+        if: steps.dev.outcome == 'success'
+        continue-on-error: true
+        working-directory: dev
+        env:
+          VITE_CHANNEL: dev
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npx vite build
+          mkdir -p ../main/dist/dev
+          cp -r dist/. ../main/dist/dev/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: main/dist
 
   deploy:
     needs: build

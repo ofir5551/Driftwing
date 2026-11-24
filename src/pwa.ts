@@ -1,3 +1,5 @@
+import { DEV_CHANNEL } from './core/channel';
+
 /**
  * Installs and updates the service worker (src/sw.ts): offline play, and what lets browsers
  * offer "Install". Production builds only; the dev server always serves fresh files.
@@ -14,7 +16,8 @@ const UPDATE_CHECK_MS = 60 * 60 * 1000;
 let waiting: ServiceWorker | null = null;
 
 export function registerServiceWorker(): void {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  // The dev channel is always fetched fresh (and the players' worker leaves /dev/ alone).
+  if (!import.meta.env.PROD || DEV_CHANNEL || !('serviceWorker' in navigator)) return;
   addEventListener('load', () => {
     navigator.serviceWorker
       .register('./sw.js')

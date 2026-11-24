@@ -66,9 +66,14 @@ swScope.addEventListener('message', (e) => {
   if (e.data === 'skip-waiting') void swScope.skipWaiting();
 });
 
+/** The dev channel's build lives under dev/ beside this one: never serve or cache it from here. */
+const DEV_PATH = new URL('dev/', location.href).pathname;
+
 swScope.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
+  if (url.pathname.startsWith(DEV_PATH)) return;
   e.respondWith(req.mode === 'navigate' ? swPage(req) : swAsset(req));
 });
 

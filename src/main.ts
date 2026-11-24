@@ -1,3 +1,4 @@
+import { DEV_CHANNEL } from './core/channel';
 import './ui/styles.css';
 import { Game } from './core/Game';
 import { Gameplay } from './core/Gameplay';
@@ -31,17 +32,25 @@ document.body.appendChild(ui);
 
 const settings = loadSettings();
 // The journey (lifetime light). `?autopilot` never earns (the bot would fill it), and
-// `?journey=N` starts a throwaway journey at N light that is never saved.
+// `?journey=N` starts a throwaway journey at N light that is never saved. The dev channel
+// always flies a throwaway journey (light from `?journey=N`, 0 by default).
 const earns = !params.has('autopilot');
-const testLight = params.get('journey');
+const testLight = params.get('journey') ?? (DEV_CHANNEL ? '0' : null);
 const keepsJourney = earns && testLight === null;
 const journey =
   testLight === null
     ? new Journey(loadJourney())
     : new Journey(parseJourney({ light: Number(testLight) }));
 // `?unlocked` opens every level, plumage and trail for this session without granting (or
-// saving) anything.
-journey.allOpen = params.has('unlocked');
+// saving) anything; the dev channel always does.
+journey.allOpen = DEV_CHANNEL || params.has('unlocked');
+if (DEV_CHANNEL) {
+  // A quiet corner label, so the dev build is never mistaken for the players' one.
+  const tag = document.createElement('div');
+  tag.className = 'dev-tag';
+  tag.textContent = 'DEV';
+  document.body.appendChild(tag);
+}
 // Levels flown before the journey existed stay open whatever the light.
 if (testLight === null) for (const l of LEVEL_LIST) if (loadBest(l.id) > 0) journey.grant(l.id);
 // The last level picked, unless it is still locked (picked, never flown, before levels had

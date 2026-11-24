@@ -951,7 +951,7 @@ without its points (light and the bell say the rest). Only the first lantern to 
 toast. Start screen, pause menu (volume, quality, invert-Y), settings and best score in
 localStorage.
 
-## Destinations (built in Red Canyons)
+## Destinations (built, every level)
 
 Players said the game felt good for a while and then aimless, and they lost interest within the
 first flight: following wisps has no beginning, middle or end. So each flight is now a run of
@@ -991,8 +991,50 @@ and a missed approach is just circling back.
   a level's source as `World.destinations` (`world/canyon/destinations.ts`), the planner's
   optional `WispPlanner.setGoal(route)`, `arrival`/`destination` events (light in `main.ts`,
   `Music.arrived`), `Config.destinations`.
-- Next: approach courses with calm medals (gates threaded, no clock), then the other eight
-  levels' sources.
+- Next: approach courses with calm medals (gates threaded, no clock).
+
+### Every level's destinations
+
+Two shapes of journey, both in shared code, each level giving only its landmarks:
+
+- **Walks** (`world/walk.ts`) where the level's natural ways are channels along a noise's zero
+  contour: down the bird's own channel, the way it faces, to the first landmark beside it far
+  enough along; the route is the centre line, the way the ribbons already run. Red Canyons (its
+  own walk, the first), Jade River (stone bridges, and pagodas standing over the water) and
+  Aurora Fjords (fishing villages on the strand, waterfalls down the walls).
+- **Picks across open country** (`world/landmarks.ts`): the landmark ahead (within a cone, then
+  anywhere) nearest ~1.3x the least distance, and a straight route to it, ending beside a solid
+  landmark (`aside`) or at an open way in (`end`). Highlands (the floating isles: beacon from the
+  top, cairn on the turf, the route beside the isle, never under its hanging rock), Neon Bay
+  (lattice towers, the beacon from the top, and grand shrines; arrival anywhere round the
+  centre block, since the avenues are ~120 m off), City of Gold (hill towns, found by sampling
+  the town field on a 420 m grid, a town's towers being too costly to build for a search; the
+  cairn on its roofs), Sea of Clouds (spires 150 m and up, the cairn on the summit), Coral
+  Atolls (each atoll's high island, beacon from its fang and cairn on its beach, else its
+  stilt village) and Ringmoon Shallows (the explorers' outposts, the cairn at the end of the
+  lit path).
+- Never a hidden find: not the Highlands isles' undersides, Jade River's summit pavilions, the fjords'
+  lighthouse, Sea of Clouds' hermitages and monastery, the home atoll, Ringmoon's beacon towers
+  and ship. City of Gold's Old City stays the opening ribbon's.
+- Grids with small cells (pillars 72 m, spires 100 m, Ringmoon's props 130 m) are sampled every
+  third cell: thousands of cells over a 4.6 km search would thrash the layouts' cell caches.
+- Leaning the ribbons (`world/goal.ts`, `GoalLean`): every planner's trend becomes the way to
+  the goal (the aim 320 m along the route past its nearest point), and its detours (swings and
+  spirals round a landmark, reef-ring runs, tower spirals) wait until the journey ends; they
+  lead the bird off the way. On the open levels a ribbon that overshoots by 500 m without the
+  bird arriving turns back (the ribbon runs ~400 m ahead of the bird, so less is usual). The
+  generic patterns (the Highlands have no planner) turn toward the goal at most 0.6 rad a
+  pattern, along the lowest way within 1.35 rad of it, and straight in on the last 680 m:
+  snapping each pattern at the goal sent ribbons up hills no gliding bird could follow, and
+  drifting there missed isles by 150 m. Neon Bay's runs set off along the avenue axis toward the
+  goal unless that turns back on the ribbon (a U-turn ribbon runs back past the bird, which
+  loses it, and the ribbon restarts ahead of the bird for ever); while the goal lies well off to
+  one side the ribbon glides over the roofs, turning a little each time.
+- Tested headless (`tests/journeys.test.ts`, four seeds, six minutes): every level arrives, with
+  per-level bars set below what the bot manages. Best: Aurora Fjords (3-5 journeys a seed,
+  first in 36-48 s). Hardest: Neon Bay (the street grid; first arrival up to ~280 s, and the bot
+  glances walls about twice as often as without a journey) and Jade River (rivers meander: a
+  walk can loop far round; one seed arrives nowhere in six minutes).
 
 ### What waits there: a lit cairn and a stray (built)
 
@@ -1881,3 +1923,8 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - The flock flies ahead of the bird, not behind: on a phone held upright the chase camera sees a
   cone a few metres wide at the bird, so a V behind it was invisible. Followers spring their
   offsets from the bird rather than world positions, so they keep up at any speed.
+- Journeys on every level: walks down a channel where the level has channels (canyons, rivers,
+  fjords), picks across open country elsewhere. Picking a pagoda across Jade River's pillar
+  forest failed (the ribbons could not thread to one); walking down the river to the next one
+  works. Neon Bay's ribbons first circled round towers near the goal and U-turned at the
+  opening; both are now ruled out mid-journey.

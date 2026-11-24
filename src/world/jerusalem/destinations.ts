@@ -40,6 +40,8 @@ export function jerusalemDestinations(L: JerusalemLayout): DestinationSource {
         L.at(tx, tz);
         if (L.town < HEART) continue;
         const g = L.ground(tx, tz);
+        // Among the roofs: on whatever stands there (a house's roof), else the ground.
+        const roof = Math.max(g, L.roofBelow(tx, g + 80, tz));
         out.push({
           id: `town:${i},${j}`,
           name: landmarkName(hash2(i, j, 763), FIRST, KIND),
@@ -48,7 +50,7 @@ export function jerusalemDestinations(L: JerusalemLayout): DestinationSource {
           y: g,
           top: g + 40,
           r: 110,
-          roost: { x: tx, y: g, z: tz, yaw: hash2(i, j, 764) * Math.PI * 2 },
+          roost: { x: tx, y: roof, z: tz, yaw: hash2(i, j, 764) * Math.PI * 2 },
         });
       }
   });

@@ -27,8 +27,15 @@ export function atollDestinations(L: AtollLayout): DestinationSource {
         if (I) {
           // The cairn: on the island's shore, on the side toward the atoll's centre.
           const a = Math.atan2(A.x - I.x, A.z - I.z);
-          const rx = I.x + Math.sin(a) * I.r * 1.08;
-          const rz = I.z + Math.cos(a) * I.r * 1.08;
+          // Walk in from the cone's foot to dry sand (the coast lies a little beyond it).
+          let f = 1.3;
+          while (
+            f > 0.7 &&
+            L.height(I.x + Math.sin(a) * I.r * f, I.z + Math.cos(a) * I.r * f) < 0.6
+          )
+            f -= 0.02;
+          const rx = I.x + Math.sin(a) * I.r * f;
+          const rz = I.z + Math.cos(a) * I.r * f;
           const l: Landmark = {
             id: `atoll-isle:${i},${j}`,
             name: landmarkName(hash2(i, j, 771), ISLE_FIRST, ISLE_KIND),

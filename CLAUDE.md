@@ -64,7 +64,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   to Gameplay as `World.discoveries`. Finds must stay off the wisps' ribbons (a test flies them).
 - `world/Destinations.ts`: a flight's journeys (pure tracker: a beacon over a landmark ahead, the
   wisps lean toward it via `WispPlanner.setGoal`, arrival ends it). A level offers them as
-  `World.destinations` (Red Canyons only so far: `world/canyon/destinations.ts`); `world/Beacon.ts`
+  `World.destinations` (every level: `world/<level>/destinations.ts`, Highlands in
+  `levels/Highlands.ts`), built on `world/landmarks.ts` (a pick across open country) or
+  `world/walk.ts` (down a river, fjord or canyon); planners lean via `world/goal.ts`. `world/Beacon.ts`
   draws the column of light, `world/Roost.ts` the lit cairn where a stray perches. Arriving adds
   it to the flock: `world/Flock.ts` (instanced birds round the player's, in every level; saved
   in the journey) with the pure slot/spring math in `world/formation.ts`. See DESIGN's Destinations.

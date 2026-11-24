@@ -89,12 +89,11 @@ export const Config = {
     maxFov: 90,
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
-    cloudHeight: 3.5, // m over the cloud tops the camera glides while the bird is in the cloud (about where it rode as the bird skimmed them)
-    cloudLift: 0, // m more it rises then, to look down on the cloud where the bird went in
     cloudAim: 0, // m over the cloud top the camera aims while the bird is in the cloud
-    cloudSoft: 4, // m over which the camera eases onto that height instead of stopping dead
-    cloudOmega: 4, // spring frequency of the camera's height while the bird is in the cloud
-    cloudEase: 2.5, // 1/s, how quickly it follows the cloud's heaps then (higher is stiffer, lower is smoother)
+    cloudSoft: 3, // m over which the camera eases onto its floor over the cloud instead of stopping dead
+    cloudClear: 2, // m the camera keeps over the heaps of cloud under and ahead of it
+    cloudOmega: 3, // spring frequency of that floor as it follows the cloud's heaps (higher is stiffer, lower is calmer)
+    cloudEase: 2, // 1/s, how quickly the aim follows the cloud top over the bird
   },
   input: {
     mouseDeadZone: 0.06, // fraction of half-screen

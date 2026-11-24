@@ -417,10 +417,8 @@ export class Game {
 
     this.day.update(dt, Config.world.dayLength * this.level.dayScale);
     this.bird.update(o, s.sinceFlap + alpha * STEP, s.sinceClimbBeat + alpha * STEP, this.time, dt);
-    // The camera starts to glide over the tops as the bird sinks below its resting skim.
-    const top = this.world.flightGround(o.x, o.z);
-    const soft = this.world.softGround ? this.world.softGround(o.x, o.z) : 0;
-    this.chase.submerged = soft * smoothstep(Config.flight.cloudSkim + 1, 0, o.y - top);
+    // Over soft cloud the camera keeps above where it rides while the bird skims the tops.
+    this.chase.soft = this.world.softGround ? this.world.softGround(o.x, o.z) : 0;
     this.chase.update(o, Math.max(dt, 1e-4), this.camGround, this.camPush);
     this.world.update(o.x, o.z);
     this.world.frame(dt, this.time, this.day);

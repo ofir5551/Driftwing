@@ -668,10 +668,11 @@ the top and is gone as far under it (`Bird`'s veil: its colour into the cloud's 
 noise dissolving it, with the parts nearest the top going first), a crown of puffs (some in the
 cloud's lilac shade) rolls out, a hollow closes over it and a ring of churned cloud spreads on
 the tops (`cloudSea`'s plunges); a soft "fwump" plays and the whole mix closes through a lowpass
-(`AudioEngine.setMuffle`). Under: the camera does not follow; it glides on level over the tops
-where it rode as the bird skimmed them (`camera.cloudHeight`) and watches the cloud where the bird
-went in: a swell rides over the bird with its dim shape showing through, puffs churning up over
-it. Out: the bird fades back in as it rises, vapour peels off it, another ring spreads and a
+(`AudioEngine.setMuffle`). Under: the camera does not follow. Over soft cloud it never sinks
+below where it rides while the bird skims the tops (`cloudSkim` plus its own height over the
+cloud at the bird, clear of the heaps ahead), a floor tied to the place, not switched on in time,
+and it watches the cloud where the bird went in: a swell rides over the bird with its dim shape
+showing through, puffs churning up over it. Out: the bird fades back in as it rises, vapour peels off it, another ring spreads and a
 rising rush plays. The blob shadow fades as the bird sinks. Tuned in `Config.flight.cloud*`,
 `camera.cloud*` and `peaks.soft*`, `veil*`, `ripple`.
 Spires are solid but soft, flown with the city's look-ahead and wall glance; summits push up
@@ -1747,12 +1748,18 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - The camera first rose a few metres to look down on the bird's spot, and shook: its floor and
   aim read the cloud's height raw, and the heaps meet in sharp creases (|noise|), so at dive speed
   each crease jolted the lens; it also stopped dead on its floor in one frame as it followed a
-  dive down. Now it glides level over the tops (`cloudHeight`; `cloudLift` would raise it), its
-  floor looks ahead over the heaps (where the lens will be in 0.3 and 0.6 s) and is a smooth max
-  (`cloudSoft`), the aim follows an eased cloud top (`cloudEase`), and the height rides a spring
-  (`cloudOmega`) that tracks the lens otherwise, so it takes over with the lens's own speed.
-  Measured over the same held dive, the camera's vertical acceleration went from a mean of
-  181 m/s^2 (worst 972) on the first build to 4.3 (worst 18), below the bird's own 7.
+  dive down. The next build glided level over the tops, but as a mode eased on and off in time:
+  for a moment after going in the lens still followed the bird down, and climbing out it hung
+  low, looking up at the bird, until the mode let go and it snapped back. Now the floor is a
+  place: over soft cloud (the bird's `softAt`, which changes only over tens of metres near rock)
+  the lens never sinks below where it rides at the skim, so nothing switches and nothing jumps.
+  The floor (the skim's height over the cloud at the bird, `cloudClear` over the heaps under the
+  lens and 0.3-0.9 s ahead) rides a critically damped spring (`cloudOmega`), so its speed never
+  jumps and the look-ahead makes up for its lag, and the lens eases onto it through a smooth max
+  (`cloudSoft`, its rounding taken off the skim's height so the skim view is unchanged). Measured
+  over a held dive and a release: the lens never below the bird (at least 1.5 m over it) and at
+  least 1.5 m over the cloud under it, its vertical acceleration a mean of 6.9 m/s^2 (95th
+  percentile 19), the bird's own 6.1 (18); the first build's was 181 (519).
 - Sea of Clouds hands over to the generic wisp patterns only out over open cloud (no spire within
   260 m), and when nothing fits it wheels round with short glides instead: near a spire a
   generic pattern lifts its path straight over the summit, a 100 m jump the bot could not climb

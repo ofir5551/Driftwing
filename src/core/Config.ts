@@ -86,6 +86,9 @@ export const Config = {
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
     cloudLift: 3.5, // m the camera rises over its floor while the bird is under soft cloud (it looks down on the wake)
+    cloudSoft: 4, // m over which the lifted camera eases onto its floor instead of stopping dead
+    cloudOmega: 5, // spring frequency of the lifted camera's height
+    cloudEase: 3, // 1/s, how quickly the lifted camera follows the cloud's heaps (higher is stiffer, lower is smoother)
   },
   input: {
     mouseDeadZone: 0.06, // fraction of half-screen

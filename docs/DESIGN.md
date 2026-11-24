@@ -1737,6 +1737,14 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   The camera stays over the cloud rather than following the bird in (looking down at the cloud's
   top from inside it shows nothing), and the puffs' colour is the mist's lifted and capped, as
   the lit tops outshine the mist most at night but by day the lift made the puffs bloom.
+- The lifted camera shook on the first build: its floor and aim read the cloud's height raw, and
+  the heaps meet in sharp creases (|noise|), so at dive speed each crease jolted the lens; and it
+  stopped dead on its floor in one frame as it followed a dive down, then reversed as the lift
+  began to rise. Now the cloud top over the bird and the lifted floor are eased (`cloudEase`),
+  the floor is a smooth max (`cloudSoft`), and the lens's height rides a spring (`cloudOmega`)
+  that tracks it while unlifted, so it takes over with the lens's own speed. Measured on a
+  porpoising dive: the camera's vertical acceleration fell from a mean of 181 m/s^2 (95th
+  percentile 519) to 18 (76), below the bird's own 29 (64); the aim's from 16.5 to 1.8.
 - Sea of Clouds hands over to the generic wisp patterns only out over open cloud (no spire within
   260 m), and when nothing fits it wheels round with short glides instead: near a spire a
   generic pattern lifts its path straight over the summit, a 100 m jump the bot could not climb

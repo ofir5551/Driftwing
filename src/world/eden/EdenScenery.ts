@@ -37,8 +37,8 @@ function photoTexture(photo: EdenPhoto): THREE.Texture | null {
   return t;
 }
 
-/** A name painted on a cream plaque (the caption under a picture). */
-function plaqueTexture(text: string): THREE.Texture | null {
+/** A name painted on a cream plaque (the caption under a picture), and a date under it. */
+function plaqueTexture(text: string, date?: string): THREE.Texture | null {
   if (!hasDom) return null;
   const c = document.createElement('canvas');
   c.width = 512;
@@ -51,10 +51,17 @@ function plaqueTexture(text: string): THREE.Texture | null {
   g.lineWidth = 8;
   g.strokeRect(8, 8, 496, 112);
   g.fillStyle = '#7a5a2a';
-  g.font = 'italic 600 64px Georgia, "Times New Roman", serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(text, 256, 68);
+  if (date) {
+    g.font = 'italic 600 50px Georgia, "Times New Roman", serif';
+    g.fillText(text, 256, 50);
+    g.font = '500 30px Georgia, "Times New Roman", serif';
+    g.fillText(date, 256, 96);
+  } else {
+    g.font = 'italic 600 64px Georgia, "Times New Roman", serif';
+    g.fillText(text, 256, 68);
+  }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -188,7 +195,7 @@ export class EdenScenery {
     g.add(this.mesh(mergeGeometries(parts), toon('#ffffff', true), 'easel'));
     for (const p of parts) p.dispose();
     g.add(pic);
-    const plaque = plaqueTexture(caption);
+    const plaque = plaqueTexture(caption, photo.date);
     if (plaque) {
       this.textures.push(plaque);
       // As tall as the easel's foot allows, so a name reads from the air.

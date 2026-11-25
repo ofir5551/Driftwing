@@ -17,12 +17,17 @@ export interface EdenPhoto {
   readonly caption: string;
   /** A second line on the card. */
   readonly line: string;
+  /** Under the caption, on the plaque and the card (the wedding's date, for the couple). */
+  readonly date?: string;
 }
+
+/** Tal and Hadar's wedding day. */
+export const WEDDING_DATE = '23.12.2026';
 
 export const EDEN_PHOTOS: readonly [EdenPhoto, EdenPhoto, EdenPhoto] = [
   { id: 'eden:tal', file: p0, caption: 'Tal', line: 'joins your flock' },
   { id: 'eden:hadar', file: p1, caption: 'Hadar', line: 'joins the two of you' },
-  { id: 'eden:venue', file: p2, caption: 'Tal & Hadar', line: 'Mazal tov!' },
+  { id: 'eden:venue', file: p2, caption: 'Tal & Hadar', line: 'Mazal tov!', date: WEDDING_DATE },
 ];
 
 export const edenPhoto = (id: string): EdenPhoto | undefined =>

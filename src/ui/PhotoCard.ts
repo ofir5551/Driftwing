@@ -7,6 +7,7 @@ export class PhotoCard {
   private readonly el: HTMLDivElement;
   private readonly img: HTMLImageElement;
   private readonly caption: HTMLDivElement;
+  private readonly date: HTMLDivElement;
   private timer = 0;
 
   constructor(ui: HTMLElement) {
@@ -18,14 +19,19 @@ export class PhotoCard {
     this.img.decoding = 'async';
     this.caption = document.createElement('div');
     this.caption.className = 'photo-caption';
-    this.el.append(this.img, this.caption);
+    this.date = document.createElement('div');
+    this.date.className = 'photo-date';
+    this.el.append(this.img, this.caption, this.date);
     ui.append(this.el);
   }
 
-  show(url: string, caption: string, seconds: number): void {
+  /** `date`: a smaller line under the caption (none: hidden). */
+  show(url: string, caption: string, seconds: number, date?: string): void {
     this.img.src = url;
     this.img.alt = caption;
     this.caption.textContent = caption;
+    this.date.textContent = date ?? '';
+    this.date.hidden = !date;
     this.el.classList.add('show');
     this.timer = seconds;
   }

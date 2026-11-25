@@ -1001,7 +1001,8 @@ there (`dayScale` 1.6).
   right, so the bird sees the picture ahead and passes beside it. Tal and Hadar are the strays
   on its cairn (slate and rose), so they join the flock. On arrival a photo card (`ui/PhotoCard`)
   fades in above the toast for 7 s and takes no tap. The venue's journey has no cairn (the two
-  of them are already with you): its card is the two of them, "Mazal tov!", and sky lanterns
+  of them are already with you): its card is the two of them with their wedding date
+  (23.12.2026, also on the picture's plaque), "Mazal tov!", and sky lanterns
   rise over the pool for the rest of the flight (and every night). Then the isles' journeys
   take over.
 - The venue, from its photo: a glass hall with timber posts under a white wave roof (a crown

@@ -1814,3 +1814,11 @@ body.paused .toast {
   font-size: clamp(18px, 3.6vw, 26px);
   color: #7a5a2a;
 }
+
+.photo-date {
+  padding: 0 4px 4px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(13px, 2.6vw, 17px);
+  letter-spacing: 0.12em;
+  color: #9a7a4a;
+}

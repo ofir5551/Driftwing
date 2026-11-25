@@ -1015,8 +1015,8 @@ there (`dayScale` 1.6).
   rows either side of an aisle facing a chuppah, an olive tree, tall trees and cypresses in a
   horseshoe round the back, poolside lamps. The roof, crowns and chuppah are soft lifts in the
   flight floor; the pictures are slabs the bird glances off.
-- Sizes, after the first play: the pictures 24 m (portraits) and 39 m (the invitation) tall,
-  the venue built at 1.3x its plan (`venueScale`; `VENUE` is drawn at 1 and the layout's
+- Sizes, after the first plays: the pictures 28.8 m (portraits) and 46.8 m (the invitation)
+  tall, the venue built at 1.56x its plan on grounds 180 m round (`venueScale`; `VENUE` is drawn at 1 and the layout's
   `toWorld`, `roofTop` and lifts scale it). Eden's beacons are dimmed (`Destination.beacon`,
   0.16): full bright far off, where they lead, and dim from 700 m to 300 m off, so the column
   never hides the picture it stands by.

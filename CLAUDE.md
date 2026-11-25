@@ -192,7 +192,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   height, soft lifts over its trees, the pictures as slabs `pushFrame` glances off), `journeys`
   (pure: Tal's picture, Hadar's, then the venue with no cairn; then the isles), `EdenWisps`
   (straight ribbon through each stop's light on the run in), `EdenScenery` (easels, venue,
-  heart rose beds, sky lanterns in a shader), `countryside` (pure, per 300 m cell: road arches
+  heart rose beds, sky lanterns in a shader; `SkyWords`: "Tal ♥ Hadar" in lantern light), `countryside` (pure, per 300 m cell: road arches
   and lights, heart groves, heart clouds, doves) drawn by `EdenCountry` (also the petals),
   `cover` (lavender and rose fields), `heart` (the shape; the lake in `EdenLayout`), `finds`, `photos` (the pictures, kept veiled as `photos/p0-2.bin`
   by `veil.ts`; make new ones with `node scripts/eden-photos.mjs`; `ui/PhotoCard` shows them on

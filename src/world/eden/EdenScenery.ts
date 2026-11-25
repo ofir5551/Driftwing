@@ -9,6 +9,7 @@ import { hash2 } from '../noise';
 import { VENUE, type EdenLayout, type Frame } from './EdenLayout';
 import { EDEN_PHOTOS, photoUrl, type EdenPhoto } from './photos';
 import { heartPoint } from './heart';
+import { SkyWords } from './SkyWords';
 
 const toon = (hex: string, vertexColors = false): THREE.MeshToonMaterial =>
   withMist(
@@ -92,6 +93,7 @@ export class EdenScenery {
   /** 0..1 how far the lanterns have come up (eases to 1 once the couple are reached). */
   private lanterns = 0;
   private celebrating = false;
+  private readonly words: SkyWords;
 
   constructor(private readonly layout: EdenLayout) {
     this.glassMat = toon('#a9d2d4');
@@ -100,16 +102,20 @@ export class EdenScenery {
     EDEN_PHOTOS.forEach((p, i) => this.addFrame(layout.frames[i], p));
     this.addVenue();
     this.addHeartBeds();
+    this.words = new SkyWords(layout);
+    this.group.add(this.words.group);
   }
 
   /** The couple were reached: lanterns rise over the venue for the rest of the flight. */
   celebrate(): void {
     this.celebrating = true;
+    this.words.start();
   }
 
   /** A new flight starts the story over (the lanterns wait for the couple again). */
   reset(): void {
     this.celebrating = false;
+    this.words.reset();
   }
 
   frame(dt: number, time: number, day: DayCycle): void {
@@ -130,9 +136,11 @@ export class EdenScenery {
     u.uTime.value = time;
     u.uOn.value = Math.max(this.lanterns, night);
     u.uGlow.value = E.lanternGlow * (0.7 + 0.5 * stars);
+    this.words.frame(dt, time, stars);
   }
 
   dispose(): void {
+    this.words.dispose();
     for (const g of this.geometries) g.dispose();
     for (const t of this.textures) t.dispose();
     this.group.traverse((o) => {

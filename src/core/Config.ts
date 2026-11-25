@@ -309,6 +309,11 @@ export const Config = {
     petals: 500, // petals drifting round the camera
     petalBox: 70, // m, side of the box of air they drift in
     lightGlow: 2.6, // the fairy lights after dark (over 1: bloom haloes them)
+    wordsHeight: 62, // m over the venue, the foot of "Tal ♥ Hadar" written in lantern light
+    wordsWidth: 120, // m across the words
+    wordsRise: 6, // s each light takes from the pool to its place
+    wordsStagger: 7, // s from the first letter's lights to the last's
+    wordsGlow: 2.2, // the words' lights (over 1: bloom haloes them)
   },
   /** The Highlands' lived-in landscape: rivers, farms, villages (world/highlands/). */
   highlands: {

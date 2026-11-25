@@ -1807,6 +1807,11 @@ body.paused .toast {
   border-radius: 3px;
 }
 
+/* The invitation: as tall as the space above the toast allows, so its lines can be read. */
+.photo-card.tall img {
+  max-height: min(56vh, 620px);
+}
+
 .photo-caption {
   padding: 6px 4px 4px;
   font-family: Georgia, 'Times New Roman', serif;

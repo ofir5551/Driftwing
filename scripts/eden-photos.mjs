@@ -1,6 +1,6 @@
-// Veil Eden's photos for the repository: node scripts/eden-photos.mjs <tal.jpg> <hadar.jpg> <couple.jpg>
+// Veil Eden's photos for the repository: node scripts/eden-photos.mjs <tal.jpg> <hadar.jpg> <invitation.jpg>
 // Writes src/world/eden/photos/p0.bin, p1.bin, p2.bin (each byte XORed with the keystream in
-// src/world/eden/veil.ts, which the game uses to show them). Portraits 3:4, the couple 16:9;
+// src/world/eden/veil.ts, which the game uses to show them). Portraits 3:4, the invitation upright (0.6:1);
 // strip metadata and keep each under ~200 kB first (e.g. re-save at 1280 px, quality 82).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
@@ -21,7 +21,7 @@ function veil(bytes) {
 
 const files = process.argv.slice(2);
 if (files.length !== 3) {
-  console.log('usage: node scripts/eden-photos.mjs <tal.jpg> <hadar.jpg> <couple.jpg>');
+  console.log('usage: node scripts/eden-photos.mjs <tal.jpg> <hadar.jpg> <invitation.jpg>');
   process.exit(1);
 }
 mkdirSync('src/world/eden/photos', { recursive: true });

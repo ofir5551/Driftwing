@@ -25,6 +25,9 @@ import { PeaksLayout } from '../src/world/peaks/PeaksLayout';
 import { peaksFinds } from '../src/world/peaks/finds';
 import { RingmoonLayout } from '../src/world/ringmoon/RingmoonLayout';
 import { ringmoonFinds } from '../src/world/ringmoon/finds';
+import { EdenLayout, VENUE } from '../src/world/eden/EdenLayout';
+import { edenFinds } from '../src/world/eden/finds';
+import { createHeightField } from '../src/world/Terrain';
 import { flyBot } from './helpers';
 
 const SEED = Config.world.seed;
@@ -296,5 +299,24 @@ describe('Each level’s finds can be made', () => {
     expect(makes(defs, 'back', S.x, L.shipTop(S.x, S.z) + 4, S.z)).toBe(true);
     const { look } = tracker(defs.filter((d) => d.id === 'ringmoon.ship'));
     expect(circle(look, S.x, S.z, 160, 40)).toEqual(['ringmoon.ship']);
+  });
+
+  it('Eden: the pier, round the chuppah, and the lanterns only at night', () => {
+    const L = new EdenLayout(createHeightField(SEED), SEED);
+    const defs = edenFinds(L);
+    const y = L.venue.y;
+    const pier = L.toWorld(VENUE.pier.u, VENUE.pier.v);
+    expect(makes(defs, 'pier', pier.x, y + 2.5, pier.z)).toBe(true);
+    expect(makes(defs, 'pier', pier.x, y + 12, pier.z)).toBe(false);
+    const ch = L.toWorld(VENUE.chuppah.u, VENUE.chuppah.v);
+    const { look } = tracker(defs.filter((d) => d.id === 'eden.chuppah'));
+    expect(circle(look, ch.x, ch.z, 25, y + 12)).toEqual(['eden.chuppah']);
+    const pool = L.toWorld(VENUE.pool.u, VENUE.pool.v);
+    const { look: night } = tracker(defs.filter((d) => d.id === 'eden.lanterns'));
+    let made: string | null = null;
+    for (let i = 0; i < 20 && !made; i++) made = night(pool.x, y + 90, pool.z, 1)?.id ?? null;
+    expect(made).toBe('eden.lanterns');
+    const { look: day } = tracker(defs.filter((d) => d.id === 'eden.lanterns'));
+    for (let i = 0; i < 20; i++) expect(day(pool.x, y + 90, pool.z, 0)).toBeNull();
   });
 });

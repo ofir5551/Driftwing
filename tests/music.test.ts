@@ -9,6 +9,7 @@ import {
 } from '../src/audio/scales';
 import {
   ATOLL_MUSIC,
+  EDEN_MUSIC,
   CANYON_MUSIC,
   PEAKS_MUSIC,
   CITY_MUSIC,
@@ -111,6 +112,7 @@ describe('level music styles', () => {
     CANYON_MUSIC,
     PEAKS_MUSIC,
     ATOLL_MUSIC,
+    EDEN_MUSIC,
   };
 
   it.each(Object.entries(styles))('%s is a playable style', (_, st) => {

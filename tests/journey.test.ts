@@ -134,9 +134,12 @@ describe('Journey', () => {
 });
 
 describe('Journey / level locks', () => {
-  it('opens only the Highlands at first', () => {
+  it('opens only the Highlands (and Eden, a gift off the track) at first', () => {
     const j = new Journey();
-    expect(LEVEL_LIST.filter((l) => j.isLevelOpen(l.id)).map((l) => l.id)).toEqual(['highlands']);
+    expect(LEVEL_LIST.filter((l) => j.isLevelOpen(l.id)).map((l) => l.id)).toEqual([
+      'highlands',
+      'eden',
+    ]);
   });
 
   it('opens each level at its milestone, in order', () => {
@@ -144,6 +147,7 @@ describe('Journey / level locks', () => {
     j.earn(unlockAt('karst'));
     expect(LEVEL_LIST.filter((l) => j.isLevelOpen(l.id)).map((l) => l.id)).toEqual([
       'highlands',
+      'eden',
       'city',
       'karst',
     ]);
@@ -274,9 +278,13 @@ describe('The journey track', () => {
     }
   });
 
-  it('holds every level but the Highlands, in the order they are listed', () => {
+  it('holds every level but the Highlands (and Eden, always open), in the order they are listed', () => {
     const levels = UNLOCKS.filter((u) => u.kind === 'level').map((u) => u.id);
-    expect(levels).toEqual(LEVEL_LIST.slice(1).map((l) => l.id));
+    expect(levels).toEqual(
+      LEVEL_LIST.slice(1)
+        .filter((l) => l.id !== 'eden')
+        .map((l) => l.id),
+    );
     const at = levels.map((id) => unlockAt(id));
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });

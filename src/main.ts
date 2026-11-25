@@ -23,6 +23,8 @@ import { DEFAULT_TRAIL, trailDef } from './fx/TrailStyle';
 import { DEFAULT_SPECIES, speciesDef } from './player/Species';
 import { applyUpdate, registerServiceWorker, updateReady } from './pwa';
 import { findName } from './world/Discoveries';
+import { PhotoCard } from './ui/PhotoCard';
+import { edenPhoto } from './world/eden/photos';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -213,6 +215,7 @@ const handlers: MenuHandlers = {
     document.body.classList.remove('paused');
     gameplay.hud.visible = false;
     gameplay.hud.clearMessages(); // unlock notices still waiting are on the card instead
+    photoCard.hide();
     gameplay.endFlight();
     menu.showRest(
       {
@@ -320,8 +323,13 @@ game.events.on('discovery', (e) => {
   earn(Config.discoveries.light);
   bankJourney(); // a find is worth saving at once
 });
+const photoCard = new PhotoCard(ui);
+game.onFrame((dt) => photoCard.update(dt));
 game.events.on('arrival', (e) => {
-  if (earns) {
+  // Eden's stops each keep a photo: shown as a card as the bird arrives.
+  const photo = edenPhoto(e.id);
+  if (photo) photoCard.show(photo.url, photo.caption, Config.eden.cardSeconds);
+  if (earns && e.tint >= 0) {
     journey.joinFlock(e.tint);
     // The first bird ever says what the flock is; after that, seeing one join says it.
     if (journey.flock.length === 1) gameplay.hud.notice('A bird joins your flock');

@@ -18,13 +18,18 @@ export interface Destination {
    * natural line: a canyon's centre). Wisp planners lean their ribbons along it.
    */
   readonly route: Float64Array;
-  /** The lit cairn where its stray perches: ground point, and which way the bird faces. */
+  /**
+   * The lit cairn where its stray perches: ground point, and which way the bird faces. Null:
+   * no cairn and no stray (a journey whose end is the place itself).
+   */
   readonly roost: {
     readonly x: number;
     readonly y: number;
     readonly z: number;
     readonly yaw: number;
-  };
+  } | null;
+  /** What the arrival says (default "<name> reached"). */
+  readonly message?: string;
   /** The stray's plumage (an index into the flock's tints; the save keeps it). */
   readonly tint: number;
   /** Has a bird at (x, y, z) arrived? Generous: through, under or over the landmark counts. */

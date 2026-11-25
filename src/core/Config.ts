@@ -268,6 +268,35 @@ export const Config = {
     foliageSoft: 0.85, // tree lobe normals: 0 flat facets, 1 a round crown (read at creation)
     foliageDetail: 1, // painted leaf clumps on tree crowns (colour dabs and a bumped normal)
   },
+  /**
+   * Eden: Tal and Hadar's wedding flight over the Highlands' country (world/eden/). Three
+   * journeys in turn: to Tal's photo, to Hadar's, then to the venue for the two of them.
+   */
+  eden: {
+    talAt: 1150, // m ahead of the spawn, Tal's meadow (searched round this for flat dry land)
+    hadarAt: 2350, // m ahead, Hadar's garden
+    venueAt: 3550, // m ahead, the venue
+    swing: 320, // m the first and last stops sit to one side, the middle to the other
+    search: 320, // m round each nominal spot searched for a good plateau
+    siteFlat: 70, // m, radius of a photo site's level meadow
+    siteBlend: 210, // m where it has blended back into the hills
+    venueFlat: 140, // m, radius of the venue's level grounds
+    venueBlend: 330, // m where they have blended back
+    plateauMin: 8, // m above the water, lowest a site's meadow sits
+    plateauMax: 34, // m, highest
+    photoHeight: 16, // m, a portrait's picture (landscape: its width is 1.8x this)
+    photoLift: 4.5, // m from the ground to the frame's foot (room for the name plaque)
+    lanterns: 70, // sky lanterns rising over the venue once the couple are reached (and at night)
+    lanternRise: 2.2, // m/s a lantern rises
+    lanternTop: 150, // m above the venue a lantern fades out
+    lanternGlow: 2.4, // lantern brightness (over 1: bloom haloes it)
+    lampGlow: 2.2, // the poolside lamps after dark
+    cardSeconds: 7, // s a photo card stays up after an arrival
+    reach: 40, // m from a beacon's axis that arrives (generous: a story, not a course)
+    runIn: 250, // m from a stop's beacon within which the ribbon runs straight through it
+    runOut: 120, // m the ribbon runs on past the beacon
+    passHeight: 12, // m above the meadow the ribbon passes through the beacon's light
+  },
   /** The Highlands' lived-in landscape: rivers, farms, villages (world/highlands/). */
   highlands: {
     riverWidth: 7, // m, half-width of a river channel at its centre line
@@ -339,6 +368,7 @@ export const Config = {
     // giant: light off the ringed giant's lit face (a coloured fill from its side of the sky,
     // the ringlight at night); sun2: the second sun's soft fill from where it trails the first.
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5, giant: 0.32, sun2: 0.22 },
+    eden: { shadows: 0.6, clouds: 0.28, shafts: 0.55 },
   },
   /** Adaptive resolution (AdaptiveScale): judged in one-second windows of frames. */
   adaptive: {

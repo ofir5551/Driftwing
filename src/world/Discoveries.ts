@@ -64,6 +64,11 @@ const NAMES = {
     back: "Along the ship's back",
     beacon: "Round a beacon's rings",
   },
+  eden: {
+    pier: "Along the pool's pier",
+    chuppah: 'Round the chuppah',
+    lanterns: 'Among the sky lanterns',
+  },
 } as const satisfies Record<LevelId, Record<string, string>>;
 
 type Names = typeof NAMES;
@@ -81,6 +86,7 @@ export const LEVEL_FINDS: Record<LevelId, readonly FindInfo[]> = {
   peaks: finds('peaks'),
   atoll: finds('atoll'),
   ringmoon: finds('ringmoon'),
+  eden: finds('eden'),
 };
 
 const BY_ID = new Map<string, FindInfo>(

@@ -121,7 +121,7 @@ describe('canyon destinations', () => {
       expect(d.reached(d.x + 200, d.y + 10, d.z)).toBe(false);
       // The cairn: on dry floor inside the opening, beside a leg, well under the ribbon's line.
       const a = L.nearArches(d.x, d.z).find((q) => q.x === d.x && q.z === d.z)!;
-      const ro = d.roost;
+      const ro = d.roost!;
       const u = (ro.x - a.x) * Math.cos(a.yaw) - (ro.z - a.z) * Math.sin(a.yaw);
       const v = (ro.x - a.x) * Math.sin(a.yaw) + (ro.z - a.z) * Math.cos(a.yaw);
       expect(Math.abs(v)).toBeLessThan(0.01);

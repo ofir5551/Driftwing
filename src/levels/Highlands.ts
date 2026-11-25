@@ -61,8 +61,9 @@ export class HighlandsWorld implements World {
   private readonly islands: Islands;
   readonly layout: HighlandsLayout;
 
-  constructor(seed: number) {
-    this.field = createHeightField(seed);
+  /** `field`: the land to build on (Eden reshapes the Highlands' own round its sites). */
+  constructor(seed: number, field: LandField = createHeightField(seed)) {
+    this.field = field;
     this.layout = new HighlandsLayout(this.field, seed);
     const ground = withLand(
       withGroundDetail(

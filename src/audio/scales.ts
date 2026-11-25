@@ -143,6 +143,18 @@ export const RINGMOON_KEYS: DayKey[] = [
   { root: 56, mode: 'minorPenta' }, // Ab, twilight
 ];
 
+/**
+ * Eden's keys: a wedding's warmth. Bright major through the day and the golden hour (a lifted
+ * F, then C), lydian's glow at dusk as the lanterns rise, and an open suspended twilight.
+ */
+export const EDEN_KEYS: DayKey[] = [
+  { root: 62, mode: 'susPenta' }, // D, dawn
+  { root: 65, mode: 'majorPenta' }, // F, day
+  { root: 60, mode: 'majorPenta' }, // C, golden hour
+  { root: 62, mode: 'lydianPenta' }, // D, dusk
+  { root: 57, mode: 'susPenta' }, // A, twilight
+];
+
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);
 
 /** MIDI note for a scale degree (can be negative or beyond one octave). */

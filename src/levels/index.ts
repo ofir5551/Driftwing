@@ -1,6 +1,7 @@
 import { Atoll } from './Atoll';
 import { Canyon } from './Canyon';
 import { City } from './City';
+import { Eden } from './Eden';
 import { Fjord } from './Fjord';
 import { Highlands } from './Highlands';
 import { Jerusalem } from './Jerusalem';
@@ -12,6 +13,7 @@ import type { LevelDef, LevelId } from './World';
 /** Every level, in title-screen order. The first is the default. */
 export const LEVEL_LIST: LevelDef[] = [
   Highlands,
+  Eden,
   City,
   Karst,
   Fjord,

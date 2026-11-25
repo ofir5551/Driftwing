@@ -1039,7 +1039,8 @@ there (`dayScale` 1.6).
   The repository is public: this keeps the couple's photos from lying in plain sight (no
   picture in the file browser, nothing for image search) without pretending to be secret. The
   README's screenshots were taken with stand-ins (a heart of petals and a name) for the same
-  reason. Until single portraits come, Tal's and Hadar's are cropped from the engagement photo.
+  reason. Tal's and Hadar's portraits are cropped from the engagement photo, each tight
+  on one face.
 
 ## Gameplay
 

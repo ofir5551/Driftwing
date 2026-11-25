@@ -108,6 +108,11 @@ export interface LevelDef {
   sunTurn?: number;
   /** Metres the sky's clouds float higher than usual (a level on high ground; default 0). */
   cloudLift?: number;
+  /**
+   * Lanterns hold a note (world/LanternNotes) shown on reaching one (default true). Eden keeps
+   * its own quiet "Lantern reached".
+   */
+  lanternNotes?: boolean;
   /** The wisps' colour by day (default gold; they still turn moonlit after dark). */
   wispColor?: string;
   /** Multiplier on the post pass's saturation (an ink-wash level mutes its colour). */

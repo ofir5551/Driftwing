@@ -62,7 +62,13 @@ export class Hud {
   toast(text: string, seconds = 3): void {
     // A notice cut short goes back to the front of the queue.
     if (this.showingNotice && this.toastTimer > 1) this.notices.unshift(this.toastEl.textContent);
-    this.show(text, seconds, false);
+    this.show(text, seconds, 'toast');
+  }
+
+  /** A lantern's note: a toast in a smaller, softer hand, so two lines fit an upright phone. */
+  note(text: string, seconds: number): void {
+    if (this.showingNotice && this.toastTimer > 1) this.notices.unshift(this.toastEl.textContent);
+    this.show(text, seconds, 'note');
   }
 
   /**
@@ -82,10 +88,11 @@ export class Hud {
     this.trickEl.classList.remove('show');
   }
 
-  private show(text: string, seconds: number, notice: boolean): void {
-    this.showingNotice = notice;
+  private show(text: string, seconds: number, kind: 'toast' | 'notice' | 'note'): void {
+    this.showingNotice = kind === 'notice';
     this.toastEl.textContent = text;
-    this.toastEl.classList.toggle('notice', notice);
+    this.toastEl.classList.toggle('notice', kind === 'notice');
+    this.toastEl.classList.toggle('note', kind === 'note');
     this.toastEl.classList.add('show');
     this.toastTimer = seconds;
   }
@@ -151,7 +158,7 @@ export class Hud {
     // Notices wait for play (not the title screen, not paused) and for the toast to be free.
     if (this.notices.length > 0 && this.visible && !forceShow && this.toastTimer <= 0) {
       this.noticeGap -= dt;
-      if (this.noticeGap <= 0) this.show(this.notices.shift()!, NOTICE_SECONDS, true);
+      if (this.noticeGap <= 0) this.show(this.notices.shift()!, NOTICE_SECONDS, 'notice');
     }
   }
 }

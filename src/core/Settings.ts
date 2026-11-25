@@ -3,6 +3,7 @@ import type { QualityLevel } from './Config';
 import { parseJourney, type JourneyData } from './Journey';
 import { isLevelId } from '../levels';
 import type { LevelId } from '../levels/World';
+import { parseSeenNotes } from '../world/LanternNotes';
 import { isTimeOfDay, type TimeOfDay } from '../world/DayCycle';
 import { DEFAULT_PLUMAGE, isPlumageId, type PlumageId } from '../player/Plumage';
 import { DEFAULT_TRAIL, isTrailId, type TrailId } from '../fx/TrailStyle';
@@ -116,6 +117,26 @@ export function loadBest(level: LevelId): number {
 export function saveBest(level: LevelId, score: number): void {
   try {
     localStorage.setItem(bestKey(level), String(score));
+  } catch {
+    /* not persisted */
+  }
+}
+
+const NOTES = `${PREFIX}lantern-notes`;
+
+/** The lantern notes shown lately (texts, oldest first), so a note waits its turn across flights. */
+export function loadSeenNotes(): string[] {
+  try {
+    const raw = localStorage.getItem(NOTES);
+    return parseSeenNotes(raw ? JSON.parse(raw) : null);
+  } catch {
+    return [];
+  }
+}
+
+export function saveSeenNotes(seen: readonly string[]): void {
+  try {
+    localStorage.setItem(NOTES, JSON.stringify(seen));
   } catch {
     /* not persisted */
   }

@@ -431,6 +431,15 @@ body.steer-split .boost-btn {
   text-shadow: 0 2px 16px rgba(170, 215, 255, 0.85);
 }
 
+/* A lantern's note: up to two lines on an upright phone (NOTE_MAX characters at 320 px), a
+   tighter hand than a hint so it reads as a message found, not an instruction. */
+.toast.note {
+  font-size: clamp(17px, 3vw, 26px);
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  max-width: min(calc(100vw - 32px), 24em);
+}
+
 .trick-toast {
   position: fixed;
   top: 31%;

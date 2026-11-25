@@ -16,6 +16,7 @@ export const Eden: LevelDef = {
   music: EDEN_MUSIC,
   backdrop: 'none',
   wispColor: '#ffc4cf', // petals, not gold
+  lanternNotes: false, // the wedding flight keeps its lanterns plain
   maxAltitude: 400,
   create: (seed) => {
     const world = new EdenWorld(seed);

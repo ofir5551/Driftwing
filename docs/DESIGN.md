@@ -1055,10 +1055,23 @@ music intensity) that decays slowly. Every N wisps a lantern lights up with a ce
 music modulates. A lit lantern is an optional destination: flying through its light refills
 flow, pays a bonus and gives a surge of speed and lift. Minimal HUD that fades when idle: the
 flow ring round the wisp count and the lanterns reached. The score is kept for the pause menu and
-the Rest card, out of the sightline while flying, and a reached lantern says "Lantern reached"
-without its points (light and the bell say the rest). Only the first lantern to light gets a
-toast. Start screen, pause menu (volume, quality, invert-Y), settings and best score in
-localStorage.
+the Rest card, out of the sightline while flying. Only the first lantern to light gets a
+toast ("A lantern awakens: something waits inside").
+
+Each lantern holds a **note** (`world/LanternNotes.ts`), shown as the bird flies through it in
+place of "Lantern reached": a reason to turn toward a lantern that is curiosity, not points.
+
+- 100 notes in English, all for any level: heartfelt (32), funny (16), gentle nudges (15),
+  bird's-eye thoughts (15), odd and whimsical (14), and notes left by other birds (8), the
+  rare kind (`Config.lantern.noteRare` weighs them at half). No dad jokes.
+- Shown only on reaching the lantern, never while flying toward it. Gone once shown: no
+  collection for now.
+- A note comes back only after 30 others (`noteGap`), across flights: the recent texts are
+  saved (`Settings`, keyed by text so editing the list never mislabels them).
+- Up to two lines on an iPhone SE: the `.toast.note` style and a 66-character cap (`NOTE_MAX`,
+  held by a test), on screen 5.5 s.
+- Eden (`LevelDef.lanternNotes: false`) keeps "Lantern reached" and its old first toast. Start screen, pause menu (volume, quality, invert-Y), settings and best score in
+  localStorage.
 
 ## Destinations (built, every level)
 
@@ -2093,3 +2106,6 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   Coral Atolls 10 -> 10, Highlands 9 -> 8, City of Gold 7 -> 7, Ringmoon 5 -> 7, Sea of
   Clouds 8 -> 6, Jade River 4 -> 4, Neon Bay 4 -> 4 (two seeds there, and one each in Jade
   River, City of Gold and Sea of Clouds, arrive nowhere in six minutes).
+- Lanterns had no purpose beyond a gust and 10 light, so each now holds a note revealed on
+  reaching it (see Gameplay). The words were drafted to be unseen by the designer too, so they
+  surprise the same way; the tone mix favours heartfelt after a draft with dad jokes.

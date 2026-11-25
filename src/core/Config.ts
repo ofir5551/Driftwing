@@ -836,6 +836,10 @@ export const Config = {
     boost: 9, // m/s forward surge on reaching one
     lift: 6, // m/s upward lift on reaching one
     guide: 400, // m within which the autopilot heads for a lantern still to reach
+    // Each lantern holds a note (world/LanternNotes), shown as the bird flies through it.
+    noteGap: 30, // notes shown before one may come back (across flights)
+    noteRare: 0.5, // weight of a note from another bird (the others weigh 1)
+    noteSeconds: 5.5, // s a note stays on screen (two lines take a moment to read)
   },
   wisps: {
     max: 56,

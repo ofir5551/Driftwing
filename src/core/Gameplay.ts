@@ -19,6 +19,8 @@ import { Beacon } from '../world/Beacon';
 import { Flock } from '../world/Flock';
 import { LANTERN, PERCH_HEIGHT, Roost } from '../world/Roost';
 import { DestinationTracker } from '../world/Destinations';
+import { LANTERN_NOTES, NotePicker } from '../world/LanternNotes';
+import { loadSeenNotes, saveSeenNotes } from './Settings';
 
 const GOLD = new THREE.Color('#ffd27a');
 const MOON = new THREE.Color('#a9e8ff');
@@ -51,6 +53,8 @@ export class Gameplay {
   /** Rising sparks round the cairn while its stray waits (accumulator). */
   private roostSpark = 0;
   private readonly lanterns = new Lanterns();
+  /** What the lanterns hold; it remembers the notes shown lately, across flights. */
+  private readonly notes = new NotePicker(LANTERN_NOTES, loadSeenNotes());
   private readonly glow = new Particles(2400, true);
   private readonly soft = new Particles(900, false);
   private readonly trails = new Trails();
@@ -272,8 +276,15 @@ export class Gameplay {
     this.glow.burst(50, s.x, s.y, s.z, 14, 1.4, 1.6, GOLD, -1, 4);
     this.glow.burst(40, x, y + 30, z, 20, 2.4, 2, WHITE, -2, 10);
     g.composer.flash = 0.45;
-    // Light and a bell say it: the points go to the score, not the screen.
-    this.hud.trick('Lantern reached', 0);
+    // Light and a bell say it: the points go to the score, not the screen. The words are the
+    // lantern's note (Eden keeps a quiet "Lantern reached").
+    if (g.level.lanternNotes ?? true) {
+      const L = Config.lantern;
+      this.hud.note(this.notes.pick(L.noteGap, L.noteRare, Math.random).text, L.noteSeconds);
+      saveSeenNotes(this.notes.seen);
+    } else {
+      this.hud.trick('Lantern reached', 0);
+    }
     this.hud.pulse();
     g.events.emit('lanternReached', { x, y, z, points });
   }
@@ -359,7 +370,12 @@ export class Gameplay {
     g.composer.flash = 0.6;
     const n = this.progress.lanterns;
     // The first one says what lanterns are for; after that the sparks and beam say it.
-    if (n === 1) this.hud.toast('A lantern awakens: fly through its light');
+    if (n === 1)
+      this.hud.toast(
+        (g.level.lanternNotes ?? true)
+          ? 'A lantern awakens: something waits inside'
+          : 'A lantern awakens: fly through its light',
+      );
     g.events.emit('lantern', { x: orb.x, y: orb.y, z: orb.z, index: n });
   }
 

@@ -60,6 +60,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Journey.ts`: lifetime light, the unlock track and the discoveries found (pure; saved by
   `Settings`). See DESIGN's Progression.
+- `world/LanternNotes.ts`: the notes a lantern holds and the picker (pure; the recent ones saved
+  by `Settings`, so a note waits 30 others before coming back). Eden opts out (`lanternNotes`).
 - `world/Discoveries.ts`: every level's hidden finds (names, `LEVEL_FINDS`) and the tracker
   (pure); each level's tests are `world/<level>/finds.ts` (Highlands: `world/highlands/`), handed
   to Gameplay as `World.discoveries`. Finds must stay off the wisps' ribbons (a test flies them).

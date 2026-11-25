@@ -1,13 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { Config } from '../src/core/Config';
-import { LANTERN_NOTES, NOTE_MAX, NotePicker, parseSeenNotes } from '../src/world/LanternNotes';
+import {
+  LANTERN_NOTES,
+  NOTE_MAX,
+  NotePicker,
+  QUOTE_MAX,
+  parseSeenNotes,
+} from '../src/world/LanternNotes';
 import { mulberry32 } from '../src/world/noise';
 
 describe('lantern notes', () => {
-  it('has 100 distinct notes, each short enough for two lines on a phone', () => {
-    expect(LANTERN_NOTES.length).toBe(100);
+  it('has 100 notes and 4 quotes, distinct, each short enough for a phone', () => {
+    const quotes = LANTERN_NOTES.filter((n) => n.kind === 'quote');
+    expect(LANTERN_NOTES.length - quotes.length).toBe(100);
+    expect(quotes.length).toBe(4);
     expect(new Set(LANTERN_NOTES.map((n) => n.text)).size).toBe(LANTERN_NOTES.length);
-    for (const n of LANTERN_NOTES) expect(n.text.length, n.text).toBeLessThanOrEqual(NOTE_MAX);
+    for (const n of LANTERN_NOTES) {
+      // Every quote names its author; no other note does.
+      expect(Boolean(n.by), n.text).toBe(n.kind === 'quote');
+      const max = n.kind === 'quote' ? QUOTE_MAX : NOTE_MAX;
+      expect(n.text.length, n.text).toBeLessThanOrEqual(max);
+    }
   });
 
   it('never repeats a note within the gap', () => {

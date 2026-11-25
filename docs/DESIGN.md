@@ -1056,7 +1056,8 @@ music modulates. A lit lantern is an optional destination: flying through its li
 flow, pays a bonus and gives a surge of speed and lift. Minimal HUD that fades when idle: the
 flow ring round the wisp count and the lanterns reached. The score is kept for the pause menu and
 the Rest card, out of the sightline while flying. Only the first lantern to light gets a
-toast ("A lantern awakens: something waits inside").
+toast ("A lantern awakens: something waits inside"). Start screen, pause menu (volume, quality,
+invert-Y), settings and best score in localStorage.
 
 Each lantern holds a **note** (`world/LanternNotes.ts`), shown as the bird flies through it in
 place of "Lantern reached": a reason to turn toward a lantern that is curiosity, not points.
@@ -1070,8 +1071,10 @@ place of "Lantern reached": a reason to turn toward a lantern that is curiosity,
   saved (`Settings`, keyed by text so editing the list never mislabels them).
 - Up to two lines on an iPhone SE: the `.toast.note` style and a 66-character cap (`NOTE_MAX`,
   held by a test), on screen 5.5 s.
-- Eden (`LevelDef.lanternNotes: false`) keeps "Lantern reached" and its old first toast. Start screen, pause menu (volume, quality, invert-Y), settings and best score in
-  localStorage.
+- Four famous quotes the designer picked (Tolkien, Anne Lamott, Elbert Hubbard,
+  Saint-Exupéry), so the notes aren't all machine-written: the author on a smaller line beneath,
+  up to three lines (`QUOTE_MAX`), weighed like any note.
+- Eden (`LevelDef.lanternNotes: false`) keeps "Lantern reached" and its old first toast.
 
 ## Destinations (built, every level)
 

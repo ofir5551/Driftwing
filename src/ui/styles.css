@@ -440,6 +440,15 @@ body.steer-split .boost-btn {
   max-width: min(calc(100vw - 32px), 24em);
 }
 
+/* A quote's author, on its own line beneath. */
+.toast.note .note-by {
+  display: block;
+  margin-top: 0.35em;
+  font-size: 0.72em;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
 .trick-toast {
   position: fixed;
   top: 31%;

@@ -280,7 +280,8 @@ export class Gameplay {
     // lantern's note (Eden keeps a quiet "Lantern reached").
     if (g.level.lanternNotes ?? true) {
       const L = Config.lantern;
-      this.hud.note(this.notes.pick(L.noteGap, L.noteRare, Math.random).text, L.noteSeconds);
+      const note = this.notes.pick(L.noteGap, L.noteRare, Math.random);
+      this.hud.note(note.text, L.noteSeconds, note.by);
       saveSeenNotes(this.notes.seen);
     } else {
       this.hud.trick('Lantern reached', 0);

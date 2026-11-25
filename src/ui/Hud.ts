@@ -65,10 +65,19 @@ export class Hud {
     this.show(text, seconds, 'toast');
   }
 
-  /** A lantern's note: a toast in a smaller, softer hand, so two lines fit an upright phone. */
-  note(text: string, seconds: number): void {
+  /**
+   * A lantern's note: a toast in a smaller, softer hand, so two lines fit an upright phone. A
+   * quote's author goes on a smaller line of its own beneath.
+   */
+  note(text: string, seconds: number, by?: string): void {
     if (this.showingNotice && this.toastTimer > 1) this.notices.unshift(this.toastEl.textContent);
     this.show(text, seconds, 'note');
+    if (by) {
+      const line = document.createElement('span');
+      line.className = 'note-by';
+      line.textContent = `— ${by}`;
+      this.toastEl.append(line);
+    }
   }
 
   /**

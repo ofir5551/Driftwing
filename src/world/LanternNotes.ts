@@ -5,18 +5,23 @@
  * Every note works in any level. Notes from other birds are the rare kind (`Config.lantern.
  * noteRare`), and a note comes back only after `Config.lantern.noteGap` others have shown, across
  * flights (the recent ones are saved by `Settings`). Keep each within two lines on an iPhone SE
- * (a test holds them to NOTE_MAX characters).
+ * (a test holds them to NOTE_MAX characters). A few are famous quotes (`QUOTES`), shown with
+ * their author on a smaller line beneath; a long one may take a third line (QUOTE_MAX).
  */
 
-export type NoteKind = 'funny' | 'heartfelt' | 'nudge' | 'view' | 'odd' | 'bird';
+export type NoteKind = 'funny' | 'heartfelt' | 'nudge' | 'view' | 'odd' | 'bird' | 'quote';
 
 export interface LanternNote {
   kind: NoteKind;
   text: string;
+  /** Who said it (quotes only), shown on its own line. */
+  by?: string;
 }
 
 /** Characters a note may have: two lines of the note style at 320 px. */
 export const NOTE_MAX = 66;
+/** Characters a quote may have: three lines at 320 px, its author on a line of its own. */
+export const QUOTE_MAX = 90;
 
 const RAW: readonly (readonly [NoteKind, string])[] = [
   // Funny
@@ -132,7 +137,21 @@ const RAW: readonly (readonly [NoteKind, string])[] = [
   ['bird', 'Ate something odd. Sorry about the statue. — a pigeon'],
 ];
 
-export const LANTERN_NOTES: readonly LanternNote[] = RAW.map(([kind, text]) => ({ kind, text }));
+/** Famous quotes, picked by the designer, as they were said (or as commonly translated). */
+const QUOTES: readonly (readonly [string, string])[] = [
+  ['Not all those who wander are lost.', 'J.R.R. Tolkien'],
+  [
+    'Almost everything will work again if you unplug it for a few minutes, including you.',
+    'Anne Lamott',
+  ],
+  ['Do not take life too seriously. You will never get out of it alive.', 'Elbert Hubbard'],
+  ['What is essential is invisible to the eye.', 'Antoine de Saint-Exupéry'],
+];
+
+export const LANTERN_NOTES: readonly LanternNote[] = [
+  ...RAW.map(([kind, text]) => ({ kind, text })),
+  ...QUOTES.map(([text, by]): LanternNote => ({ kind: 'quote', text, by })),
+];
 
 /**
  * Picks the next note: never one of the last `gap` shown, the rare kind weighted down. Notes are

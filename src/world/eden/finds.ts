@@ -14,7 +14,7 @@ export function edenFinds(L: EdenLayout): DiscoveryDef[] {
     // Skimming the pier's deck, just above the water (the ribbons fly higher).
     pier: {
       at: (x, py, z) => {
-        if (py > y + 4) return false;
+        if (py > y + 4 * Config.eden.venueScale) return false;
         const { u, v } = L.toVenue(x, z);
         const a = (u - P.u) * pc - (v - P.v) * ps;
         const b = (u - P.u) * ps + (v - P.v) * pc;

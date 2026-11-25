@@ -157,8 +157,10 @@ export class EdenLayout {
   toWorld(u: number, v: number): { x: number; z: number } {
     // +v is the venue's facing (sin, cos), toward the bird. Arriving, the bird faces
     // (-sin, -cos), and facing (fx, fz) its right is (-fz, fx): so +u is (cos, -sin).
-    const c = this.c;
-    const s = this.s;
+    // The plan is drawn at 1 and the venue built at venueScale.
+    const k = Config.eden.venueScale;
+    const c = this.c * k;
+    const s = this.s * k;
     return { x: this.venue.x + s * v + c * u, z: this.venue.z + c * v - s * u };
   }
 
@@ -166,7 +168,8 @@ export class EdenLayout {
   toVenue(x: number, z: number): { u: number; v: number } {
     const dx = x - this.venue.x;
     const dz = z - this.venue.z;
-    return { u: this.c * dx - this.s * dz, v: this.s * dx + this.c * dz };
+    const k = Config.eden.venueScale;
+    return { u: (this.c * dx - this.s * dz) / k, v: (this.s * dx + this.c * dz) / k };
   }
 
   /**
@@ -174,13 +177,18 @@ export class EdenLayout {
    * the middle with a dip either side and rising ends, as the venue's white shell.
    */
   roofTop(u: number, v: number): number {
+    return this.venue.y + this.roofRise(u, v) * Config.eden.venueScale;
+  }
+
+  /** The roof's height over the ground at (u, v) in the plan's own metres (-Infinity: off it). */
+  roofRise(u: number, v: number): number {
     const R = VENUE.roof;
     const H = VENUE.hall;
     const p = ((u - R.u) / R.a) ** 2 + ((v - R.v) / R.b) ** 2;
     if (p >= 1) return -Infinity;
     const crown = Math.sqrt(1 - p);
     const wave = 0.5 + 0.5 * Math.cos(((u - R.u) / R.a) * Math.PI * 2.4);
-    return this.venue.y + H.height + R.rise * crown * (0.55 + 0.45 * wave);
+    return H.height + R.rise * crown * (0.55 + 0.45 * wave);
   }
 
   /** The flight floor Eden adds at (x, z): roof, crowns, chuppah (-Infinity: nothing). */
@@ -190,8 +198,9 @@ export class EdenLayout {
     const dz = z - V.z;
     if (dx * dx + dz * dz > (V.flat + 30) ** 2) return -Infinity;
     // toVenue, inline: the flight floor is read every step and must not allocate.
-    const u = this.c * dx - this.s * dz;
-    const v = this.s * dx + this.c * dz;
+    const k = Config.eden.venueScale;
+    const u = (this.c * dx - this.s * dz) / k;
+    const v = (this.s * dx + this.c * dz) / k;
     let top = this.roofTop(u, v);
     for (const L of this.lifts) {
       const d2 = (x - L.x) ** 2 + (z - L.z) ** 2;
@@ -302,11 +311,12 @@ export class EdenLayout {
   private buildLifts(): Lift[] {
     const out: Lift[] = [];
     const y = this.venue.y;
-    for (const t of this.venueTrees()) out.push({ x: t.x, z: t.z, r: 9, top: y + t.h + 1 });
+    const k = Config.eden.venueScale;
+    for (const t of this.venueTrees()) out.push({ x: t.x, z: t.z, r: 9 * k, top: y + t.h + 1 });
     const o = this.toWorld(VENUE.olive.u, VENUE.olive.v);
-    out.push({ x: o.x, z: o.z, r: 8, top: y + 7 });
+    out.push({ x: o.x, z: o.z, r: 8 * k, top: y + 7 * k });
     const ch = this.toWorld(VENUE.chuppah.u, VENUE.chuppah.v);
-    out.push({ x: ch.x, z: ch.z, r: 6, top: y + VENUE.chuppah.height + 1 });
+    out.push({ x: ch.x, z: ch.z, r: 6 * k, top: y + (VENUE.chuppah.height + 1) * k });
     return out;
   }
 
@@ -325,7 +335,8 @@ export class EdenLayout {
       const v = Math.cos(a) * (T.radius + wob);
       const p = this.toWorld(u, v);
       const cypress = i % 3 === 1;
-      out.push({ x: p.x, z: p.z, h: cypress ? 15 + (i % 4) : 13 + ((i * 5) % 7), cypress });
+      const h = (cypress ? 15 + (i % 4) : 13 + ((i * 5) % 7)) * Config.eden.venueScale;
+      out.push({ x: p.x, z: p.z, h, cypress });
     }
     return out;
   }

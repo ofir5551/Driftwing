@@ -282,7 +282,7 @@ export class Gameplay {
   private beginJourney(): void {
     const g = this.game;
     const d = this.destinations.current!;
-    this.beacon.show(d.x, d.y, d.z);
+    this.beacon.show(d.x, d.y, d.z, d.beacon);
     const r = d.roost;
     if (r) {
       this.roost.show(r.x, r.y, r.z, r.yaw);

@@ -17,7 +17,8 @@ export type LevelId =
   | 'canyon'
   | 'peaks'
   | 'atoll'
-  | 'ringmoon';
+  | 'ringmoon'
+  | 'eden';
 
 /**
  * Everything level-specific about the world the bird flies through: terrain, scenery, what
@@ -72,6 +73,8 @@ export interface World {
   readonly discoveries: readonly DiscoveryDef[];
   /** Where the level's journeys lead (null: none yet; see DESIGN's Destinations). */
   readonly destinations?: DestinationSource | null;
+  /** A journey of this level's ended at destination `id` (a level's own celebration). */
+  arrived?(id: string): void;
   readonly chunkCount: number;
   readonly pending: number;
   dispose(): void;
@@ -105,6 +108,8 @@ export interface LevelDef {
   sunTurn?: number;
   /** Metres the sky's clouds float higher than usual (a level on high ground; default 0). */
   cloudLift?: number;
+  /** The wisps' colour by day (default gold; they still turn moonlit after dark). */
+  wispColor?: string;
   /** Multiplier on the post pass's saturation (an ink-wash level mutes its colour). */
   saturation?: number;
   /**

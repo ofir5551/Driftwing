@@ -3,6 +3,7 @@ import {
   CANYON_KEYS,
   CITY_KEYS,
   DAY_KEYS,
+  EDEN_KEYS,
   type DayKey,
   FJORD_KEYS,
   JERUSALEM_KEYS,
@@ -204,5 +205,23 @@ export const RINGMOON_MUSIC: MusicStyle = {
   droneFifth: 0.6,
   reverb: 1.55,
   arp: { pattern: [0, 2, 4, 6, 4, 2], perStep: 1, octave: 12 },
+  pulse: 0,
+};
+
+/**
+ * Eden: a wedding waltz in the golden hour. A music box's glass bells in a lilting three-beat
+ * arpeggio, over a warm sine pad and a soft drone, unhurried, in a big bright room.
+ */
+export const EDEN_MUSIC: MusicStyle = {
+  keys: EDEN_KEYS,
+  bpm: 72,
+  progression: [0, 3, 4, 0, 0, 3, 1, 4],
+  voice: 'glass',
+  density: 0.85,
+  grace: 0.1,
+  pad: { wave: 'sine', detune: 6, attack: 2.4, release: 4, level: 0.05 },
+  droneFifth: 0.35,
+  reverb: 1.25,
+  arp: { pattern: [0, 2, 4, 0, 2, 4], perStep: 1, octave: 12 },
   pulse: 0,
 };

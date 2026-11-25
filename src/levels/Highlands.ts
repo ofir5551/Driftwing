@@ -5,6 +5,7 @@ import { HIGHLANDS_MUSIC } from '../audio/styles';
 import type { FlightState } from '../player/FlightModel';
 import { ChunkManager } from '../world/ChunkManager';
 import { highlandsCover } from '../world/highlands/crops';
+import type { CoverStyle } from '../world/GroundCover';
 import { ISLAND_CELL, Islands } from '../world/Islands';
 import { createHeightField, getToonGradient, type LandField } from '../world/Terrain';
 import { withGroundDetail } from '../world/GroundDetail';
@@ -61,8 +62,16 @@ export class HighlandsWorld implements World {
   private readonly islands: Islands;
   readonly layout: HighlandsLayout;
 
-  constructor(seed: number) {
-    this.field = createHeightField(seed);
+  /**
+   * `field`: the land to build on (Eden reshapes the Highlands' own round its sites); `cover`:
+   * the ground cover's style (Eden's flower fields), default the Highlands' own.
+   */
+  constructor(
+    seed: number,
+    field: LandField = createHeightField(seed),
+    cover: (layout: HighlandsLayout) => CoverStyle = highlandsCover,
+  ) {
+    this.field = field;
     this.layout = new HighlandsLayout(this.field, seed);
     const ground = withLand(
       withGroundDetail(
@@ -79,7 +88,7 @@ export class HighlandsWorld implements World {
       material: ground,
       createGeometry: createLandGeometry,
       fillExtra: (g, ox, oz, size, res) => fillLand(this.layout, g, ox, oz, size, res),
-      cover: highlandsCover(this.layout),
+      cover: cover(this.layout),
     });
     this.islands = new Islands(this.field);
     this.discoveries = highlandsFinds(() => this.islands.active);

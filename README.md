@@ -167,6 +167,24 @@ you back to choose again).
 | **The second sunset, from high up**         | **Night under the rings**                     |
 | ![High](docs/screenshots/ringmoon-high.jpg) | ![Night](docs/screenshots/ringmoon-night.jpg) |
 
+- **Eden**: a wedding flight for Tal and Hadar, always open. Green country in the golden hour
+  (the Highlands' land, reshaped round three stops) and petal-pink wisps. The beacons lead in
+  turn to Tal's picture on its easel, then Hadar's (each joins your flock, and a photo card
+  shows them as you arrive), then on to the venue: a glass hall under a white wave roof, a
+  round turquoise pool with its pier, chairs on the lawn and a chuppah. There a big picture of
+  the two of them waits, and sky lanterns rise over the pool. The country flowers for the
+  wedding: lavender and rose fields, a heart-shaped lake, flower arches and fairy lights over
+  the roads, blossom trees planted as hearts, pink heart clouds, doves and drifting petals.
+  The music is a music box's glass bells in a lilting three.
+
+![Eden title screen](docs/screenshots/eden-title.jpg)
+
+| Tal's picture                               | The venue                                 |
+| ------------------------------------------- | ----------------------------------------- |
+| ![Tal](docs/screenshots/eden-tal.jpg)       | ![Venue](docs/screenshots/eden-venue.jpg) |
+| **The two of them**                         | **Lanterns by night**                     |
+| ![Couple](docs/screenshots/eden-couple.jpg) | ![Night](docs/screenshots/eden-night.jpg) |
+
 ## Play
 
 ```bash
@@ -202,7 +220,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon`, `?unlocked` (every level open, nothing saved).
+`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|eden`, `?unlocked` (every level open, nothing saved).
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 

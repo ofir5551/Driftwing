@@ -95,9 +95,17 @@ export function fillLand(
   a.needsUpdate = true;
 }
 
-const FIELD_COLORS = ['#e7c76a', '#8fc466', '#a98262', '#9cc46c', '#f0dd5a'].map(
-  (h) => new THREE.Color(h),
-);
+const FIELD_HEX = ['#e7c76a', '#8fc466', '#a98262', '#9cc46c', '#f0dd5a'] as const;
+const FIELD_COLORS = FIELD_HEX.map((h) => new THREE.Color(h));
+
+/**
+ * Repaint the fields (wheat, pasture, plough, rows, rapeseed) for a level built on the
+ * Highlands (Eden's lavender and roses); null restores the Highlands' own. The uniform is
+ * shared by every land material, so a level that sets it restores it when disposed.
+ */
+export function setFieldColors(hex: readonly string[] | null): void {
+  FIELD_COLORS.forEach((c, i) => c.set(hex?.[i] ?? FIELD_HEX[i]));
+}
 const H = Config.highlands;
 const uniforms = {
   uRoadOff: {

@@ -1773,3 +1773,52 @@ body.paused .toast {
   background: rgba(200, 60, 90, 0.55);
   pointer-events: none;
 }
+
+/* Eden's keepsakes: a photo in a white card, above the toast, never taking a tap. Sized for an
+   upright phone first (an iPhone SE's 568 px leaves the toast clear below it). */
+.photo-card {
+  position: fixed;
+  top: max(7%, calc(env(safe-area-inset-top) + 12px));
+  left: 50%;
+  transform: translate(-50%, 10px) rotate(-1.2deg);
+  padding: 8px 8px 4px;
+  background: #fffaf2;
+  border-radius: 6px;
+  box-shadow:
+    0 6px 28px rgba(60, 40, 50, 0.35),
+    0 0 40px rgba(255, 200, 150, 0.45);
+  opacity: 0;
+  transition:
+    opacity 1s ease,
+    transform 1s ease;
+  pointer-events: none !important;
+  text-align: center;
+}
+
+.photo-card.show {
+  opacity: 1;
+  transform: translate(-50%, 0) rotate(-1.2deg);
+}
+
+.photo-card img {
+  display: block;
+  max-width: min(74vw, 420px);
+  max-height: min(48vh, 420px);
+  border-radius: 3px;
+}
+
+.photo-caption {
+  padding: 6px 4px 4px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: clamp(18px, 3.6vw, 26px);
+  color: #7a5a2a;
+}
+
+.photo-date {
+  padding: 0 4px 4px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(13px, 2.6vw, 17px);
+  letter-spacing: 0.12em;
+  color: #9a7a4a;
+}

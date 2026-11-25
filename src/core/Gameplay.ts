@@ -57,6 +57,9 @@ export class Gameplay {
   private readonly wind = new Wind();
   private readonly shadow = new BlobShadow();
   private readonly wispColor = new THREE.Color();
+  /** The level's own wisp colour, parsed once per level (a hex string parse allocates). */
+  private readonly levelWisp = new THREE.Color();
+  private levelWispHex: string | undefined;
   private readonly vel = new THREE.Vector3();
   private readonly lanternTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
@@ -182,6 +185,16 @@ export class Gameplay {
     this.wisps.setGoal(null);
   }
 
+  /** The wisps' daytime colour: the level's own, else gold. */
+  private levelWispColor(hex: string | undefined): THREE.Color {
+    if (!hex) return GOLD;
+    if (hex !== this.levelWispHex) {
+      this.levelWisp.set(hex);
+      this.levelWispHex = hex;
+    }
+    return this.levelWisp;
+  }
+
   /** New level: clear the old world's wisps, thermals and lanterns; the path restarts at the bird. */
   private onLevel(): void {
     const g = this.game;
@@ -271,8 +284,13 @@ export class Gameplay {
     const d = this.destinations.current!;
     this.beacon.show(d.x, d.y, d.z);
     const r = d.roost;
-    this.roost.show(r.x, r.y, r.z, r.yaw);
-    this.flock.perchAt(r.x, r.y + PERCH_HEIGHT, r.z, r.yaw, d.tint);
+    if (r) {
+      this.roost.show(r.x, r.y, r.z, r.yaw);
+      this.flock.perchAt(r.x, r.y + PERCH_HEIGHT, r.z, r.yaw, d.tint);
+    } else {
+      this.roost.hide();
+      this.flock.clearPerch();
+    }
     this.wisps.setGoal(d.route);
     const first = this.destinations.reachedNames.length === 0;
     // Words only for where it leads; the column of light says the rest.
@@ -288,17 +306,19 @@ export class Gameplay {
     const K = Config.destinations;
     this.beacon.arrive();
     this.wisps.setGoal(null);
-    // The stray takes off from its cairn and joins (a puff of feathers as it goes).
-    const tint = this.flock.join(s.x, s.y, s.z);
+    // The stray takes off from its cairn and joins (a puff of feathers as it goes). No cairn:
+    // no bird joins (tint -1).
     const r = d.roost;
-    this.soft.burst(10, r.x, r.y + PERCH_HEIGHT, r.z, 3, 0.9, 0.5, WHITE, -1, 1.5);
+    const tint = r ? this.flock.join(s.x, s.y, s.z) : -1;
+    if (r) this.soft.burst(10, r.x, r.y + PERCH_HEIGHT, r.z, 3, 0.9, 0.5, WHITE, -1, 1.5);
     gust(s, K.boost, K.lift);
     this.glow.burst(70, s.x, s.y, s.z, 16, 1.8, 2, GOLD, -0.8, 5);
     this.glow.burst(50, d.x, s.y + 20, d.z, 26, 2.8, 2.4, WHITE, 2, 12);
     g.composer.flash = Math.max(g.composer.flash, K.flash);
     this.progress.flow = 1;
-    this.hud.toast(`${d.name} reached`, 3.5);
+    this.hud.toast(d.message ?? `${d.name} reached`, 3.5);
     this.hud.pulse();
+    g.world.arrived?.(d.id);
     g.events.emit('arrival', { id: d.id, name: d.name, x: s.x, y: s.y, z: s.z, tint });
   }
 
@@ -568,8 +588,11 @@ export class Gameplay {
     this.glow.density = this.soft.density = density;
     this.frameWake(dt);
 
-    // Wisps glow gold by day and turn moonlit cyan as the stars come out.
-    this.wispColor.copy(GOLD).lerp(MOON, smoothstep(0.3, 0.9, pal.stars));
+    // Wisps glow gold by day (or the level's own colour) and turn moonlit cyan as the stars
+    // come out.
+    this.wispColor
+      .copy(this.levelWispColor(g.level.wispColor))
+      .lerp(MOON, smoothstep(0.3, 0.9, pal.stars));
     this.wisps.render(time, this.wispColor, pose.x, pose.y, pose.z);
     if (dt > 0) {
       for (const w of this.wisps.list) {
@@ -603,12 +626,12 @@ export class Gameplay {
     this.flock.update(dt, time, pose, g.world);
     // Sparks rise from the cairn's lantern while its stray waits, so it reads up close.
     const cur = this.destinations.current;
-    if (cur && dt > 0 && Math.hypot(cur.roost.x - pose.x, cur.roost.z - pose.z) < 300) {
+    const r = cur?.roost;
+    if (r && dt > 0 && Math.hypot(r.x - pose.x, r.z - pose.z) < 300) {
       this.roostSpark -= dt * 5 * density;
       if (this.roostSpark < 0) {
         this.roostSpark += 1;
         // The lantern in the cairn's frame, turned by its yaw.
-        const r = cur.roost;
         const c = Math.cos(r.yaw);
         const sn = Math.sin(r.yaw);
         const L = LANTERN;

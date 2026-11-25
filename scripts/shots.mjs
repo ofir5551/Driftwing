@@ -236,6 +236,32 @@ const shots = [
     wait: 3000,
     place: { x: 0, y: 14, z: 100, yaw: 0, phase: 0.86 },
   },
+  // Eden (default seed): Tal's picture, the venue, the couple's picture, lanterns by night.
+  { name: 'eden-title', query: '?level=eden', wait: 4500 },
+  {
+    name: 'eden-tal',
+    query: '?level=eden&autopilot',
+    wait: 3000,
+    place: { x: 172.2, y: 32.5, z: 1274.1, yaw: 0.284, pitch: -0.02, phase: 0.5 },
+  },
+  {
+    name: 'eden-venue',
+    query: '?level=eden&autopilot',
+    wait: 3000,
+    place: { x: 269.7, y: 68, z: 3488.4, yaw: 0.497, pitch: -0.22, phase: 0.52 },
+  },
+  {
+    name: 'eden-couple',
+    query: '?level=eden&autopilot',
+    wait: 3000,
+    place: { x: 335, y: 22, z: 3574.5, yaw: 0.842, pitch: -0.02, phase: 0.5 },
+  },
+  {
+    name: 'eden-night',
+    query: '?level=eden&autopilot',
+    wait: 3000,
+    place: { x: 263.7, y: 78, z: 3447.6, yaw: 0.436, pitch: -0.05, phase: 0.86 },
+  },
 ];
 
 /** Park the bird at a viewpoint (paused, so nothing moves), build the world around it. */

@@ -13,7 +13,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon`,
+  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|eden`,
   `?unlocked` (every level, plumage and trail open, nothing granted or saved), `?flock=N` (fly N
   flock birds, never saved).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
@@ -54,7 +54,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `playing`, `paused`. `onStep`/`onFrame` hooks.
 - `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, scenery, islands), `City`, `Karst`
   (Jade River, with its own palettes), `Fjord` (Aurora Fjords), `Jerusalem` (City of Gold),
-  `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls), `Ringmoon` (Ringmoon Shallows); `index`
+  `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls), `Ringmoon` (Ringmoon Shallows),
+  `Eden` (Tal and Hadar's wedding flight, off the journey track: always open); `index`
   registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
 - `core/Journey.ts`: lifetime light, the unlock track and the discoveries found (pure; saved by
@@ -185,6 +186,18 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `materials` (the giant's and second sun's fills, `aGlow` night glow, the life's vertex
   motion), `shapes` (explorers, life, cover shapes), `geometry`, `RingmoonWorld`. The ringed
   giant and the second sun are the `giant` backdrop in `Sky`.
+- `world/eden/`: Tal and Hadar's wedding flight. `EdenWorld` wraps a `HighlandsWorld` built on
+  `EdenLayout`'s reshaped land (pure: three sites searched for level dry ground, each a meadow
+  blended into the hills; the venue's parts in its own u/v frame (`VENUE`), the wave roof's
+  height, soft lifts over its trees, the pictures as slabs `pushFrame` glances off), `journeys`
+  (pure: Tal's picture, Hadar's, then the venue with no cairn; then the isles), `EdenWisps`
+  (straight ribbon through each stop's light on the run in), `EdenScenery` (easels, venue,
+  heart rose beds, sky lanterns in a shader; `SkyWords`: "Tal ♥ Hadar" in lantern light), `countryside` (pure, per 300 m cell: road arches
+  and lights, heart groves, heart clouds, doves) drawn by `EdenCountry` (also the petals),
+  `cover` (lavender and rose fields), `heart` (the shape; the lake in `EdenLayout`), `finds`, `photos` (the pictures, kept veiled as `photos/p0-2.bin`
+  by `veil.ts`; make new ones with `node scripts/eden-photos.mjs`; `ui/PhotoCard` shows them on
+  arrival). A destination may have no `roost` and its
+  own `message`; `World.arrived` and `LevelDef.wispColor` are the level's hooks.
 - Shared lighting (see DESIGN's Rendering): `fx/SunShadows` (shadow map round the bird, high),
   `world/ShadowCasters` (near-only caster proxies on layer 1), `world/ContactShadows` (blobs under
   trees/props), `world/CloudShadow` (drifting cloud shadows patch), `world/LitScenery` (gives every

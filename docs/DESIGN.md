@@ -122,6 +122,8 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
 - **Ringmoon Shallows**: a shallow jade sea on a moon of a ringed gas giant, with two suns and an
   old ship standing in the water, opening in the afternoon. The vast one: another world, the
   giant filling the sky, slow and strange and enormous.
+- **Eden**: Tal and Hadar's wedding flight over green country in the golden hour, always open.
+  The personal one: three journeys tell their story, to his picture, to hers, to the venue.
 
 ## Highlands
 
@@ -981,6 +983,63 @@ medium and high.
 - Cost at the review's viewpoints (triangles / draw calls, whole frame): medium 238-287k /
   124-143 (was 289-311k / 113-134), high 400-480k / 134-168 (was 473-491k / 121-155), low
   135-159k / 91-104 (was 153-179k / 87-100). The distant fronds and far pods pay for the rest.
+
+## Eden
+
+A gift: a wedding flight for Tal and Hadar, the game's first player and his bride. The warm
+one, but personal: it is their story told by the journeys the game already has. Off the
+journey track (always open, second on the title), opening in the golden hour and lingering
+there (`dayScale` 1.6).
+
+- The land is the Highlands' own, reshaped (`EdenLayout`): three sites ahead of the spawn,
+  zigzagging so each stop is not hidden behind the last (Tal's ~1.2 km, Hadar's ~2.4 km, the
+  venue ~3.6 km), each searched round its nominal spot for level, dry, low ground and turned
+  into a meadow blended back into the hills, with no river, farm or forest on it.
+- The story: the beacons lead to Tal's picture, then Hadar's, then the venue, in that order
+  every flight. Each picture stands on a white easel with a gold frame, flowers and a name
+  plaque, facing the way the bird comes; the beacon stands on the lawn before it and to the
+  right, so the bird sees the picture ahead and passes beside it. Tal and Hadar are the strays
+  on its cairn (slate and rose), so they join the flock. On arrival a photo card (`ui/PhotoCard`)
+  fades in above the toast for 7 s and takes no tap. The venue's journey has no cairn (the two
+  of them are already with you): its card is the two of them with their wedding date
+  (23.12.2026, also on the picture's plaque), "Mazal tov!", "Tal ♥ Hadar" written over the
+  pool in lantern light (`SkyWords`: each light rises from the pool to its place in lettering
+  sampled from a canvas, left to right as if written; brighter by day against the golden sky),
+  and sky lanterns
+  rise over the pool for the rest of the flight (and every night). Then the isles' journeys
+  take over.
+- The venue, from its photo: a glass hall with timber posts under a white wave roof (a crown
+  with a dip either side and rising ends, sailed ends to the ground), a round turquoise pool
+  with a white rim, a pier and two boats, stone paving, a pergola with string lights, chairs in
+  rows either side of an aisle facing a chuppah, an olive tree, tall trees and cypresses in a
+  horseshoe round the back, poolside lamps. The roof, crowns and chuppah are soft lifts in the
+  flight floor; the pictures are slabs the bird glances off.
+- Wisps are petal pink by day (`LevelDef.wispColor`). On the way to a stop the ribbons are
+  Eden's own (`EdenWisps`): swaying runs that always make way toward it by the lowest of a few
+  headings, and on the last 250 m one straight ribbon through the beacon's light and on. With
+  no stop ahead, the Highlands' patterns. The bird starts facing Tal's meadow. Arrival is
+  generous (40 m: a story, not a course).
+- The country is the Highlands, flowering for a wedding: the wheat is lavender and the
+  rapeseed roses (`cover.ts`, `setFieldColors`), the meadows' drifts thicker, in blush and
+  white. A heart-shaped lake lies by the way to Tal, its lobes pointing on (upright from the
+  first glide). Through the country (`countryside.ts`, pure, per 300 m cell; `EdenCountry`
+  draws the cells round the bird, refilled only when it crosses into another): flower arches
+  and strings of fairy lights and bunting over the roads (grid points pulled onto the road
+  line by a step along the river distance's gradient), groves of blossom trees planted round
+  a heart (soft crowns in the flight floor), pink heart clouds high up, doves wheeling in small
+  flocks (in a vertex shader: circles, flaps in bursts) and over each stop, petals drifting in
+  the air round the camera (a box of points wrapping in the shader), and heart beds of roses
+  before each picture and on the venue's lawn. The heart is one shape (`heart.ts`): a
+  parametric outline and an implicit field fitted to it.
+- Finds: along the pool's pier, round the chuppah, among the sky lanterns by night.
+- Music: a music box's glass bells at 72 bpm in a lilting three-note arpeggio over a warm sine
+  pad, major by day and through the golden hour, lydian at dusk.
+- The photos are veiled in `world/eden/photos/` (`p0-2.bin`: each byte XORed with a keystream,
+  `veil.ts`; `scripts/eden-photos.mjs` makes them), unveiled in the browser into blob URLs.
+  The repository is public: this keeps the couple's photos from lying in plain sight (no
+  picture in the file browser, nothing for image search) without pretending to be secret. The
+  README's screenshots were taken with stand-ins (a heart of petals and a name) for the same
+  reason. Until single portraits come, Tal's and Hadar's are cropped from the engagement photo.
 
 ## Gameplay
 
@@ -2014,6 +2073,14 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   forest failed (the ribbons could not thread to one); walking down the river to the next one
   works. Neon Bay's ribbons first circled round towers near the goal and U-turned at the
   opening; both are now ruled out mid-journey.
+- Eden builds on a HighlandsWorld (constructed on Eden's reshaped land) rather than copying
+  the Highlands: it is the same country, and stays in step with it. Destinations gained an
+  optional `roost` (null: no cairn, no stray) and `message`, and `World.arrived(id)` lets a
+  level celebrate an arrival (Eden's lanterns). The bot needed its own ribbons to tell the
+  story: with the generic patterns it reached Tal on half the seeds and lost the way between
+  the zigzagging stops for minutes. With `EdenWisps` (swaying runs that always make way toward
+  the stop, a turn of at most 0.5 rad a run, straight in over the last 250 m) and the spawn
+  facing Tal, six seeds of six reach all three stops in six minutes; Tal first at 34-94 s.
 - Arrival means flying through the beacon's light, not passing near the landmark. Bot arrivals
   over four seeds in six minutes, near -> through: Red Canyons 16 -> 16, Aurora Fjords 16 -> 16,
   Coral Atolls 10 -> 10, Highlands 9 -> 8, City of Gold 7 -> 7, Ringmoon 5 -> 7, Sea of

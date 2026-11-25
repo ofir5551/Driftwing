@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
-import { clamp } from '../core/math';
+import { clamp, smoothstep } from '../core/math';
 
 // A destination's column of light. The far plane follows the draw distance (under 1 km on low
 // quality) and a destination can be 4 km off, so the vertex shader draws a far beacon just
@@ -51,6 +51,8 @@ export class Beacon {
   private readonly mat: THREE.ShaderMaterial;
   /** 0..1 how lit it is; eases toward `target`. */
   private level = 0;
+  /** The current beacon's brightness (Destination.beacon). */
+  private bright = 1;
   private target = 0;
   /** Seconds left of the arrival flare. */
   private flare = 0;
@@ -82,8 +84,9 @@ export class Beacon {
     this.mesh.visible = false;
   }
 
-  /** Raise the beacon over (x, z), its foot at y. */
-  show(x: number, y: number, z: number): void {
+  /** Raise the beacon over (x, z), its foot at y, at a brightness (1: as everywhere). */
+  show(x: number, y: number, z: number, bright = 1): void {
+    this.bright = bright;
     const K = Config.destinations;
     this.mesh.position.set(x, y, z);
     this.mesh.scale.set(K.beamRadius, K.beamHeight, K.beamRadius);
@@ -119,9 +122,13 @@ export class Beacon {
     const cam = camera.position;
     // Fade near its axis, so flying into it never floods the screen, but never out: the bird
     // must fly through it, so it stays a clear target to the last.
-    const near = clamp(Math.hypot(cam.x - p.x, cam.z - p.z) / K.beamNear, 0.25, 1);
+    const dist = Math.hypot(cam.x - p.x, cam.z - p.z);
+    const near = clamp(dist / K.beamNear, 0.25, 1);
+    // A dimmed beacon (one before a picture) is full bright far off, where it leads the way,
+    // and dims as the bird comes close enough to see what it stands by.
+    const bright = this.bright + (1 - this.bright) * smoothstep(K.dimTo, K.dimFrom, dist);
     const u = this.mat.uniforms;
-    u.uIntensity.value = (this.level * 0.55 + this.flare * 0.6) * near;
+    u.uIntensity.value = (this.level * 0.55 + this.flare * 0.6) * near * bright;
     u.uTime.value = time;
     u.uFar.value = camera.far * K.beamFar;
     u.uWiden.value = K.beamWiden;

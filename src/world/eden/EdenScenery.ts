@@ -207,7 +207,7 @@ export class EdenScenery {
     if (plaque) {
       this.textures.push(plaque);
       // As tall as the easel's foot allows, so a name reads from the air.
-      const pw = Math.min(w * 0.7, (foot - 0.8) * 4, 14);
+      const pw = Math.min(w * 0.7, (foot - 0.8) * 4, 20);
       g.add(
         this.mesh(
           new THREE.PlaneGeometry(pw, pw / 4).translate(0, foot * 0.5, 0.25),
@@ -266,6 +266,7 @@ export class EdenScenery {
     const g = new THREE.Group();
     g.position.set(V.x, V.y, V.z);
     g.rotation.y = V.yaw; // local x is u, local z is v
+    g.scale.setScalar(Config.eden.venueScale); // the plan is drawn at 1
     const P = VENUE.pool;
 
     // Paving round the pool and a terrace toward the hall, a white rim, and the water.
@@ -485,11 +486,12 @@ export class EdenScenery {
 
     // Tall trees round the back (world coordinates).
     const trees: THREE.BufferGeometry[] = [];
+    const k = Config.eden.venueScale;
     for (const t of L.venueTrees()) {
       if (t.cypress) {
         trees.push(
           colored(
-            new THREE.ConeGeometry(1.8, t.h, 7).translate(t.x, V.y + t.h / 2 + 0.5, t.z),
+            new THREE.ConeGeometry(1.8 * k, t.h, 7).translate(t.x, V.y + t.h / 2 + 0.5, t.z),
             '#4f7a52',
           ),
         );
@@ -497,22 +499,26 @@ export class EdenScenery {
       }
       trees.push(
         colored(
-          new THREE.CylinderGeometry(0.4, 0.7, t.h * 0.55, 5).translate(t.x, V.y + t.h * 0.27, t.z),
+          new THREE.CylinderGeometry(0.4 * k, 0.7 * k, t.h * 0.55, 5).translate(
+            t.x,
+            V.y + t.h * 0.27,
+            t.z,
+          ),
           '#cfc2b0',
         ),
       );
-      for (let k = 0; k < 3; k++) {
-        const a = k * 2.1 + t.x * 0.01;
+      for (let j = 0; j < 3; j++) {
+        const a = j * 2.1 + t.x * 0.01;
         trees.push(
           colored(
-            new THREE.IcosahedronGeometry(3.6 - k * 0.4, 1)
+            new THREE.IcosahedronGeometry((3.6 - j * 0.4) * k, 1)
               .scale(1, 0.8, 1)
               .translate(
-                t.x + Math.sin(a) * 2.2,
-                V.y + t.h * (0.62 + k * 0.12),
-                t.z + Math.cos(a) * 2.2,
+                t.x + Math.sin(a) * 2.2 * k,
+                V.y + t.h * (0.62 + j * 0.12),
+                t.z + Math.cos(a) * 2.2 * k,
               ),
-            k === 1 ? '#7fa66c' : '#6e9a63',
+            j === 1 ? '#7fa66c' : '#6e9a63',
           ),
         );
       }
@@ -531,7 +537,6 @@ export class EdenScenery {
     const L = this.layout;
     const R = VENUE.roof;
     const H = VENUE.hall;
-    const y0 = L.venue.y;
     const rings = 14;
     const segs = 72;
     const pos: number[] = [];
@@ -539,8 +544,8 @@ export class EdenScenery {
     const at = (rho: number, th: number) => {
       const u = R.u + Math.cos(th) * R.a * rho;
       const v = R.v + Math.sin(th) * R.b * rho;
-      const top = L.roofTop(u, v);
-      return [u, (Number.isFinite(top) ? top : y0 + H.height) - y0, v];
+      const top = L.roofRise(u, v);
+      return [u, Number.isFinite(top) ? top : H.height, v];
     };
     for (let r = 0; r <= rings; r++)
       for (let s = 0; s <= segs; s++)
@@ -568,7 +573,7 @@ export class EdenScenery {
     const parts = [shell];
     for (const side of [-1, 1]) {
       const u = R.u + side * (R.a - 5);
-      const top = L.roofTop(u, R.v) - y0;
+      const top = L.roofRise(u, R.v);
       parts.push(
         new THREE.CircleGeometry(1, 24, 0, Math.PI)
           .scale(R.b * 0.55, top, 1)

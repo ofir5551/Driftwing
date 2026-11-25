@@ -284,9 +284,11 @@ export const Config = {
     venueBlend: 330, // m where they have blended back
     plateauMin: 8, // m above the water, lowest a site's meadow sits
     plateauMax: 34, // m, highest
-    photoHeight: 16, // m, a portrait's picture
-    inviteHeight: 26, // m, the wedding invitation's picture at the venue
-    photoLift: 4.5, // m from the ground to the frame's foot (room for the name plaque)
+    photoHeight: 24, // m, a portrait's picture
+    inviteHeight: 39, // m, the wedding invitation's picture at the venue
+    photoLift: 6, // m from the ground to the frame's foot (room for the name plaque)
+    venueScale: 1.3, // the venue's size (its plan, VENUE, is drawn at 1)
+    beaconBright: 0.16, // Eden's beacons, dimmer than elsewhere so they never hide a picture
     lanterns: 70, // sky lanterns rising over the venue once the couple are reached (and at night)
     lanternRise: 2.2, // m/s a lantern rises
     lanternTop: 150, // m above the venue a lantern fades out
@@ -758,6 +760,8 @@ export const Config = {
     maxRoute: 4600, // m along the way searched for one (ahead only; none in reach: ask again later)
     light: 40, // journey light for reaching a destination (a lantern gives 10)
     reach: 18, // m from the beacon's axis that counts as flying through its light (it is ~9-16 wide)
+    dimFrom: 700, // m off, a dimmed beacon (Destination.beacon) starts to dim
+    dimTo: 300, // m off, it is down to its own brightness
     reachBelow: 15, // m below the beacon's foot that still counts (skimming its foot)
     flash: 0.7, // screen flash on arrival
     boost: 8, // m/s forward surge on arrival

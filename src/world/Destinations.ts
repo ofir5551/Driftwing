@@ -30,6 +30,8 @@ export interface Destination {
   } | null;
   /** What the arrival says (default "<name> reached"). */
   readonly message?: string;
+  /** How bright its beacon burns (default 1): dimmer where it stands before a picture. */
+  readonly beacon?: number;
   /** The stray's plumage (an index into the flock's tints; the save keeps it). */
   readonly tint: number;
   /** Has a bird at (x, y, z) arrived? Generous: through, under or over the landmark counts. */

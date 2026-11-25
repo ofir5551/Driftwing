@@ -280,14 +280,14 @@ export const Config = {
     search: 320, // m round each nominal spot searched for a good plateau
     siteFlat: 70, // m, radius of a photo site's level meadow
     siteBlend: 210, // m where it has blended back into the hills
-    venueFlat: 140, // m, radius of the venue's level grounds
-    venueBlend: 330, // m where they have blended back
+    venueFlat: 180, // m, radius of the venue's level grounds (its trees stand at ~150)
+    venueBlend: 380, // m where they have blended back
     plateauMin: 8, // m above the water, lowest a site's meadow sits
     plateauMax: 34, // m, highest
-    photoHeight: 24, // m, a portrait's picture
-    inviteHeight: 39, // m, the wedding invitation's picture at the venue
-    photoLift: 6, // m from the ground to the frame's foot (room for the name plaque)
-    venueScale: 1.3, // the venue's size (its plan, VENUE, is drawn at 1)
+    photoHeight: 28.8, // m, a portrait's picture
+    inviteHeight: 46.8, // m, the wedding invitation's picture at the venue
+    photoLift: 7.2, // m from the ground to the frame's foot (room for the name plaque)
+    venueScale: 1.56, // the venue's size (its plan, VENUE, is drawn at 1)
     beaconBright: 0.16, // Eden's beacons, dimmer than elsewhere so they never hide a picture
     lanterns: 70, // sky lanterns rising over the venue once the couple are reached (and at night)
     lanternRise: 2.2, // m/s a lantern rises

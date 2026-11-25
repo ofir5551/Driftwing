@@ -5,6 +5,10 @@ import { createHeightField } from '../src/world/Terrain';
 import { EdenLayout, VENUE } from '../src/world/eden/EdenLayout';
 import { EdenWorld } from '../src/world/eden/EdenWorld';
 import { EDEN_PHOTOS } from '../src/world/eden/photos';
+import v0 from '../src/world/eden/photos/p0.bin?inline';
+import v1 from '../src/world/eden/photos/p1.bin?inline';
+import v2 from '../src/world/eden/photos/p2.bin?inline';
+import { veil } from '../src/world/eden/veil';
 import { flyBot, journeyBot } from './helpers';
 
 const SEEDS = [1337, 42, 7, 2024];
@@ -129,5 +133,20 @@ describe('Eden flight', () => {
     // The Highlands' own bar is 80 in 90 s: the same country, the same rhythm.
     expect(r.got).toBeGreaterThan(100);
     expect(r.glances).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('Eden photos', () => {
+  it('are kept veiled, and unveil to JPEGs', () => {
+    const bytes = new Uint8Array([1, 2, 3, 250, 0, 9]);
+    expect([...veil(veil(bytes.slice()))]).toEqual([...bytes]);
+    for (const file of [v0, v1, v2]) {
+      // Inlined as a base64 data URL.
+      const raw = Uint8Array.from(atob(file.slice(file.indexOf(',') + 1)), (c) => c.charCodeAt(0));
+      expect(raw.length).toBeGreaterThan(10_000);
+      expect([raw[0], raw[1]]).not.toEqual([0xff, 0xd8]);
+      const jpg = veil(raw);
+      expect([jpg[0], jpg[1], jpg[2]]).toEqual([0xff, 0xd8, 0xff]);
+    }
   });
 });

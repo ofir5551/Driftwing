@@ -1018,9 +1018,12 @@ there (`dayScale` 1.6).
 - Finds: along the pool's pier, round the chuppah, among the sky lanterns by night.
 - Music: a music box's glass bells at 72 bpm in a lilting three-note arpeggio over a warm sine
   pad, major by day and through the golden hour, lydian at dusk.
-- The photos are files in `world/eden/photos/` (portraits 3:4, the couple 16:9), bundled and
-  precached like any asset. The repository is public, so it holds stand-ins (a heart of
-  petals and a name) until the couple's own photos are cleared to publish.
+- The photos are veiled in `world/eden/photos/` (`p0-2.bin`: each byte XORed with a keystream,
+  `veil.ts`; `scripts/eden-photos.mjs` makes them), unveiled in the browser into blob URLs.
+  The repository is public: this keeps the couple's photos from lying in plain sight (no
+  picture in the file browser, nothing for image search) without pretending to be secret. The
+  README's screenshots were taken with stand-ins (a heart of petals and a name) for the same
+  reason. Until single portraits come, Tal's and Hadar's are cropped from the engagement photo.
 
 ## Gameplay
 

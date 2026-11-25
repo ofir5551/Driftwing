@@ -7,7 +7,7 @@ import { getToonGradient } from '../Terrain';
 import { colored } from '../Trees';
 import { hash2 } from '../noise';
 import { VENUE, type EdenLayout, type Frame } from './EdenLayout';
-import { EDEN_PHOTOS } from './photos';
+import { EDEN_PHOTOS, photoUrl, type EdenPhoto } from './photos';
 
 const toon = (hex: string, vertexColors = false): THREE.MeshToonMaterial =>
   withMist(
@@ -21,12 +21,18 @@ const toon = (hex: string, vertexColors = false): THREE.MeshToonMaterial =>
 /** Browser only: Vitest builds worlds in Node, with no images or canvas. */
 const hasDom = typeof document !== 'undefined';
 
-/** A picture as a texture (empty until it loads; none in Node). */
-function photoTexture(url: string): THREE.Texture | null {
+/** A picture as a texture, filled once its photo is unveiled (none in Node). */
+function photoTexture(photo: EdenPhoto): THREE.Texture | null {
   if (!hasDom) return null;
-  const t = new THREE.TextureLoader().load(url);
+  const t = new THREE.Texture();
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
+  void photoUrl(photo).then((url) =>
+    new THREE.ImageLoader().load(url, (img) => {
+      t.image = img;
+      t.needsUpdate = true;
+    }),
+  );
   return t;
 }
 
@@ -83,7 +89,7 @@ export class EdenScenery {
     this.glassMat = toon('#a9d2d4');
     this.glassMat.emissive = new THREE.Color('#000000');
     this.lanternMat = this.makeLanternMaterial();
-    EDEN_PHOTOS.forEach((p, i) => this.addFrame(layout.frames[i], p.url, p.caption));
+    EDEN_PHOTOS.forEach((p, i) => this.addFrame(layout.frames[i], p));
     this.addVenue();
   }
 
@@ -134,7 +140,8 @@ export class EdenScenery {
   }
 
   /** A picture on a white easel with a gold frame, flowers and its name on a plaque. */
-  private addFrame(F: Frame, url: string, caption: string): void {
+  private addFrame(F: Frame, photo: EdenPhoto): void {
+    const caption = photo.caption;
     const g = new THREE.Group();
     g.position.set(F.x, F.ground, F.z);
     g.rotation.y = F.yaw; // local +z faces the bird
@@ -142,7 +149,7 @@ export class EdenScenery {
     const h = F.y1 - F.y0;
     const foot = F.y0 - F.ground;
     const cy = foot + h / 2;
-    const tex = photoTexture(url);
+    const tex = photoTexture(photo);
     if (tex) this.textures.push(tex);
     const photoMat = new THREE.MeshBasicMaterial({ map: tex, color: '#ffffff' });
     if (!tex) photoMat.color.set('#e9dccb');

@@ -12,12 +12,18 @@ import { EdenScenery } from './EdenScenery';
 import { edenFinds } from './finds';
 import { edenDestinations } from './journeys';
 import { EdenWisps } from './EdenWisps';
+import { EdenCountry } from './EdenCountry';
+import { Countryside } from './countryside';
+import { EDEN_FIELDS, edenCover } from './cover';
+import { setFieldColors } from '../highlands/Land';
 
 /**
  * Tal and Hadar's wedding flight: the Highlands' country at golden hour, reshaped round three
  * stops (Tal's picture, Hadar's, then the venue), with Eden's scenery on top. Everything the
  * Highlands do (terrain, farms, forests, isles, mist) comes from a HighlandsWorld built on the
- * reshaped land; this adds the pictures, the venue and the story's journeys.
+ * reshaped land; this adds the pictures, the venue, the story's journeys and the wedding
+ * through the country (flower fields, the heart lake, arches and lights over the roads, heart
+ * groves and clouds, doves and petals).
  */
 export class EdenWorld implements World {
   readonly group = new THREE.Group();
@@ -27,24 +33,34 @@ export class EdenWorld implements World {
   readonly destinations: DestinationSource;
   private readonly land: HighlandsWorld;
   private readonly scenery: EdenScenery;
+  private readonly country: Countryside;
+  private readonly countryView: EdenCountry;
 
   constructor(seed: number) {
     this.layout = new EdenLayout(createHeightField(seed), seed);
-    this.land = new HighlandsWorld(seed, this.layout.field);
+    // The Highlands, flowering: lavender for wheat, roses for rapeseed, thicker drifts.
+    this.land = new HighlandsWorld(seed, this.layout.field, edenCover);
+    setFieldColors(EDEN_FIELDS);
     this.scenery = new EdenScenery(this.layout);
+    this.country = new Countryside(this.layout.field, this.layout, seed);
+    this.countryView = new EdenCountry(this.country, this.layout);
     this.discoveries = edenFinds(this.layout);
     this.planner = new EdenWisps((x, z) => this.wispFloor(x, z));
     this.destinations = this.story(edenDestinations(this.layout, this.land.destinations));
-    this.group.add(this.land.group, this.scenery.group);
+    this.group.add(this.land.group, this.scenery.group, this.countryView.group);
   }
 
   get field() {
     return this.land.field;
   }
 
-  /** The Highlands' ground, and over the venue its roof, trees and chuppah. */
+  /** The Highlands' ground, over the venue its roof, trees and chuppah, and the groves. */
   flightGround(x: number, z: number): number {
-    return Math.max(this.land.flightGround(x, z), this.layout.liftAt(x, z));
+    return Math.max(
+      this.land.flightGround(x, z),
+      this.layout.liftAt(x, z),
+      this.country.liftAt(x, z),
+    );
   }
 
   surfaceBelow(x: number, _y: number, z: number): number {
@@ -63,15 +79,18 @@ export class EdenWorld implements World {
 
   prime(px: number, pz: number): void {
     this.land.prime(px, pz);
+    this.countryView.update(px, pz);
   }
 
   update(px: number, pz: number): void {
     this.land.update(px, pz);
+    this.countryView.update(px, pz);
   }
 
   frame(dt: number, time: number, day: DayCycle): void {
     this.land.frame(dt, time, day);
     this.scenery.frame(dt, time, day);
+    this.countryView.frame(time, day);
   }
 
   assist(): void {}
@@ -110,6 +129,8 @@ export class EdenWorld implements World {
   dispose(): void {
     this.land.dispose();
     this.scenery.dispose();
+    this.countryView.dispose();
+    setFieldColors(null);
   }
 
   /** The journeys, and a new flight (the story starting at Tal again) puts the lanterns away. */

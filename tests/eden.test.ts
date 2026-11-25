@@ -3,6 +3,8 @@ import { Config } from '../src/core/Config';
 import { Eden } from '../src/levels/Eden';
 import { createHeightField } from '../src/world/Terrain';
 import { EdenLayout, VENUE } from '../src/world/eden/EdenLayout';
+import { CELL, Countryside } from '../src/world/eden/countryside';
+import { heartField, heartPoint } from '../src/world/eden/heart';
 import { EdenWorld } from '../src/world/eden/EdenWorld';
 import { EDEN_PHOTOS } from '../src/world/eden/photos';
 import v0 from '../src/world/eden/photos/p0.bin?inline';
@@ -148,5 +150,64 @@ describe('Eden photos', () => {
       const jpg = veil(raw);
       expect([jpg[0], jpg[1], jpg[2]]).toEqual([0xff, 0xd8, 0xff]);
     }
+  });
+});
+
+describe('Eden countryside', () => {
+  it('draws one heart: the field is below 0 inside the outline and above it outside', () => {
+    const p = { x: 0, y: 0 };
+    expect(heartField(0, 0)).toBeLessThan(0);
+    for (let k = 0; k < 32; k++) {
+      heartPoint(k / 32, p);
+      expect(heartField(p.x * 0.8, p.y * 0.8 + 0.02)).toBeLessThan(0.02);
+      // Outward from the centre (but not at the dip between the lobes, which is concave).
+      if (Math.abs(p.x) > 0.25) expect(heartField(p.x * 1.3, p.y * 1.3)).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(SEEDS)('cuts a heart-shaped lake into a dry meadow (seed %i)', (seed) => {
+    const L = new EdenLayout(createHeightField(seed), seed);
+    const K = L.lake;
+    expect(L.field.height(K.x, K.z)).toBeLessThan(Config.world.waterLevel - 1);
+    // The lobes point away from the spawn: wet between them would mean it is upside down.
+    const up = { x: Math.sin(K.yaw), z: Math.cos(K.yaw) };
+    expect(up.x * K.x + up.z * K.z).toBeGreaterThan(0);
+    for (let a = 0; a < 6.28; a += 0.3) {
+      const x = K.x + Math.sin(a) * K.size * 1.5;
+      const z = K.z + Math.cos(a) * K.size * 1.5;
+      expect(L.field.height(x, z)).toBeGreaterThan(Config.world.waterLevel);
+    }
+  });
+
+  it('puts arches on dry road, groves clear of the stops, and is the same each time', () => {
+    const f = createHeightField(1337);
+    const L = new EdenLayout(f, 1337);
+    const a = new Countryside(L.field, L, 1337);
+    const b = new Countryside(L.field, L, 1337);
+    let arches = 0;
+    let groves = 0;
+    for (let j = -6; j <= 12; j++)
+      for (let i = -8; i <= 8; i++) {
+        const c = a.cell(i, j);
+        expect(c).toEqual(b.cell(i, j));
+        for (const A of c.arches) {
+          arches++;
+          expect(A.x).toBeGreaterThanOrEqual(i * CELL);
+          expect(Math.abs(L.field.riverDist(A.x, A.z) - Config.highlands.roadOffset)).toBeLessThan(
+            2,
+          );
+          expect(A.y).toBeGreaterThan(1);
+        }
+        for (const G of c.groves) {
+          groves++;
+          for (const S of [L.tal, L.hadar, L.venue, L.lake])
+            expect(Math.hypot(G.x - S.x, G.z - S.z)).toBeGreaterThan(S.blend);
+          // The bird glides over a tree's crown, not through it.
+          const T = G.trees;
+          expect(a.liftAt(T[0], T[2])).toBeGreaterThan(T[1] + 6);
+        }
+      }
+    expect(arches).toBeGreaterThan(20);
+    expect(groves).toBeGreaterThan(10);
   });
 });

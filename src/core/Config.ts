@@ -296,6 +296,19 @@ export const Config = {
     runIn: 250, // m from a stop's beacon within which the ribbon runs straight through it
     runOut: 120, // m the ribbon runs on past the beacon
     passHeight: 12, // m above the meadow the ribbon passes through the beacon's light
+    lakeAt: 560, // m ahead of the spawn, the heart-shaped lake (searched round for low ground)
+    lakeAside: 200, // m to the side (the other side from Tal's meadow)
+    lakeSize: 55, // m from the lake's centre to a lobe's edge
+    lakeDepth: 2.5, // m below the water, the lake's floor
+    roadDecor: 0.5, // chance a stretch of road (~75 m) gets a flower arch or a string of lights
+    groves: 0.5, // chance a 300 m cell has a grove of blossom trees planted as a heart
+    groveTrees: 28, // trees round a heart grove
+    heartClouds: 0.1, // chance a cell has a pink heart cloud high over it
+    doveFlocks: 0.3, // chance a cell has doves wheeling over it
+    decorCells: 3, // cells either side of the bird's that are decorated
+    petals: 500, // petals drifting round the camera
+    petalBox: 70, // m, side of the box of air they drift in
+    lightGlow: 2.6, // the fairy lights after dark (over 1: bloom haloes them)
   },
   /** The Highlands' lived-in landscape: rivers, farms, villages (world/highlands/). */
   highlands: {

@@ -1015,6 +1015,18 @@ there (`dayScale` 1.6).
   headings, and on the last 250 m one straight ribbon through the beacon's light and on. With
   no stop ahead, the Highlands' patterns. The bird starts facing Tal's meadow. Arrival is
   generous (40 m: a story, not a course).
+- The country is the Highlands, flowering for a wedding: the wheat is lavender and the
+  rapeseed roses (`cover.ts`, `setFieldColors`), the meadows' drifts thicker, in blush and
+  white. A heart-shaped lake lies by the way to Tal, its lobes pointing on (upright from the
+  first glide). Through the country (`countryside.ts`, pure, per 300 m cell; `EdenCountry`
+  draws the cells round the bird, refilled only when it crosses into another): flower arches
+  and strings of fairy lights and bunting over the roads (grid points pulled onto the road
+  line by a step along the river distance's gradient), groves of blossom trees planted round
+  a heart (soft crowns in the flight floor), pink heart clouds high up, doves wheeling in small
+  flocks (in a vertex shader: circles, flaps in bursts) and over each stop, petals drifting in
+  the air round the camera (a box of points wrapping in the shader), and heart beds of roses
+  before each picture and on the venue's lawn. The heart is one shape (`heart.ts`): a
+  parametric outline and an implicit field fitted to it.
 - Finds: along the pool's pier, round the chuppah, among the sky lanterns by night.
 - Music: a music box's glass bells at 72 bpm in a lilting three-note arpeggio over a warm sine
   pad, major by day and through the golden hour, lydian at dusk.

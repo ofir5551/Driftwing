@@ -8,6 +8,7 @@ import { colored } from '../Trees';
 import { hash2 } from '../noise';
 import { VENUE, type EdenLayout, type Frame } from './EdenLayout';
 import { EDEN_PHOTOS, photoUrl, type EdenPhoto } from './photos';
+import { heartPoint } from './heart';
 
 const toon = (hex: string, vertexColors = false): THREE.MeshToonMaterial =>
   withMist(
@@ -91,6 +92,7 @@ export class EdenScenery {
     this.lanternMat = this.makeLanternMaterial();
     EDEN_PHOTOS.forEach((p, i) => this.addFrame(layout.frames[i], p));
     this.addVenue();
+    this.addHeartBeds();
   }
 
   /** The couple were reached: lanterns rise over the venue for the rest of the flight. */
@@ -200,6 +202,47 @@ export class EdenScenery {
       );
     }
     this.group.add(g);
+  }
+
+  /**
+   * Beds of roses planted as hearts: before each picture, between it and the bird coming in,
+   * and on the venue's lawn by the beacon. The lobes point away from the bird, so each heart
+   * reads upright on the way in.
+   */
+  private addHeartBeds(): void {
+    const L = this.layout;
+    const beds: { x: number; y: number; z: number; up: number; size: number }[] = [];
+    for (const S of [L.tal, L.hadar]) {
+      const fx = Math.sin(S.yaw);
+      const fz = Math.cos(S.yaw);
+      beds.push({ x: S.x + fx * 16, y: S.y, z: S.z + fz * 16, up: S.yaw + Math.PI, size: 6 });
+    }
+    const v = L.toWorld(VENUE.beacon.u, VENUE.beacon.v + 16);
+    beds.push({ x: v.x, y: L.venue.y, z: v.z, up: L.venue.yaw + Math.PI, size: 9 });
+    const ROSES = ['#e8506f', '#f27a9b', '#fdf6ee', '#f8c6d2'];
+    const pt = { x: 0, y: 0 };
+    const parts: THREE.BufferGeometry[] = [];
+    for (const B of beds) {
+      const c = Math.cos(B.up);
+      const sn = Math.sin(B.up);
+      const n = Math.round(B.size * 7);
+      for (let k = 0; k < n; k++) {
+        heartPoint(k / n, pt);
+        // The heart's y (its lobes) along `up`, its x across.
+        const x = B.x + (pt.x * c + pt.y * sn) * B.size;
+        const z = B.z + (-pt.x * sn + pt.y * c) * B.size;
+        parts.push(
+          colored(
+            new THREE.IcosahedronGeometry(0.55 + 0.12 * (k % 3), 0)
+              .scale(1, 0.7, 1)
+              .translate(x, B.y + 0.35, z),
+            ROSES[k % ROSES.length],
+          ),
+        );
+      }
+    }
+    this.group.add(this.mesh(mergeGeometries(parts), toon('#ffffff', true), 'heart beds'));
+    for (const p of parts) p.dispose();
   }
 
   private addVenue(): void {

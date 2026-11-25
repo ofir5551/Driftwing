@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { clamp, lerp, smoothstep } from '../../core/math';
 import type { LandField } from '../Terrain';
+import { heartField } from './heart';
 
 /**
  * Eden's plan (pure): where Tal's photo, Hadar's photo and the venue stand, the level meadows
@@ -75,6 +76,12 @@ export class EdenLayout {
   readonly tal: EdenSite;
   readonly hadar: EdenSite;
   readonly venue: EdenSite;
+  /**
+   * The heart-shaped lake by the way to Tal: a low meadow with the lake in it, the heart's
+   * lobes pointing away from the spawn (so it reads upright from the first glide), `size` m
+   * from its centre to a lobe's edge.
+   */
+  readonly lake: EdenSite & { readonly size: number };
   /** The three pictures: Tal's, Hadar's and the two of them (at the venue). */
   readonly frames: readonly [Frame, Frame, Frame];
   /** Soft domes over the venue's trees and chuppah (the flight floor). */
@@ -110,7 +117,10 @@ export class EdenLayout {
       E.venueFlat,
       E.venueBlend,
     );
-    this.sites = [this.tal, this.hadar, this.venue];
+    const size = E.lakeSize;
+    const lake = this.pick(-side * E.lakeAside, E.lakeAt, 0, 0, size * 1.6, size * 3.2, 4, 2.5, 9);
+    this.lake = { ...lake, yaw: lake.yaw + Math.PI, size };
+    this.sites = [this.tal, this.hadar, this.venue, this.lake];
     this.c = Math.cos(this.venue.yaw);
     this.s = Math.sin(this.venue.yaw);
     const ph = E.photoHeight;
@@ -230,6 +240,10 @@ export class EdenLayout {
     pz: number,
     flat: number,
     blend: number,
+    /** The height wanted, and the meadow's least and greatest. */
+    want = 20,
+    lowest = Config.eden.plateauMin,
+    highest = Config.eden.plateauMax,
   ): EdenSite {
     const E = Config.eden;
     const f = this.base;
@@ -257,11 +271,11 @@ export class EdenLayout {
         }
         const h = f.height(x, z);
         const wet = Math.abs(f.riverDist(x, z)) < Config.highlands.plainWidth + flat ? 60 : 0;
-        const score = (hi - lo) * 1.5 + Math.abs(h - 20) + wet + rad * 0.04;
+        const score = (hi - lo) * 1.5 + Math.abs(h - want) + wet + rad * 0.04;
         if (score < best.score) best = { x, z, score };
       }
     }
-    const y = clamp(f.height(best.x, best.z), E.plateauMin, E.plateauMax);
+    const y = clamp(f.height(best.x, best.z), lowest, highest);
     return {
       x: best.x,
       z: best.z,
@@ -270,6 +284,17 @@ export class EdenLayout {
       flat,
       blend,
     };
+  }
+
+  /** The lake's heart field at (x, z): below 0 inside (see `heartField`). */
+  lakeField(x: number, z: number): number {
+    const L = this.lake;
+    const c = Math.cos(L.yaw);
+    const s = Math.sin(L.yaw);
+    const dx = x - L.x;
+    const dz = z - L.z;
+    // The heart's y (its lobes) along the lake's facing, its x across it.
+    return heartField((dx * c - dz * s) / L.size, (dx * s + dz * c) / L.size);
   }
 
   /** Soft domes over the venue's tall trees, olive tree and chuppah. */
@@ -319,6 +344,14 @@ export class EdenLayout {
       for (const S of sites) {
         const w = weight(S, x, z);
         if (w > 0) h = lerp(h, S.y, w);
+      }
+      // The heart-shaped lake, with soft banks.
+      const L = this.lake;
+      const dx = x - L.x;
+      const dz = z - L.z;
+      if (dx * dx + dz * dz < (L.size * 1.4) ** 2) {
+        const m = smoothstep(0.05, -0.08, this.lakeField(x, z));
+        if (m > 0) h = lerp(h, -Config.eden.lakeDepth, m);
       }
       return h;
     };

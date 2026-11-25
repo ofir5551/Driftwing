@@ -15,6 +15,10 @@ import { Lanterns } from '../world/Lanterns';
 import { Thermals } from '../world/Thermals';
 import { Wisps } from '../world/Wisps';
 import { DiscoveryTracker, type DiscoveryDef } from '../world/Discoveries';
+import { Beacon } from '../world/Beacon';
+import { Flock } from '../world/Flock';
+import { LANTERN, PERCH_HEIGHT, Roost } from '../world/Roost';
+import { DestinationTracker } from '../world/Destinations';
 
 const GOLD = new THREE.Color('#ffd27a');
 const MOON = new THREE.Color('#a9e8ff');
@@ -22,6 +26,8 @@ const SPLASH = new THREE.Color('#eaf6ff');
 const DUST = new THREE.Color('#e3cfa8');
 const LEAF = new THREE.Color('#a6d17e');
 const WHITE = new THREE.Color('#ffffff');
+/** Multiplier for cloud puffs in their own shade (a cool lilac, as the cloud sea's creases). */
+const SHADE = new THREE.Color('#dedaf0');
 const EMBER = new THREE.Color('#ff8a33');
 const EMBER_HOT = new THREE.Color('#ffd27a');
 
@@ -36,6 +42,14 @@ export class Gameplay {
   readonly thermals: Thermals;
   /** The level's hidden finds (main.ts tells it which are already found). */
   readonly discoveries = new DiscoveryTracker();
+  /** The flight's journeys: the destination ahead and those reached (main.ts restarts it). */
+  readonly destinations = new DestinationTracker();
+  private readonly beacon = new Beacon();
+  /** The birds gathered on the journeys (main.ts hands it the kept flock). */
+  readonly flock = new Flock();
+  private readonly roost = new Roost();
+  /** Rising sparks round the cairn while its stray waits (accumulator). */
+  private roostSpark = 0;
   private readonly lanterns = new Lanterns();
   private readonly glow = new Particles(2400, true);
   private readonly soft = new Particles(900, false);
@@ -47,6 +61,10 @@ export class Gameplay {
   private readonly lanternTarget = new THREE.Vector3();
   private readonly tmp = new THREE.Color();
   private contactFx = 0;
+  /** Seconds until the next puff of the wake churned up over a bird under the cloud. */
+  private wakeTimer = 0;
+  /** Puffs in the cloud's shade (lilac), mixed in so the churned cloud reads as heaped. */
+  private readonly cloudShade = new THREE.Color();
   /** Embers owed but not yet shed (a fractional count carried between frames). */
   private emberDebt = 0;
   /** Lowest trail opacity, so the Aviary can show the trail on a lazy glide (0 in play). */
@@ -83,14 +101,24 @@ export class Gameplay {
       this.trails.group,
       this.wind.mesh,
       this.shadow.mesh,
+      this.beacon.mesh,
+      this.flock.mesh,
+      this.roost.group,
     );
     this.thermals.update(game.flight.x, game.flight.z);
     this.discoveries.setLevel(game.world.discoveries);
+    this.destinations.setSource(game.world.destinations ?? null);
 
     game.onStep((dt) => this.step(dt));
     game.onFrame((dt, time) => this.frame(dt, time));
     game.events.on('contact', (e) => this.onContact(e.kind, e.x, e.y, e.z, e.strength));
     game.events.on('level', () => this.onLevel());
+    game.events.on('flap', () => this.flock.flap());
+    game.events.on('cloud', (e) =>
+      e.water
+        ? this.onWaterDive(e.inside, e.x, e.z, e.strength)
+        : this.onCloud(e.inside, e.x, e.z, e.strength),
+    );
   }
 
   /**
@@ -140,15 +168,35 @@ export class Gameplay {
     this.trails.setStyle(style);
   }
 
+  /** A new flight: the old journey ends; the first beacon of this one rises shortly. */
+  newFlight(): void {
+    this.destinations.restart();
+    this.endFlight();
+  }
+
+  /** The flight is over (Rest, the title): the beacon goes out and the ribbons wander freely. */
+  endFlight(): void {
+    this.beacon.hide();
+    this.roost.hide();
+    this.flock.clearPerch();
+    this.wisps.setGoal(null);
+  }
+
   /** New level: clear the old world's wisps, thermals and lanterns; the path restarts at the bird. */
   private onLevel(): void {
     const g = this.game;
     this.wisps.reset();
     this.wisps.planner = g.world.planner;
+    this.wisps.setGoal(null);
     this.thermals.reset();
     this.thermals.update(g.flight.x, g.flight.z);
     this.lanterns.reset();
     this.discoveries.setLevel(g.world.discoveries);
+    this.destinations.setSource(g.world.destinations ?? null);
+    this.beacon.hide();
+    this.roost.hide();
+    this.flock.clearPerch();
+    this.flock.snap();
     g.autopilotTarget = null;
   }
 
@@ -187,6 +235,9 @@ export class Gameplay {
       if (orb) this.reachLantern(orb.x, orb.y, orb.z);
       const find = this.discoveries.step(dt, s.x, s.y, s.z, g.day.palette.stars);
       if (find) this.discover(find);
+      const change = this.destinations.step(dt, s.x, s.y, s.z, s.yaw);
+      if (change === 'set') this.beginJourney();
+      else if (change === 'arrived') this.arrive();
     }
     // The bot prefers a lantern still to reach over the wisps (lanterns only light while scoring).
     const lantern = scoring ? this.lanterns.pending(s.x, s.z, Config.lantern.guide) : null;
@@ -212,6 +263,43 @@ export class Gameplay {
     this.hud.trick('Lantern reached', 0);
     this.hud.pulse();
     g.events.emit('lanternReached', { x, y, z, points });
+  }
+
+  /** A beacon rises over the next destination, and the ribbons start leaning toward it. */
+  private beginJourney(): void {
+    const g = this.game;
+    const d = this.destinations.current!;
+    this.beacon.show(d.x, d.y, d.z);
+    const r = d.roost;
+    this.roost.show(r.x, r.y, r.z, r.yaw);
+    this.flock.perchAt(r.x, r.y + PERCH_HEIGHT, r.z, r.yaw, d.tint);
+    this.wisps.setGoal(d.route);
+    const first = this.destinations.reachedNames.length === 0;
+    // Words only for where it leads; the column of light says the rest.
+    this.hud.notice(first ? `A beacon rises over ${d.name}` : `Onward to ${d.name}`);
+    g.events.emit('destination', { name: d.name, x: d.x, y: d.y, z: d.z, first });
+  }
+
+  /** Reached the journey's end: the beacon flares, light and a surge, and its name. */
+  private arrive(): void {
+    const g = this.game;
+    const s = g.flight;
+    const d = this.destinations.last!;
+    const K = Config.destinations;
+    this.beacon.arrive();
+    this.wisps.setGoal(null);
+    // The stray takes off from its cairn and joins (a puff of feathers as it goes).
+    const tint = this.flock.join(s.x, s.y, s.z);
+    const r = d.roost;
+    this.soft.burst(10, r.x, r.y + PERCH_HEIGHT, r.z, 3, 0.9, 0.5, WHITE, -1, 1.5);
+    gust(s, K.boost, K.lift);
+    this.glow.burst(70, s.x, s.y, s.z, 16, 1.8, 2, GOLD, -0.8, 5);
+    this.glow.burst(50, d.x, s.y + 20, d.z, 26, 2.8, 2.4, WHITE, 2, 12);
+    g.composer.flash = Math.max(g.composer.flash, K.flash);
+    this.progress.flow = 1;
+    this.hud.toast(`${d.name} reached`, 3.5);
+    this.hud.pulse();
+    g.events.emit('arrival', { id: d.id, name: d.name, x: s.x, y: s.y, z: s.z, tint });
   }
 
   /** A hidden find: no words in flight (the Rest card names it), just light and a chime. */
@@ -303,6 +391,174 @@ export class Gameplay {
     }
   }
 
+  /**
+   * Plunging into the cloud throws a crown of cloud up round the hole and out across the tops;
+   * bursting out, vapour streams off the bird and trails it up into the air.
+   */
+  private onCloud(inside: boolean, x: number, z: number, strength: number): void {
+    const g = this.game;
+    const col = g.world.softColor ?? WHITE;
+    const shade = this.cloudShade.copy(col).multiply(SHADE);
+    // Puffs sit a little over the tops: a flat sprite crossing the cloud's surface is cut sharp.
+    const top = g.flightGround(x, z) + 1.2;
+    const k = Math.min(1, 0.4 + strength / 18);
+    const n = Math.round((14 + 22 * k) * this.soft.density);
+    const s = g.flight;
+    const fx = Math.sin(s.yaw);
+    const fz = Math.cos(s.yaw);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      if (inside) {
+        // A ring rolling outward low over the tops, and a few thrown higher from the hole.
+        const out = 3 + Math.random() * 6 * k;
+        const high = i % 4 === 0;
+        this.soft.emit(
+          x + ca * 1.5,
+          top + 0.6,
+          z + sa * 1.5,
+          ca * out + fx * s.speed * 0.15,
+          high ? 5 + Math.random() * 6 * k : 1 + Math.random() * 2.5,
+          sa * out + fz * s.speed * 0.15,
+          1.3 + Math.random() * 0.8,
+          high ? 2 + Math.random() * 1.5 : 3 + Math.random() * 2.5,
+          i % 3 === 1 ? shade : col,
+          high ? 3 : -0.2,
+          1.6,
+        );
+      } else {
+        // Vapour peeling off the bird as it rises: carried up with it, then left behind.
+        const r = Math.random() * 2;
+        const carry = 0.25 + Math.random() * 0.4;
+        this.soft.emit(
+          s.x + ca * r,
+          Math.max(top + 0.4, s.y - Math.random() * 2),
+          s.z + sa * r,
+          fx * s.speed * carry + ca * 2,
+          2 + Math.random() * 4 * k,
+          fz * s.speed * carry + sa * 2,
+          0.9 + Math.random() * 0.8,
+          2 + Math.random() * 2,
+          i % 3 === 1 ? shade : col,
+          -0.4,
+          1.8,
+        );
+      }
+    }
+  }
+
+  /**
+   * Gliding under deep water: a splash and a ring of foam spreading on the surface; coming out,
+   * droplets stream off the bird and fall back, over a smaller splash.
+   */
+  private onWaterDive(inside: boolean, x: number, z: number, strength: number): void {
+    const g = this.game;
+    const s = g.flight;
+    const sea = Config.world.waterLevel;
+    const k = Math.min(1, 0.4 + strength / 14);
+    const n = Math.round((16 + 24 * k) * this.soft.density);
+    const fx = Math.sin(s.yaw);
+    const fz = Math.cos(s.yaw);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      if (inside || i % 3 === 0) {
+        // Spray thrown up round the hole (falling back), and a ring of foam on the water.
+        const foam = i % 2 === 0;
+        const out = foam ? 3 + Math.random() * 4 * k : 1.5 + Math.random() * 3;
+        this.soft.emit(
+          x + ca * 1.2,
+          sea + (foam ? 0.25 : 0.4),
+          z + sa * 1.2,
+          ca * out + fx * s.speed * 0.1,
+          foam ? 0.4 : (inside ? 5 : 3) + Math.random() * 5 * k,
+          sa * out + fz * s.speed * 0.1,
+          foam ? 1.2 + Math.random() * 0.6 : 0.7 + Math.random() * 0.4,
+          foam ? 1.4 + Math.random() * 1.2 : 0.45 + Math.random() * 0.5,
+          SPLASH,
+          foam ? 0 : 12,
+          foam ? 1.8 : 0.5,
+        );
+      } else {
+        // Droplets streaming off the bird as it rises, carried a little, then falling.
+        const r = Math.random() * 1.2;
+        this.soft.emit(
+          s.x + ca * r,
+          Math.max(sea + 0.3, s.y - Math.random()),
+          s.z + sa * r,
+          fx * s.speed * (0.2 + Math.random() * 0.3) + ca,
+          2 + Math.random() * 3,
+          fz * s.speed * (0.2 + Math.random() * 0.3) + sa,
+          0.6 + Math.random() * 0.5,
+          0.3 + Math.random() * 0.35,
+          SPLASH,
+          12,
+          0.4,
+        );
+      }
+    }
+  }
+
+  /**
+   * While the bird is under the cloud a trail of churned puffs rises over it, to follow it by;
+   * under water, bubbles break the surface over it.
+   */
+  private frameWake(dt: number): void {
+    const g = this.game;
+    const s = g.flight;
+    if (s.cloud <= Config.flight.cloudIn || dt <= 0) {
+      this.wakeTimer = 0;
+      return;
+    }
+    const sea = Config.world.waterLevel;
+    if (g.flightGround(s.x, s.z) < sea) {
+      this.wakeTimer -= dt;
+      while (this.wakeTimer <= 0) {
+        this.wakeTimer += 1 / (34 * this.soft.density + 1e-3);
+        const spread = 0.8 + s.cloud * 0.12;
+        this.soft.emit(
+          s.x + (Math.random() - 0.5) * 2 * spread,
+          sea + 0.15,
+          s.z + (Math.random() - 0.5) * 2 * spread,
+          (Math.random() - 0.5) * 0.6,
+          0.2 + Math.random() * 0.4,
+          (Math.random() - 0.5) * 0.6,
+          0.5 + Math.random() * 0.5,
+          0.15 + Math.random() * 0.25,
+          SPLASH,
+          0,
+          1.2,
+        );
+      }
+      return;
+    }
+    const col = g.world.softColor ?? WHITE;
+    const shade = this.cloudShade.copy(col).multiply(SHADE);
+    this.wakeTimer -= dt;
+    let n = 0;
+    while (this.wakeTimer <= 0) {
+      this.wakeTimer += 1 / (30 * this.soft.density + 1e-3);
+      const top = g.flightGround(s.x, s.z);
+      // Deeper, the swell over the bird is broader and gentler.
+      const spread = 1 + s.cloud * 0.25;
+      this.soft.emit(
+        s.x + (Math.random() - 0.5) * 2 * spread,
+        top + 1.3,
+        s.z + (Math.random() - 0.5) * 2 * spread,
+        (Math.random() - 0.5) * 2,
+        1 + Math.random() * 2,
+        (Math.random() - 0.5) * 2,
+        0.9 + Math.random() * 0.6,
+        2 + Math.random() * 1.6 * spread,
+        n++ % 3 === 1 ? shade : col,
+        -0.2,
+        1.4,
+      );
+    }
+  }
+
   private frame(dt: number, time: number): void {
     const g = this.game;
     const pal = g.day.palette;
@@ -310,6 +566,7 @@ export class Gameplay {
     this.contactFx -= dt;
     const density = QUALITY[g.quality].particles;
     this.glow.density = this.soft.density = density;
+    this.frameWake(dt);
 
     // Wisps glow gold by day and turn moonlit cyan as the stars come out.
     this.wispColor.copy(GOLD).lerp(MOON, smoothstep(0.3, 0.9, pal.stars));
@@ -341,6 +598,23 @@ export class Gameplay {
     this.soft.update(dt, halfH);
     this.thermals.render(time, halfH, this.tmp.copy(WHITE).lerp(pal.sun, 0.3));
     this.lanterns.update(dt, time, this.lanternSpark, 14 * density);
+    this.beacon.update(dt, time, g.chase.camera);
+    this.roost.update(time, pal.stars);
+    this.flock.update(dt, time, pose, g.world);
+    // Sparks rise from the cairn's lantern while its stray waits, so it reads up close.
+    const cur = this.destinations.current;
+    if (cur && dt > 0 && Math.hypot(cur.roost.x - pose.x, cur.roost.z - pose.z) < 300) {
+      this.roostSpark -= dt * 5 * density;
+      if (this.roostSpark < 0) {
+        this.roostSpark += 1;
+        // The lantern in the cairn's frame, turned by its yaw.
+        const r = cur.roost;
+        const c = Math.cos(r.yaw);
+        const sn = Math.sin(r.yaw);
+        const L = LANTERN;
+        this.lanternSpark(r.x + L.x * c + L.z * sn, r.y + L.y + 0.2, r.z - L.x * sn + L.z * c);
+      }
+    }
 
     const c = Config.flight;
     const speedT = clamp((pose.speed - c.cruiseSpeed) / (c.maxSpeed - c.cruiseSpeed), 0, 1);

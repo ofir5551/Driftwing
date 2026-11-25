@@ -4,9 +4,9 @@ import { Config, QUALITY, type QualityLevel } from './Config';
 import { Events } from './Events';
 import { Input } from './Input';
 import { Loop, STEP } from './Loop';
-import { angleDelta, clamp, lerp } from './math';
+import { angleDelta, clamp, lerp, smoothstep } from './math';
 import { createDebugPanel } from './DebugPanel';
-import { Bird, type Pose } from '../player/Bird';
+import { Bird, birdVeil, type Pose } from '../player/Bird';
 import { ChaseCamera } from '../player/ChaseCamera';
 import { DEFAULT_SPECIES, speciesDef, type SpeciesDef } from '../player/Species';
 import {
@@ -79,6 +79,8 @@ export class Game {
   private sceneryTimer = 0;
   private readonly loop: Loop;
   private readonly env: FlightEnv;
+  /** The bird is under the top of soft cloud (with hysteresis: in at `cloudIn`, out at the top). */
+  private inCloud = false;
   /** Systems that want a fixed-step tick or a per-frame update hook in (M3+). */
   private readonly stepHooks: ((dt: number) => void)[] = [];
   private readonly frameHooks: ((dt: number, time: number) => void)[] = [];
@@ -121,6 +123,7 @@ export class Game {
     this.env = {
       groundAt: (x, z) => this.world.flightGround(x, z),
       thermalAt: () => 0,
+      softAt: (x, z) => (this.world.softGround ? this.world.softGround(x, z) : 0),
     };
 
     this.scene.fog = new THREE.Fog('#fff', 200, 1000);
@@ -220,6 +223,7 @@ export class Game {
     const { world, spawn } = this.level.create(Config.world.seed);
     this.world = world;
     this.spawn = spawn;
+    this.inCloud = false;
     this.scene.add(world.group);
     // The bird flies on as the same species.
     Object.assign(
@@ -327,6 +331,7 @@ export class Game {
       s.contact = 'ground';
       s.contactStrength = Math.max(s.contactStrength, hit);
     }
+    this.stepCloud();
     if (s.flapped) this.events.emit('flap', { x: s.x, y: s.y, z: s.z });
     if (s.climbBeat) this.events.emit('wingbeat', { x: s.x, y: s.y, z: s.z });
     // Water splashes; the ground only makes a sound or dust when the level reports a solid strike
@@ -340,6 +345,52 @@ export class Game {
         strength: s.contactStrength,
       });
     for (const fn of this.stepHooks) fn(dt);
+  }
+
+  /** Plunging into soft cloud and bursting out: the event, and the level's ripple. */
+  private stepCloud(): void {
+    const s = this.flight;
+    const inside = this.inCloud ? s.cloud > 0 : s.cloud > Config.flight.cloudIn;
+    if (inside === this.inCloud) return;
+    this.inCloud = inside;
+    const vy = Math.sin(s.pitch) * s.speed + s.liftVy;
+    const strength = Math.abs(vy);
+    this.world.plunge?.(s.x, s.z, clamp(0.35 + strength / 16, 0.35, 1));
+    const water = this.world.flightGround(s.x, s.z) < Config.world.waterLevel;
+    this.events.emit('cloud', { inside, x: s.x, y: s.y, z: s.z, strength, water });
+  }
+
+  /** The bird melts into the soft cloud it glides into, or is tinted under water (Bird's veil). */
+  private updateVeil(o: Pose): void {
+    const w = this.world;
+    w.swim?.(o.x, o.z, o.yaw, this.flight.cloud);
+    const soft = w.softGround && w.softColor ? w.softGround(o.x, o.z) : 0;
+    birdVeil.uVeil.value = soft;
+    birdVeil.uVeilBody.value = 0;
+    if (soft <= 0 || !w.softColor) return;
+    const ground = w.flightGround(o.x, o.z);
+    const c = Config.flight;
+    birdVeil.uVeilTime.value = this.time;
+    birdVeil.uVeilColor.value.copy(w.softColor);
+    const water = Config.world.waterLevel;
+    if (ground < water) {
+      // Under clear water the bird stays in sight: what is under the surface takes the water's
+      // tint at once (`waterTint`), and the whole bird more of it the deeper it goes; nothing
+      // dissolves. The water plane over it adds its own veil and, at grazing angles, its mirror.
+      birdVeil.uVeil.value = soft * c.waterTint;
+      birdVeil.uVeilY.value = water - 0.2;
+      birdVeil.uVeilBand.value = 0.6;
+      birdVeil.uVeilBody.value = soft * c.waterDeepTint * smoothstep(0, c.cloudDepth, water - o.y);
+      birdVeil.uVeilDissolve.value = 0;
+      return;
+    }
+    const top = ground;
+    birdVeil.uVeilDissolve.value = 1;
+    // The whole bird melts into the mist over the last metres above the top and is gone a little
+    // under it; it comes back the same way, so it never pops in or out.
+    birdVeil.uVeilBody.value = soft * smoothstep(c.cloudFade, -c.cloudFade, o.y - top);
+    birdVeil.uVeilY.value = top;
+    birdVeil.uVeilBand.value = Config.flight.cloudVeil;
   }
 
   /**
@@ -381,9 +432,12 @@ export class Game {
 
     this.day.update(dt, Config.world.dayLength * this.level.dayScale);
     this.bird.update(o, s.sinceFlap + alpha * STEP, s.sinceClimbBeat + alpha * STEP, this.time, dt);
+    // Over soft cloud the camera keeps above where it rides while the bird skims the tops.
+    this.chase.soft = this.world.softGround ? this.world.softGround(o.x, o.z) : 0;
     this.chase.update(o, Math.max(dt, 1e-4), this.camGround, this.camPush);
     this.world.update(o.x, o.z);
     this.world.frame(dt, this.time, this.day);
+    this.updateVeil(o);
     const cam = this.chase.camera;
     this.applyPalette();
     this.sky.update(this.day, cam, this.time);

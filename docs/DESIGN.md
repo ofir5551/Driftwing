@@ -525,7 +525,10 @@ Arches: one shape for all of them, a band between two half ellipses (the opening
 Arch (46 m half span, 62 m rise) stands across the floor ~330 m down the canyon from the spawn,
 where the floor opens out to hold its legs; smaller ones stand across straight reaches of the
 canyons (one in a 420 m grid cell at most, snapped to the centre line), and fins with a window
-through them stand on level ground out on the plateau. Painted mesas and buttes ring the horizon
+through them stand on level ground out on the plateau. A cell's first spot decides as it always
+did; when it found no canyon arch and stood no fin, up to `archTries` (6) more spots look for a
+canyon arch, so one stands every ~1 km down a canyon (gaps of 4-7 km used to leave the journeys
+nowhere to go; see Destinations). Painted mesas and buttes ring the horizon
 in three washes of the rock's shade.
 
 Atmosphere: a dust haze layers the far rims and mesas all day; a little mist lies in the canyons
@@ -648,6 +651,30 @@ tops and each other) through ShadowCasters, and the screen-space shafts are a li
 (0.7); huts, pavilions, shrines, boulders and dwarf pines get contact shadows on medium and high.
 
 Flight: the cloud sea is soft ground, skimmed like water with a puff of cloud (`World.skimColor`).
+
+Flying into the cloud: out on open cloud the sea is soft (`PeaksLayout.softness`, the flight
+model's `softAt`). The bird rests lower over it (`cloudSkim`, 2.5 m, brushing the tops), and
+while the stick asks for a descent the cushion's floor drops to `cloudDepth` (6 m) under the
+tops, so any descent, gentle or steep, glides in and levels out about 5 m down; inside, the
+cloud soaks up sinking and extra lift. It allows a breath (`cloudHold`, 2.5 s; it comes back out
+of the cloud at `cloudRecover`), then, or as soon as the stick is let go, the floor rises to the
+skim and the bird is lifted out at a shallow climb (`cloudClimb`, judged `cloudLead` s ahead so it
+arrives level): it surfaces at its skim, never leaping out. Held down, it glides in, out and in
+again every few seconds; nothing is gained or lost, it is only feel. Near rock (within
+`softNear`-`softFar` of a spire's reach, where the rock goes on down under the cloud and a
+glance off it would be unseen) and round a gap (whose walls would show the bird) the cloud is
+the usual floor. Going in: the whole bird melts into the mist over the last `cloudFade` m above
+the top and is gone as far under it (`Bird`'s veil: its colour into the cloud's and a rising
+noise dissolving it, with the parts nearest the top going first), a crown of puffs (some in the
+cloud's lilac shade) rolls out, a hollow closes over it and a ring of churned cloud spreads on
+the tops (`cloudSea`'s plunges); a soft "fwump" plays and the whole mix closes through a lowpass
+(`AudioEngine.setMuffle`). Under: the camera does not follow. Over soft cloud it never sinks
+below where it rides while the bird skims the tops (`cloudSkim` plus its own height over the
+cloud at the bird, clear of the heaps ahead), a floor tied to the place, not switched on in time,
+and it watches the cloud where the bird went in: a swell rides over the bird with its dim shape
+showing through, puffs churning up over it. Out: the bird fades back in as it rises, vapour peels off it, another ring spreads and a
+rising rush plays. The blob shadow fades as the bird sinks. Tuned in `Config.flight.cloud*`,
+`camera.cloud*` and `peaks.soft*`, `veil*`, `ripple`.
 Spires are solid but soft, flown with the city's look-ahead and wall glance; summits push up
 (skim them). The bridge is a solid box with an underside: the look-ahead eases the nose under
 it, and touching it pushes the bird up off the deck or down under it. Ledge cover, huts and
@@ -720,6 +747,25 @@ paints the lagoons by depth (white sand, aqua shallows, turquoise, the blue of a
 deep blue of the ocean), with pale coral rubble on the reef flats and coral heads dark in the
 lagoons. At grazing angles the water turns back into a mirror of the sky (fresnel), so the
 far sea still reads as sea. Every other level keeps clarity 0, the painted veil.
+
+Diving under: deep water is a soft surface like Sea of Clouds' cloud (`AtollLayout.softness`,
+the flight model's `softAt`, with the top at the water level): full over `diveDeep` (8 m) of
+water, none by `diveShallow` (3.5 m), judged by the shallowest seabed within `diveLook` (a reef
+wall or a coral head rises fast), none under a hut or pier and fading out toward every rock (its
+stem runs on down). So the open ocean and the passes take the whole dive (about 5 m down), a
+7 m lagoon about 4 m (3 m clear of the sand), a 6 m lagoon a dip, and reefs and shallows none. It
+is the cloud's glide (in while the stick asks for a descent, a breath of `cloudHold`, out level at
+the skim, letting go brings it out), but only while the stick asks to go in or the bird is still
+coming out: otherwise level flight over deep water skims and splashes off it as before, and its
+minimum-altitude push rests while the water is open (under water it built up and flung the bird
+out). Never onto the seabed: the floor keeps `clearance` over it. The water stays clear, so the
+bird stays in sight: under the surface it takes the deep water's tint (`waterTint`, the palette's
+water leaning to the open ocean's blue), the whole bird more of it with depth (`waterDeepTint`),
+and nothing dissolves; the water plane adds its veil and, at grazing angles, its mirror. The
+camera keeps its water-skim height over it and may aim `waterAim` m down to follow the bird.
+Going in: a splash and a ring of foam, a "bloop" under the splash, and the mix muffled; under,
+bubbles break the surface over the bird and now and then one rises past it with a chirp; out,
+droplets stream off it and fall back over a smaller splash.
 
 Atmosphere: no valley mist, only a light sea haze fading the far atolls. Surf breaks round every
 outer reef: one strip per atoll in view (built as it comes into draw distance, freed when it
@@ -947,6 +993,137 @@ the Rest card, out of the sightline while flying, and a reached lantern says "La
 without its points (light and the bell say the rest). Only the first lantern to light gets a
 toast. Start screen, pause menu (volume, quality, invert-Y), settings and best score in
 localStorage.
+
+## Destinations (built, every level)
+
+Players said the game felt good for a while and then aimless, and they lost interest within the
+first flight: following wisps has no beginning, middle or end. So each flight is now a run of
+journeys. A **beacon**, a tall column of warm light, rises over a landmark far ahead; the
+wisps lean toward it, so simply following them gets there; reaching it ends the journey with a
+flare, a surge, a held chord, flow refilled, "<name> reached" and 40 light (a lantern gives 10).
+Seven seconds later the next beacon rises. Calm by design: no clock, nothing to fail or miss,
+and a missed approach is just circling back.
+
+- Pacing: the first beacon rises 4 s into a flight ("A beacon rises over Hidden Window", queued
+  behind any hint), at least 1 km along the way (about 40-80 s). Later ones are at least 1.6 km
+  along (about a minute or two). A bird that strays more than 5.2 km from a beacon gets a nearer
+  one. Only while playing: the title's bot flies with no beacon.
+- The Rest card lists the flight's journeys ("Journeyed to Hidden Window · Owl Gate").
+- Red Canyons: the destinations are the canyon arches (never the Great Arch, which the opening
+  ribbon already threads). From the bird, a walk snaps to the nearest canyon's centre line and
+  follows it the way the bird faces until a canyon arch far enough along; its route is that
+  centre line. Only ahead: a destination behind would turn the ribbon back past the bird, so with
+  none in reach (4.6 km) there is none for now and the tracker asks again 5 s later. Each arch
+  keeps its name (a first word and a kind from its seed: "Coyote Arch", "Hidden Window").
+- The canyon planner leans its trend along the route (toward the point 320 m past its nearest
+  one). While the cursor is down in the canyon within 250 m of the route, its runs follow the
+  route's own direction there (aiming ahead cut across hairpins and sent the ribbon over the
+  rim), and on the last 680 m they come down to the floor from any height, so the ribbon threads
+  the arch. The generic patterns stay out while a journey is on.
+- Arriving is flying **through the beacon's light**, as with a lantern: within 18 m of its axis
+  (`Config.destinations.reach`), at any height down to 15 m below its foot. At first anywhere
+  near the landmark counted; the stray joining then felt unearned. So the column stands where
+  the route ends, where the ribbons run: in the arch's opening, on the river or fjord beside
+  the landmark, beside an isle, spire or high island, on the avenue round Neon Bay's centre
+  block, over a town or outpost. The cairn and its stray stay by the landmark itself.
+- Leading through it: within `goalLineUp` (260 m; Neon Bay 455 m, its grid turns ribbons away)
+  every open-country planner flies straight at the column, and the ribbons and their planner
+  share one `GoalLean` that notes each wisp laid: a ribbon that runs 250 m past without one
+  in the light turns back for another pass. The beam fades near its axis only to a quarter
+  (it used to vanish within 200 m, fine when passing near was enough).
+- The beacon (`world/Beacon.ts`): an additive cylinder, brightest facing the camera, fading
+  upward and near its axis (so flying into it never floods the screen). The far plane follows
+  the draw distance (845 m on low quality) and a beacon can be 4 km off, so the vertex shader
+  draws a far one at 85 % of the far plane along the same line of sight, scaled about the camera
+  (the projection is unchanged), widening with distance so it stays a stroke on a phone.
+- Tested headless: the bot (no flaps, no eyes for the beacon) gets its first arrival in 42-80 s
+  on six seeds and about four in six minutes on most. It can lose the ribbon round a tight
+  hairpin (one seed manages two), which a player looking at the beacon would not.
+- Code: `world/Destinations.ts` (pure: `Destination`, `DestinationSource`, `DestinationTracker`),
+  a level's source as `World.destinations` (`world/canyon/destinations.ts`), the planner's
+  optional `WispPlanner.setGoal(route)`, `arrival`/`destination` events (light in `main.ts`,
+  `Music.arrived`), `Config.destinations`.
+- Next: approach courses with calm medals (gates threaded, no clock).
+
+### Every level's destinations
+
+Two shapes of journey, both in shared code, each level giving only its landmarks:
+
+- **Walks** (`world/walk.ts`) where the level's natural ways are channels along a noise's zero
+  contour: down the bird's own channel, the way it faces, to the first landmark beside it far
+  enough along; the route is the centre line, the way the ribbons already run. Red Canyons (its
+  own walk, the first), Jade River (stone bridges, and pagodas standing over the water) and
+  Aurora Fjords (fishing villages on the strand, waterfalls down the walls).
+- **Picks across open country** (`world/landmarks.ts`): the landmark ahead (within a cone, then
+  anywhere) nearest ~1.3x the least distance, and a straight route to it, ending beside a solid
+  landmark (`aside`) or at an open way in (`end`). Highlands (the floating isles: beacon from the
+  top, cairn on the turf, the route beside the isle, never under its hanging rock), Neon Bay
+  (lattice towers, the beacon from the top, and grand shrines; arrival anywhere round the
+  centre block, since the avenues are ~120 m off), City of Gold (hill towns, found by sampling
+  the town field on a 420 m grid, a town's towers being too costly to build for a search; the
+  cairn on its roofs), Sea of Clouds (spires 150 m and up, the cairn on the summit), Coral
+  Atolls (each atoll's high island, beacon from its fang and cairn on its beach, else its
+  stilt village) and Ringmoon Shallows (the explorers' outposts, the cairn at the end of the
+  lit path).
+- Never a hidden find: not the Highlands isles' undersides, Jade River's summit pavilions, the fjords'
+  lighthouse, Sea of Clouds' hermitages and monastery, the home atoll, Ringmoon's beacon towers
+  and ship. City of Gold's Old City stays the opening ribbon's.
+- Grids with small cells (pillars 72 m, spires 100 m, Ringmoon's props 130 m) are sampled every
+  third cell: thousands of cells over a 4.6 km search would thrash the layouts' cell caches.
+- Leaning the ribbons (`world/goal.ts`, `GoalLean`): every planner's trend becomes the way to
+  the goal (the aim 320 m along the route past its nearest point), and its detours (swings and
+  spirals round a landmark, reef-ring runs, tower spirals) wait until the journey ends; they
+  lead the bird off the way. On the open levels a ribbon that overshoots by 500 m without the
+  bird arriving turns back (the ribbon runs ~400 m ahead of the bird, so less is usual). The
+  generic patterns (the Highlands have no planner) turn toward the goal at most 0.6 rad a
+  pattern, along the lowest way within 1.35 rad of it, and straight in on the last 680 m:
+  snapping each pattern at the goal sent ribbons up hills no gliding bird could follow, and
+  drifting there missed isles by 150 m. Neon Bay's runs set off along the avenue axis toward the
+  goal unless that turns back on the ribbon (a U-turn ribbon runs back past the bird, which
+  loses it, and the ribbon restarts ahead of the bird for ever); while the goal lies well off to
+  one side the ribbon glides over the roofs, turning a little each time.
+- Tested headless (`tests/journeys.test.ts`, four seeds, six minutes, through the light): bars
+  set at what the bot manages. Best: Red Canyons and Aurora Fjords (4 journeys a seed). Hardest:
+  Neon Bay (the street grid: 4 arrivals, two seeds none, and the bot glances walls about twice
+  as often as without a journey); Jade River, City of Gold and Sea of Clouds each have one seed
+  that arrives nowhere in six minutes.
+
+### What waits there: a lit cairn and a stray (built)
+
+Step 1 left the destination an ordinary arch: nothing said "you have arrived somewhere". Now
+each destination has a **cairn** (stacked sandstone, ~3 m, a lantern on a post that flickers
+and glows brighter at night, sparks rising from it while its bird waits), standing on the floor
+inside the opening beside one leg, out of the river and well under the ribbon's line, so it is
+framed in the arch on the way in. On its top stone perches a **stray**, wings folded. On arrival
+it takes off and joins the player's **flock**.
+
+- The flock is kept for good (the save's `flock`: each bird's plumage, oldest first, up to 400)
+  and flies with the bird in every level, on the title's backdrop too, so progress is something
+  seen, not a number. A screen holds the newest 12; the rest are kept and counted. The first
+  bird ever is announced ("A bird joins your flock"); after that, seeing it join says it.
+- Where they fly: round and a little ahead of the bird (4.5-15 m), not in a V behind it. The
+  camera sits 6 m behind and, on a phone held upright, sees a narrow cone: a trailing V would be
+  off screen or in the lens. Each slot's sideways reach grows with how far ahead it is (the view
+  widens), slots are spread by low-discrepancy sequences (any flock size fills the space and a
+  bird keeps its place as more join), and they drift slowly. A little below the bird on average:
+  the camera is 1.5 m up, so it sees their backs, not edge-on wings.
+- How they follow: each bird's offset from the bird springs (critically damped, its own
+  stiffness) toward its slot turned by the bird's heading and pitch. Offsets, not positions: a
+  world-position spring trails 2v/w behind (30 m at a Phoenix's cruise); offsets keep up at any
+  speed and lag only in turns, so the flock swings round a bend together. A joining bird starts
+  from its perch's offset and climbs to its place, flapping. They flap when the bird flaps (each
+  a little late), while it climbs, and now and then on their own; otherwise they glide with
+  wings in a V. The level's `pushPoint` and flight floor keep them out of rock and off the ground.
+- Look: one instanced mesh (~60 triangles a bird, wingbeat and fold in the vertex shader from a
+  per-vertex `aWing` and per-instance `aBird`), near-white vertex shading times a pastel tint
+  (eight, `world/flockTints.ts`: the save keeps indices, so the list only grows), and the
+  player bird's trick of a soft self-light on faces turned away. Grey shading times mid-toned
+  tints read as dark brown blots against red rock; flat wings from behind read as dotted lines.
+- The Rest card adds "A bird joined · a flock of 7" under the journeys. `?flock=N` flies N birds
+  for screenshots without touching the save.
+- Code: `world/Flock.ts` (mesh, springs, perch), `world/formation.ts` (pure: slots, the
+  heading-turned offset, the spring; tested), `world/Roost.ts` (the cairn), a destination's
+  `roost` and `tint`, `Journey.joinFlock`.
 
 ## Progression (proposed)
 
@@ -1205,7 +1382,7 @@ The "mix" beyond birds, and what gives the cosmetics a purpose beyond light:
 ### Save format
 
 `driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], seen: string[],
-found: string[] }`,
+found: string[], flock: number[] }`,
 loaded with the same guards as settings (bad or missing fields fall back to defaults; storage
 errors mean no progress is saved, never a crash). `revealed` makes each unlock card show once;
 `seen` is the track as the save knew it (see Species). The Aviary picks (`species`, `plumage`,
@@ -1573,6 +1750,40 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - The cloud sea's motion is a vertex heave in its shader, not a moving height field: the flight
   model, wisps, finds and look-ahead keep a fixed ground. It stays under `groundHeight` (the
   bird's floor over the sea) and flattens round the camera, whose floor is 1.2 m over the field.
+- Flying into the cloud sea is a soft floor in the flight model (`FlightEnv.softAt`), not a
+  volume the bird flies in: the stay is a few metres and a few seconds, so lowering the cushion's
+  floor under the tops gives it, and wisps, finds and the look-ahead keep the cloud top. The
+  cloud sea is opaque terrain, so the bird is hidden by the depth test alone; the veil (the whole
+  bird fading and dissolving through the top's last metres) is what keeps the cloud from reading
+  as a floor the bird is cut by. Its marks (hollow, ring, swell, the bird's shape) multiply the
+  lit colour, not the paint: the sunlit tops are close to white, and a darker paint alone
+  vanished under the light. The puffs' colour is the mist's lifted and capped, as the lit tops
+  outshine the mist most at night but by day the lift made the puffs bloom.
+- The first build was a dolphin's dip: only a steep dive went in (the cushion levelled gentler
+  descents on the tops), a buoyancy spring growing with depth threw the bird out within a second
+  or two with a leap of several metres, and holding the dive porpoised. Players found it hard to
+  get in and it did not feel like flying into cloud. Now the cloud opens to any descent, holds the
+  bird a breath and eases it out level.
+- The camera first rose a few metres to look down on the bird's spot, and shook: its floor and
+  aim read the cloud's height raw, and the heaps meet in sharp creases (|noise|), so at dive speed
+  each crease jolted the lens; it also stopped dead on its floor in one frame as it followed a
+  dive down. The next build glided level over the tops, but as a mode eased on and off in time:
+  for a moment after going in the lens still followed the bird down, and climbing out it hung
+  low, looking up at the bird, until the mode let go and it snapped back. Now the floor is a
+  place: over soft cloud (the bird's `softAt`, which changes only over tens of metres near rock)
+  the lens never sinks below where it rides at the skim, so nothing switches and nothing jumps.
+  The floor (the skim's height over the cloud at the bird, `cloudClear` over the heaps under the
+  lens and 0.3-0.9 s ahead) rides a critically damped spring (`cloudOmega`), so its speed never
+  jumps and the look-ahead makes up for its lag, and the lens eases onto it through a smooth max
+  (`cloudSoft`, its rounding taken off the skim's height so the skim view is unchanged). Measured
+  over a held dive and a release: the lens never below the bird (at least 1.5 m over it) and at
+  least 1.5 m over the cloud under it, its vertical acceleration a mean of 6.9 m/s^2 (95th
+  percentile 19), the bird's own 6.1 (18); the first build's was 181 (519).
+- Coral Atolls' deep water reuses the cloud's soft surface (the flight model's top is the higher
+  of ground and water) rather than a swimming model, so the feel is the same in both. Unlike
+  cloud, water is soft only while the bird goes in or comes out: level flight over the open
+  ocean is the level's skim-and-splash play and stays as it was. The submerged bird is shown,
+  not hidden (the water is clear); a dissolve would have read as the bird vanishing in glass.
 - Sea of Clouds hands over to the generic wisp patterns only out over open cloud (no spire within
   260 m), and when nothing fits it wheels round with short glides instead: near a spire a
   generic pattern lifts its path straight over the summit, a 100 m jump the bot could not climb
@@ -1789,3 +2000,22 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Taps faster than the flap cooldown were simply lost, which reads as the game ignoring you. A
   press in the last `flapBuffer` (0.25 s) of the cooldown is now kept and flaps the moment it ends;
   earlier presses are still dropped, so no flap comes long after its tap.
+- Destinations: a flight needed an arc. A beacon over a landmark ahead that the wisps lead to, and
+  an arrival, was chosen over a timer or a fail state (the first pillar stands). Red Canyons
+  first: its arches are natural ends. Picking any canyon arch across the land and routing over
+  the plateau failed: a ribbon down in a canyon cannot climb its 125 m walls toward a goal across
+  them, and climbing out along the canyon flip-flopped when the goal lay square across it. Walking
+  down the bird's own canyon works (the ribbons already run there), once arches stand often enough.
+- The flock flies ahead of the bird, not behind: on a phone held upright the chase camera sees a
+  cone a few metres wide at the bird, so a V behind it was invisible. Followers spring their
+  offsets from the bird rather than world positions, so they keep up at any speed.
+- Journeys on every level: walks down a channel where the level has channels (canyons, rivers,
+  fjords), picks across open country elsewhere. Picking a pagoda across Jade River's pillar
+  forest failed (the ribbons could not thread to one); walking down the river to the next one
+  works. Neon Bay's ribbons first circled round towers near the goal and U-turned at the
+  opening; both are now ruled out mid-journey.
+- Arrival means flying through the beacon's light, not passing near the landmark. Bot arrivals
+  over four seeds in six minutes, near -> through: Red Canyons 16 -> 16, Aurora Fjords 16 -> 16,
+  Coral Atolls 10 -> 10, Highlands 9 -> 8, City of Gold 7 -> 7, Ringmoon 5 -> 7, Sea of
+  Clouds 8 -> 6, Jade River 4 -> 4, Neon Bay 4 -> 4 (two seeds there, and one each in Jade
+  River, City of Gold and Sea of Clouds, arrive nowhere in six minutes).

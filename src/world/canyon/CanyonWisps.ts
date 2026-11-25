@@ -2,6 +2,7 @@ import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
 import type { Arch, CanyonLayout } from './CanyonLayout';
+import { GoalLean } from '../goal';
 
 type Spawn = (x: number, y: number, z: number) => void;
 
@@ -32,8 +33,14 @@ export class CanyonPlanner implements WispPlanner {
   private trendX = 0;
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
+  /** The way to the current destination (down the canyon to its arch), if a journey is on. */
+  private lean = new GoalLean();
 
   constructor(private readonly L: CanyonLayout) {}
+
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -41,6 +48,12 @@ export class CanyonPlanner implements WispPlanner {
     if (Math.abs(c.x - this.expect.x) + Math.abs(c.z - this.expect.z) > 1) {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
+    }
+    // On a journey the trend is the way to the destination: down the canyon to its arch.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
     }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (!this.introDone) {
@@ -53,8 +66,20 @@ export class CanyonPlanner implements WispPlanner {
     const K = Config.canyon;
     // Now and then let the generic patterns run (they bring the thermal spirals), but only far
     // out in the desert: they know nothing of walls and would ask for a climb no bird can make.
-    if (rand() < 0.15 && L.canyon(c.x, c.z) > K.wall + 220) return false;
+    // Not on a journey: they know nothing of the way either.
+    const generic = rand() < 0.15;
+    if (generic && goal === null && L.canyon(c.x, c.z) > K.wall + 220) return false;
     const along = L.heading(c.x, c.z, base);
+    if (goal !== null && this.lean.onRoute && L.canyon(c.x, c.z) < 0) {
+      // On the way: run down the canyon the way the route goes (the aim point ahead can lie
+      // across a hairpin's wall, which would send the ribbon up over the rim). On the last
+      // stretch it comes down to the floor from any height, so it threads the arch.
+      const h = L.heading(c.x, c.z, this.lean.routeDir);
+      this.pts.length = 0;
+      if (this.lean.approaching) this.canyon(c, h, 18, 12, 0);
+      else this.canyon(c, h, 12 + rand() * 14, 10 + Math.floor(rand() * 6), (rand() - 0.5) * 0.9);
+      if (this.commit(c, spawn)) return true;
+    }
     if (L.canyon(c.x, c.z) < 0 && c.y < 70 && Math.abs(angleDelta(base, along)) < 1.2) {
       this.pts.length = 0;
       this.canyon(c, along, 12 + rand() * 14, 10 + Math.floor(rand() * 6), (rand() - 0.5) * 0.9);

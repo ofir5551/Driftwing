@@ -38,8 +38,12 @@ export class GameAudio {
     game.events.on('trick', (e) => this.music.land(e.kind));
     game.events.on('unlock', () => this.music.unlocked());
     game.events.on('discovery', () => this.music.discovered());
+    game.events.on('arrival', () => this.music.arrived());
     game.events.on('contact', (e) => this.sfx.contact(e.kind, e.strength));
     game.events.on('thermal', (e) => this.sfx.thermal(e.inside));
+    game.events.on('cloud', (e) =>
+      e.water ? this.sfx.waterDive(e.inside, e.strength) : this.sfx.cloud(e.inside, e.strength),
+    );
     // Audio params are smoothed with setTargetAtTime, so ~10 updates/s is plenty and keeps
     // AudioParam automation lists short.
     let last = 0;
@@ -57,6 +61,15 @@ export class GameAudio {
       p.paused = game.mode === 'paused';
       this.music.setParams(p);
       this.sfx.update(p.speed, p.paused);
+      // Inside a cloud everything sounds thick and close, deepest a few metres down.
+      this.engine.setMuffle(s.cloud / c.cloudMuffle, c.cloudCutoff, 0.08);
+      // Under deep water, now and then a bubble rises past the bird.
+      if (
+        s.cloud > c.cloudIn &&
+        game.world.flightGround(s.x, s.z) < Config.world.waterLevel &&
+        Math.random() < 0.35
+      )
+        this.sfx.bubble();
     });
   }
 

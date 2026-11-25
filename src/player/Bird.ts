@@ -164,6 +164,74 @@ function wingSurface(
 }
 
 /**
+ * The veil of soft cloud the bird sinks into (the cloud sea): fragments under `uVeilY` and up
+ * to `uVeilBand` over it fade into the cloud's colour and dissolve through a drifting noise, so
+ * the bird melts into wisps of vapour as it goes in instead of being cut off by the cloud's
+ * surface like a floor. Set each frame by Game; `uVeil` is 0 away from soft cloud.
+ */
+export const birdVeil = {
+  uVeil: { value: 0 },
+  /** 0..1: the whole bird melting into the cloud as it sinks through its top (a slow fade). */
+  uVeilBody: { value: 0 },
+  /** 1: the veil dissolves the bird into wisps (cloud); 0: it only tints it (clear water). */
+  uVeilDissolve: { value: 1 },
+  uVeilTime: { value: 0 },
+  uVeilY: { value: -1e9 },
+  uVeilBand: { value: 2 },
+  uVeilColor: { value: new THREE.Color() },
+};
+
+function veil(shader: THREE.WebGLProgramParametersWithUniforms): void {
+  Object.assign(shader.uniforms, birdVeil);
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vVeilP;')
+    .replace(
+      '#include <project_vertex>',
+      '#include <project_vertex>\nvVeilP = (modelMatrix * vec4(transformed, 1.0)).xyz;',
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      '#include <common>',
+      `#include <common>
+varying vec3 vVeilP;
+uniform float uVeil;
+uniform float uVeilBody;
+uniform float uVeilDissolve;
+uniform float uVeilTime;
+uniform float uVeilY;
+uniform float uVeilBand;
+uniform vec3 uVeilColor;
+float veilHash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+// Value noise: soft blobs about 1 / scale apart, for a wispy, not pixel-noisy, dissolve.
+float veilNoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(veilHash(i), veilHash(i + vec3(1, 0, 0)), f.x),
+                 mix(veilHash(i + vec3(0, 1, 0)), veilHash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(veilHash(i + vec3(0, 0, 1)), veilHash(i + vec3(1, 0, 1)), f.x),
+                 mix(veilHash(i + vec3(0, 1, 1)), veilHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}`,
+    )
+    .replace(
+      '#include <tonemapping_fragment>',
+      `float veilK = max(uVeil * smoothstep(uVeilY + uVeilBand, uVeilY - 0.4, vVeilP.y), uVeilBody);
+if (veilK > 0.0) {
+  // Vapour curling up over the bird: the noise rises, so the dissolving edge streams upward.
+  vec3 vq = vVeilP * 2.2 - vec3(0.0, uVeilTime * 1.6, 0.0);
+  float vn = veilNoise(vq) * 0.65 + veilNoise(vq * 2.3 + 7.1) * 0.35;
+  if (uVeilDissolve > 0.5 && vn < veilK * 1.35 - 0.35) discard;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, uVeilColor, min(1.0, veilK * 1.2));
+}
+#include <tonemapping_fragment>`,
+    );
+}
+
+/**
  * Surfaces facing the ground glow faintly with their own colour: sky light bouncing off the
  * land and shining through thin feathers. Without it the belly and underwing fall into the
  * toon shadow tone and read as dull khaki against a bright sky.
@@ -317,12 +385,17 @@ export class Bird {
           '#include <color_fragment>\nif (gl_FrontFacing) diffuseColor.rgb = mix(diffuseColor.rgb, uUnder, 0.55);',
         );
       skyLift(shader, glowU);
+      veil(shader);
     };
-    plumage.onBeforeCompile = (shader) => skyLift(shader, glowU);
+    plumage.onBeforeCompile = (shader) => {
+      skyLift(shader, glowU);
+      veil(shader);
+    };
     const feetMat = toon(this.c.feet);
     this.feetMat = feetMat;
     const eyeMat = new THREE.MeshBasicMaterial({ color: '#221d29' });
     const glintMat = new THREE.MeshBasicMaterial({ color: '#fff8ec' });
+    for (const m of [feetMat, eyeMat, glintMat]) m.onBeforeCompile = veil;
     this.materials = [plumage, feathers, feetMat, eyeMat, glintMat];
 
     // Torso: one lathed piece from tail to neck, so chest, neck and rump flow into each other

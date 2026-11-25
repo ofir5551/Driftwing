@@ -54,6 +54,15 @@ export const cloudSeaUniforms = {
   uCLining: { value: 0 },
   /** The haze that fills a gap, the valley's air (set each frame from the palette). */
   uCHaze: { value: new THREE.Color() },
+  /** The latest plunges into the cloud: x, z, time, strength 0..1 (0: none). A ring buffer. */
+  uCPlunge: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) },
+  /** The bird under the cloud: x, z, depth (0: it is out), heading. The cloud swells over it. */
+  uCSwim: { value: new THREE.Vector4() },
+  uCRipple: {
+    get value() {
+      return Config.peaks.ripple;
+    },
+  },
 };
 
 const NOISE = /* glsl */ `
@@ -105,6 +114,9 @@ uniform vec3 uCSunColor;
 uniform float uCWarm;
 uniform float uCLining;
 uniform vec3 uCHaze;
+uniform vec4 uCPlunge[4];
+uniform vec4 uCSwim;
+uniform float uCRipple;
 ${NOISE}
 // Rounded lobes: each octave squared toward its crests, so the puffs bulge and the seams
 // between them pinch, as in heaped cumulus. q is wind-carried and warped; near (0..1) fades the
@@ -160,6 +172,57 @@ vec2 cQ = vCPos.xz - uCDrift + vCWarp;
 float cL = cLobes(cQ, cNear);
 // Crests of the lobes catch a little more light; the seams between them sink into shade.
 diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.84, 0.84, 0.96), vec3(1.06), smoothstep(0.15, 1.1, cL)), uCDetail);
+// Plunges: where the bird went in a hollow closes over it and a ring of churned cloud rolls
+// outward, heaped (a tilt of the normal, below) and brighter with a shaded trough inside it,
+// settling over three seconds.
+vec2 cRip = vec2(0.0);
+float cFresh = 0.0;
+float cTrough = 0.0;
+float cHole = 0.0;
+for (int i = 0; i < 4; i++) {
+  vec4 pl = uCPlunge[i];
+  float age = uCTime - pl.z;
+  if (pl.w <= 0.0 || age < 0.0 || age > 3.0) continue;
+  vec2 d = vCPos.xz - pl.xy;
+  float r = length(d);
+  float w = 1.6 + age * 1.8;
+  float x = (r - (2.5 + age * 6.5)) / w;
+  if (abs(x) > 3.0 && r > 8.0) continue;
+  float life = 1.0 - age / 3.0;
+  float fade = pl.w * life * life * uCRipple;
+  float ring = exp(-x * x);
+  cRip += d / max(r, 0.01) * (-2.0 * x / w) * ring * fade;
+  cFresh += ring * fade;
+  float xt = x + 1.1;
+  cTrough += exp(-xt * xt * 2.0) * fade;
+  cHole += exp(-r * r / 10.0) * pl.w * (1.0 - smoothstep(0.0, 0.9, age));
+}
+// The bird swimming under: a soft swell of cloud rides over it, broader the deeper it goes, and
+// its shape shows through as a dim blur (wider than long, like the bird), fading with depth.
+float cGhost = 0.0;
+if (uCSwim.z > 0.0) {
+  vec2 d = vCPos.xz - uCSwim.xy;
+  float R = 3.0 + uCSwim.z * 0.45;
+  float q = dot(d, d) / (R * R);
+  if (q < 9.0) {
+    float A = 1.4 * smoothstep(0.0, 1.5, uCSwim.z) * uCRipple;
+    float hump = exp(-q) * A;
+    // Slope of the hump (m per m) toward the outside.
+    cRip += d * (-2.0 / (R * R)) * hump;
+    cFresh += hump * 0.6;
+    vec2 fw = vec2(sin(uCSwim.w), cos(uCSwim.w));
+    float blur = 1.0 + uCSwim.z * 0.3;
+    float along = dot(d, fw) / (1.1 * blur);
+    float across = (d.x * fw.y - d.y * fw.x) / (2.4 * blur);
+    cGhost = exp(-(along * along + across * across) * 1.5)
+      * smoothstep(0.3, 1.5, uCSwim.z) * (1.0 - smoothstep(2.0, 11.0, uCSwim.z)) * uCRipple;
+  }
+}
+// Applied to the lit colour at the end (the sunlit tops are nearly white: a darker paint alone
+// would vanish under the light and the cloud's glow).
+vec3 cMark = vec3(1.0 + 0.12 * min(cFresh, 1.0));
+cMark *= mix(vec3(1.0), vec3(0.84, 0.84, 0.96), min(cTrough * 0.6 + cHole * 0.7, 1.0));
+cMark *= mix(vec3(1.0), vec3(0.58, 0.58, 0.8), cGhost);
 // A gap: the cloud's walls fall away into blue shadow, and far below lie the valleys (a dark
 // forest, a river's thread, terraced fields) under the haze that fills them.
 float cDepth = uCLevel - vCPos.y;
@@ -196,6 +259,8 @@ if (cGap > 0.0) {
   vec3 base = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
   base = normalize(base - vec3(vCTilt.x, 0.0, vCTilt.y));
   wn = normalize(base + wn - vec3(0.0, 1.0, 0.0));
+  // The plunge ring heaps the cloud: tilt the normal down its slope (m per m, scaled up a little).
+  wn = normalize(wn - vec3(cRip.x, 0.0, cRip.y) * 1.6);
   // In a gap the walls and the valley keep their own normal (no cloud lobes down there).
   wn = normalize(mix(wn, base, cGap));
   normal = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
@@ -212,7 +277,8 @@ if (cGap > 0.0) {
       .replace(
         '#include <emissivemap_fragment>',
         '#include <emissivemap_fragment>\ntotalEmissiveRadiance = totalEmissiveRadiance * (1.0 - 0.75 * cGap) + cSunGlow;',
-      );
+      )
+      .replace('#include <opaque_fragment>', 'outgoingLight *= cMark;\n#include <opaque_fragment>');
   };
   m.customProgramCacheKey = () => 'cloudsea';
   return m;

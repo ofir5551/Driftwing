@@ -1009,6 +1009,39 @@ export class AtollLayout {
     return this.best;
   }
 
+  /**
+   * 0..1: how far the bird may dive under the water at (x, z) (the flight model's `softAt`): 1
+   * over deep water (`diveDeep` and more), none by `diveShallow`. The depth is the shallowest
+   * within `diveLook` (a reef wall or a coral head rises fast), stilt huts and piers count as
+   * none, and it fades out toward every rock (its stem runs on down under the water). All of it
+   * continuous, so the bird's floor never jumps.
+   */
+  softness(x: number, z: number): number {
+    const A = Config.atoll;
+    const water = Config.world.waterLevel;
+    const R = A.diveLook;
+    let d = Infinity;
+    for (let n = 0; n < 5; n++) {
+      const sx = n === 0 ? x : x + (n === 1 ? R : n === 2 ? -R : 0);
+      const sz = n === 0 ? z : z + (n === 3 ? R : n === 4 ? -R : 0);
+      const roof = this.roofAt(sx, sz) > -Infinity;
+      d = Math.min(d, roof ? 0 : water - this.height(sx, sz));
+    }
+    this.qr = smoothstep(A.diveShallow, A.diveDeep, d);
+    if (this.qr <= 0) return 0;
+    this.qx = x;
+    this.qz = z;
+    this.nearRocks(x, z, A.diveFar, this.softFn);
+    return this.qr;
+  }
+
+  private readonly softFn = (p: Rock): boolean => {
+    const A = Config.atoll;
+    const gap = Math.hypot(this.qx - p.x, this.qz - p.z) - p.r;
+    this.qr = Math.min(this.qr, smoothstep(A.diveNear, A.diveFar, gap));
+    return this.qr <= 0;
+  };
+
   /** How many rocks stand within `r` of (x, z) (slaloms prefer the rockiest line). */
   rocksNear(x: number, z: number, r: number): number {
     let n = 0;

@@ -40,6 +40,23 @@ export const Config = {
     groundHeight: 4, // m the bird never goes below over land (treetops, roofs and cloud sea too)
     groundCushion: 6, // m above that floor over which the nose is eased level, so it glides in
     groundLead: 0.7, // s of current sink rate the cushion looks ahead, so fast dives ease out early
+    // Soft cloud (a level's softAt, the Sea of Clouds): a dive sinks in and is buoyed back out.
+    cloudSkim: 2.5, // m over the cloud tops the bird rests (it brushes them; the land floor is groundHeight)
+    cloudDepth: 6, // m under the cloud top the bird glides down to (its cushion's floor in the cloud)
+    cloudHold: 2.5, // s the cloud lets the bird stay under before it eases it back up
+    cloudRecover: 1, // how fast that breath comes back out of the cloud (s per s)
+    cloudDip: 14, // m under the cloud top the bird can sink at most (a backstop; the cushion turns it first)
+    cloudDrag: 1.2, // 1/s, how fast the cloud soaks up the bird's sinking and any extra lift
+    cloudPitch: 0.08, // rad of nose-up per metre under the cushion's floor, so the bird rises out
+    cloudClimb: 0.22, // rad, the steepest the cloud lifts the nose (a gentle climb out, no leap)
+    cloudLead: 0.5, // s of the current climb the cloud's lift looks ahead, so the bird arrives at the tops level
+    cloudVeil: 2.4, // m over the cloud top through which the bird's lower parts fade into the cloud's colour
+    cloudFade: 1.5, // m either side of the cloud top over which the whole bird melts into the mist
+    waterTint: 0.45, // how much of the water's colour the bird takes under the surface (deep water)
+    waterDeepTint: 0.75, // how much the whole bird takes at the dive's full depth
+    cloudIn: 0.6, // m under the top at which the bird counts as plunged in (it is out again at the top)
+    cloudMuffle: 4, // m under the cloud top at which the whole mix is fully muffled
+    cloudCutoff: 600, // Hz, the muffle's lowpass at its deepest
     shoreBlend: 3, // m of terrain above the water over which the water margin blends into the land floor
     terrainLookahead: 1.4, // s ahead to sample the ground for the climb assist
     terrainAssist: 1.6, // how strongly the nose lifts to clear terrain ahead
@@ -74,6 +91,12 @@ export const Config = {
     maxFov: 90,
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
+    cloudAim: 0, // m over the cloud top the camera aims while the bird is in the cloud
+    waterAim: 3.5, // m under the water the camera may aim to follow the bird (clear water shows it)
+    cloudSoft: 2, // m over which the camera eases onto its floor over a soft surface instead of stopping dead
+    cloudClear: 2, // m the camera keeps over the heaps of cloud under and ahead of it
+    cloudOmega: 3, // spring frequency of that floor as it follows the cloud's heaps (higher is stiffer, lower is calmer)
+    cloudEase: 2, // 1/s, how quickly the aim follows the cloud top over the bird
   },
   input: {
     mouseDeadZone: 0.06, // fraction of half-screen
@@ -149,6 +172,7 @@ export const Config = {
     plateauVar: 16, // m, rim and plateau swell either way
     mesa: 70, // m, flat-topped mesas and buttes rising off the plateau
     archCell: 420, // m, grid cell that may hold one arch (in the canyon or out on the plateau)
+    archTries: 6, // spots a cell tries for a canyon arch (the first also decides a plateau fin)
     greatAhead: 330, // m along the canyon from the spawn to the Great Arch
     greatSpan: 46, // m, half span of the Great Arch's opening
     greatRise: 62, // m, height of its opening
@@ -442,6 +466,12 @@ export const Config = {
     gapFloor: 5, // m, the valley floor seen through a gap (the water plane is at 0)
     gapRim: 5, // m, cloud heaped round a gap's rim
     gapHome: [-80, 150], // m from the spawn (x, z) to the home gap, left of the opening glide
+    // Diving into the cloud sea (the bird sinks in and is buoyed out; Config.flight.cloud*).
+    softNear: 8, // m off a spire's reach inside which the cloud is solid floor again (rock under it)
+    softFar: 30, // m off it beyond which the cloud is fully soft
+    veilLight: 1.3, // brightness of the veil and plunge puffs against the mist's colour (the lit tops are brighter)
+    veilMax: 0.78, // brightest channel of that colour (linear), so the puffs never bloom
+    ripple: 1, // strength of the churned ring spreading on the cloud sea from a plunge
     // Atmosphere and light.
     mist: 0.75, // the cloud sea's breath: mist hugging its surface, dissolving the spires' feet
     mistRise: 30, // m above the cloud sea that mist reaches
@@ -472,6 +502,13 @@ export const Config = {
     reefWidth: 34, // m, half width of the reef flat
     lagoonDepth: 7, // m, the lagoon floor's mean depth
     ocean: 42, // m, depth of the open ocean between atolls
+    // Diving under the water (the flight model's soft cloud constants, Config.flight.cloud*).
+    diveShallow: 3.5, // m of water under which the bird cannot dive at all
+    diveDeep: 8, // m of water over which it dives fully (a lagoon's ~7 m lets it most of the way)
+    diveLook: 10, // m round the bird within which the shallowest seabed counts
+    diveNear: 8, // m off a rock's cap inside which it cannot dive (the stem runs on down)
+    diveFar: 25, // m off it beyond which it dives fully
+    diveTint: 0.45, // how far the bird's underwater tint leans from the water's colour to the deep blue
     motu: 2.6, // m, height of the palm islets on the reef above the water
     motuShare: 0.5, // about this share of every reef carries islets
     canopy: 8, // m, palm and jungle canopy counts as soft ground this high
@@ -659,6 +696,50 @@ export const Config = {
     light: 25, // journey light a find gives
     flash: 0.3, // screen flash on a find (a lantern lighting is 0.6)
   },
+  destinations: {
+    // Each flight is a journey: a beacon marks a landmark far ahead, the wisps lean toward it,
+    // and reaching it ends the journey (light, a chord, a line on the Rest card), then the next
+    // beacon rises. No clock and nothing to fail: see DESIGN's Destinations.
+    firstDelay: 4, // s into a flight before the first beacon rises (after "Follow the wisps")
+    nextDelay: 7, // s after an arrival before the next beacon rises (time to enjoy it)
+    retry: 5, // s before asking again when no destination could be found from here
+    stray: 5200, // m from the beacon beyond which a new, nearer one is chosen
+    firstRoute: 1000, // m along the way, at least, to the flight's first destination (~40 s)
+    minRoute: 1600, // m along the way, at least, to every later one (about a minute)
+    maxRoute: 4600, // m along the way searched for one (ahead only; none in reach: ask again later)
+    light: 40, // journey light for reaching a destination (a lantern gives 10)
+    reach: 18, // m from the beacon's axis that counts as flying through its light (it is ~9-16 wide)
+    reachBelow: 15, // m below the beacon's foot that still counts (skimming its foot)
+    flash: 0.7, // screen flash on arrival
+    boost: 8, // m/s forward surge on arrival
+    lift: 5, // m/s upward lift on arrival
+    beamHeight: 900, // m, the beacon's column of light
+    beamRadius: 9, // m, its radius at the foot (it widens upward)
+    beamFar: 0.85, // share of the camera's far plane at which farther beacons are drawn, scaled
+    beamWiden: 700, // m from the camera beyond which the beam widens, so it stays readable far off
+    beamNear: 70, // m from its axis inside which the beam fades (to a quarter), so it never floods the screen
+  },
+  flock: {
+    // Each destination's stray, perched on its lit cairn, joins the flock on arrival. The flock
+    // is kept for good and flies with the bird in every level (DESIGN: The flock).
+    visible: 12, // most birds flown with at once (more are kept and counted)
+    keep: 400, // most birds the save keeps
+    aheadMin: 4.5, // m ahead of the bird, nearest slot
+    aheadMax: 15, // m ahead, farthest slot (farther, they shrink to specks on a phone)
+    sideMin: 1.4, // m either side at the bird
+    sideGrow: 0.34, // m more either side per metre ahead (the camera's view widens with distance)
+    upMid: -0.2, // m above the bird, on average (a little below: the camera, 1.5 m up, sees their backs)
+    upSpread: 2, // m up or down from that
+    drift: 1.1, // m each slot wanders, slowly
+    stiffness: 2.2, // rad/s of the springs that keep birds in place (they settle in ~2 s)
+    stiffnessVar: 0.35, // share by which each bird's spring differs (they never move as one)
+    scale: 0.78, // size of a flock bird (its geometry spans 2.3 m: ~1.8 m wingspan)
+    clearance: 1.6, // m every bird keeps from the ground and from rock
+    flapAfter: 0.7, // s the flock flaps after the bird flaps (each a little late)
+    joinFlap: 2.2, // s a bird that just joined flaps as it climbs to its place
+    cairnLight: 1.4, // brightness of the cairn's lantern by day (night adds `cairnNight`)
+    cairnNight: 1.8,
+  },
   hints: {
     // First-flight lessons, each learned by doing it once (saved), so a returning player is
     // never taught again. Steering first: it is the one thing a newcomer must know.
@@ -717,6 +798,9 @@ export const Config = {
     glideSink: 1.5, // m per wisp the path sinks back toward cruiseClearance: a long, gentle glide down
     maxRise: 6, // m per wisp the path may climb, so it never asks for more than a flapping bird can do
     climbGain: 35, // m of extra height a 'climb' pattern adds to the path
+    goalTurn: 0.6, // rad a generic pattern turns toward a journey's destination, at most
+    goalLineUp: 260, // m from a journey's beacon within which every planner flies straight through it
+    goalComeBack: 250, // m past a beacon (no wisp through its light) beyond which the ribbon turns back
     spiralCount: 24, // wisps in a thermal spiral
     spiralRise: 4.5, // m per wisp up the thermal spiral
     reanchorHeight: 150, // m between the path and the player before the path restarts at the player

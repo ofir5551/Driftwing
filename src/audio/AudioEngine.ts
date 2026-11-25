@@ -1,10 +1,15 @@
+/** The muffle filter's cutoff when the bird is in clear air (above hearing: no colour). */
+const MUFFLE_OPEN = 18000;
+
 /**
  * Web Audio plumbing: context (created on the first user gesture), master volume/mute,
  * music and SFX buses, and a shared reverb whose impulse response is synthesized, not loaded.
  *
  *   music --+--> musicBus --+
- *           \--> reverbSend --> convolver --> reverbReturn --+--> master --> compressor --> out
+ *           \--> reverbSend --> convolver --> reverbReturn --+--> master --> muffle --> compressor --> out
  *   sfx ----+--> sfxBus ----+
+ *
+ * `muffle` is a lowpass left wide open, closed while the bird is inside a cloud.
  */
 export class AudioEngine {
   ctx: AudioContext | null = null;
@@ -12,6 +17,7 @@ export class AudioEngine {
   musicBus!: GainNode;
   sfxBus!: GainNode;
   reverbSend!: GainNode;
+  private muffleFilter!: BiquadFilterNode;
   /** Shared white-noise buffer for SFX (wind, whoosh, splash). */
   noise!: AudioBuffer;
   private volume = 0.8;
@@ -47,7 +53,11 @@ export class AudioEngine {
     comp.connect(ctx.destination);
     this.master = ctx.createGain();
     this.master.gain.value = 0;
-    this.master.connect(comp);
+    this.muffleFilter = ctx.createBiquadFilter();
+    this.muffleFilter.type = 'lowpass';
+    this.muffleFilter.frequency.value = MUFFLE_OPEN;
+    this.muffleFilter.Q.value = 0.5;
+    this.master.connect(this.muffleFilter).connect(comp);
     this.musicBus = ctx.createGain();
     this.musicBus.connect(this.master);
     this.sfxBus = ctx.createGain();
@@ -96,6 +106,16 @@ export class AudioEngine {
       }
     }
     return buf;
+  }
+
+  /**
+   * 0 = clear, 1 = deep in cloud: the whole mix through a closing lowpass. The cutoff moves
+   * exponentially (equal steps in pitch), so the closing sounds even rather than sudden at the end.
+   */
+  setMuffle(k: number, closed: number, smooth: number): void {
+    if (!this.ctx) return;
+    const f = MUFFLE_OPEN * Math.pow(closed / MUFFLE_OPEN, Math.max(0, Math.min(1, k)));
+    this.muffleFilter.frequency.setTargetAtTime(f, this.ctx.currentTime, smooth);
   }
 
   setVolume(v: number): void {

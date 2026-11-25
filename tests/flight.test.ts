@@ -264,3 +264,137 @@ describe('FlightModel', () => {
     expect(s.liftVy).toBeLessThanOrEqual(Config.flight.flapLift * 1.6);
   });
 });
+
+describe('soft cloud', () => {
+  const cloud = (soft: number): FlightEnv => ({
+    groundAt: () => 40,
+    thermalAt: () => 0,
+    softAt: () => soft,
+  });
+
+  /** Fly with `steerY` held for `hold` s then let go; the deepest dip and the time spent under. */
+  function dip(y0: number, steerY: number, hold: number, env: FlightEnv) {
+    const s = createFlightState(0, y0, 0);
+    let deepest = 0;
+    let under = 0;
+    let after = 0;
+    for (let t = 0; t < 12; t += DT) {
+      stepFlight(s, input(0, t < hold ? steerY : 0), env, DT);
+      deepest = Math.max(deepest, s.cloud);
+      if (s.cloud > Config.flight.cloudIn) under += DT;
+      else if (under > 0) after = Math.max(after, s.y - 40);
+    }
+    return { s, deepest, under, after };
+  }
+
+  it('any descent glides into the cloud, stays a breath and glides back out with no leap', () => {
+    const c = Config.flight;
+    // Start height, stick, seconds held (until a little after it goes in), then let go.
+    for (const [y0, steer, hold] of [
+      [50, -0.25, 5],
+      [60, -0.5, 3.5],
+      [90, -1, 3],
+      [150, -1, 5],
+    ]) {
+      const d = dip(y0, steer, hold, cloud(1));
+      expect(d.deepest).toBeGreaterThan(2);
+      expect(d.deepest).toBeLessThan(c.cloudDepth + 1.5);
+      expect(d.under).toBeGreaterThan(1);
+      expect(d.under).toBeLessThan(c.cloudHold + 1.5);
+      // Surfaces level: no higher than its resting skim (and a little for the pitch's lag).
+      expect(d.after).toBeLessThan(c.cloudSkim + 0.6);
+      expect(d.s.cloud).toBe(0);
+    }
+  });
+
+  it('held down, the cloud still eases the bird out once its breath is spent', () => {
+    const s = createFlightState(0, 70, 0);
+    let longest = 0;
+    let run = 0;
+    for (let t = 0; t < 14; t += DT) {
+      stepFlight(s, input(0, -1), cloud(1), DT);
+      run = s.cloud > Config.flight.cloudIn ? run + DT : 0;
+      longest = Math.max(longest, run);
+    }
+    expect(longest).toBeGreaterThan(1.5);
+    expect(longest).toBeLessThan(Config.flight.cloudHold + 2);
+  });
+
+  it('let go under the cloud, the bird glides straight back out to its skim', () => {
+    const d = dip(90, -1, 3.2, cloud(1));
+    expect(d.under).toBeGreaterThan(0.3);
+    expect(d.s.cloud).toBe(0);
+    expect(d.s.y - 40).toBeCloseTo(Config.flight.cloudSkim, 0);
+  });
+
+  it('level flight over the cloud keeps skimming the tops', () => {
+    const s = createFlightState(0, 40 + Config.flight.cloudSkim, 0);
+    run(s, 8, input(), cloud(1));
+    expect(s.cloud).toBe(0);
+    expect(s.y - 40).toBeCloseTo(Config.flight.cloudSkim, 0);
+  });
+
+  it('solid ground (no softness) keeps the usual floor', () => {
+    const d = dip(110, -1, 12, cloud(0));
+    expect(d.deepest).toBe(0);
+    expect(d.s.y - 40).toBeGreaterThanOrEqual(Config.flight.groundHeight - 1e-6);
+  });
+});
+
+describe('deep water', () => {
+  const sea = (floor: number, soft: number): FlightEnv => ({
+    groundAt: () => floor,
+    thermalAt: () => 0,
+    softAt: () => soft,
+  });
+
+  it('a descent glides under deep water, stays a breath and comes out with no leap', () => {
+    const c = Config.flight;
+    const s = createFlightState(0, 15, 0);
+    let deepest = 0;
+    let splashes = 0;
+    let longest = 0;
+    let run = 0;
+    let peak = -Infinity;
+    let wasUnder = false;
+    let outAt = -1;
+    for (let t = 0; t < 10; t += DT) {
+      stepFlight(s, input(0, t < 4 ? -0.5 : 0), sea(-42, 1), DT);
+      if (s.contact === 'water') splashes++;
+      deepest = Math.max(deepest, s.cloud);
+      run = s.cloud > c.cloudIn ? run + DT : 0;
+      longest = Math.max(longest, run);
+      if (wasUnder && s.cloud === 0 && outAt < 0) outAt = t;
+      // The second after surfacing (later the usual minimum altitude over water lifts it slowly).
+      if (outAt >= 0 && t < outAt + 1) peak = Math.max(peak, s.y);
+      wasUnder = wasUnder || s.cloud > c.cloudIn;
+    }
+    expect(deepest).toBeGreaterThan(2);
+    expect(deepest).toBeLessThan(c.cloudDepth + 1.5);
+    expect(longest).toBeGreaterThan(1);
+    expect(longest).toBeLessThan(c.cloudHold + 1.5);
+    // Out at about the water skim, not thrown into the air.
+    expect(peak).toBeLessThan(c.clearance + 1.5);
+    // Going in and out of soft water makes no splash contact (the dive's own FX do that).
+    expect(splashes).toBe(0);
+  });
+
+  it('never takes the bird down to the seabed of a shallower lagoon', () => {
+    const s = createFlightState(0, 40, 0);
+    let lowest = Infinity;
+    for (let t = 0; t < 10; t += DT) {
+      stepFlight(s, input(0, -1), sea(-7, 0.87), DT);
+      lowest = Math.min(lowest, s.y);
+    }
+    expect(lowest).toBeLessThan(-1);
+    expect(lowest).toBeGreaterThanOrEqual(-7 + Config.flight.clearance - 1e-6);
+  });
+
+  it('level flight over deep water still skims and splashes off it', () => {
+    const s = createFlightState(0, 1, 0);
+    stepFlight(s, input(), sea(-42, 1), DT);
+    expect(s.contact).toBe('water');
+    expect(s.y).toBeCloseTo(Config.flight.clearance, 5);
+    expect(s.cloud).toBe(0);
+  });
+});

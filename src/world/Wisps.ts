@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { Config } from '../core/Config';
-import { clamp } from '../core/math';
+import { angleDelta, clamp } from '../core/math';
 import { mulberry32 } from './noise';
 import { commitInstances } from './instances';
+import { GoalLean } from './goal';
 
 export interface Wisp {
   x: number;
@@ -18,6 +19,9 @@ export interface Wisp {
 }
 
 type Pattern = 'arc' | 'wave' | 'dive' | 'climb' | 'spiral';
+
+/** Headings tried round a journey's goal (radians), straight on first. */
+const LOW_WAY = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35];
 
 /** Where the next pattern starts: the end of the last one, heading onward. */
 export interface WispCursor {
@@ -43,6 +47,12 @@ export interface WispPlanner {
     /** Free wisps in the pool: a pattern longer than this is cut short. */
     free: number,
   ): boolean;
+  /**
+   * The way to the current journey's beacon (shared with the ribbons, which note every wisp
+   * laid): a planner that knows it leans its ribbons along it, so following the wisps leads
+   * through the light. Handed over whenever a journey begins or ends.
+   */
+  setGoal?(lean: GoalLean): void;
 }
 
 const vert = /* glsl */ `
@@ -153,6 +163,8 @@ export class Wisps {
   }
 
   private spawn(x: number, y: number, z: number, exact = false): boolean {
+    // Mid-journey, note whether the ribbon goes through the beacon's light.
+    if (this.lean.route) this.lean.note(x, z, Config.destinations.reach * 0.7);
     const w = this.list.find((v) => !v.alive);
     if (!w) return false;
     w.x = x;
@@ -194,6 +206,35 @@ export class Wisps {
     this.cursor.valid = false;
   }
 
+  /** The way to a journey's beacon, shared with the level's planner. */
+  private readonly lean = new GoalLean(8, 17, 250, Config.wisps.goalComeBack);
+
+  /** A journey began (its route) or ended (null): the ribbons lean toward it. */
+  setGoal(route: Float64Array | null): void {
+    this.lean.setRoute(route);
+    this.planner?.setGoal?.(this.lean);
+  }
+
+  /** Of headings near `goal`, the one whose next ~300 m is lowest (a little cost to straying). */
+  private lowWay(x: number, z: number, goal: number): number {
+    let best = goal;
+    let bc = Infinity;
+    for (const off of LOW_WAY) {
+      const h = goal + off;
+      const fx = Math.sin(h);
+      const fz = Math.cos(h);
+      let hi = -Infinity;
+      for (let d = 60; d <= 300; d += 60)
+        hi = Math.max(hi, this.groundAt(x + fx * d, z + fz * d), Config.world.waterLevel);
+      const cost = hi + Math.abs(off) * 25;
+      if (cost < bc) {
+        bc = cost;
+        best = h;
+      }
+    }
+    return best;
+  }
+
   private spawnPattern(): void {
     const T = Config.wisps;
     const c = this.cursor;
@@ -201,6 +242,21 @@ export class Wisps {
       c.x += Math.sin(c.heading) * T.gap;
       c.z += Math.cos(c.heading) * T.gap;
       return;
+    }
+    // On a journey each pattern turns a little toward the destination (toward the lowest way
+    // near it, so the ribbon goes round a hill rather than asking for a climb), and arcs curve
+    // less. A little per pattern, not straight at it: snapping each pattern to the goal fought
+    // the ribbon's own wander round the hills, and a bird that can't follow a climb loses it.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      // On the last stretch, straight at it: drifting there passed isles 150 m wide.
+      if (this.lean.approaching) c.heading = goal;
+      else
+        c.heading += clamp(
+          angleDelta(c.heading, this.lowWay(c.x, c.z, goal)),
+          -T.goalTurn,
+          T.goalTurn,
+        );
     }
     // Prefer a thermal spiral when one is close to the path: it teaches thermals by example.
     const th = this.thermalNear(
@@ -237,9 +293,9 @@ export class Wisps {
       c.heading = a + turn * Math.PI * 0.5;
     } else {
       const turnTotal =
-        kind === 'arc'
+        (kind === 'arc'
           ? (this.rand() < 0.5 ? -1 : 1) * (0.7 + this.rand() * 1.0)
-          : (this.rand() - 0.5) * 0.4;
+          : (this.rand() - 0.5) * 0.4) * (goal !== null ? 0.35 : 1);
       const amp = kind === 'wave' ? 9 + this.rand() * 6 : 0;
       for (let i = 0; i < n; i++) {
         const s = i / (n - 1);

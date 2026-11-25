@@ -285,6 +285,26 @@ describe('peaks life', () => {
 });
 
 describe('peaks music', () => {
+  it('lets a dive into the open cloud, but not by the rock or round a gap', () => {
+    const P = Config.peaks;
+    let open = 0;
+    let n = 0;
+    for (let z = -1500; z <= 1500; z += 37)
+      for (let x = -1500; x <= 1500; x += 41) {
+        const k = L.softness(x, z);
+        expect(k).toBeGreaterThanOrEqual(0);
+        expect(k).toBeLessThanOrEqual(1);
+        n++;
+        if (k >= 1) open++;
+        // Close to rock the cloud is a floor again: its spire goes on down under the tops.
+        if (L.skyline(x, z, P.softNear) !== -Infinity) expect(k).toBe(0);
+        // So it is in a gap: the drawing falls away there, and the bird must not be seen under it.
+        if (L.gapAt(x, z) > 0) expect(k).toBe(0);
+      }
+    // Most of the sea is open cloud.
+    expect(open / n).toBeGreaterThan(0.3);
+  });
+
   it('floats on lydian at sunrise, one key per time of day', () => {
     expect(MODES.lydianPenta).toEqual([0, 2, 4, 6, 9]);
     expect(PEAKS_KEYS).toHaveLength(5);

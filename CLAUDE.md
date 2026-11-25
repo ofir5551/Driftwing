@@ -14,7 +14,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
   `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon`,
-  `?unlocked` (every level, plumage and trail open, nothing granted or saved).
+  `?unlocked` (every level, plumage and trail open, nothing granted or saved), `?flock=N` (fly N
+  flock birds, never saved).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
   `__journey` (Journey: lifetime light and unlocks).
@@ -61,7 +62,15 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `world/Discoveries.ts`: every level's hidden finds (names, `LEVEL_FINDS`) and the tracker
   (pure); each level's tests are `world/<level>/finds.ts` (Highlands: `world/highlands/`), handed
   to Gameplay as `World.discoveries`. Finds must stay off the wisps' ribbons (a test flies them).
-- `core/Events.ts`: typed bus (flap, contact, wisp, lantern, thermal, discovery, unlock) so audio/fx/ui stay decoupled.
+- `world/Destinations.ts`: a flight's journeys (pure tracker: a beacon over a landmark ahead, the
+  wisps lean toward it via `WispPlanner.setGoal`, arrival ends it). A level offers them as
+  `World.destinations` (every level: `world/<level>/destinations.ts`, Highlands in
+  `levels/Highlands.ts`), built on `world/landmarks.ts` (a pick across open country) or
+  `world/walk.ts` (down a river, fjord or canyon); planners lean via `world/goal.ts`. `world/Beacon.ts`
+  draws the column of light, `world/Roost.ts` the lit cairn where a stray perches. Arriving adds
+  it to the flock: `world/Flock.ts` (instanced birds round the player's, in every level; saved
+  in the journey) with the pure slot/spring math in `world/formation.ts`. See DESIGN's Destinations.
+- `core/Events.ts`: typed bus (flap, contact, cloud, wisp, lantern, thermal, discovery, destination, arrival, unlock) so audio/fx/ui stay decoupled.
 - `player/FlightModel.ts`: pure arcade glide physics; a bird's `FlightTuning` (its
   `Config.species` entry) scales it, neutral for the Tern. `Bird.ts` visuals only: one rig built
   from a `BirdShape.ts` and repainted from a `Plumage.ts` palette. `Species.ts`: the birds (shape,
@@ -126,7 +135,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   of the spawn) and hoodoos; walls are terrain that `solidTop` reports, arches report their
   span's underside), `CanyonSites` (pure: ranches and cliff dwellings under a solid brow; pads,
   flight floor), `CanyonScatter` (pure: trees, sites, small props per chunk), `CanyonWisps`
-  (canyon runs that thread arches, glides), `CanyonDecor` (instancing, near/far, casters,
+  (canyon runs that thread arches, glides; on a journey, runs down the route to its arch),
+  `destinations` (the journeys: down the bird's canyon to an arch), `CanyonDecor` (instancing, near/far, casters,
   contact shadows), `rock` (per-pixel strata, varnish, flutes, the road/wash/slickrock paint from
   `aLand`, bounce light), `cover`, `geometry`, `shapes`, `materials`, `CanyonWorld` (per-chunk
   diagonals, haze). Mesas are the `mesas` backdrop.
@@ -140,9 +150,11 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   pavilions, temples, lanterns and windows per spire), `PeaksWisps` (gate ribbon, cloud skims,
   slaloms, tangent swings over summits), `PeaksDecor` (three spire tiers, near/far props,
   casters, contact shadows), `granite` (per-pixel joints round the spire's axis from `aRock`,
-  lichen, moss, snow), `cloudSea` (the sea's shader: lobes, heave, gaps, warm glow, lining),
-  `geometry`, `shapes` (props), `materials` (flags, cranes, sunbeams), `PeaksWorld`. Snow peaks
-  are the `summits` backdrop; the mist rests on the cloud tops via `uMistBase`.
+  lichen, moss, snow), `cloudSea` (the sea's shader: lobes, heave, gaps, warm glow, lining,
+  the marks of a dive into it), `geometry`, `shapes` (props), `materials` (flags, cranes,
+  sunbeams), `PeaksWorld`. Snow peaks are the `summits` backdrop; the mist rests on the cloud
+  tops via `uMistBase`. Open cloud is soft (`softness`, `World.softGround`): a descent glides in for
+  a breath and out (`FlightEnv.softAt`), the bird melting into it (`Bird`'s veil).
 - `world/atoll/`: `AtollLayout` (pure: atolls on a coarse grid, each a wobbly reef ring with
   motus and passes round a lagoon, a crest that dries in patches, sand bars, seagrass; mushroom
   rocks lathed from one notched profile; high islands (the home one's fang ahead of the spawn)
@@ -155,7 +167,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   swash foam, tide pools, ripples, seagrass, coral gardens), `cover` (ground-cover style),
   `materials` (the life's vertex-shader motion, smoke), `shapes` (props), `Surf` (an animated
   foam strip per atoll in view), `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
-  the seabed's colours through the water.
+  the seabed's colours through the water. Deep water is soft (`softness`, `World.softGround`): a
+  descent glides under it for a breath, the bird tinted but in sight.
 - `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets, sand bars
   and mainland of rolling hills, leaning basalt spires lathed from one knuckled profile (the lean
   is a shear in the instance matrix; queries follow the leaning axis), the ship (an ellipsoid

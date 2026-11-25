@@ -6,6 +6,7 @@ import type { MusicStyle } from '../audio/styles';
 import type { HeightField } from '../world/Terrain';
 import type { WispPlanner } from '../world/Wisps';
 import type { DiscoveryDef } from '../world/Discoveries';
+import type { DestinationSource } from '../world/Destinations';
 
 export type LevelId =
   | 'highlands'
@@ -50,10 +51,27 @@ export interface World {
   thermalOk(x: number, z: number, r: number): boolean;
   /** Colour of the puff a ground skim throws up (default: dust, or leaves over canopy). */
   readonly skimColor?: THREE.Color;
+  /**
+   * 0..1: how far the surface at x,z is soft, something a descent glides into for a breath
+   * (`FlightEnv.softAt`): cloud (its top is the ground) or deep water (its top is the water
+   * level). Missing: solid ground and skimmed water everywhere.
+   */
+  softGround?(x: number, z: number): number;
+  /**
+   * The soft surface's colour in the current light: the bird's veil (it melts into cloud, is
+   * tinted under water) and the cloud's plunge puffs.
+   */
+  readonly softColor?: THREE.Color;
+  /** The bird plunged into the soft surface at x,z or burst out of it (ripples on it). */
+  plunge?(x: number, z: number, strength: number): void;
+  /** Each frame: where the bird is, its heading and how deep under the soft surface (0: out). */
+  swim?(x: number, z: number, yaw: number, depth: number): void;
   /** Optional level-specific wisp patterns. */
   readonly planner: WispPlanner | null;
   /** The level's hidden finds (`world/<level>/finds.ts`). */
   readonly discoveries: readonly DiscoveryDef[];
+  /** Where the level's journeys lead (null: none yet; see DESIGN's Destinations). */
+  readonly destinations?: DestinationSource | null;
   readonly chunkCount: number;
   readonly pending: number;
   dispose(): void;

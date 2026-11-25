@@ -65,5 +65,6 @@ export default defineConfig({
   base: './',
   plugins: [serviceWorker()],
   build: { target: 'es2022', chunkSizeWarningLimit: 800 },
-  test: { include: ['tests/**/*.test.ts'] },
+  // The bot-flight tests fly minutes of game time: slower CI machines need more than 5 s.
+  test: { include: ['tests/**/*.test.ts'], testTimeout: 60_000 },
 });

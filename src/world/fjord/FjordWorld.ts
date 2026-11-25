@@ -20,6 +20,8 @@ import { withFjordRock } from './rock';
 import { fjordCover } from './cover';
 import { AuroraReflection, FogBanks } from './atmosphere';
 import { fallUniforms, fjordUniforms } from './materials';
+import { fjordDestinations } from './destinations';
+import type { DestinationSource } from '../Destinations';
 
 const C = {
   bed: new THREE.Color('#1d3442'),
@@ -52,6 +54,7 @@ export class FjordWorld implements World {
   readonly layout: FjordLayout;
   readonly planner: FjordPlanner;
   readonly discoveries: readonly DiscoveryDef[];
+  readonly destinations: DestinationSource;
   private readonly chunks: ChunkManager<FjordChunk>;
   private readonly decor: FjordDecor;
   private readonly tower: THREE.Mesh;
@@ -64,6 +67,7 @@ export class FjordWorld implements World {
   constructor(seed: number) {
     const L = (this.layout = new FjordLayout(seed));
     this.discoveries = fjordFinds(L);
+    this.destinations = fjordDestinations(L);
     const tint = createNoise2D(seed + 420);
     this.field = {
       height: (x, z) => L.height(x, z),

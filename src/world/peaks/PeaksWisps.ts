@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { clamp, lerp, smoothstep } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
+import { GoalLean } from '../goal';
 import type { PeaksLayout, Spire } from './PeaksLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
@@ -40,7 +41,14 @@ export class PeaksPlanner implements WispPlanner {
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
 
+  /** The way to the current destination, if a journey is on. */
+  private lean = new GoalLean();
+
   constructor(private readonly L: PeaksLayout) {}
+
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -51,6 +59,12 @@ export class PeaksPlanner implements WispPlanner {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
     }
+    // On a journey the trend is the way to the destination.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
+    }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (!this.introDone) {
       this.introDone = true;
@@ -58,12 +72,19 @@ export class PeaksPlanner implements WispPlanner {
       this.intro(c);
       if (this.commit(c, spawn)) return true;
     }
+    // The last stretch: straight through the beacon's light.
+    if (goal !== null && this.lean.endDist(c.x, c.z) < Config.wisps.goalLineUp) {
+      this.pts.length = 0;
+      this.glide(c, goal, 9);
+      if (this.commit(c, spawn)) return true;
+    }
     // Now and then let the generic patterns run (they bring the thermal spirals), but only out
     // over open cloud: near a spire they lift a path straight up its wall, steeper than any
     // bird can climb (as the fjords found).
     if (rand() < 0.12 && L.skyline(c.x, c.z, 260) === -Infinity) return false;
     this.sinceSwing++;
-    if (this.sinceSwing > 3 && rand() < 0.35) {
+    // No swings over a summit mid-journey: they would lead the bird off the way.
+    if (this.sinceSwing > 3 && rand() < 0.35 && goal === null) {
       this.pts.length = 0;
       if (this.swing(c, base, rand) && this.commit(c, spawn)) {
         this.sinceSwing = 0;

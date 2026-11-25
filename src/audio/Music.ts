@@ -261,6 +261,29 @@ export class Music {
     });
   }
 
+  /**
+   * A journey's end: a slow roll up the chord to the octave, then the octave and tenth held
+   * high and wide. Fuller than a lantern and on a downbeat, so it lands as an arrival.
+   */
+  arrived(): void {
+    const ctx = this.engine.ctx;
+    const sched = this.sched;
+    if (!ctx || !sched) return;
+    const gap = sched.stepDur / 2;
+    const t0 = sched.quantize(ctx.currentTime + 0.05, 4, 0.01);
+    const key = this.root + this.shift;
+    const roll = [0, 2, 4, 7];
+    roll.forEach((deg, i) => {
+      const m = degreeToMidi(key, this.mode, this.chordRoot + deg) + 12;
+      this.note(t0 + i * gap, m, 0.5, (i / (roll.length - 1) - 0.5) * 0.9, 3, 0.13, true);
+    });
+    const th = t0 + roll.length * gap;
+    [7, 9].forEach((deg, i) => {
+      const m = degreeToMidi(key, this.mode, this.chordRoot + deg) + 12;
+      this.note(th, m, 0.42, i === 0 ? -0.6 : 0.6, 6, 0.12, true);
+    });
+  }
+
   lanternReached(): void {
     const ctx = this.engine.ctx;
     if (!ctx || !this.sched) return;

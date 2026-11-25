@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
-import { clamp } from '../../core/math';
+import { angleDelta, clamp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
+import { GoalLean } from '../goal';
 import type { CityLayout, Tower } from './CityLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
@@ -59,7 +60,14 @@ export class CityPlanner implements WispPlanner {
   private sinceSpiral = 0;
   private lastTower = { x: NaN, z: NaN };
 
+  /** The way to the current destination, if a journey is on. */
+  private lean = new GoalLean();
+
   constructor(private readonly city: CityLayout) {}
+
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.city;
@@ -77,6 +85,14 @@ export class CityPlanner implements WispPlanner {
       L.inSea(c.x + Math.sin(c.heading) * ahead, c.z + Math.cos(c.heading) * ahead)
     )
       return false;
+    // On a journey whose way crosses the bay, the generic patterns (leaning to the goal too)
+    // carry the ribbon over the water: avenues toward it end at the shore.
+    const goalNow = this.lean.heading(c.x, c.z);
+    if (
+      goalNow !== null &&
+      L.inSea(c.x + Math.sin(goalNow) * ahead, c.z + Math.cos(goalNow) * ahead)
+    )
+      return false;
     // A cursor that is not where the last pattern left it was re-anchored at the bird (or
     // moved by a generic pattern): restart the trend from its heading.
     if (
@@ -86,11 +102,49 @@ export class CityPlanner implements WispPlanner {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
     }
+    // On a journey the trend is the way to the destination: runs turn toward it at the corners.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
+    }
+    // The last stretch: straight through the beacon's light.
+    // (From farther out than elsewhere: the street grid turns the ribbon away again otherwise.)
+    if (goal !== null && this.lean.endDist(c.x, c.z) < Config.wisps.goalLineUp * 1.75) {
+      const y0 = c.y;
+      const lifted = Math.max(y0, this.city.skyline(c.x, c.z, 14) + 10);
+      for (const y of y0 === lifted ? [y0] : [y0, lifted]) {
+        this.pts.length = 0;
+        c.y = y;
+        this.glide(c, goal);
+        if (this.commit(c, spawn, true)) return true;
+      }
+      c.y = y0;
+    }
+    // A journey whose way lies well off the ribbon's heading: glide over the roofs, turning
+    // toward it a little per stretch (no U-turns), and back into the avenues once lined up.
+    if (goal !== null) {
+      const off = angleDelta(c.heading, goal);
+      if (Math.abs(off) > 0.55) {
+        const y0 = c.y;
+        const lifted = Math.max(y0, this.city.skyline(c.x, c.z, 14) + 10);
+        const turnBy = clamp(off, -Config.wisps.goalTurn, Config.wisps.goalTurn);
+        for (const y of y0 === lifted ? [y0] : [y0, lifted]) {
+          this.pts.length = 0;
+          c.y = y;
+          this.glide(c, c.heading + turnBy);
+          if (this.commit(c, spawn, true)) return true;
+        }
+        c.y = y0;
+      }
+    }
     const C = Config.city;
     const r = rand();
     this.sinceSpiral++;
     if (
       r < C.spiralChance &&
+      // Not off round a tower mid-journey: the nearest tower is rarely the destination's.
+      goal === null &&
       this.sinceSpiral > 2 &&
       this.spiral(c, rand) &&
       this.commit(c, spawn, true)
@@ -104,10 +158,17 @@ export class CityPlanner implements WispPlanner {
     // any expressway, beside its pillars), then high over everything. Each first weaving with a
     // tight turn, then (if that clips something) straight with the wide turn. First clear plan
     // wins.
-    const q = c.heading / (Math.PI / 2);
+    // On a journey, runs set off along the axis nearest the way to the destination, unless
+    // that means turning back (a U-turn ribbon runs back past the bird, which loses it and
+    // starts again ahead of itself, for ever): then on, turning toward it at the next corner.
+    const goalAxis = goal !== null ? Math.round(goal / (Math.PI / 2)) * (Math.PI / 2) : 0;
+    const back = goal !== null && Math.abs(angleDelta(c.heading, goalAxis)) > Math.PI / 2 + 0.1;
+    const q = (goal !== null && !back ? goal : c.heading) / (Math.PI / 2);
     const near = Math.round(q);
     const axes = [near, q > near ? near + 1 : near - 1];
-    const turn = rand() < C.turnChance;
+    const turnRoll = rand() < C.turnChance;
+    // On a journey, turn whenever the avenue runs well off the way to the destination.
+    const turn = goal !== null ? Math.abs(angleDelta(near * (Math.PI / 2), goal)) > 0.55 : turnRoll;
     const canyon = 12 + rand() * 12;
     const len = C.runMin + Math.floor(rand() * (C.runMax - C.runMin + 1));
     const phase = rand() < 0.5 ? 1 : -1; // which way the slalom swings first

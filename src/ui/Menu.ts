@@ -186,6 +186,10 @@ export interface RestTally {
   seconds: number;
   /** Names of the discoveries made this flight. */
   finds: readonly string[];
+  /** Names of the journeys' destinations reached this flight (a bird joined at each). */
+  reached: readonly string[];
+  /** Birds in the flock now. */
+  flock: number;
 }
 
 const KIND_LABEL: Record<UnlockKind, string> = {
@@ -351,6 +355,7 @@ export class Menu {
        <p class="rest-sub"></p>
        <div class="tally"></div>
        <p class="rest-best"></p>
+       <p class="rest-reached" hidden></p>
        <p class="rest-finds" hidden></p>
        ${JOURNEY_HTML}
        <div class="unlock-cards"></div>
@@ -680,6 +685,14 @@ export class Menu {
     const best = r.querySelector<HTMLElement>('.rest-best')!;
     best.textContent = t.newBest ? 'A new best' : `Best ${t.best.toLocaleString()}`;
     best.classList.toggle('new', t.newBest);
+    const reached = r.querySelector<HTMLElement>('.rest-reached')!;
+    reached.hidden = t.reached.length === 0;
+    const n = t.reached.length;
+    reached.replaceChildren(
+      `Journeyed to ${t.reached.join(' · ')}`,
+      document.createElement('br'),
+      `${n === 1 ? 'A bird' : `${n} birds`} joined · a flock of ${t.flock}`,
+    );
     const finds = r.querySelector<HTMLElement>('.rest-finds')!;
     finds.hidden = t.finds.length === 0;
     finds.textContent = `Found: ${t.finds.join(' · ')}`;

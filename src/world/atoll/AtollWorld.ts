@@ -18,6 +18,8 @@ import { atollCover } from './cover';
 import { atollLandFrame, createAtollGeometry, fillAtoll, withAtollLand } from './land';
 import type { DiscoveryDef } from '../Discoveries';
 import { atollFinds } from './finds';
+import { atollDestinations } from './destinations';
+import type { DestinationSource } from '../Destinations';
 
 /**
  * Seabed and land colours. The water over them is nearly clear (the level's water clarity), so
@@ -42,6 +44,8 @@ const C = {
 const WHITE = new THREE.Color('#fff');
 /** A skim over the lagoon throws up spray, not dust. */
 const SPRAY = new THREE.Color('#e9fbf8');
+/** The open ocean's blue, a few metres down (the bird's tint under water, with the light's). */
+const DEEP = new THREE.Color('#1f6f8f');
 
 /**
  * Coral Atolls as a World: the layout's seabed, reefs and islands streamed as terrain chunks
@@ -55,7 +59,10 @@ export class AtollWorld implements World {
   readonly layout: AtollLayout;
   readonly planner: AtollPlanner;
   readonly discoveries: readonly DiscoveryDef[];
+  readonly destinations: DestinationSource;
   readonly skimColor = SPRAY;
+  /** The deep water's colour in this light (set each frame): the bird's tint under the surface. */
+  readonly softColor = new THREE.Color('#2f8fa0');
   private readonly chunks: ChunkManager<AtollChunk>;
   private readonly decor: AtollDecor;
   private readonly surf: Surf;
@@ -64,6 +71,7 @@ export class AtollWorld implements World {
   constructor(seed: number) {
     const L = (this.layout = new AtollLayout(seed));
     this.discoveries = atollFinds(L);
+    this.destinations = atollDestinations(L);
     const tint = createNoise2D(seed + 720);
     this.field = {
       height: (x, z) => L.height(x, z),
@@ -137,6 +145,11 @@ export class AtollWorld implements World {
     return Math.max(h + L.canopy(h), L.roofAt(x, z));
   }
 
+  /** Deep water is soft: a descent glides under it for a breath (not over reef, rock or huts). */
+  softGround(x: number, z: number): number {
+    return this.layout.softness(x, z);
+  }
+
   surfaceBelow(x: number, y: number, z: number): number {
     const s = this.layout.capAt(x, z);
     const g = this.flightGround(x, z);
@@ -167,6 +180,8 @@ export class AtollWorld implements World {
     u.uMistFar.value = A.mistFar;
     u.uMistColor.value.copy(p.fog).lerp(p.skyHorizon, 0.4);
     u.uMistTime.value = time;
+    // The water a little way down: its own colour deepened toward the open ocean's blue.
+    this.softColor.copy(p.water).lerp(DEEP, A.diveTint).multiplyScalar(0.9);
     this.decor.frame(day, time);
     this.surf.frame(time, day);
     atollLandFrame(day, time);

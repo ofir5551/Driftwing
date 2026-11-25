@@ -1,6 +1,7 @@
 import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
+import { GoalLean } from '../goal';
 import type { RingmoonLayout } from './RingmoonLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
@@ -42,7 +43,14 @@ export class RingmoonPlanner implements WispPlanner {
   private trendZ = 0;
   private readonly expect = { x: NaN, z: NaN };
 
+  /** The way to the current destination, if a journey is on. */
+  private lean = new GoalLean();
+
   constructor(private readonly L: RingmoonLayout) {}
+
+  setGoal(lean: GoalLean): void {
+    this.lean = lean;
+  }
 
   pattern(c: WispCursor, rand: () => number, spawn: Spawn, free: number): boolean {
     const L = this.L;
@@ -51,6 +59,12 @@ export class RingmoonPlanner implements WispPlanner {
       this.trendX = Math.sin(c.heading);
       this.trendZ = Math.cos(c.heading);
     }
+    // On a journey the trend is the way to the destination.
+    const goal = this.lean.heading(c.x, c.z);
+    if (goal !== null) {
+      this.trendX = Math.sin(goal);
+      this.trendZ = Math.cos(goal);
+    }
     const base = Math.atan2(this.trendX, this.trendZ);
     if (!this.introDone) {
       this.introDone = true;
@@ -58,10 +72,17 @@ export class RingmoonPlanner implements WispPlanner {
       this.underShip(c);
       if (this.commit(c, spawn)) return true;
     }
+    // The last stretch: straight through the beacon's light.
+    if (goal !== null && this.lean.endDist(c.x, c.z) < Config.wisps.goalLineUp) {
+      this.pts.length = 0;
+      this.glide(c, goal);
+      if (this.commit(c, spawn)) return true;
+    }
     // Generic patterns (and their thermal spirals) only out in the open, away from the stone.
     if (rand() < 0.12 && L.skyline(c.x, c.z, 240) === -Infinity) return false;
     this.sinceSwing++;
-    if (this.sinceSwing > 3 && rand() < 0.45) {
+    // No swings round a spire mid-journey: they would lead the bird off the way.
+    if (this.sinceSwing > 3 && rand() < 0.45 && goal === null) {
       this.pts.length = 0;
       if (this.swing(c, base, rand) && this.commit(c, spawn)) {
         this.sinceSwing = 0;

@@ -284,7 +284,8 @@ export const Config = {
     venueBlend: 330, // m where they have blended back
     plateauMin: 8, // m above the water, lowest a site's meadow sits
     plateauMax: 34, // m, highest
-    photoHeight: 16, // m, a portrait's picture (landscape: its width is 1.8x this)
+    photoHeight: 16, // m, a portrait's picture
+    inviteHeight: 26, // m, the wedding invitation's picture at the venue
     photoLift: 4.5, // m from the ground to the frame's foot (room for the name plaque)
     lanterns: 70, // sky lanterns rising over the venue once the couple are reached (and at night)
     lanternRise: 2.2, // m/s a lantern rises

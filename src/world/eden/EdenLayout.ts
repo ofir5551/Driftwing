@@ -143,8 +143,9 @@ export class EdenLayout {
         z: fp.z,
         ground: this.venue.y,
         y0: this.venue.y + E.photoLift,
-        y1: this.venue.y + E.photoLift + ph * 1.0125, // 16:9 at 1.8x the width
-        half: ph * 0.9,
+        // The wedding invitation, upright (its card is 0.6 as wide as tall).
+        y1: this.venue.y + E.photoLift + E.inviteHeight,
+        half: E.inviteHeight * 0.3,
         yaw: this.venue.yaw + F.turn,
       },
     ];

@@ -25,13 +25,18 @@ export class PhotoCard {
     ui.append(this.el);
   }
 
-  /** `date`: a smaller line under the caption (none: hidden). */
-  show(url: string, caption: string, seconds: number, date?: string): void {
+  /**
+   * `date`: a smaller line under the caption (none: hidden). `tall`: a picture that speaks for
+   * itself (an invitation), shown taller with no caption or date.
+   */
+  show(url: string, caption: string, seconds: number, date?: string, tall = false): void {
     this.img.src = url;
     this.img.alt = caption;
     this.caption.textContent = caption;
+    this.caption.hidden = tall;
     this.date.textContent = date ?? '';
-    this.date.hidden = !date;
+    this.date.hidden = tall || !date;
+    this.el.classList.toggle('tall', tall);
     this.el.classList.add('show');
     this.timer = seconds;
   }

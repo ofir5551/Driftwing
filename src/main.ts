@@ -330,7 +330,14 @@ game.events.on('arrival', (e) => {
   const photo = edenPhoto(e.id);
   if (photo)
     void photoUrl(photo).then((url) =>
-      photoCard.show(url, photo.caption, Config.eden.cardSeconds, photo.date),
+      photoCard.show(
+        url,
+        photo.caption,
+        // An invitation has more to read: it stays up longer.
+        Config.eden.cardSeconds * (photo.tall ? 1.6 : 1),
+        photo.date,
+        photo.tall,
+      ),
     );
   if (earns && e.tint >= 0) {
     journey.joinFlock(e.tint);

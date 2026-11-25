@@ -6,7 +6,7 @@ import { veil } from './veil';
 /**
  * The pictures Eden shows: one per stop, by destination id. The files in `photos/` are the
  * photos veiled (`veil.ts`), so the repository holds no plain pictures; make new ones with
- * `node scripts/eden-photos.mjs` (portraits 3:4, the couple 16:9).
+ * `node scripts/eden-photos.mjs` (portraits 3:4; the venue's is the wedding invitation, 0.6:1).
  */
 export interface EdenPhoto {
   /** The destination it waits at. */
@@ -19,6 +19,11 @@ export interface EdenPhoto {
   readonly line: string;
   /** Under the caption, on the plaque and the card (the wedding's date, for the couple). */
   readonly date?: string;
+  /**
+   * A tall picture that speaks for itself (the invitation, names and date and all): its card
+   * shows it taller and without the caption.
+   */
+  readonly tall?: boolean;
 }
 
 /** Tal and Hadar's wedding day. */
@@ -27,7 +32,14 @@ export const WEDDING_DATE = '23.12.2026';
 export const EDEN_PHOTOS: readonly [EdenPhoto, EdenPhoto, EdenPhoto] = [
   { id: 'eden:tal', file: p0, caption: 'Tal', line: 'joins your flock' },
   { id: 'eden:hadar', file: p1, caption: 'Hadar', line: 'joins the two of you' },
-  { id: 'eden:venue', file: p2, caption: 'Tal & Hadar', line: 'Mazal tov!', date: WEDDING_DATE },
+  {
+    id: 'eden:venue',
+    file: p2,
+    caption: 'Tal & Hadar',
+    line: 'Mazal tov!',
+    date: WEDDING_DATE,
+    tall: true,
+  },
 ];
 
 export const edenPhoto = (id: string): EdenPhoto | undefined =>

@@ -1001,8 +1001,9 @@ there (`dayScale` 1.6).
   right, so the bird sees the picture ahead and passes beside it. Tal and Hadar are the strays
   on its cairn (slate and rose), so they join the flock. On arrival a photo card (`ui/PhotoCard`)
   fades in above the toast for 7 s and takes no tap. The venue's journey has no cairn (the two
-  of them are already with you): its card is the two of them with their wedding date
-  (23.12.2026, also on the picture's plaque), "Mazal tov!", "Tal ♥ Hadar" written over the
+  of them are already with you): the venue's picture is their wedding invitation, upright on its
+  easel (the plaque under it gives their names and the date, 23.12.2026), and its card shows
+  the invitation tall enough to read, for longer, "Mazal tov!", "Tal ♥ Hadar" written over the
   pool in lantern light (`SkyWords`: each light rises from the pool to its place in lettering
   sampled from a canvas, left to right as if written; brighter by day against the golden sky),
   and sky lanterns

@@ -167,7 +167,8 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   swash foam, tide pools, ripples, seagrass, coral gardens), `cover` (ground-cover style),
   `materials` (the life's vertex-shader motion, smoke), `shapes` (props), `Surf` (an animated
   foam strip per atoll in view), `geometry`, `AtollWorld`. Cumulus are the `cumulus` backdrop; the level's `waterClarity` lets
-  the seabed's colours through the water.
+  the seabed's colours through the water. Deep water is soft (`softness`, `World.softGround`): a
+  descent glides under it for a breath, the bird tinted but in sight.
 - `world/ringmoon/`: `RingmoonLayout` (pure: a shallow sea with terraced moss islets, sand bars
   and mainland of rolling hills, leaning basalt spires lathed from one knuckled profile (the lean
   is a shear in the instance matrix; queries follow the leaning axis), the ship (an ellipsoid

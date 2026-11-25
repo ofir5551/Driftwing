@@ -52,15 +52,19 @@ export interface World {
   /** Colour of the puff a ground skim throws up (default: dust, or leaves over canopy). */
   readonly skimColor?: THREE.Color;
   /**
-   * 0..1: how far the ground at x,z is soft cloud a dive can sink into and be buoyed out of
-   * (`FlightEnv.softAt`). Missing: solid ground everywhere.
+   * 0..1: how far the surface at x,z is soft, something a descent glides into for a breath
+   * (`FlightEnv.softAt`): cloud (its top is the ground) or deep water (its top is the water
+   * level). Missing: solid ground and skimmed water everywhere.
    */
   softGround?(x: number, z: number): number;
-  /** The soft cloud's colour in the current light (the bird's veil and the plunge puffs). */
-  readonly cloudColor?: THREE.Color;
-  /** The bird plunged into the soft cloud at x,z or burst out of it (ripples on the surface). */
+  /**
+   * The soft surface's colour in the current light: the bird's veil (it melts into cloud, is
+   * tinted under water) and the cloud's plunge puffs.
+   */
+  readonly softColor?: THREE.Color;
+  /** The bird plunged into the soft surface at x,z or burst out of it (ripples on it). */
   plunge?(x: number, z: number, strength: number): void;
-  /** Each frame: where the bird is, its heading and how deep under the soft cloud (0: out). */
+  /** Each frame: where the bird is, its heading and how deep under the soft surface (0: out). */
   swim?(x: number, z: number, yaw: number, depth: number): void;
   /** Optional level-specific wisp patterns. */
   readonly planner: WispPlanner | null;

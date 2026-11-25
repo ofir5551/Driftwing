@@ -100,6 +100,28 @@ describe('atoll layout', () => {
     expect(atolls).toBeGreaterThan(30);
   });
 
+  it('lets the bird dive under deep water only, clear of reef, rock and stilts', () => {
+    const A = Config.atoll;
+    const sea = Config.world.waterLevel;
+    let deep = 0;
+    let n = 0;
+    for (let z = -2000; z <= 2000; z += 29)
+      for (let x = -2000; x <= 2000; x += 31) {
+        const k = L.softness(x, z);
+        expect(k).toBeGreaterThanOrEqual(0);
+        expect(k).toBeLessThanOrEqual(1);
+        n++;
+        if (k >= 1) deep++;
+        // Never where the water under the bird is shallower than the threshold.
+        if (sea - L.height(x, z) < A.diveShallow) expect(k).toBe(0);
+        // Nor by a rock (its stem runs on down under the water) or under a hut or pier.
+        if (L.skyline(x, z, A.diveNear) !== -Infinity) expect(k).toBe(0);
+        if (L.roofAt(x, z) > -Infinity) expect(k).toBe(0);
+      }
+    // The open ocean between the atolls is most of the sea.
+    expect(deep / n).toBeGreaterThan(0.4);
+  });
+
   it('keeps neighbouring reefs apart', () => {
     for (let j = -3; j <= 3; j++)
       for (let i = -3; i <= 3; i++) {

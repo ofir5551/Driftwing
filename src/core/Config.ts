@@ -52,6 +52,8 @@ export const Config = {
     cloudLead: 0.5, // s of the current climb the cloud's lift looks ahead, so the bird arrives at the tops level
     cloudVeil: 2.4, // m over the cloud top through which the bird's lower parts fade into the cloud's colour
     cloudFade: 1.5, // m either side of the cloud top over which the whole bird melts into the mist
+    waterTint: 0.45, // how much of the water's colour the bird takes under the surface (deep water)
+    waterDeepTint: 0.75, // how much the whole bird takes at the dive's full depth
     cloudIn: 0.6, // m under the top at which the bird counts as plunged in (it is out again at the top)
     cloudMuffle: 4, // m under the cloud top at which the whole mix is fully muffled
     cloudCutoff: 600, // Hz, the muffle's lowpass at its deepest
@@ -90,7 +92,8 @@ export const Config = {
     rollFollow: 0.35, // fraction of the bird's bank the camera adopts
     pitchFollow: 0.4, // fraction of the bird's pitch used to place the camera
     cloudAim: 0, // m over the cloud top the camera aims while the bird is in the cloud
-    cloudSoft: 3, // m over which the camera eases onto its floor over the cloud instead of stopping dead
+    waterAim: 3.5, // m under the water the camera may aim to follow the bird (clear water shows it)
+    cloudSoft: 2, // m over which the camera eases onto its floor over a soft surface instead of stopping dead
     cloudClear: 2, // m the camera keeps over the heaps of cloud under and ahead of it
     cloudOmega: 3, // spring frequency of that floor as it follows the cloud's heaps (higher is stiffer, lower is calmer)
     cloudEase: 2, // 1/s, how quickly the aim follows the cloud top over the bird
@@ -499,6 +502,13 @@ export const Config = {
     reefWidth: 34, // m, half width of the reef flat
     lagoonDepth: 7, // m, the lagoon floor's mean depth
     ocean: 42, // m, depth of the open ocean between atolls
+    // Diving under the water (the flight model's soft cloud constants, Config.flight.cloud*).
+    diveShallow: 3.5, // m of water under which the bird cannot dive at all
+    diveDeep: 8, // m of water over which it dives fully (a lagoon's ~7 m lets it most of the way)
+    diveLook: 10, // m round the bird within which the shallowest seabed counts
+    diveNear: 8, // m off a rock's cap inside which it cannot dive (the stem runs on down)
+    diveFar: 25, // m off it beyond which it dives fully
+    diveTint: 0.45, // how far the bird's underwater tint leans from the water's colour to the deep blue
     motu: 2.6, // m, height of the palm islets on the reef above the water
     motuShare: 0.5, // about this share of every reef carries islets
     canopy: 8, // m, palm and jungle canopy counts as soft ground this high

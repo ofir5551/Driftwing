@@ -114,7 +114,11 @@ export class Gameplay {
     game.events.on('contact', (e) => this.onContact(e.kind, e.x, e.y, e.z, e.strength));
     game.events.on('level', () => this.onLevel());
     game.events.on('flap', () => this.flock.flap());
-    game.events.on('cloud', (e) => this.onCloud(e.inside, e.x, e.z, e.strength));
+    game.events.on('cloud', (e) =>
+      e.water
+        ? this.onWaterDive(e.inside, e.x, e.z, e.strength)
+        : this.onCloud(e.inside, e.x, e.z, e.strength),
+    );
   }
 
   /**
@@ -393,7 +397,7 @@ export class Gameplay {
    */
   private onCloud(inside: boolean, x: number, z: number, strength: number): void {
     const g = this.game;
-    const col = g.world.cloudColor ?? WHITE;
+    const col = g.world.softColor ?? WHITE;
     const shade = this.cloudShade.copy(col).multiply(SHADE);
     // Puffs sit a little over the tops: a flat sprite crossing the cloud's surface is cut sharp.
     const top = g.flightGround(x, z) + 1.2;
@@ -444,7 +448,63 @@ export class Gameplay {
     }
   }
 
-  /** While the bird is under the cloud a trail of churned puffs rises over it, to follow it by. */
+  /**
+   * Gliding under deep water: a splash and a ring of foam spreading on the surface; coming out,
+   * droplets stream off the bird and fall back, over a smaller splash.
+   */
+  private onWaterDive(inside: boolean, x: number, z: number, strength: number): void {
+    const g = this.game;
+    const s = g.flight;
+    const sea = Config.world.waterLevel;
+    const k = Math.min(1, 0.4 + strength / 14);
+    const n = Math.round((16 + 24 * k) * this.soft.density);
+    const fx = Math.sin(s.yaw);
+    const fz = Math.cos(s.yaw);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      if (inside || i % 3 === 0) {
+        // Spray thrown up round the hole (falling back), and a ring of foam on the water.
+        const foam = i % 2 === 0;
+        const out = foam ? 3 + Math.random() * 4 * k : 1.5 + Math.random() * 3;
+        this.soft.emit(
+          x + ca * 1.2,
+          sea + (foam ? 0.25 : 0.4),
+          z + sa * 1.2,
+          ca * out + fx * s.speed * 0.1,
+          foam ? 0.4 : (inside ? 5 : 3) + Math.random() * 5 * k,
+          sa * out + fz * s.speed * 0.1,
+          foam ? 1.2 + Math.random() * 0.6 : 0.7 + Math.random() * 0.4,
+          foam ? 1.4 + Math.random() * 1.2 : 0.45 + Math.random() * 0.5,
+          SPLASH,
+          foam ? 0 : 12,
+          foam ? 1.8 : 0.5,
+        );
+      } else {
+        // Droplets streaming off the bird as it rises, carried a little, then falling.
+        const r = Math.random() * 1.2;
+        this.soft.emit(
+          s.x + ca * r,
+          Math.max(sea + 0.3, s.y - Math.random()),
+          s.z + sa * r,
+          fx * s.speed * (0.2 + Math.random() * 0.3) + ca,
+          2 + Math.random() * 3,
+          fz * s.speed * (0.2 + Math.random() * 0.3) + sa,
+          0.6 + Math.random() * 0.5,
+          0.3 + Math.random() * 0.35,
+          SPLASH,
+          12,
+          0.4,
+        );
+      }
+    }
+  }
+
+  /**
+   * While the bird is under the cloud a trail of churned puffs rises over it, to follow it by;
+   * under water, bubbles break the surface over it.
+   */
   private frameWake(dt: number): void {
     const g = this.game;
     const s = g.flight;
@@ -452,7 +512,29 @@ export class Gameplay {
       this.wakeTimer = 0;
       return;
     }
-    const col = g.world.cloudColor ?? WHITE;
+    const sea = Config.world.waterLevel;
+    if (g.flightGround(s.x, s.z) < sea) {
+      this.wakeTimer -= dt;
+      while (this.wakeTimer <= 0) {
+        this.wakeTimer += 1 / (34 * this.soft.density + 1e-3);
+        const spread = 0.8 + s.cloud * 0.12;
+        this.soft.emit(
+          s.x + (Math.random() - 0.5) * 2 * spread,
+          sea + 0.15,
+          s.z + (Math.random() - 0.5) * 2 * spread,
+          (Math.random() - 0.5) * 0.6,
+          0.2 + Math.random() * 0.4,
+          (Math.random() - 0.5) * 0.6,
+          0.5 + Math.random() * 0.5,
+          0.15 + Math.random() * 0.25,
+          SPLASH,
+          0,
+          1.2,
+        );
+      }
+      return;
+    }
+    const col = g.world.softColor ?? WHITE;
     const shade = this.cloudShade.copy(col).multiply(SHADE);
     this.wakeTimer -= dt;
     let n = 0;

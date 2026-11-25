@@ -173,6 +173,8 @@ export const birdVeil = {
   uVeil: { value: 0 },
   /** 0..1: the whole bird melting into the cloud as it sinks through its top (a slow fade). */
   uVeilBody: { value: 0 },
+  /** 1: the veil dissolves the bird into wisps (cloud); 0: it only tints it (clear water). */
+  uVeilDissolve: { value: 1 },
   uVeilTime: { value: 0 },
   uVeilY: { value: -1e9 },
   uVeilBand: { value: 2 },
@@ -194,6 +196,7 @@ function veil(shader: THREE.WebGLProgramParametersWithUniforms): void {
 varying vec3 vVeilP;
 uniform float uVeil;
 uniform float uVeilBody;
+uniform float uVeilDissolve;
 uniform float uVeilTime;
 uniform float uVeilY;
 uniform float uVeilBand;
@@ -221,7 +224,7 @@ if (veilK > 0.0) {
   // Vapour curling up over the bird: the noise rises, so the dissolving edge streams upward.
   vec3 vq = vVeilP * 2.2 - vec3(0.0, uVeilTime * 1.6, 0.0);
   float vn = veilNoise(vq) * 0.65 + veilNoise(vq * 2.3 + 7.1) * 0.35;
-  if (vn < veilK * 1.35 - 0.35) discard;
+  if (uVeilDissolve > 0.5 && vn < veilK * 1.35 - 0.35) discard;
   gl_FragColor.rgb = mix(gl_FragColor.rgb, uVeilColor, min(1.0, veilK * 1.2));
 }
 #include <tonemapping_fragment>`,

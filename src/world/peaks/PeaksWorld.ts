@@ -52,7 +52,7 @@ export class PeaksWorld implements World {
   readonly destinations: DestinationSource;
   readonly skimColor = PUFF;
   /** The cloud sea's colour in this light (set each frame): the bird's veil, the plunge puffs. */
-  readonly cloudColor = new THREE.Color('#f4f1f6');
+  readonly softColor = new THREE.Color('#f4f1f6');
   /** Next slot in the cloud sea's ring of plunge ripples. */
   private plungeNext = 0;
   private readonly chunks: ChunkManager<PeaksChunk>;
@@ -264,7 +264,7 @@ export class PeaksWorld implements World {
     // The cloud tops in this light: the mist's colour, a little brighter where the sun is on it.
     // Capped: the boost lifts the dim hours (the lit tops outshine the mist most at night), but by
     // day it would push the puffs past the bloom and they would glow like lamps.
-    const cc = this.cloudColor
+    const cc = this.softColor
       .copy(u.uMistColor.value)
       .lerp(p.sun, 0.1)
       .multiplyScalar(P.veilLight);

@@ -34,10 +34,10 @@ export class ChaseCamera {
   /** The species' chase distance (a small bird is watched from a little closer). */
   distanceScale = 1;
   /**
-   * 0..1: how soft the cloud under the bird is (the cloud sea, away from rock and gaps). Over
-   * it the camera never sinks below where it rides while the bird skims the tops: the bird may
-   * fly into the cloud, the camera does not follow it down or look up at it on the way out. It
-   * is a place, not a mode, so nothing switches on or off in time and nothing jumps.
+   * 0..1: how soft the surface under the bird is (the cloud sea away from rock and gaps, deep
+   * water). Over it the camera never sinks below where it rides while the bird skims it: the bird
+   * may glide in, the camera does not follow it down or look up at it on the way out. It is a
+   * place, not a mode, so nothing switches on or off in time and nothing jumps.
    */
   soft = 0;
   /** The cloud top over the bird, eased (the aim's floor). */
@@ -65,7 +65,10 @@ export class ChaseCamera {
       Math.max(0, p.speed - Config.flight.cruiseSpeed) * 0.04;
     // Only part of the pitch: dives are seen from above, climbs from below, horizon stays calm.
     const targetPitch = p.pitch * c.pitchFollow;
-    const here = groundAt(p.x, p.z);
+    // The soft surface's top under the bird: the cloud, or the water over a seabed.
+    const water = Config.world.waterLevel;
+    const ground0 = groundAt(p.x, p.z);
+    const here = Math.max(ground0, water);
     const fresh = !this.initialised;
     if (fresh) {
       this.topY = here;
@@ -105,13 +108,12 @@ export class ChaseCamera {
       const fwz = Math.cos(this.yaw.x) * run;
       let heaps = ground;
       for (let n = 1; n <= 3; n++) heaps = Math.max(heaps, groundAt(cx + n * fwx, cz + n * fwz));
-      // The smooth max below rounds `band` / 4 over its floor, so the skim's height is set that
-      // much lower and the lens rides exactly where it was at the skim; heaps keep `cloudClear`.
+      // The floor is exactly the lens's height at the skim, so it never sits lower than that
+      // while the bird is under (the smooth max below lifts the skim view itself by at most
+      // `cloudSoft` / 4, a hand's breadth); heaps keep `cloudClear`.
       const band = c.cloudSoft * k;
-      const want = Math.max(
-        here + Config.flight.cloudSkim + c.height - band * 0.25,
-        heaps + c.cloudClear,
-      );
+      const skim = ground0 >= water ? Config.flight.cloudSkim : Config.flight.clearance;
+      const want = Math.max(here + skim + c.height, heaps + c.cloudClear);
       const fs = this.floorS;
       if (!this.floorOn) {
         fs.x = want;
@@ -135,7 +137,8 @@ export class ChaseCamera {
     // A bird in soft cloud (the cloud sea) is watched where it went in, along the tops: the lens
     // stays over the cloud, so aiming under it would only fill the view with the cloud. The aim
     // follows the bird's height continuously down to the tops, so it never snaps.
-    const aim = this.topY + c.cloudAim;
+    // Clear water shows the bird under it, so there the aim may follow it down `waterAim` m.
+    const aim = this.topY + (ground0 >= water ? c.cloudAim : -c.waterAim);
     if (k > 0 && aim > this.target.y) this.target.y += (aim - this.target.y) * k;
     cam.up.set(0, 1, 0);
     cam.lookAt(this.target);

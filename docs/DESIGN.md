@@ -748,6 +748,25 @@ deep blue of the ocean), with pale coral rubble on the reef flats and coral head
 lagoons. At grazing angles the water turns back into a mirror of the sky (fresnel), so the
 far sea still reads as sea. Every other level keeps clarity 0, the painted veil.
 
+Diving under: deep water is a soft surface like Sea of Clouds' cloud (`AtollLayout.softness`,
+the flight model's `softAt`, with the top at the water level): full over `diveDeep` (8 m) of
+water, none by `diveShallow` (3.5 m), judged by the shallowest seabed within `diveLook` (a reef
+wall or a coral head rises fast), none under a hut or pier and fading out toward every rock (its
+stem runs on down). So the open ocean and the passes take the whole dive (about 5 m down), a
+7 m lagoon about 4 m (3 m clear of the sand), a 6 m lagoon a dip, and reefs and shallows none. It
+is the cloud's glide (in while the stick asks for a descent, a breath of `cloudHold`, out level at
+the skim, letting go brings it out), but only while the stick asks to go in or the bird is still
+coming out: otherwise level flight over deep water skims and splashes off it as before, and its
+minimum-altitude push rests while the water is open (under water it built up and flung the bird
+out). Never onto the seabed: the floor keeps `clearance` over it. The water stays clear, so the
+bird stays in sight: under the surface it takes the deep water's tint (`waterTint`, the palette's
+water leaning to the open ocean's blue), the whole bird more of it with depth (`waterDeepTint`),
+and nothing dissolves; the water plane adds its veil and, at grazing angles, its mirror. The
+camera keeps its water-skim height over it and may aim `waterAim` m down to follow the bird.
+Going in: a splash and a ring of foam, a "bloop" under the splash, and the mix muffled; under,
+bubbles break the surface over the bird and now and then one rises past it with a chirp; out,
+droplets stream off it and fall back over a smaller splash.
+
 Atmosphere: no valley mist, only a light sea haze fading the far atolls. Surf breaks round every
 outer reef: one strip per atoll in view (built as it comes into draw distance, freed when it
 leaves) with a crest line where the swell breaks and bands of foam rolling in over the flat,
@@ -1760,6 +1779,11 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   over a held dive and a release: the lens never below the bird (at least 1.5 m over it) and at
   least 1.5 m over the cloud under it, its vertical acceleration a mean of 6.9 m/s^2 (95th
   percentile 19), the bird's own 6.1 (18); the first build's was 181 (519).
+- Coral Atolls' deep water reuses the cloud's soft surface (the flight model's top is the higher
+  of ground and water) rather than a swimming model, so the feel is the same in both. Unlike
+  cloud, water is soft only while the bird goes in or comes out: level flight over the open
+  ocean is the level's skim-and-splash play and stays as it was. The submerged bird is shown,
+  not hidden (the water is clear); a dissolve would have read as the bird vanishing in glass.
 - Sea of Clouds hands over to the generic wisp patterns only out over open cloud (no spire within
   260 m), and when nothing fits it wheels round with short glides instead: near a spire a
   generic pattern lifts its path straight over the summit, a 100 m jump the bot could not climb

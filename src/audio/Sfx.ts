@@ -110,6 +110,49 @@ export class Sfx {
     } else this.burst('bandpass', 260, 1500, 1.1, 0.18 * s, 0.65, 0.06);
   }
 
+  /**
+   * Into deep water: a splash over a low "bloop" as the water closes. Out: a lighter splash and
+   * a patter of droplets falling back. Louder the harder it went in or came out.
+   */
+  waterDive(inside: boolean, strength: number): void {
+    const ctx = this.engine.ctx;
+    if (!ctx) return;
+    const s = Math.min(1, 0.45 + strength * 0.05);
+    if (inside) {
+      this.burst('highpass', 2200, 700, 0.7, 0.16 * s, 0.5, 0.005);
+      this.blip(170, 70, 0.14 * s, 0.32);
+    } else {
+      this.burst('highpass', 1600, 1000, 0.7, 0.1 * s, 0.4, 0.01);
+      for (let i = 0; i < 4; i++)
+        this.blip(900 + Math.random() * 1100, 0.5, 0.035 * s, 0.09, 0.1 + Math.random() * 0.35);
+    }
+  }
+
+  /** One bubble rising past the bird under water: a quick upward chirp, soft and close. */
+  bubble(): void {
+    const f = 380 + Math.random() * 420;
+    this.blip(f, 1.9, 0.04, 0.07);
+  }
+
+  /** A sine swept from f0 by `ratio` (a number) or to f1 (over 1), as a short blip. */
+  private blip(f0: number, to: number, level: number, dur: number, delay = 0): void {
+    const ctx = this.engine.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime + 0.005 + delay;
+    const f1 = to > 10 ? to : f0 * to;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(level, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.engine.sfxBus);
+    g.connect(this.engine.reverbSend);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+
   thermal(inside: boolean): void {
     if (inside) this.burst('bandpass', 250, 1300, 2, 0.12, 1.6, 0.5);
   }

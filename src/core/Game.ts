@@ -356,26 +356,41 @@ export class Game {
     const vy = Math.sin(s.pitch) * s.speed + s.liftVy;
     const strength = Math.abs(vy);
     this.world.plunge?.(s.x, s.z, clamp(0.35 + strength / 16, 0.35, 1));
-    this.events.emit('cloud', { inside, x: s.x, y: s.y, z: s.z, strength });
+    const water = this.world.flightGround(s.x, s.z) < Config.world.waterLevel;
+    this.events.emit('cloud', { inside, x: s.x, y: s.y, z: s.z, strength, water });
   }
 
-  /** The bird melts into the soft cloud it sinks into (Bird's veil). */
+  /** The bird melts into the soft cloud it glides into, or is tinted under water (Bird's veil). */
   private updateVeil(o: Pose): void {
     const w = this.world;
     w.swim?.(o.x, o.z, o.yaw, this.flight.cloud);
-    const soft = w.softGround && w.cloudColor ? w.softGround(o.x, o.z) : 0;
+    const soft = w.softGround && w.softColor ? w.softGround(o.x, o.z) : 0;
     birdVeil.uVeil.value = soft;
     birdVeil.uVeilBody.value = 0;
-    if (soft <= 0 || !w.cloudColor) return;
-    const top = w.flightGround(o.x, o.z);
+    if (soft <= 0 || !w.softColor) return;
+    const ground = w.flightGround(o.x, o.z);
     const c = Config.flight;
+    birdVeil.uVeilTime.value = this.time;
+    birdVeil.uVeilColor.value.copy(w.softColor);
+    const water = Config.world.waterLevel;
+    if (ground < water) {
+      // Under clear water the bird stays in sight: what is under the surface takes the water's
+      // tint at once (`waterTint`), and the whole bird more of it the deeper it goes; nothing
+      // dissolves. The water plane over it adds its own veil and, at grazing angles, its mirror.
+      birdVeil.uVeil.value = soft * c.waterTint;
+      birdVeil.uVeilY.value = water - 0.2;
+      birdVeil.uVeilBand.value = 0.6;
+      birdVeil.uVeilBody.value = soft * c.waterDeepTint * smoothstep(0, c.cloudDepth, water - o.y);
+      birdVeil.uVeilDissolve.value = 0;
+      return;
+    }
+    const top = ground;
+    birdVeil.uVeilDissolve.value = 1;
     // The whole bird melts into the mist over the last metres above the top and is gone a little
     // under it; it comes back the same way, so it never pops in or out.
     birdVeil.uVeilBody.value = soft * smoothstep(c.cloudFade, -c.cloudFade, o.y - top);
     birdVeil.uVeilY.value = top;
     birdVeil.uVeilBand.value = Config.flight.cloudVeil;
-    birdVeil.uVeilTime.value = this.time;
-    birdVeil.uVeilColor.value.copy(w.cloudColor);
   }
 
   /**

@@ -15,7 +15,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
   `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|eden`,
   `?unlocked` (every level, plumage and trail open, nothing granted or saved), `?flock=N` (fly N
-  flock birds, never saved).
+  flock birds, never saved), `?fsprompt` (show the launch fullscreen card even if dismissed or automated).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
   `__journey` (Journey: lifetime light and unlocks).
@@ -210,4 +210,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `Wind` (speed streaks), `BlobShadow`.
 - `audio/`: `AudioEngine` (context, buses, synthesized reverb), `Music` (lookahead scheduler, layers),
   `Sfx`, `scales` (pure theory + `StepScheduler`), `GameAudio` (event wiring).
-- `ui/`: `Hud`, `Menu`, `TouchControls`, `styles.css`.
+- `ui/`: `Hud`, `Menu`, `TouchControls`, `styles.css`. `Fullscreen` (API/iPhone/standalone detection,
+  platform), `FullscreenPrompt` (the launch card: Go fullscreen + install guide per platform, the
+  browser's own Install button via `pwa.ts`'s held `beforeinstallprompt`; skipped when standalone,
+  fullscreen, dismissed for good, `?autopilot` or `navigator.webdriver`).

@@ -58,3 +58,16 @@ export function onFullscreenChange(cb: (on: boolean) => void): void {
   document.addEventListener('fullscreenchange', fire);
   document.addEventListener('webkitfullscreenchange', fire);
 }
+
+/** Which install guide fits: iPhone/iPad (Share -> Add to Home Screen), Android (browser menu),
+ *  or a desktop browser (address-bar install icon, Safari's Add to Dock). */
+export type Platform = 'ios' | 'android' | 'desktop';
+
+export function platform(): Platform {
+  const ua = navigator.userAgent;
+  // iPadOS reports itself as a Mac; only the touch points give it away.
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1))
+    return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'desktop';
+}

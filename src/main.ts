@@ -18,6 +18,7 @@ import { isLevelId, LEVEL_LIST } from './levels';
 import type { LevelId } from './levels/World';
 import type { TimeOfDay } from './world/DayCycle';
 import { Menu, type MenuHandlers } from './ui/Menu';
+import { FullscreenPrompt } from './ui/FullscreenPrompt';
 import { DEFAULT_PLUMAGE, plumageDef } from './player/Plumage';
 import { DEFAULT_TRAIL, trailDef } from './fx/TrailStyle';
 import { DEFAULT_SPECIES, speciesDef } from './player/Species';
@@ -421,6 +422,8 @@ game.setMode('menu');
 menu.showStart(gameplay.progress.best, game.level.id);
 game.start();
 if (params.has('autopilot')) handlers.play(); // screenshots / demos: skip the title
+// Every launch with the browser's bars showing asks once, over the title (players miss the pill).
+if (FullscreenPrompt.wanted(params)) new FullscreenPrompt(ui);
 
 registerServiceWorker();
 

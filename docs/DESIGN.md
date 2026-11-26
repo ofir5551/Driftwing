@@ -1577,6 +1577,12 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   Hints are lessons learned by doing (see "In flight and the Rest card"): the wisps, then
   steering, then boosting, each saved once learned.
 - Pause: P/Esc, the touch pause button, losing pointer lock, or hiding the tab. Music ducks.
+- Fullscreen: players missed the title's pill, so each launch in a browser tab (not installed,
+  not already fullscreen) opens a card over the title: Go fullscreen where the API exists, then
+  how to install the app for the player's platform (the browser's own Install button when it
+  offers one, else steps: iPhone Share -> Add to Home Screen, Android's menu, desktop's address
+  bar). On iPhone, installing is the only way to fullscreen, so the card is the guide alone.
+  "Not now" closes it for the launch, "Don't show again" for good; the pill and corner button stay.
 - Settings (volume, mute, quality, invert-Y, touch steering) and best score persist in localStorage (guarded).
 - Adaptive quality (`AdaptiveScale`, numbers in `Config.adaptive`): frames are judged in
   one-second windows by their share of slow frames (over 21 ms), never by an average, so the

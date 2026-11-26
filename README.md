@@ -229,7 +229,8 @@ Pushing to `main` deploys to GitHub Pages via `.github/workflows/pages.yml` (ena
 
 The game is an installable web app: Chrome offers **Install** (Android: menu → _Add to Home
 screen_ / _Install app_), Safari _Add to Home Screen_. Installed, it opens fullscreen and plays
-offline. Each deploy reaches players on their next launch online, or, if the app stays open, the
+offline. Each launch in a browser tab shows a card over the title asking for fullscreen, with the
+install steps for the player's platform (until they pick _Don't show again_). Each deploy reaches players on their next launch online, or, if the app stays open, the
 next time it is put away on the title screen; a flight is never interrupted. The pieces:
 `public/manifest.webmanifest`, the icons in `public/icons/` (painted by
 `node scripts/icons.mjs`), the service worker `src/sw.ts` (built to `sw.js` with the build's

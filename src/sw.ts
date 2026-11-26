@@ -9,9 +9,12 @@
  * is already running never loses files mid-flight. `src/pwa.ts` swaps it in at a calm moment.
  *
  * Built by the `serviceWorker` plugin in vite.config.ts, which fills in the two placeholders.
- * This file is a classic script (no imports or exports): service workers from module scripts
- * are not supported everywhere yet.
+ * This file must build to a classic script (no imports or exports in sw.js): service workers
+ * from module scripts are not supported everywhere yet. Its one import (levels/personal) is
+ * inlined only because the game never loads that file.
  */
+
+import { PERSONAL_IDS } from './levels/personal';
 
 // Declarations in this script are global to the TS program, hence the `sw` prefixes.
 // The few service worker types used here (the DOM lib does not include them).
@@ -66,14 +69,15 @@ swScope.addEventListener('message', (e) => {
   if (e.data === 'skip-waiting') void swScope.skipWaiting();
 });
 
-/** The dev channel's build lives under dev/ beside this one: never serve or cache it from here. */
-const DEV_PATH = new URL('dev/', location.href).pathname;
+/** The dev and personal channels' builds live under dev/ and /<id>/ beside this one: never serve
+ *  or cache them from here (a guest who has played the full game would get its title instead). */
+const OTHER_PATHS = ['dev', ...PERSONAL_IDS].map((p) => new URL(`${p}/`, location.href).pathname);
 
 swScope.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
-  if (url.pathname.startsWith(DEV_PATH)) return;
+  if (OTHER_PATHS.some((p) => url.pathname.startsWith(p))) return;
   e.respondWith(req.mode === 'navigate' ? swPage(req) : swAsset(req));
 });
 

@@ -494,7 +494,8 @@ body.steer-split .boost-btn {
 
 .menu.pause,
 .menu.rest,
-.menu.help {
+.menu.help,
+.menu.finale {
   background: rgba(60, 45, 80, 0.25);
   backdrop-filter: blur(3px);
 }
@@ -507,7 +508,8 @@ body.steer-split .boost-btn {
 }
 
 .pause .card,
-.help .card {
+.help .card,
+.finale .card {
   background: rgba(255, 248, 238, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 22px;
@@ -1411,6 +1413,165 @@ body.steer-split .controls.touch-split {
   scrollbar-width: none;
 }
 
+/* The title's last line: the best score (once there is one) beside the version tag. */
+.title-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 6px;
+  margin-top: 10px;
+}
+
+.title-foot .best {
+  margin: 0;
+}
+
+/* What's new: the title's version tag (a soft glow while there is something unseen) and the
+   changelog card, laid out like Settings. */
+.news-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: inherit;
+  background: none;
+  border: none;
+  opacity: 0.72;
+  cursor: pointer;
+  text-shadow: inherit;
+}
+
+.news-btn .news-label {
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 250, 240, 0.4);
+  text-underline-offset: 4px;
+}
+
+.news-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--glow);
+  box-shadow: 0 0 10px 3px rgba(255, 220, 150, 0.85);
+  animation: news-glow 2.4s ease-in-out infinite;
+}
+
+.news-btn.unread {
+  opacity: 1;
+}
+
+.news-btn.unread .news-dot {
+  display: inline-block;
+}
+
+@keyframes news-glow {
+  50% {
+    opacity: 0.45;
+    box-shadow: 0 0 4px 1px rgba(255, 220, 150, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .news-dot {
+    animation: none;
+  }
+}
+
+.menu.news {
+  background: rgba(60, 45, 80, 0.25);
+  backdrop-filter: blur(3px);
+}
+
+.news .card {
+  width: min(400px, 100%);
+  text-align: left;
+  background: rgba(255, 248, 238, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 22px;
+  padding: 20px 22px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.news-sub {
+  margin: -4px 0 14px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.release {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.release.fresh {
+  background: rgba(255, 236, 190, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 190, 0.45);
+}
+
+.release h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 19px;
+}
+
+.release-version {
+  font-family: var(--font);
+  font-style: normal;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+  margin-right: 4px;
+}
+
+.release-new {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-family: var(--font);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--glow);
+  text-shadow: none;
+  vertical-align: 2px;
+}
+
+.release-date {
+  margin: 2px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.release ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.release li {
+  margin: 4px 0;
+}
+
 .settings-head {
   display: flex;
   align-items: center;
@@ -1727,6 +1888,178 @@ body.lefty.steer-split .boost-btn {
   opacity: 0.85;
 }
 
+/* The launch card asking for fullscreen (ui/FullscreenPrompt): over the title, which waits
+   veiled behind it. Sized for an iPhone SE upright; it scrolls rather than cut off its buttons. */
+.menu.fs-prompt {
+  background: rgba(60, 45, 80, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.fs-prompt .card {
+  background: rgba(255, 248, 238, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 22px;
+  padding: 24px 24px 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+  max-width: min(400px, 100%);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.fs-prompt h2 {
+  font-size: clamp(28px, 8vw, 36px);
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+
+.fsp-lead {
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.fs-prompt .fsp-go {
+  padding: 12px 36px;
+  font-size: 18px;
+}
+
+.fsp-install {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.fsp-install h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 21px;
+}
+
+.fsp-why {
+  margin: 4px 0 12px;
+  font-size: 13.5px;
+  opacity: 0.85;
+}
+
+.fs-prompt .fsp-install-btn {
+  font-size: 16px;
+  padding: 10px 28px;
+}
+
+.fsp-steps {
+  margin: 0;
+  padding: 0 0 0 1.4em;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.fsp-steps li + li {
+  margin-top: 6px;
+}
+
+.fsp-alts {
+  list-style: disc;
+}
+
+.fsp-glyph {
+  width: 17px;
+  height: 17px;
+  vertical-align: -3px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.fsp-done {
+  margin: 0;
+  font-size: 14px;
+}
+
+.fsp-foot {
+  margin-top: 18px;
+}
+
+.fs-prompt .fsp-later {
+  margin-top: 0;
+}
+
+.fsp-never {
+  margin-top: 10px;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+.fsp-never:hover,
+.fsp-never:focus-visible {
+  opacity: 1;
+}
+
+.fs-prompt [hidden] {
+  display: none;
+}
+
+/* Short screens (iPhone SE upright): tighter, so both ways out show without scrolling. */
+@media (max-height: 680px) {
+  .fs-prompt .card {
+    padding: 18px 18px 14px;
+  }
+  .fs-prompt h2 {
+    font-size: 27px;
+    margin-bottom: 6px;
+  }
+  .fsp-lead {
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .fs-prompt .fsp-go {
+    padding: 10px 32px;
+    font-size: 17px;
+  }
+  .fsp-install {
+    margin-top: 14px;
+    padding-top: 12px;
+  }
+  .fsp-install h3 {
+    font-size: 19px;
+  }
+  .fsp-why {
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .fsp-steps {
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+  .fsp-steps li + li {
+    margin-top: 3px;
+  }
+  .fsp-foot {
+    margin-top: 12px;
+  }
+  .fs-prompt .fsp-later {
+    padding: 8px 24px;
+  }
+  .fsp-never {
+    margin-top: 4px;
+  }
+}
+
 @keyframes fs-pulse {
   50% {
     background: rgba(255, 250, 240, 0.3);
@@ -1754,7 +2087,8 @@ body.lefty.steer-split .boost-btn {
     margin-bottom: 14px;
   }
   .pause .card,
-  .help .card {
+  .help .card,
+  .finale .card {
     padding: 16px 22px;
   }
   .aviary .card {
@@ -1844,4 +2178,43 @@ body.paused .toast {
   font-size: clamp(13px, 2.6vw, 17px);
   letter-spacing: 0.12em;
   color: #9a7a4a;
+}
+
+.news .settings-head h2 {
+  font-size: 30px;
+  white-space: nowrap;
+}
+
+/* A personal channel (e.g. a wedding invitation): one stage alone, so no level cards, birds,
+   journey or bests; on the title only Play and the time of day. */
+.personal-channel .start .levels,
+.personal-channel .start .levels-more,
+.personal-channel .start .title-row,
+.personal-channel .start .best,
+.personal-channel .start .news-btn,
+.personal-channel .journey,
+.personal-channel .rest-best,
+.personal-channel .unlock-cards,
+.personal-channel .fsp-install,
+.personal-channel .fsp-never {
+  display: none;
+}
+
+.finale-sub {
+  margin: -4px 0 22px;
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+
+.finale .btn {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 12px;
+  padding-inline: 28px;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-decoration: none;
 }

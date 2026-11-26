@@ -1,4 +1,4 @@
-import { DEV_CHANNEL } from './core/channel';
+import { DEV_CHANNEL, PERSONAL_CHANNEL } from './core/channel';
 
 /**
  * Installs and updates the service worker (src/sw.ts): offline play, and what lets browsers
@@ -15,9 +15,60 @@ const UPDATE_CHECK_MS = 60 * 60 * 1000;
 
 let waiting: ServiceWorker | null = null;
 
+/** Chrome/Edge/Samsung's install offer (not in the DOM typings: it is Chromium-only). */
+interface InstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+let installEvent: InstallPromptEvent | null = null;
+const installListeners: (() => void)[] = [];
+const notifyInstall = () => {
+  for (const cb of installListeners) cb();
+};
+
+// Caught from the first moment (it can fire before the title is built) and held, so the launch
+// card can offer a real Install button instead of steps through the browser's menu.
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); // no mini-infobar: the launch card makes the offer
+  installEvent = e as InstallPromptEvent;
+  notifyInstall();
+});
+addEventListener('appinstalled', () => {
+  installEvent = null;
+  notifyInstall();
+});
+
+/** The browser will show its own install dialog on `promptInstall`. */
+export function canPromptInstall(): boolean {
+  return installEvent !== null;
+}
+
+/** Calls `cb` when the offer arrives or is used up (installed). */
+export function onInstallChange(cb: () => void): void {
+  installListeners.push(cb);
+}
+
+/** Shows the browser's install dialog (from a tap). Resolves true if the player installed. The
+ *  event works once, so the offer is gone afterwards either way. */
+export async function promptInstall(): Promise<boolean> {
+  const e = installEvent;
+  if (!e) return false;
+  installEvent = null;
+  try {
+    await e.prompt();
+    return (await e.userChoice).outcome === 'accepted';
+  } catch {
+    return false;
+  } finally {
+    notifyInstall();
+  }
+}
+
 export function registerServiceWorker(): void {
-  // The dev channel is always fetched fresh (and the players' worker leaves /dev/ alone).
-  if (!import.meta.env.PROD || DEV_CHANNEL || !('serviceWorker' in navigator)) return;
+  // The dev and personal channels are always fetched fresh (the players' worker leaves them alone).
+  if (!import.meta.env.PROD || DEV_CHANNEL || PERSONAL_CHANNEL || !('serviceWorker' in navigator))
+    return;
   addEventListener('load', () => {
     navigator.serviceWorker
       .register('./sw.js')

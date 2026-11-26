@@ -1,4 +1,4 @@
-import { DEV_CHANNEL } from './core/channel';
+import { DEV_CHANNEL, EDEN_CHANNEL } from './core/channel';
 
 /**
  * Installs and updates the service worker (src/sw.ts): offline play, and what lets browsers
@@ -16,8 +16,9 @@ const UPDATE_CHECK_MS = 60 * 60 * 1000;
 let waiting: ServiceWorker | null = null;
 
 export function registerServiceWorker(): void {
-  // The dev channel is always fetched fresh (and the players' worker leaves /dev/ alone).
-  if (!import.meta.env.PROD || DEV_CHANNEL || !('serviceWorker' in navigator)) return;
+  // The dev and Eden channels are always fetched fresh (the players' worker leaves them alone).
+  if (!import.meta.env.PROD || DEV_CHANNEL || EDEN_CHANNEL || !('serviceWorker' in navigator))
+    return;
   addEventListener('load', () => {
     navigator.serviceWorker
       .register('./sw.js')

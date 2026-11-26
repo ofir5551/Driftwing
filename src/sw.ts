@@ -66,14 +66,15 @@ swScope.addEventListener('message', (e) => {
   if (e.data === 'skip-waiting') void swScope.skipWaiting();
 });
 
-/** The dev channel's build lives under dev/ beside this one: never serve or cache it from here. */
-const DEV_PATH = new URL('dev/', location.href).pathname;
+/** The dev and Eden channels' builds live under dev/ and eden/ beside this one: never serve or
+ *  cache them from here (a guest who has played the full game would get its title instead). */
+const OTHER_PATHS = ['dev/', 'eden/'].map((p) => new URL(p, location.href).pathname);
 
 swScope.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
-  if (url.pathname.startsWith(DEV_PATH)) return;
+  if (OTHER_PATHS.some((p) => url.pathname.startsWith(p))) return;
   e.respondWith(req.mode === 'navigate' ? swPage(req) : swAsset(req));
 });
 

@@ -7,6 +7,7 @@ import {
   type UnlockKind,
 } from '../core/Journey';
 import type { Settings } from '../core/Settings';
+import { EDEN_CHANNEL, FULL_GAME_URL } from '../core/channel';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
 import { TIME_OF_DAY_LIST, type TimeOfDay } from '../world/DayCycle';
@@ -284,6 +285,8 @@ export class Menu {
   private readonly help: HTMLDivElement;
   private readonly settingsPanel: HTMLDivElement;
   private readonly aviary: HTMLDivElement;
+  /** The Eden channel's last card (the full game, or keep flying); unused elsewhere. */
+  private readonly finale: HTMLDivElement;
   private readonly picks: HTMLButtonElement[];
   private readonly tabs: HTMLButtonElement[];
   private readonly birdBlurb: HTMLElement;
@@ -307,10 +310,14 @@ export class Menu {
     private readonly journey: Journey,
     h: MenuHandlers,
   ) {
+    // The Eden channel is a wedding invitation: the couple's names on the title.
     this.start = this.panel(
       'start',
-      `<h1>Driftwing</h1>
-       <p class="tag">Glide. Gather the light. Breathe.</p>
+      `${
+        EDEN_CHANNEL
+          ? '<h1>Tal ♥ Hadar</h1><p class="tag">Follow the light to the wedding.</p>'
+          : '<h1>Driftwing</h1><p class="tag">Glide. Gather the light. Breathe.</p>'
+      }
        <div class="levels" role="radiogroup" aria-label="Level">${LEVEL_LIST.map(
          (l) =>
            `<button class="level" role="radio" aria-checked="false" data-level="${l.id}">
@@ -363,8 +370,15 @@ export class Menu {
        <button class="btn ghost" id="rest-title-btn">Title</button>`,
     );
     this.aviary = this.panel('aviary', AVIARY_HTML);
-    this.journeyBars = [this.start, this.pause, this.rest, this.aviary].map((p) =>
-      p.querySelector<HTMLElement>('.journey')!,
+    this.finale = this.panel(
+      'finale',
+      `<h2>Mazal tov!</h2>
+       <p class="finale-sub">You flew to Tal and Hadar's wedding. Eden is one of many places in Driftwing.</p>
+       <a class="btn primary" id="full-game-btn" href="${FULL_GAME_URL}">Play the full game</a>
+       <button class="btn ghost" id="finale-fly-btn">Keep flying</button>`,
+    );
+    this.journeyBars = [this.start, this.pause, this.rest, this.aviary].map(
+      (p) => p.querySelector<HTMLElement>('.journey')!,
     );
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.className = 'pause-btn';
@@ -377,6 +391,7 @@ export class Menu {
       this.rest,
       this.help,
       this.aviary,
+      this.finale,
       this.pauseBtn,
     );
     this.setupFullscreen(ui);
@@ -406,6 +421,9 @@ export class Menu {
     this.rest.querySelector('#fly-btn')!.addEventListener('click', () => h.keepFlying());
     this.rest.querySelector('#rest-title-btn')!.addEventListener('click', () => h.toTitle());
     this.pauseBtn.addEventListener('click', () => h.pause());
+    this.finale.querySelector('#finale-fly-btn')!.addEventListener('click', () => h.resume());
+    // Only the title is left to go back to, and it is Eden's.
+    if (EDEN_CHANNEL) this.pause.querySelector('#title-btn span')!.textContent = 'Title';
     for (const from of [this.start, this.settingsPanel])
       from.querySelector('.controls-btn')!.addEventListener('click', () => this.showHelp(from));
     this.pause
@@ -454,7 +472,15 @@ export class Menu {
   }
 
   private panels(): HTMLDivElement[] {
-    return [this.start, this.pause, this.settingsPanel, this.rest, this.help, this.aviary];
+    return [
+      this.start,
+      this.pause,
+      this.settingsPanel,
+      this.rest,
+      this.help,
+      this.aviary,
+      this.finale,
+    ];
   }
 
   /**
@@ -841,6 +867,11 @@ export class Menu {
   /** The title screen is up (nothing on it is lost by a reload). */
   get onTitle(): boolean {
     return this.start.classList.contains('show');
+  }
+
+  /** The Eden channel's last card, over the paused flight. */
+  showFinale(): void {
+    this.only(this.finale);
   }
 
   showPlaying(): void {

@@ -494,7 +494,8 @@ body.steer-split .boost-btn {
 
 .menu.pause,
 .menu.rest,
-.menu.help {
+.menu.help,
+.menu.finale {
   background: rgba(60, 45, 80, 0.25);
   backdrop-filter: blur(3px);
 }
@@ -507,7 +508,8 @@ body.steer-split .boost-btn {
 }
 
 .pause .card,
-.help .card {
+.help .card,
+.finale .card {
   background: rgba(255, 248, 238, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 22px;
@@ -1754,7 +1756,8 @@ body.lefty.steer-split .boost-btn {
     margin-bottom: 14px;
   }
   .pause .card,
-  .help .card {
+  .help .card,
+  .finale .card {
     padding: 16px 22px;
   }
   .aviary .card {
@@ -1844,4 +1847,35 @@ body.paused .toast {
   font-size: clamp(13px, 2.6vw, 17px);
   letter-spacing: 0.12em;
   color: #9a7a4a;
+}
+
+/* The Eden channel (a wedding invitation): Eden alone, so no level cards, birds, journey or
+   bests; on the title only Play and the time of day. */
+.eden-channel .start .levels,
+.eden-channel .start .levels-more,
+.eden-channel .start .title-row,
+.eden-channel .start .best,
+.eden-channel .journey,
+.eden-channel .rest-best,
+.eden-channel .unlock-cards {
+  display: none;
+}
+
+.finale-sub {
+  margin: -4px 0 22px;
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+
+.finale .btn {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 12px;
+  padding-inline: 28px;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-decoration: none;
 }

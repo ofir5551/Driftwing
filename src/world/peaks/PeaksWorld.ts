@@ -264,10 +264,7 @@ export class PeaksWorld implements World {
     // The cloud tops in this light: the mist's colour, a little brighter where the sun is on it.
     // Capped: the boost lifts the dim hours (the lit tops outshine the mist most at night), but by
     // day it would push the puffs past the bloom and they would glow like lamps.
-    const cc = this.softColor
-      .copy(u.uMistColor.value)
-      .lerp(p.sun, 0.1)
-      .multiplyScalar(P.veilLight);
+    const cc = this.softColor.copy(u.uMistColor.value).lerp(p.sun, 0.1).multiplyScalar(P.veilLight);
     const top = Math.max(cc.r, cc.g, cc.b);
     if (top > P.veilMax) cc.multiplyScalar(P.veilMax / top);
     u.uMistTime.value = time;

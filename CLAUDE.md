@@ -43,6 +43,11 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `main` at the root for players, `dev` under `/dev/` built with `VITE_CHANNEL=dev`
   (`core/channel.ts`: everything unlocked, no journey saved, its own settings keys, no service
   worker; URL flags still apply). Ship by merging `dev` into `main`.
+  A third build, the Eden channel, comes from `dev` too, under `/eden/` with `VITE_CHANNEL=eden`:
+  Tal and Hadar's wedding invitation. Eden only, the default bird, the title says "Tal ♥ Hadar"
+  with just Play and the time of day, no journey or unlocks, nothing saved (`Settings` reads and
+  writes nothing), no service worker (and the players' worker leaves `/eden/` alone). After the
+  venue's card a last card offers the full game (`FULL_GAME_URL`) or to keep flying.
 - `pwa.ts` + `sw.ts`: installable app. The service worker precaches each build (offline play);
   `vite.config.ts` builds it to `sw.js` with the file list. Updates reload only on the title.
   Files added to `public/` must be listed in `PUBLIC_FILES` there. Icons: `scripts/icons.mjs`.

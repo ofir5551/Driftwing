@@ -175,7 +175,7 @@ const FS_PROMPT_OFF = `${PREFIX}fullscreen-prompt-off`;
 /** The player chose "Don't show again" on the launch fullscreen card. */
 export function loadFsPromptOff(): boolean {
   try {
-    return localStorage.getItem(FS_PROMPT_OFF) === '1';
+    return read(FS_PROMPT_OFF) === '1';
   } catch {
     return false;
   }
@@ -183,7 +183,7 @@ export function loadFsPromptOff(): boolean {
 
 export function saveFsPromptOff(): void {
   try {
-    localStorage.setItem(FS_PROMPT_OFF, '1');
+    write(FS_PROMPT_OFF, '1');
   } catch {
     /* not persisted: the card comes back next launch */
   }

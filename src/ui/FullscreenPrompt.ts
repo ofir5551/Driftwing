@@ -9,6 +9,7 @@ import {
 } from './Fullscreen';
 import { canPromptInstall, onInstallChange, promptInstall } from '../pwa';
 import { loadFsPromptOff, saveFsPromptOff } from '../core/Settings';
+import { PERSONAL_CHANNEL } from '../core/channel';
 
 /** iOS's Share glyph (a box with an arrow out of it), so the step points at what to look for. */
 const SHARE_ICON =
@@ -47,6 +48,9 @@ export class FullscreenPrompt {
   static wanted(params: URLSearchParams): boolean {
     if (params.has('fsprompt')) return true;
     if (params.has('autopilot') || navigator.webdriver) return false;
+    // A personal stage's link (no service worker, so nothing to install) only offers the
+    // Fullscreen API: on an iPhone, which has none, there is nothing to ask.
+    if (PERSONAL_CHANNEL && fullscreenSupport() !== 'api') return false;
     return !isStandalone() && !isFullscreen() && !loadFsPromptOff();
   }
 

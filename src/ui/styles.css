@@ -2029,7 +2029,9 @@ body.paused .toast {
 .personal-channel .start .best,
 .personal-channel .journey,
 .personal-channel .rest-best,
-.personal-channel .unlock-cards {
+.personal-channel .unlock-cards,
+.personal-channel .fsp-install,
+.personal-channel .fsp-never {
   display: none;
 }
 

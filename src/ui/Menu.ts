@@ -483,6 +483,8 @@ export class Menu {
       h.newsSeen();
     });
     this.news.querySelector('#news-done')!.addEventListener('click', () => this.only(this.start));
+    // A personal link (e.g. a wedding invitation) is not the game's release: no What's new.
+    if (personal) this.newsBtn.remove();
     this.birdBlurb = this.aviary.querySelector<HTMLElement>('.bird-blurb')!;
     this.tabs = [...this.aviary.querySelectorAll<HTMLButtonElement>('.aviary-tab')];
     for (const tab of this.tabs)

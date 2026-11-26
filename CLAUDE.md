@@ -14,8 +14,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
   `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|eden`,
-  `?unlocked` (every level, plumage and trail open, nothing granted or saved), `?flock=N` (fly N
-  flock birds, never saved), `?fsprompt` (show the launch fullscreen card even if dismissed or automated).
+  `?unlocked` (every level but the personal ones, plumage and trail open, nothing granted or
+  saved), `?flock=N` (fly N flock birds, never saved), `?fsprompt` (show the launch fullscreen
+  card even if dismissed or automated).
 - Screenshot scripts take `CHROMIUM_PATH` to use a system Chromium (e.g. `/opt/pw-browsers/chromium`).
 - Automation hooks on `window`: `__dw` (Game, `info()`), `__gp` (Gameplay), `__audio` (GameAudio),
   `__journey` (Journey: lifetime light and unlocks).
@@ -43,6 +44,13 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `main` at the root for players, `dev` under `/dev/` built with `VITE_CHANNEL=dev`
   (`core/channel.ts`: everything unlocked, no journey saved, its own settings keys, no service
   worker; URL flags still apply). Ship by merging `dev` into `main`.
+  Personal stages (a `LevelDef` with `personal`, e.g. Eden, Tal and Hadar's wedding invitation)
+  are never in the players' game (listed on `dev` only) and each gets its own build from `dev`
+  under `/<id>/` with `VITE_PERSONAL=<id>`: that level alone, the default bird, its own title
+  with just Play and the time of day, no journey or unlocks, nothing saved (`Settings` reads and
+  writes nothing), no service worker (the players' worker leaves those paths alone). After its
+  `finaleAt` arrival a card offers the full game (`FULL_GAME_URL`) or to keep flying. A new one:
+  set `personal`, add its id to `levels/personal.ts` and the loop in `pages.yml`.
 - `pwa.ts` + `sw.ts`: installable app. The service worker precaches each build (offline play);
   `vite.config.ts` builds it to `sw.js` with the file list. Updates reload only on the title.
   Files added to `public/` must be listed in `PUBLIC_FILES` there. Icons: `scripts/icons.mjs`.

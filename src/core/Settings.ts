@@ -1,4 +1,4 @@
-import { DEV_CHANNEL } from './channel';
+import { DEV_CHANNEL, PERSONAL_CHANNEL } from './channel';
 import type { QualityLevel } from './Config';
 import { parseJourney, type JourneyData } from './Journey';
 import { isLevelId } from '../levels';
@@ -46,6 +46,15 @@ export interface Settings {
 // The dev channel keeps its own settings and bests (same site as the players' build).
 const PREFIX = DEV_CHANNEL ? 'driftwing-dev:' : 'driftwing:';
 const KEY = `${PREFIX}settings`;
+
+// A personal channel (e.g. a wedding invitation) keeps nothing: every visit starts fresh, and the
+// players' save on the same site is never read or touched. Reads find nothing, writes vanish.
+function read(key: string): string | null {
+  return PERSONAL_CHANNEL ? null : localStorage.getItem(key);
+}
+function write(key: string, value: string): void {
+  if (!PERSONAL_CHANNEL) localStorage.setItem(key, value);
+}
 const BEST = `${PREFIX}best`;
 const DEFAULTS: Settings = {
   volume: 0.8,
@@ -65,7 +74,7 @@ const DEFAULTS: Settings = {
 // localStorage can throw (private mode, disabled storage): settings then just don't persist.
 export function loadSettings(): Settings {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = read(KEY);
     if (!raw) return { ...DEFAULTS, taught: { ...DEFAULTS.taught } };
     const s = JSON.parse(raw) as Partial<Settings>;
     return {
@@ -97,7 +106,7 @@ function parseTaught(raw: unknown): Taught {
 
 export function saveSettings(s: Settings): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    write(KEY, JSON.stringify(s));
   } catch {
     /* not persisted */
   }
@@ -108,7 +117,7 @@ const bestKey = (level: LevelId) => (level === 'highlands' ? BEST : `${BEST}:${l
 
 export function loadBest(level: LevelId): number {
   try {
-    return Number(localStorage.getItem(bestKey(level))) || 0;
+    return Number(read(bestKey(level))) || 0;
   } catch {
     return 0;
   }
@@ -116,7 +125,7 @@ export function loadBest(level: LevelId): number {
 
 export function saveBest(level: LevelId, score: number): void {
   try {
-    localStorage.setItem(bestKey(level), String(score));
+    write(bestKey(level), String(score));
   } catch {
     /* not persisted */
   }
@@ -127,7 +136,7 @@ const NOTES = `${PREFIX}lantern-notes`;
 /** The lantern notes shown lately (texts, oldest first), so a note waits its turn across flights. */
 export function loadSeenNotes(): string[] {
   try {
-    const raw = localStorage.getItem(NOTES);
+    const raw = read(NOTES);
     return parseSeenNotes(raw ? JSON.parse(raw) : null);
   } catch {
     return [];
@@ -136,7 +145,7 @@ export function loadSeenNotes(): string[] {
 
 export function saveSeenNotes(seen: readonly string[]): void {
   try {
-    localStorage.setItem(NOTES, JSON.stringify(seen));
+    write(NOTES, JSON.stringify(seen));
   } catch {
     /* not persisted */
   }
@@ -146,7 +155,7 @@ const JOURNEY = `${PREFIX}journey`;
 
 export function loadJourney(): JourneyData {
   try {
-    const raw = localStorage.getItem(JOURNEY);
+    const raw = read(JOURNEY);
     return parseJourney(raw ? JSON.parse(raw) : null);
   } catch {
     return parseJourney(null);
@@ -155,7 +164,7 @@ export function loadJourney(): JourneyData {
 
 export function saveJourney(data: JourneyData): void {
   try {
-    localStorage.setItem(JOURNEY, JSON.stringify(data));
+    write(JOURNEY, JSON.stringify(data));
   } catch {
     /* not persisted */
   }
@@ -166,7 +175,7 @@ const FS_PROMPT_OFF = `${PREFIX}fullscreen-prompt-off`;
 /** The player chose "Don't show again" on the launch fullscreen card. */
 export function loadFsPromptOff(): boolean {
   try {
-    return localStorage.getItem(FS_PROMPT_OFF) === '1';
+    return read(FS_PROMPT_OFF) === '1';
   } catch {
     return false;
   }
@@ -174,7 +183,7 @@ export function loadFsPromptOff(): boolean {
 
 export function saveFsPromptOff(): void {
   try {
-    localStorage.setItem(FS_PROMPT_OFF, '1');
+    write(FS_PROMPT_OFF, '1');
   } catch {
     /* not persisted: the card comes back next launch */
   }
@@ -187,8 +196,8 @@ const SEEN_VERSION = `${PREFIX}seen-version`;
 export function loadSeenVersion(): { saved: string | null; playedBefore: boolean } {
   try {
     return {
-      saved: localStorage.getItem(SEEN_VERSION),
-      playedBefore: localStorage.getItem(KEY) !== null || localStorage.getItem(JOURNEY) !== null,
+      saved: read(SEEN_VERSION),
+      playedBefore: read(KEY) !== null || read(JOURNEY) !== null,
     };
   } catch {
     return { saved: null, playedBefore: false };
@@ -197,7 +206,7 @@ export function loadSeenVersion(): { saved: string | null; playedBefore: boolean
 
 export function saveSeenVersion(version: string): void {
   try {
-    localStorage.setItem(SEEN_VERSION, version);
+    write(SEEN_VERSION, version);
   } catch {
     /* not persisted */
   }

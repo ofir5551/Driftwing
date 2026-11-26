@@ -494,7 +494,8 @@ body.steer-split .boost-btn {
 
 .menu.pause,
 .menu.rest,
-.menu.help {
+.menu.help,
+.menu.finale {
   background: rgba(60, 45, 80, 0.25);
   backdrop-filter: blur(3px);
 }
@@ -507,7 +508,8 @@ body.steer-split .boost-btn {
 }
 
 .pause .card,
-.help .card {
+.help .card,
+.finale .card {
   background: rgba(255, 248, 238, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 22px;
@@ -2085,7 +2087,8 @@ body.lefty.steer-split .boost-btn {
     margin-bottom: 14px;
   }
   .pause .card,
-  .help .card {
+  .help .card,
+  .finale .card {
     padding: 16px 22px;
   }
   .aviary .card {
@@ -2180,4 +2183,38 @@ body.paused .toast {
 .news .settings-head h2 {
   font-size: 30px;
   white-space: nowrap;
+}
+
+/* A personal channel (e.g. a wedding invitation): one stage alone, so no level cards, birds,
+   journey or bests; on the title only Play and the time of day. */
+.personal-channel .start .levels,
+.personal-channel .start .levels-more,
+.personal-channel .start .title-row,
+.personal-channel .start .best,
+.personal-channel .start .news-btn,
+.personal-channel .journey,
+.personal-channel .rest-best,
+.personal-channel .unlock-cards,
+.personal-channel .fsp-install,
+.personal-channel .fsp-never {
+  display: none;
+}
+
+.finale-sub {
+  margin: -4px 0 22px;
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+
+.finale .btn {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 12px;
+  padding-inline: 28px;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-decoration: none;
 }

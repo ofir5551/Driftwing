@@ -1,8 +1,10 @@
 name: Deploy to GitHub Pages
 
-# One Pages site, two builds: `main` (the players' game) at the root, and `dev` (everything
-# unlocked, nothing saved; see src/core/channel.ts) under /dev/. A push to either branch
-# rebuilds both, so neither ever replaces the other. Keep this file the same on both branches.
+# One Pages site, several builds: `main` (the players' game) at the root, `dev` (everything
+# unlocked, nothing saved; see src/core/channel.ts) under /dev/, and from the same `dev` branch
+# each personal stage on its own under /<id>/ (e.g. /eden/, Tal and Hadar's wedding invitation). A push to
+# either branch rebuilds all of them, so none ever replaces another. Keep this file the same on
+# both branches.
 on:
   push:
     branches: [main, dev]
@@ -22,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       dev: ${{ steps.devbuild.outcome }}
+      personal: ${{ steps.personalbuild.outcome }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,6 +64,21 @@ jobs:
           npx vite build
           mkdir -p ../main/dist/dev
           cp -r dist/. ../main/dist/dev/
+      # Each personal stage on its own (e.g. /eden/, the wedding invitation), from the same dev
+      # checkout (already installed and tested above). Keep the list in step with
+      # src/levels/personal.ts.
+      - name: Build personal stages
+        id: personalbuild
+        if: steps.devbuild.outcome == 'success'
+        continue-on-error: true
+        working-directory: dev
+        run: |
+          for id in eden; do
+            rm -rf dist
+            VITE_PERSONAL=$id npx vite build
+            mkdir -p ../main/dist/$id
+            cp -r dist/. ../main/dist/$id/
+          done
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -81,9 +99,9 @@ jobs:
   # the dev build passes again.
   dev-status:
     needs: [build, deploy]
-    if: always() && needs.build.outputs.dev == 'failure'
+    if: always() && (needs.build.outputs.dev == 'failure' || needs.build.outputs.personal == 'failure')
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "::error::The dev build failed (see the build job's 'Build dev' step), so /dev/ is not on the site. The players' build deployed as usual."
+          echo "::error::The dev or a personal build failed (see the build job's 'Build dev' and 'Build personal stages' steps), so /dev/ or a personal stage is missing from the site. The players' build deployed as usual."
           exit 1

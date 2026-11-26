@@ -30,7 +30,6 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
       'Sea of Clouds: dive into the cloud sea and glide through it for a breath.',
       'Coral Atolls: glide under deep water for a breath, the reef in sight.',
       'Lanterns hold notes: reach one to read its message.',
-      'Eden: a wedding flight for Tal and Hadar over the Highlands in flower, always open.',
       'Fullscreen at launch, with how to install Driftwing as an app on your phone or computer.',
       'What’s new: this list, and the version on the title. A glow tells you when there is more.',
     ],

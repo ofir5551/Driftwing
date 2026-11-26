@@ -9,7 +9,8 @@ import {
 import { CHANGELOG, VERSION, formatDate, unseen } from '../core/Changelog';
 import { DEV_CHANNEL } from '../core/channel';
 import type { Settings } from '../core/Settings';
-import { LEVEL_LIST } from '../levels';
+import { FULL_GAME_URL } from '../core/channel';
+import { LEVEL_LIST, LISTED_LEVELS, PERSONAL_LEVEL } from '../levels';
 import type { LevelId } from '../levels/World';
 import { TIME_OF_DAY_LIST, type TimeOfDay } from '../world/DayCycle';
 import { LEVEL_FINDS } from '../world/Discoveries';
@@ -305,6 +306,8 @@ export class Menu {
   private readonly news: HTMLDivElement;
   private readonly newsBtn: HTMLButtonElement;
   private readonly aviary: HTMLDivElement;
+  /** A personal channel's last card (the full game, or keep flying); unused elsewhere. */
+  private readonly finale: HTMLDivElement;
   private readonly picks: HTMLButtonElement[];
   private readonly tabs: HTMLButtonElement[];
   private readonly birdBlurb: HTMLElement;
@@ -330,11 +333,12 @@ export class Menu {
     /** The version whose What's new the player last saw. */
     seenVersion: string,
   ) {
+    // A personal stage (e.g. a wedding invitation) has its own title.
+    const personal = PERSONAL_LEVEL?.personal;
     this.start = this.panel(
       'start',
-      `<h1>Driftwing</h1>
-       <p class="tag">Glide. Gather the light. Breathe.</p>
-       <div class="levels" role="radiogroup" aria-label="Level">${LEVEL_LIST.map(
+      `<h1></h1><p class="tag"></p>
+       <div class="levels" role="radiogroup" aria-label="Level">${LISTED_LEVELS.map(
          (l) =>
            `<button class="level" role="radio" aria-checked="false" data-level="${l.id}">
               <span class="level-name">${l.name}</span><span class="level-blurb">${l.blurb}</span>
@@ -359,6 +363,9 @@ export class Menu {
          <button class="news-btn" id="news-btn"><span class="news-dot" aria-hidden="true"></span><span class="news-label"></span></button>
        </div>`,
     );
+    this.start.querySelector('h1')!.textContent = personal?.title ?? 'Driftwing';
+    this.start.querySelector('.tag')!.textContent =
+      personal?.tag ?? 'Glide. Gather the light. Breathe.';
     this.best = this.start.querySelector('.best')!;
     this.pause = this.panel(
       'pause',
@@ -391,6 +398,13 @@ export class Menu {
     this.aviary = this.panel('aviary', AVIARY_HTML);
     const fresh = new Set(unseen(seenVersion).map((e) => e.version));
     this.news = this.panel('news', newsHtml(fresh));
+    this.finale = this.panel(
+      'finale',
+      `<h2></h2>
+       <p class="finale-sub"></p>
+       <a class="btn primary" id="full-game-btn" href="${FULL_GAME_URL}">Play the full game</a>
+       <button class="btn ghost" id="finale-fly-btn">Keep flying</button>`,
+    );
     this.journeyBars = [this.start, this.pause, this.rest, this.aviary].map((p) =>
       p.querySelector<HTMLElement>('.journey')!,
     );
@@ -406,6 +420,7 @@ export class Menu {
       this.help,
       this.aviary,
       this.news,
+      this.finale,
       this.pauseBtn,
     );
     this.setupFullscreen(ui);
@@ -435,6 +450,13 @@ export class Menu {
     this.rest.querySelector('#fly-btn')!.addEventListener('click', () => h.keepFlying());
     this.rest.querySelector('#rest-title-btn')!.addEventListener('click', () => h.toTitle());
     this.pauseBtn.addEventListener('click', () => h.pause());
+    this.finale.querySelector('#finale-fly-btn')!.addEventListener('click', () => h.resume());
+    if (personal) {
+      this.finale.querySelector('h2')!.textContent = personal.finaleTitle;
+      this.finale.querySelector('.finale-sub')!.textContent = personal.finaleText;
+      // Only the title is left to go back to, and it is the stage's own.
+      this.pause.querySelector('#title-btn span')!.textContent = 'Title';
+    }
     for (const from of [this.start, this.settingsPanel])
       from.querySelector('.controls-btn')!.addEventListener('click', () => this.showHelp(from));
     this.pause
@@ -500,6 +522,7 @@ export class Menu {
       this.help,
       this.aviary,
       this.news,
+      this.finale,
     ];
   }
 
@@ -898,6 +921,11 @@ export class Menu {
   /** The title screen is up (nothing on it is lost by a reload). */
   get onTitle(): boolean {
     return this.start.classList.contains('show');
+  }
+
+  /** The Eden channel's last card, over the paused flight. */
+  showFinale(): void {
+    this.only(this.finale);
   }
 
   showPlaying(): void {

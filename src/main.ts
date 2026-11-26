@@ -1,4 +1,4 @@
-import { DEV_CHANNEL } from './core/channel';
+import { DEV_CHANNEL, PERSONAL_CHANNEL } from './core/channel';
 import './ui/styles.css';
 import { Game } from './core/Game';
 import { Gameplay } from './core/Gameplay';
@@ -17,7 +17,7 @@ import {
   type Settings,
 } from './core/Settings';
 import { GameAudio } from './audio/GameAudio';
-import { isLevelId, LEVEL_LIST } from './levels';
+import { isFlyable, isLevelId, LEVEL_LIST, PERSONAL_LEVEL } from './levels';
 import type { LevelId } from './levels/World';
 import type { TimeOfDay } from './world/DayCycle';
 import { Menu, type MenuHandlers } from './ui/Menu';
@@ -41,9 +41,10 @@ const seen = loadSeenVersion();
 const settings = loadSettings();
 // The journey (lifetime light). `?autopilot` never earns (the bot would fill it), and
 // `?journey=N` starts a throwaway journey at N light that is never saved. The dev channel
-// always flies a throwaway journey (light from `?journey=N`, 0 by default).
-const earns = !params.has('autopilot');
-const testLight = params.get('journey') ?? (DEV_CHANNEL ? '0' : null);
+// always flies a throwaway journey (light from `?journey=N`, 0 by default). A personal channel
+// (e.g. a wedding invitation) has no journey at all: nothing earned, nothing unlocked.
+const earns = !params.has('autopilot') && !PERSONAL_CHANNEL;
+const testLight = params.get('journey') ?? (DEV_CHANNEL || PERSONAL_CHANNEL ? '0' : null);
 const keepsJourney = earns && testLight === null;
 const journey =
   testLight === null
@@ -63,9 +64,21 @@ if (DEV_CHANNEL) {
 if (testLight === null) for (const l of LEVEL_LIST) if (loadBest(l.id) > 0) journey.grant(l.id);
 // The last level picked, unless it is still locked (picked, never flown, before levels had
 // locks). `?level=` opens any level for development without unlocking it.
-if (!journey.isLevelOpen(settings.level)) settings.level = 'highlands';
+// A personal stage is never flown in the players' game (one picked on an older build included).
+if (!journey.isLevelOpen(settings.level) || !isFlyable(settings.level))
+  settings.level = 'highlands';
 const urlLevel = params.get('level');
-const game = new Game(app, ui, isLevelId(urlLevel) ? urlLevel : settings.level, settings.timeOfDay);
+// A personal channel only ever flies its own stage.
+if (PERSONAL_LEVEL?.personal) {
+  document.body.classList.add('personal-channel');
+  document.title = PERSONAL_LEVEL.personal.pageTitle;
+}
+const firstLevel: LevelId = PERSONAL_LEVEL
+  ? PERSONAL_LEVEL.id
+  : isLevelId(urlLevel) && isFlyable(urlLevel)
+    ? urlLevel
+    : settings.level;
+const game = new Game(app, ui, firstLevel, settings.timeOfDay);
 const gameplay = new Gameplay(game, ui);
 // The flock flies from the start (the title's backdrop too). `?flock=N` shows N birds for
 // screenshots without touching the save.
@@ -145,7 +158,8 @@ let switching = false;
 const VEIL_MS = 380;
 /** Fade to a veil, rebuild the world for the new level behind it, fade back in. */
 function switchLevel(id: LevelId): void {
-  if (switching || id === game.level.id || !journey.isLevelOpen(id)) return;
+  if (PERSONAL_CHANNEL || switching || id === game.level.id) return;
+  if (!journey.isLevelOpen(id) || !isFlyable(id)) return;
   switching = true;
   persist();
   veil.classList.add('show');
@@ -160,6 +174,11 @@ function switchLevel(id: LevelId): void {
     switching = false;
   }, VEIL_MS);
 }
+
+/** A personal channel's last word, after its last arrival's card: s left before it shows (-1: not due),
+ *  and whether it has been shown this visit (once is enough). */
+let finaleIn = -1;
+let finaleShown = false;
 
 let playTime = 0;
 /** The level's saved best when the flight began (so the Rest card can say "a new best"). */
@@ -214,6 +233,7 @@ const handlers: MenuHandlers = {
   },
   rest() {
     if (game.mode !== 'paused') return;
+    finaleIn = -1;
     persist();
     const p = gameplay.progress;
     // The bot takes the bird on, so it keeps gliding behind the card (the title's backdrop flight).
@@ -296,6 +316,7 @@ const handlers: MenuHandlers = {
   toTitle() {
     if (game.mode === 'playing' || switching) return; // from the pause menu or the Rest card
     switching = true;
+    finaleIn = -1;
     persist();
     // Veil the cut: the frozen pause (or the Rest card's glide) would otherwise snap to the title.
     veil.classList.add('show');
@@ -355,6 +376,10 @@ game.events.on('arrival', (e) => {
   }
   earn(Config.destinations.light);
   bankJourney(); // a journey's end is worth saving at once
+  // A personal stage's end: once its card has had its time, the full game is offered.
+  const p = PERSONAL_LEVEL?.personal;
+  if (p && !finaleShown && e.id === p.finaleAt && !params.has('autopilot'))
+    finaleIn = p.finaleAfter;
 });
 game.events.on('lantern', persist);
 game.onFrame((dt) => {
@@ -370,6 +395,10 @@ game.onFrame((dt) => {
     if (game.mode === 'playing') handlers.pause();
     else if (game.mode === 'paused') handlers.resume();
   }
+  if (game.mode === 'playing' && finaleIn >= 0) {
+    finaleIn -= dt;
+    if (finaleIn < 0 && !switching) showFinale();
+  }
   if (game.mode === 'playing') {
     playTime += dt;
     bankTimer += dt;
@@ -377,6 +406,15 @@ game.onFrame((dt) => {
     teach(dt);
   }
 });
+
+/** Pauses on a personal channel's last card: play the full game, or keep flying here. */
+function showFinale(): void {
+  finaleShown = true;
+  photoCard.hide();
+  game.setMode('paused');
+  document.body.classList.add('paused');
+  menu.showFinale();
+}
 
 /** One lesson at a time, each only while the toast is free (never over a lantern or unlock). */
 function teach(dt: number): void {

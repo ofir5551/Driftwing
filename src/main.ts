@@ -3,13 +3,16 @@ import './ui/styles.css';
 import { Game } from './core/Game';
 import { Gameplay } from './core/Gameplay';
 import { Config } from './core/Config';
+import { seenVersion, VERSION } from './core/Changelog';
 import { Journey, parseJourney, type Unlock } from './core/Journey';
 import {
   loadBest,
   loadJourney,
+  loadSeenVersion,
   loadSettings,
   saveBest,
   saveJourney,
+  saveSeenVersion,
   saveSettings,
   type Settings,
 } from './core/Settings';
@@ -32,6 +35,8 @@ const ui = document.createElement('div');
 ui.id = 'ui';
 document.body.appendChild(ui);
 
+// Read before anything is saved this visit: whether anything was stored tells a returning player.
+const seen = loadSeenVersion();
 const settings = loadSettings();
 // The journey (lifetime light). `?autopilot` never earns (the bot would fill it), and
 // `?journey=N` starts a throwaway journey at N light that is never saved. The dev channel
@@ -255,6 +260,7 @@ const handlers: MenuHandlers = {
     menu.showPlaying();
   },
   change: applySettings,
+  newsSeen: () => saveSeenVersion(VERSION),
   selectLevel: switchLevel,
   isNewLevel: (id) => id !== 'highlands' && loadBest(id) <= 0,
   selectTime(t: TimeOfDay) {
@@ -307,7 +313,9 @@ const handlers: MenuHandlers = {
     }, VEIL_MS);
   },
 };
-const menu = new Menu(ui, settings, journey, handlers);
+const menu = new Menu(ui, settings, journey, handlers, seenVersion(seen.saved, seen.playedBefore));
+// A first visit has nothing to announce: remember this version as seen straight away.
+if (seen.saved === null && !seen.playedBefore) saveSeenVersion(VERSION);
 
 // The bot flaps on the title too: only the player's own flaps teach boosting.
 game.events.on('flap', () => game.mode === 'playing' && learn('boost'));

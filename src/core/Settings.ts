@@ -160,3 +160,26 @@ export function saveJourney(data: JourneyData): void {
     /* not persisted */
   }
 }
+
+const SEEN_VERSION = `${PREFIX}seen-version`;
+
+/** The last game version whose What's new the player opened (null: never saved), and whether
+ *  they played before versions were saved (anything else of theirs is stored). */
+export function loadSeenVersion(): { saved: string | null; playedBefore: boolean } {
+  try {
+    return {
+      saved: localStorage.getItem(SEEN_VERSION),
+      playedBefore: localStorage.getItem(KEY) !== null || localStorage.getItem(JOURNEY) !== null,
+    };
+  } catch {
+    return { saved: null, playedBefore: false };
+  }
+}
+
+export function saveSeenVersion(version: string): void {
+  try {
+    localStorage.setItem(SEEN_VERSION, version);
+  } catch {
+    /* not persisted */
+  }
+}

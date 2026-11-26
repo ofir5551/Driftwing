@@ -1411,6 +1411,165 @@ body.steer-split .controls.touch-split {
   scrollbar-width: none;
 }
 
+/* The title's last line: the best score (once there is one) beside the version tag. */
+.title-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 6px;
+  margin-top: 10px;
+}
+
+.title-foot .best {
+  margin: 0;
+}
+
+/* What's new: the title's version tag (a soft glow while there is something unseen) and the
+   changelog card, laid out like Settings. */
+.news-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: inherit;
+  background: none;
+  border: none;
+  opacity: 0.72;
+  cursor: pointer;
+  text-shadow: inherit;
+}
+
+.news-btn .news-label {
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 250, 240, 0.4);
+  text-underline-offset: 4px;
+}
+
+.news-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--glow);
+  box-shadow: 0 0 10px 3px rgba(255, 220, 150, 0.85);
+  animation: news-glow 2.4s ease-in-out infinite;
+}
+
+.news-btn.unread {
+  opacity: 1;
+}
+
+.news-btn.unread .news-dot {
+  display: inline-block;
+}
+
+@keyframes news-glow {
+  50% {
+    opacity: 0.45;
+    box-shadow: 0 0 4px 1px rgba(255, 220, 150, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .news-dot {
+    animation: none;
+  }
+}
+
+.menu.news {
+  background: rgba(60, 45, 80, 0.25);
+  backdrop-filter: blur(3px);
+}
+
+.news .card {
+  width: min(400px, 100%);
+  text-align: left;
+  background: rgba(255, 248, 238, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 22px;
+  padding: 20px 22px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(60, 40, 80, 0.25);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.news-sub {
+  margin: -4px 0 14px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.release {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.release.fresh {
+  background: rgba(255, 236, 190, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 236, 190, 0.45);
+}
+
+.release h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 19px;
+}
+
+.release-version {
+  font-family: var(--font);
+  font-style: normal;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+  margin-right: 4px;
+}
+
+.release-new {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-family: var(--font);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--glow);
+  text-shadow: none;
+  vertical-align: 2px;
+}
+
+.release-date {
+  margin: 2px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.release ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.release li {
+  margin: 4px 0;
+}
+
 .settings-head {
   display: flex;
   align-items: center;
@@ -1844,4 +2003,9 @@ body.paused .toast {
   font-size: clamp(13px, 2.6vw, 17px);
   letter-spacing: 0.12em;
   color: #9a7a4a;
+}
+
+.news .settings-head h2 {
+  font-size: 30px;
+  white-space: nowrap;
 }

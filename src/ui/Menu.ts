@@ -6,6 +6,8 @@ import {
   type UnlockId,
   type UnlockKind,
 } from '../core/Journey';
+import { CHANGELOG, VERSION, formatDate, unseen } from '../core/Changelog';
+import { DEV_CHANNEL } from '../core/channel';
 import type { Settings } from '../core/Settings';
 import { LEVEL_LIST } from '../levels';
 import type { LevelId } from '../levels/World';
@@ -56,7 +58,24 @@ export interface MenuHandlers {
   resume(): void;
   pause(): void;
   change(s: Settings): void;
+  /** What's new was opened: everything in it has now been seen. */
+  newsSeen(): void;
 }
+
+/** What's new: the changelog, newest first; releases since the player last looked wear "New". */
+const newsHtml = (fresh: ReadonlySet<string>) => `<div class="settings-head">
+    <h2>What’s new</h2><button class="btn primary" id="news-done">Done</button>
+  </div>
+  <p class="news-sub">Driftwing ${VERSION}${DEV_CHANNEL ? ' (dev)' : ''}</p>
+  ${CHANGELOG.map(
+    (e) => `<section class="release${fresh.has(e.version) ? ' fresh' : ''}">
+      <h3><span class="release-version">${e.version}</span> ${e.title}${
+        fresh.has(e.version) ? ' <span class="release-new">New</span>' : ''
+      }</h3>
+      <p class="release-date">${formatDate(e.date)}</p>
+      <ul>${e.items.map((i) => `<li>${i}</li>`).join('')}</ul>
+    </section>`,
+  ).join('')}`;
 
 /** The Controls panel. Every list is built; `body.touch` picks the one for this device and
  *  `body.steer-*` the touch steering scheme. */
@@ -283,6 +302,8 @@ export class Menu {
   private restToken = 0;
   private readonly help: HTMLDivElement;
   private readonly settingsPanel: HTMLDivElement;
+  private readonly news: HTMLDivElement;
+  private readonly newsBtn: HTMLButtonElement;
   private readonly aviary: HTMLDivElement;
   private readonly picks: HTMLButtonElement[];
   private readonly tabs: HTMLButtonElement[];
@@ -306,6 +327,8 @@ export class Menu {
     private readonly settings: Settings,
     private readonly journey: Journey,
     h: MenuHandlers,
+    /** The version whose What's new the player last saw. */
+    seenVersion: string,
   ) {
     this.start = this.panel(
       'start',
@@ -331,7 +354,10 @@ export class Menu {
        </div>
        <button class="fs-nudge" hidden>⤢ Best played fullscreen</button>
        <p class="fs-tip" hidden>For fullscreen, tap Share, then <b>Add to Home Screen</b>, and open Driftwing from there.</p>
-       <p class="best" hidden></p>`,
+       <div class="title-foot">
+         <p class="best" hidden></p>
+         <button class="news-btn" id="news-btn"><span class="news-dot" aria-hidden="true"></span><span class="news-label"></span></button>
+       </div>`,
     );
     this.best = this.start.querySelector('.best')!;
     this.pause = this.panel(
@@ -363,6 +389,8 @@ export class Menu {
        <button class="btn ghost" id="rest-title-btn">Title</button>`,
     );
     this.aviary = this.panel('aviary', AVIARY_HTML);
+    const fresh = new Set(unseen(seenVersion).map((e) => e.version));
+    this.news = this.panel('news', newsHtml(fresh));
     this.journeyBars = [this.start, this.pause, this.rest, this.aviary].map((p) =>
       p.querySelector<HTMLElement>('.journey')!,
     );
@@ -377,6 +405,7 @@ export class Menu {
       this.rest,
       this.help,
       this.aviary,
+      this.news,
       this.pauseBtn,
     );
     this.setupFullscreen(ui);
@@ -423,6 +452,15 @@ export class Menu {
       h.aviary(false);
       this.only(this.start);
     });
+    this.newsBtn = this.start.querySelector<HTMLButtonElement>('#news-btn')!;
+    this.markNews(fresh.size > 0);
+    this.newsBtn.addEventListener('click', () => {
+      this.only(this.news);
+      this.news.querySelector('.card')!.scrollTop = 0;
+      this.markNews(false); // the releases keep their "New" until the next visit
+      h.newsSeen();
+    });
+    this.news.querySelector('#news-done')!.addEventListener('click', () => this.only(this.start));
     this.birdBlurb = this.aviary.querySelector<HTMLElement>('.bird-blurb')!;
     this.tabs = [...this.aviary.querySelectorAll<HTMLButtonElement>('.aviary-tab')];
     for (const tab of this.tabs)
@@ -454,7 +492,23 @@ export class Menu {
   }
 
   private panels(): HTMLDivElement[] {
-    return [this.start, this.pause, this.settingsPanel, this.rest, this.help, this.aviary];
+    return [
+      this.start,
+      this.pause,
+      this.settingsPanel,
+      this.rest,
+      this.help,
+      this.aviary,
+      this.news,
+    ];
+  }
+
+  /** The title's version tag: a glow and "New" while there are releases the player hasn't seen. */
+  private markNews(unread: boolean): void {
+    this.newsBtn.classList.toggle('unread', unread);
+    this.newsBtn.querySelector('.news-label')!.textContent = unread
+      ? `What’s new in ${VERSION}`
+      : `v${VERSION} · What’s new`;
   }
 
   /**
@@ -658,7 +712,10 @@ export class Menu {
     // Not over the Aviary or Settings: on a phone their cards reach the top corner.
     this.fsBtn?.classList.toggle(
       'show',
-      panel !== null && panel !== this.aviary && panel !== this.settingsPanel,
+      panel !== null &&
+        panel !== this.aviary &&
+        panel !== this.settingsPanel &&
+        panel !== this.news,
     );
   }
 

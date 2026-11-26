@@ -14,15 +14,7 @@ import {
 
 /** Instrument for ambient notes, wisp notes and the lantern flourish. */
 export type Voice =
-  | 'bell'
-  | 'koto'
-  | 'guqin'
-  | 'glass'
-  | 'oud'
-  | 'guitar'
-  | 'flute'
-  | 'marimba'
-  | 'horn';
+  'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute' | 'marimba' | 'horn';
 
 /**
  * A level's musical identity. The generative engine is shared; this is what it plays and how,

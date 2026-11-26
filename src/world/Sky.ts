@@ -483,15 +483,7 @@ void main() {
  * a ringed gas giant (with a second sun).
  */
 export type Backdrop =
-  | 'none'
-  | 'fuji'
-  | 'karst'
-  | 'aurora'
-  | 'hills'
-  | 'mesas'
-  | 'summits'
-  | 'cumulus'
-  | 'giant';
+  'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas' | 'summits' | 'cumulus' | 'giant';
 
 export class Sky {
   readonly mesh: THREE.Mesh;

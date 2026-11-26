@@ -87,6 +87,25 @@ export interface Spawn {
   yaw: number;
 }
 
+/**
+ * A personal stage (made for someone: a wedding, a birthday): never listed in the players'
+ * game, flown on its own build at /<id>/ (see core/channel.ts), with its own title and a
+ * finale that offers the full game.
+ */
+export interface PersonalStage {
+  /** The title screen's heading and the line under it. */
+  readonly title: string;
+  readonly tag: string;
+  /** The browser tab's title. */
+  readonly pageTitle: string;
+  /** The destination whose arrival leads to the finale card, and s after it. */
+  readonly finaleAt: string;
+  readonly finaleAfter: number;
+  /** The finale card's heading and its line. */
+  readonly finaleTitle: string;
+  readonly finaleText: string;
+}
+
 export interface LevelDef {
   id: LevelId;
   name: string;
@@ -122,6 +141,8 @@ export interface LevelDef {
    * show through (read every frame, so a getter onto Config stays live in the debug panel).
    */
   readonly waterClarity?: number;
+  /** Set on a personal stage (hidden from the players' game; see PersonalStage). */
+  readonly personal?: PersonalStage;
   /** Soft ceiling, m above water (copied into Config.flight.maxAltitude on a level switch). */
   maxAltitude: number;
   create(seed: number): { world: World; spawn: Spawn };

@@ -1,4 +1,4 @@
-import { DEV_CHANNEL, EDEN_CHANNEL } from './channel';
+import { DEV_CHANNEL, PERSONAL_CHANNEL } from './channel';
 import type { QualityLevel } from './Config';
 import { parseJourney, type JourneyData } from './Journey';
 import { isLevelId } from '../levels';
@@ -47,13 +47,13 @@ export interface Settings {
 const PREFIX = DEV_CHANNEL ? 'driftwing-dev:' : 'driftwing:';
 const KEY = `${PREFIX}settings`;
 
-// The Eden channel (a wedding invitation) keeps nothing: every visit starts fresh, and the
+// A personal channel (e.g. a wedding invitation) keeps nothing: every visit starts fresh, and the
 // players' save on the same site is never read or touched. Reads find nothing, writes vanish.
 function read(key: string): string | null {
-  return EDEN_CHANNEL ? null : localStorage.getItem(key);
+  return PERSONAL_CHANNEL ? null : localStorage.getItem(key);
 }
 function write(key: string, value: string): void {
-  if (!EDEN_CHANNEL) localStorage.setItem(key, value);
+  if (!PERSONAL_CHANNEL) localStorage.setItem(key, value);
 }
 const BEST = `${PREFIX}best`;
 const DEFAULTS: Settings = {

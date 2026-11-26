@@ -295,7 +295,7 @@ export const Config = {
     lanternGlow: 2.4, // lantern brightness (over 1: bloom haloes it)
     lampGlow: 2.2, // the poolside lamps after dark
     cardSeconds: 7, // s a photo card stays up after an arrival
-    finaleDelay: 1.5, // s after the venue's card before the invitation build offers the full game
+    finaleDelay: 1.5, // s after the venue's card before the invitation offers the full game
     reach: 40, // m from a beacon's axis that arrives (generous: a story, not a course)
     runIn: 250, // m from a stop's beacon within which the ribbon runs straight through it
     runOut: 120, // m the ribbon runs on past the beacon

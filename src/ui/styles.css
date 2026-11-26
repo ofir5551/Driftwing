@@ -1849,15 +1849,15 @@ body.paused .toast {
   color: #9a7a4a;
 }
 
-/* The Eden channel (a wedding invitation): Eden alone, so no level cards, birds, journey or
-   bests; on the title only Play and the time of day. */
-.eden-channel .start .levels,
-.eden-channel .start .levels-more,
-.eden-channel .start .title-row,
-.eden-channel .start .best,
-.eden-channel .journey,
-.eden-channel .rest-best,
-.eden-channel .unlock-cards {
+/* A personal channel (e.g. a wedding invitation): one stage alone, so no level cards, birds,
+   journey or bests; on the title only Play and the time of day. */
+.personal-channel .start .levels,
+.personal-channel .start .levels-more,
+.personal-channel .start .title-row,
+.personal-channel .start .best,
+.personal-channel .journey,
+.personal-channel .rest-best,
+.personal-channel .unlock-cards {
   display: none;
 }
 

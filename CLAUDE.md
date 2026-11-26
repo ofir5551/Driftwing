@@ -27,6 +27,13 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   (iPhone SE 320x568 must fit) and add no new buttons or gestures. Check UI with Playwright's
   `devices['iPhone SE']`, `devices['iPhone 14']`, `devices['Pixel 7']`.
 
+- Changelog: players read `src/core/Changelog.ts` as What's new (the version tag on the title glows
+  when a release is unseen). Before ending a session or committing work that players will notice
+  (a level, bird, feature, visible fix, feel change), add a line in the game's voice to it: to the
+  top entry while that version hasn't reached `main` yet, otherwise as a new entry on top with
+  `package.json`'s version bumped to match (minor for something new, patch for fixes and tweaks).
+  Date it the day it ships to `main`. Leave out what players can't see (refactors, tests, tooling,
+  the dev channel). Say which line you added (or why none) when reporting back.
 - Strict TS, no `any`. Small modules. Comment the _why_ for flight and audio-scheduling math.
 - Every tunable number goes in `src/core/Config.ts` (auto-exposed in the debug panel).
 - Hot paths (`step`/`frame`/`render`) must not allocate: reuse scratch vectors at module scope, pool objects.
@@ -58,6 +65,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `Eden` (Tal and Hadar's wedding flight, off the journey track: always open); `index`
   registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
+- `core/Changelog.ts`: the players' changelog and the game's version (the top entry; a test keeps
+  `package.json` in step) (pure). `Settings` saves the version last seen; `Menu` draws the title's
+  version tag and the What's new card, marking releases newer than that.
 - `core/Journey.ts`: lifetime light, the unlock track and the discoveries found (pure; saved by
   `Settings`). See DESIGN's Progression.
 - `world/LanternNotes.ts`: the notes a lantern holds and the picker (pure; the recent ones saved

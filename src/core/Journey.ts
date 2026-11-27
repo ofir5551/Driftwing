@@ -76,8 +76,20 @@ export interface JourneyData {
   seen: UnlockId[];
   /** Discoveries made (ids from world/Discoveries). Older saves have none. */
   found: string[];
-  /** The flock: each bird's plumage (an index into FLOCK_TINTS), in the order they joined. */
-  flock: number[];
+  /** Each level's flock: each bird's plumage (an index into FLOCK_TINTS), in the order they
+   *  joined. A flock belongs to the level it was gathered in. */
+  flocks: Partial<Record<LevelId, number[]>>;
+}
+
+const isLevel = (v: string): v is LevelId => Object.prototype.hasOwnProperty.call(LEVEL_FINDS, v);
+
+/** A saved flock, cleaned: valid tints only, the newest Config.flock.keep. */
+function parseFlock(raw: unknown): number[] {
+  return Array.isArray(raw)
+    ? raw
+        .filter((t): t is number => Number.isInteger(t) && t >= 0 && t < 64)
+        .slice(-Config.flock.keep)
+    : [];
 }
 
 /** Reads saved data defensively: anything missing or malformed falls back to a fresh start. */
@@ -94,15 +106,21 @@ export function parseJourney(raw: unknown): JourneyData {
     : [...granted];
   const seen = Array.isArray(o.seen) ? [...new Set(o.seen.filter(isUnlockId))] : [...LEGACY_SEEN];
   const found = Array.isArray(o.found) ? [...new Set(o.found.filter(isFindId))] : [];
-  const flock = Array.isArray(o.flock)
-    ? o.flock
-        .filter((t): t is number => Number.isInteger(t) && t >= 0 && t < 64)
-        .slice(-Config.flock.keep)
-    : [];
-  return { v: 1, light, granted, revealed, seen, found, flock };
+  const flocks: Partial<Record<LevelId, number[]>> = {};
+  if (typeof o.flocks === 'object' && o.flocks !== null && !Array.isArray(o.flocks))
+    for (const [id, raw] of Object.entries(o.flocks)) {
+      const f = parseFlock(raw);
+      if (isLevel(id) && f.length > 0) flocks[id] = f;
+    }
+  // Saves from when one flock flew everywhere (0.7.0): it stays with the Highlands, where
+  // every journey starts.
+  const legacy = parseFlock((o as { flock?: unknown }).flock);
+  if (legacy.length > 0 && !flocks.highlands) flocks.highlands = legacy;
+  return { v: 1, light, granted, revealed, seen, found, flocks };
 }
 
 const NONE: readonly Unlock[] = [];
+const NO_BIRDS: readonly number[] = [];
 
 export class Journey {
   /** Lifetime light. */
@@ -121,8 +139,9 @@ export class Journey {
   allOpen = false;
   /** Discoveries made this flight, in order (the Rest card names them). */
   readonly flightFinds: string[] = [];
-  /** The flock: each bird's plumage, oldest first (kept for good, up to Config.flock.keep). */
-  readonly flock: number[] = [];
+  /** Each level's flock: each bird's plumage, oldest first (kept for good, up to
+   *  Config.flock.keep a level). A flock stays in the level it was gathered in. */
+  private readonly flocks = new Map<LevelId, number[]>();
   /** Birds that joined during the current flight. */
   flightJoined = 0;
   private readonly granted = new Set<UnlockId>();
@@ -136,7 +155,8 @@ export class Journey {
       for (const id of data.granted) this.granted.add(id);
       for (const id of data.revealed) this.revealed.add(id);
       for (const id of data.found) this.found.add(id);
-      this.flock.push(...data.flock);
+      for (const [id, f] of Object.entries(data.flocks))
+        if (isLevel(id) && f) this.flocks.set(id, [...f]);
     }
     // Milestones already passed but not recorded open now: quietly if a retune lowered one,
     // with a card still to come if it is new to the track (a bird added since the save).
@@ -230,10 +250,17 @@ export class Journey {
     return true;
   }
 
-  /** A stray joined the flock (on arriving at a destination). */
-  joinFlock(tint: number): void {
-    this.flock.push(tint);
-    if (this.flock.length > Config.flock.keep) this.flock.shift();
+  /** A level's flock, oldest first (empty if none has joined there). */
+  flockOf(level: LevelId): readonly number[] {
+    return this.flocks.get(level) ?? NO_BIRDS;
+  }
+
+  /** A stray joined the level's flock (on arriving at a destination). */
+  joinFlock(level: LevelId, tint: number): void {
+    let flock = this.flocks.get(level);
+    if (!flock) this.flocks.set(level, (flock = []));
+    flock.push(tint);
+    if (flock.length > Config.flock.keep) flock.shift();
     this.flightJoined++;
     this.dirty = true;
   }
@@ -267,7 +294,7 @@ export class Journey {
       revealed: ids(this.revealed),
       seen: UNLOCKS.map((u) => u.id),
       found: [...this.found],
-      flock: [...this.flock],
+      flocks: Object.fromEntries([...this.flocks].map(([id, f]) => [id, [...f]])),
     };
   }
 

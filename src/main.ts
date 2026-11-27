@@ -85,7 +85,7 @@ const gameplay = new Gameplay(game, ui);
 const testFlock = params.get('flock');
 gameplay.flock.setBirds(
   testFlock === null
-    ? journey.flock
+    ? journey.flockOf(game.level.id)
     : Array.from({ length: Math.max(0, Math.floor(Number(testFlock)) || 0) }, (_, i) => i % 8),
 );
 const audio = new GameAudio(game, gameplay.progress);
@@ -167,6 +167,8 @@ function switchLevel(id: LevelId): void {
     game.setLevel(id);
     audio.setStyle(game.level.music);
     gameplay.progress.best = loadBest(id);
+    // Each level keeps its own flock: the birds gathered here wait here.
+    if (testFlock === null) gameplay.flock.setBirds(journey.flockOf(id));
     settings.level = id;
     saveSettings(settings);
     menu.showStart(gameplay.progress.best, id);
@@ -255,7 +257,9 @@ const handlers: MenuHandlers = {
         seconds: playTime,
         finds: journey.flightFinds.map(findName),
         reached: [...gameplay.destinations.reachedNames],
-        flock: earns ? journey.flock.length : gameplay.destinations.reachedNames.length,
+        flock: earns
+          ? journey.flockOf(game.level.id).length
+          : gameplay.destinations.reachedNames.length,
       },
       journey.unrevealed(),
     );
@@ -370,9 +374,9 @@ game.events.on('arrival', (e) => {
       ),
     );
   if (earns && e.tint >= 0) {
-    journey.joinFlock(e.tint);
-    // The first bird ever says what the flock is; after that, seeing one join says it.
-    if (journey.flock.length === 1) gameplay.hud.notice('A bird joins your flock');
+    journey.joinFlock(game.level.id, e.tint);
+    // A level's first bird says what the flock is; after that, seeing one join says it.
+    if (journey.flockOf(game.level.id).length === 1) gameplay.hud.notice('A bird joins your flock');
   }
   earn(Config.destinations.light);
   bankJourney(); // a journey's end is worth saving at once

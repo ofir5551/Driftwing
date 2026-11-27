@@ -23,8 +23,9 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.7.1',
     date: '2026-11-27',
-    title: 'Installed, simply',
+    title: 'A flock for every land',
     items: [
+      'Each level now gathers its own flock: the birds you meet in a land stay and fly with you there.',
       'Installing Driftwing from the launch card now just says it’s installed, without the how-to steps, and stops asking.',
     ],
   },

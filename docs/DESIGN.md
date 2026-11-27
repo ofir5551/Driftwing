@@ -1179,10 +1179,12 @@ inside the opening beside one leg, out of the river and well under the ribbon's 
 framed in the arch on the way in. On its top stone perches a **stray**, wings folded. On arrival
 it takes off and joins the player's **flock**.
 
-- The flock is kept for good (the save's `flock`: each bird's plumage, oldest first, up to 400)
-  and flies with the bird in every level, on the title's backdrop too, so progress is something
-  seen, not a number. A screen holds the newest 12; the rest are kept and counted. The first
-  bird ever is announced ("A bird joins your flock"); after that, seeing it join says it.
+- Each level has its own flock, kept for good (the save's `flocks`: per level, each bird's
+  plumage, oldest first, up to 400 a level). It flies with the bird in that level only, on the
+  title's backdrop too, so progress is something seen, not a number, and each level's flock is
+  gathered there (decided 0.7.1: one flock carried everywhere made later levels' journeys feel
+  done before they began; a 0.7.0 save's one flock stays with the Highlands). A screen holds the
+  newest 12; the rest are kept and counted. A level's first bird is announced ("A bird joins your flock"); after that, seeing it join says it.
 - Where they fly: round and a little ahead of the bird (4.5-15 m), not in a V behind it. The
   camera sits 6 m behind and, on a phone held upright, sees a narrow cone: a trailing V would be
   off screen or in the lens. Each slot's sideways reach grows with how far ahead it is (the view
@@ -1464,7 +1466,7 @@ The "mix" beyond birds, and what gives the cosmetics a purpose beyond light:
 ### Save format
 
 `driftwing:journey` = `{ v: 1, light, granted: string[], revealed: string[], seen: string[],
-found: string[], flock: number[] }`,
+found: string[], flocks: { [level]: number[] } }`,
 loaded with the same guards as settings (bad or missing fields fall back to defaults; storage
 errors mean no progress is saved, never a crash). `revealed` makes each unlock card show once;
 `seen` is the track as the save knew it (see Species). The Aviary picks (`species`, `plumage`,

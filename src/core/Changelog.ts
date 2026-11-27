@@ -21,6 +21,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.7.1',
+    date: '2026-11-27',
+    title: 'Installed, simply',
+    items: [
+      'Installing Driftwing from the launch card now just says it’s installed, without the how-to steps, and stops asking.',
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-11-26',
     title: 'Journeys and a flock',

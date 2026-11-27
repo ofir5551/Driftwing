@@ -49,7 +49,8 @@ as on the keyboard. Drag stays the default. A Left-handed switch (shown for the 
 mirrors them: the D-pad goes bottom right and Boost bottom left; Side arrows and Split keep a cluster
 under each thumb (their turns stay on their own sides) and only Boost moves, over the left one.
 Gamepad: left stick + A.
-A Controls panel ("How to fly" in Settings, on the title or in pause) lists the controls for the current device.
+There is no controls list: the first-flight hints teach steering and boost, and a line under
+Settings' steering chips says what the picked scheme does.
 
 ## World
 
@@ -2142,3 +2143,8 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Sound split into two switches, Music and Sound effects, each gating its bus and its own send
   to the shared reverb (the music's pause duck stays on its bus). M turns both off, or both on
   when either was off. A save's old `muted` turns both off.
+- Settings felt crowded again with two sound switch rows and a hint under every switch. Sound is
+  now one line, its name and two round toggles (a music note, a speaker; slashed or crossed and
+  dimmed when off); the switches lost their hints (the line under the steering chips stays, as
+  "Split" or "Arrows" say nothing alone); What's new is a quiet line under Done. The Controls
+  panel ("How to fly") went: the first-flight hints teach the controls, and it was one more pill.

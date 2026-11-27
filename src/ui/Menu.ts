@@ -78,55 +78,6 @@ const newsHtml = (fresh: ReadonlySet<string>) => `<div class="settings-head">
     </section>`,
   ).join('')}`;
 
-/** The Controls panel. Every list is built; `body.touch` picks the one for this device and
- *  `body.steer-*` the touch steering scheme. */
-const CONTROLS_HTML = `<h2>Controls</h2>
-  <div class="controls-list touch-only">
-    <ul class="controls touch-drag">
-      <li><b>Drag</b> anywhere to steer, relative to where your finger went down</li>
-      <li><b>Tap</b> to flap; keep tapping to keep boosting. One finger does it all</li>
-      <li><b>Flick</b> the steering finger for a trick: left or right rolls, down dives. Keep pushing to stretch it</li>
-    </ul>
-    <ul class="controls touch-dpad">
-      <li><b>D-pad</b> under one thumb to steer; rest between two arrows for a diagonal, or slide round without lifting</li>
-      <li><b>Boost</b> under the other thumb to flap (hold to keep flapping)</li>
-      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, down dives. Keep holding it to stretch it</li>
-    </ul>
-    <ul class="controls touch-split">
-      <li><b>Two pads</b>: the left one turns <b>left</b>, the right one turns <b>right</b>, and both climb and dive. One works at a time: while you hold one, the other rests. Rest between two arrows for a diagonal, or slide round without lifting</li>
-      <li><b>Boost</b> above one of the pads to flap (hold to keep flapping)</li>
-      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, down dives. Keep holding it to stretch it</li>
-    </ul>
-    <ul class="controls touch-arrows">
-      <li><b>Left</b> and <b>right</b> under each thumb, with <b>up</b> and <b>down</b> beside both, so one thumb turns while the other climbs or dives. Slide between them without lifting</li>
-      <li><b>Boost</b> above one of the clusters to flap (hold to keep flapping)</li>
-      <li><b>Double-tap</b> an arrow for a trick: left or right rolls, down dives. Keep holding it to stretch it</li>
-    </ul>
-    <ul class="controls">
-      <li><b>Pause</b> with the button at the top right. <b>Settings</b> (on the title or in Pause) pick <b>Drag</b>, <b>D-pad</b>, <b>Arrows</b> or <b>Split</b> steering, and <b>Left-handed</b> swaps the buttons' sides</li>
-    </ul>
-  </div>
-  <div class="controls-list desktop-only">
-    <h3>Mouse</h3>
-    <ul class="controls">
-      <li><b>Move</b> the pointer away from the centre to steer</li>
-      <li><b>Click</b> to boost (hold to keep flapping)</li>
-      <li><b>Right-click</b> toward a direction for a trick; hold it to stretch the trick</li>
-    </ul>
-    <h3>Keyboard</h3>
-    <ul class="controls">
-      <li><b>WASD</b> or <b>arrows</b> to steer, <b>Space</b> to boost</li>
-      <li><b>Double-tap</b> a direction for a trick: left or right rolls, down dives</li>
-      <li><b>P</b> or <b>Esc</b> pause · <b>M</b> sound off / on · <b>L</b> lock the pointer</li>
-    </ul>
-    <h3>Gamepad</h3>
-    <ul class="controls">
-      <li><b>Left stick</b> to steer, <b>A</b> or <b>RT</b> to boost, <b>Start</b> to pause</li>
-      <li><b>Push the stick</b> to the edge twice for a trick</li>
-    </ul>
-  </div>
-  <button class="btn primary" id="controls-back">Back</button>`;
-
 /** The journey bar: lifetime light, the next milestone and how close it is. Title and pause. */
 const JOURNEY_HTML = `<div class="journey" title="Light: gathered from wisps, lanterns and tricks. It opens new places and birds.">
     <div class="journey-head"><span class="journey-light"></span><span class="journey-next"></span></div>
@@ -140,6 +91,9 @@ const ICON = {
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>',
   settings:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>',
+  music:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/><path class="off" d="M3 3l18 18"/></svg>',
+  sfx: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="off" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>',
   bird: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13c3-1 5-3.5 6.5-6 1.5 2 2.5 4 3.5 6.5 2-3 5-5.5 10-6.5-3 3-5 6-7 9.5H8z"/><path d="M8 16.5l-2 3"/></svg>',
 };
 
@@ -152,22 +106,26 @@ const chipsHtml = (id: string, label: string, opts: readonly (readonly [string, 
     )
     .join('')}</div>`;
 
-/** An on/off row: a name, a one-line hint and a switch. The whole row is the button. */
-const switchHtml = (id: string, name: string, hint: string) =>
+/** An on/off row: a name and a switch. The whole row is the button. */
+const switchHtml = (id: string, name: string) =>
   `<button class="switch-row" id="${id}" role="switch" aria-checked="false">
-     <span class="switch-text"><span>${name}</span><small>${hint}</small></span>
+     <span class="switch-text">${name}</span>
      <span class="switch" aria-hidden="true"></span>
    </button>`;
+
+/** A round on/off button with an icon (a slash or cross when off), named by its label. */
+const toggleHtml = (id: string, label: string, icon: string) =>
+  `<button class="sound-btn" id="${id}" aria-label="${label}" aria-pressed="true">${icon}</button>`;
 
 /** Settings, opened from the title or the pause card (Done goes back to whichever). It sits at
  *  the bottom of the screen, under the thumb, with Done as its one bright button. */
 const SETTINGS_HTML = `<h2>Settings</h2>
-  <div class="setting sound-switches">
-    ${switchHtml('music', 'Music', 'The soundtrack')}
-    ${switchHtml('sfx', 'Sound effects', 'Wind, wings, wisps and water')}
+  <div class="setting sound-row">
+    <span>Sound</span>
+    <span class="sound-btns">${toggleHtml('music', 'Music', ICON.music)}${toggleHtml('sfx', 'Sound effects', ICON.sfx)}</span>
   </div>
   <div class="setting touch-only">
-    <p class="setting-label">Touch steering</p>
+    <p class="setting-label">Steering</p>
     ${chipsHtml('steer', 'Touch steering', [
       ['drag', 'Drag'],
       ['dpad', 'D-pad'],
@@ -175,9 +133,9 @@ const SETTINGS_HTML = `<h2>Settings</h2>
       ['split', 'Split'],
     ])}
     <p class="steer-hint"></p>
-    <div class="lefty-row">${switchHtml('lefty', 'Left-handed', 'D-pad right, Boost left')}</div>
+    <div class="lefty-row">${switchHtml('lefty', 'Left-handed')}</div>
   </div>
-  <div class="setting">${switchHtml('invert', 'Invert climb / dive', 'Push up to dive, down to climb')}</div>
+  <div class="setting">${switchHtml('invert', 'Invert climb / dive')}</div>
   <div class="setting">
     <p class="setting-label">Graphics</p>
     ${chipsHtml('quality', 'Quality', [
@@ -187,11 +145,8 @@ const SETTINGS_HTML = `<h2>Settings</h2>
       ['high', 'High'],
     ])}
   </div>
-  <div class="settings-links">
-    <button class="btn ghost controls-btn">How to fly</button>
-    <button class="btn ghost news-btn" id="news-btn" title="Driftwing ${VERSION}"><span class="news-dot" aria-hidden="true"></span>What’s new</button>
-  </div>
-  <button class="btn primary" id="settings-done">Done</button>`;
+  <button class="btn primary" id="settings-done">Done</button>
+  <button class="news-btn" id="news-btn" title="Driftwing ${VERSION}"><span class="news-dot" aria-hidden="true"></span>What’s new</button>`;
 
 /** What the steering chips' scheme does, under them. */
 const STEER_HINT: Record<Settings['touchSteer'], string> = {
@@ -309,7 +264,6 @@ export class Menu {
   private readonly rest: HTMLDivElement;
   /** Bumped whenever the Rest card's animation should stop (it is shown again or left). */
   private restToken = 0;
-  private readonly help: HTMLDivElement;
   private readonly settingsPanel: HTMLDivElement;
   private readonly news: HTMLDivElement;
   private readonly newsBtn: HTMLButtonElement;
@@ -321,8 +275,6 @@ export class Menu {
   private readonly birdBlurb: HTMLElement;
   /** The Aviary tab showing (kept between visits). */
   private tab: Row = 'species';
-  /** The screen the Controls panel returns to. */
-  private helpFrom: HTMLDivElement | null = null;
   private readonly pauseBtn: HTMLButtonElement;
   private readonly playBtn: HTMLButtonElement;
   private readonly dots: HTMLElement;
@@ -392,7 +344,6 @@ export class Menu {
     );
     this.pauseStats = this.pause.querySelector('.pause-stats')!;
     this.settingsPanel = this.panel('settings-panel', SETTINGS_HTML);
-    this.help = this.panel('help', CONTROLS_HTML);
     this.rest = this.panel(
       'rest',
       `<h2>Rest</h2>
@@ -428,7 +379,6 @@ export class Menu {
       this.pause,
       this.settingsPanel,
       this.rest,
-      this.help,
       this.aviary,
       this.news,
       this.finale,
@@ -481,9 +431,6 @@ export class Menu {
       // Only the title is left to go back to, and it is the stage's own.
       this.pause.querySelector('#title-btn span')!.textContent = 'Title';
     }
-    this.settingsPanel
-      .querySelector('.controls-btn')!
-      .addEventListener('click', () => this.showHelp(this.settingsPanel));
     this.pause
       .querySelector('#settings-btn')!
       .addEventListener('click', () => this.showSettings(this.pause));
@@ -493,7 +440,6 @@ export class Menu {
     this.settingsPanel
       .querySelector('#settings-done')!
       .addEventListener('click', () => this.only(this.settingsFrom ?? this.start));
-    this.help.querySelector('#controls-back')!.addEventListener('click', () => this.hideHelp());
     this.start.querySelector('#aviary-btn')!.addEventListener('click', () => {
       this.showAviary();
       h.aviary(true);
@@ -554,7 +500,6 @@ export class Menu {
       this.pause,
       this.settingsPanel,
       this.rest,
-      this.help,
       this.aviary,
       this.news,
       this.finale,
@@ -577,7 +522,7 @@ export class Menu {
 
   /**
    * The Settings card: chips and switches write straight into `settings` and hand it to
-   * `change`. Returns the function that redraws the card from `settings` (e.g. after M mutes).
+   * `change`. Returns the function that redraws the card from `settings` (e.g. after M turns the sound off).
    */
   private setupSettings(h: MenuHandlers): () => void {
     const s = this.settings;
@@ -597,18 +542,15 @@ export class Menu {
       }
     };
     const sync = () => {
-      music.setAttribute('aria-checked', String(s.music));
-      sfx.setAttribute('aria-checked', String(s.sfx));
+      music.setAttribute('aria-pressed', String(s.music));
+      sfx.setAttribute('aria-pressed', String(s.sfx));
       mark(steer, s.touchSteer);
       mark(quality, s.quality);
       invert.setAttribute('aria-checked', String(s.invertY));
       lefty.setAttribute('aria-checked', String(s.leftHanded));
-      // Drag steering has no buttons to swap, and the one D-pad moves wholesale while side arrows
-      // and split keep a cluster under each thumb, so only Boost changes sides.
+      // Drag steering has no buttons to swap to the other hand.
       p.querySelector<HTMLElement>('.lefty-row')!.hidden = s.touchSteer === 'drag';
       p.querySelector('.steer-hint')!.textContent = STEER_HINT[s.touchSteer];
-      lefty.querySelector('small')!.textContent =
-        s.touchSteer === 'dpad' ? 'D-pad right, Boost left' : 'Boost over the left thumb';
     };
     const changed = () => {
       sync();
@@ -673,19 +615,6 @@ export class Menu {
     onFullscreenChange(sync);
     btn.addEventListener('click', () => void toggleFullscreen());
     btn.addEventListener('pointerdown', (e) => e.stopPropagation());
-  }
-
-  /** Swap Settings for the Controls panel; Back returns to it. */
-  private showHelp(from: HTMLDivElement): void {
-    this.helpFrom = from;
-    from.classList.remove('show');
-    this.help.classList.add('show');
-  }
-
-  private hideHelp(): void {
-    this.help.classList.remove('show');
-    this.helpFrom?.classList.add('show');
-    this.helpFrom = null;
   }
 
   /** The bird flown and what it wears: each saved pick while its milestone is open, else the

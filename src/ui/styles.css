@@ -494,7 +494,6 @@ body.steer-split .boost-btn {
 
 .menu.pause,
 .menu.rest,
-.menu.help,
 .menu.finale {
   background: rgba(60, 45, 80, 0.25);
   backdrop-filter: blur(3px);
@@ -508,7 +507,6 @@ body.steer-split .boost-btn {
 }
 
 .pause .card,
-.help .card,
 .finale .card {
   background: rgba(255, 248, 238, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.35);
@@ -1194,61 +1192,6 @@ body.steer-split .boost-btn {
   opacity: 1;
 }
 
-/* Controls panel: one list per device kind, picked by body.touch. */
-.controls-list {
-  margin: 14px 0 22px;
-  text-align: left;
-}
-
-.controls-list h3 {
-  margin: 14px 0 2px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.8;
-}
-
-.controls-list.touch-only,
-body.touch .controls-list.desktop-only {
-  display: none;
-}
-
-body.touch .controls-list.touch-only {
-  display: block;
-}
-
-.controls.touch-dpad,
-.controls.touch-arrows,
-.controls.touch-split,
-body.steer-dpad .controls.touch-drag,
-body.steer-arrows .controls.touch-drag,
-body.steer-split .controls.touch-drag {
-  display: none;
-}
-
-body.steer-dpad .controls.touch-dpad,
-body.steer-arrows .controls.touch-arrows,
-body.steer-split .controls.touch-split {
-  display: block;
-}
-
-.controls {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.controls li {
-  margin: 6px 0;
-}
-
-.controls b {
-  font-weight: 600;
-}
-
 .pause-stats {
   font-size: 14px;
   letter-spacing: 0.06em;
@@ -1486,24 +1429,68 @@ body.steer-split .controls.touch-split {
   opacity: 0.8;
 }
 
-/* How to fly and What's new, side by side; Done, the card's one bright button, under them. */
-.settings-links {
+/* Sound: its name and two round toggles, Music and Sound effects, on one line. */
+.sound-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+}
+
+.sound-btns {
   display: flex;
   gap: 10px;
-  margin: 18px 0 20px;
 }
 
-.settings-links .btn.ghost {
-  flex: 1;
-  margin: 0;
-  padding: 10px 8px;
-  font-size: 14.5px;
-  letter-spacing: 0.06em;
+.sound-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 244, 220, 1);
+  background: rgba(255, 236, 210, 0.36);
+  color: #fffaf0;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    opacity 0.2s;
 }
 
+.sound-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 4px rgba(60, 40, 80, 0.5));
+}
+
+/* Off: the plain chip look, dimmed, with a slash (music) or a cross for the waves (sound). */
+.sound-btn[aria-pressed='false'] {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 248, 238, 0.12);
+  opacity: 0.7;
+}
+
+.sound-btn .off,
+.sound-btn[aria-pressed='false'] .on {
+  display: none;
+}
+
+.sound-btn[aria-pressed='false'] .off {
+  display: inline;
+}
+
+/* Done, the card's one bright button, then What's new as a quiet line under it. */
 #settings-done {
   display: block;
-  margin: 0 auto 4px;
+  margin: 18px auto 0;
   padding: 12px 56px;
   font-size: 18px;
 }
@@ -1528,13 +1515,29 @@ body.steer-split .controls.touch-split {
   scrollbar-width: none;
 }
 
-/* What's new: a pill in Settings (a soft glow while there is something unseen) and the
-   changelog card, laid out like Settings. */
-.settings-links .news-btn {
-  display: inline-flex;
+/* What's new: a quiet line under Done (a soft glow beside it while there is something unseen)
+   and the changelog card, laid out like Settings. */
+.settings-panel .news-btn {
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  min-height: 44px;
+  margin: 10px auto -6px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: inherit;
+  text-shadow: inherit;
+  background: none;
+  border: none;
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.settings-panel .news-btn.unread {
+  opacity: 1;
 }
 
 .news-dot {
@@ -1728,12 +1731,6 @@ body.touch .setting.touch-only {
   display: grid;
   font-size: 15px;
   letter-spacing: 0.03em;
-}
-
-.switch-text small {
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  opacity: 0.75;
 }
 
 .switch {
@@ -2078,7 +2075,6 @@ body.lefty.steer-split .boost-btn {
     margin-bottom: 14px;
   }
   .pause .card,
-  .help .card,
   .finale .card {
     padding: 16px 22px;
   }

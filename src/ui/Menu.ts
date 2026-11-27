@@ -133,7 +133,7 @@ const JOURNEY_HTML = `<div class="journey" title="Light: gathered from wisps, la
     <div class="journey-track"><div class="journey-fill"></div></div>
   </div>`;
 
-/** Line icons for the pause tiles and the sound button (stroked in currentColor by the CSS). */
+/** Line icons for the pause tiles and the title's buttons (stroked in currentColor by the CSS). */
 const ICON = {
   rest: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
   levels:
@@ -141,8 +141,6 @@ const ICON = {
   settings:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>',
   bird: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13c3-1 5-3.5 6.5-6 1.5 2 2.5 4 3.5 6.5 2-3 5-5.5 10-6.5-3 3-5 6-7 9.5H8z"/><path d="M8 16.5l-2 3"/></svg>',
-  sound:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="cross" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>',
 };
 
 /** A row of chips that picks one value (Steering, Quality). */
@@ -164,13 +162,7 @@ const switchHtml = (id: string, name: string, hint: string) =>
 /** Settings, opened from the title or the pause card (Done goes back to whichever). It sits at
  *  the bottom of the screen, under the thumb, with Done as its one bright button. */
 const SETTINGS_HTML = `<h2>Settings</h2>
-  <div class="setting">
-    <p class="setting-label">Sound</p>
-    <div class="sound">
-      <button class="sound-btn" id="mute" aria-label="Mute">${ICON.sound}</button>
-      <input type="range" id="vol" min="0" max="1" step="0.01" aria-label="Volume">
-    </div>
-  </div>
+  <div class="setting">${switchHtml('sound', 'Sound', 'Music and effects')}</div>
   <div class="setting touch-only">
     <p class="setting-label">Touch steering</p>
     ${chipsHtml('steer', 'Touch steering', [
@@ -587,8 +579,7 @@ export class Menu {
   private setupSettings(h: MenuHandlers): () => void {
     const s = this.settings;
     const p = this.settingsPanel;
-    const vol = p.querySelector<HTMLInputElement>('#vol')!;
-    const mute = p.querySelector<HTMLButtonElement>('#mute')!;
+    const sound = p.querySelector<HTMLButtonElement>('#sound')!;
     const lefty = p.querySelector<HTMLButtonElement>('#lefty')!;
     const invert = p.querySelector<HTMLButtonElement>('#invert')!;
     const chips = (id: string) => [...p.querySelectorAll<HTMLButtonElement>(`#${id} .chip`)];
@@ -602,10 +593,7 @@ export class Menu {
       }
     };
     const sync = () => {
-      vol.value = String(s.volume);
-      mute.classList.toggle('muted', s.muted);
-      mute.setAttribute('aria-label', s.muted ? 'Unmute' : 'Mute');
-      p.querySelector('.sound')!.classList.toggle('muted', s.muted);
+      sound.setAttribute('aria-checked', String(!s.muted));
       mark(steer, s.touchSteer);
       mark(quality, s.quality);
       invert.setAttribute('aria-checked', String(s.invertY));
@@ -621,12 +609,7 @@ export class Menu {
       sync();
       h.change(s);
     };
-    vol.addEventListener('input', () => {
-      s.volume = Number(vol.value);
-      s.muted = false; // moving the slider means "I want to hear it"
-      changed();
-    });
-    mute.addEventListener('click', () => {
+    sound.addEventListener('click', () => {
       s.muted = !s.muted;
       changed();
     });

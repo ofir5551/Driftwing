@@ -2136,3 +2136,6 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   still asks for fullscreen, and the corner button stays. On an upright phone Settings and the
   pause card sit at the bottom with Done (moved from the top corner) as the one bright button,
   and a line under the steering chips says what the picked scheme does.
+- Settings lost its volume slider: the device's volume does that job, so Sound is an on/off switch
+  and the saved volume is no longer read (an old quieter pick could not be undone). On an upright
+  phone the Birds card moved from the top to the bottom, like Settings and Pause, under the thumb.

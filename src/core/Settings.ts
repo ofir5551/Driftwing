@@ -78,7 +78,9 @@ export function loadSettings(): Settings {
     if (!raw) return { ...DEFAULTS, taught: { ...DEFAULTS.taught } };
     const s = JSON.parse(raw) as Partial<Settings>;
     return {
-      volume: typeof s.volume === 'number' ? Math.min(1, Math.max(0, s.volume)) : DEFAULTS.volume,
+      // Loudness is the device's: Settings has only Sound on/off, so an old quieter slider pick
+      // (which could no longer be undone) is not kept.
+      volume: DEFAULTS.volume,
       muted: s.muted === true,
       quality:
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',

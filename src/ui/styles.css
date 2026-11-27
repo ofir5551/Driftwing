@@ -987,9 +987,11 @@ body.steer-split .boost-btn {
 
 /* Aviary: the card stands aside and lets the world through, so the bird gliding behind it (the
    live preview of what it wears) stays in view. On a phone held upright (the main way to play)
-   the bird flies at mid-screen, so the card takes the top, compact; on wide screens, the left. */
+   the bird flies at mid-screen, so the card sits at the bottom, compact, under the thumb like
+   Settings; on wide screens, the left. */
 .menu.aviary {
-  place-items: start center;
+  place-items: end center;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
 .aviary-head {
@@ -1449,8 +1451,7 @@ body.steer-split .controls.touch-split {
   background: rgba(255, 248, 238, 0.2);
 }
 
-.tile svg,
-.sound-btn svg {
+.tile svg {
   width: 22px;
   height: 22px;
   fill: none;
@@ -1529,11 +1530,11 @@ body.steer-split .controls.touch-split {
 
 /* What's new: a pill in Settings (a soft glow while there is something unseen) and the
    changelog card, laid out like Settings. */
-.news-btn {
+.settings-links .news-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .news-dot {
@@ -1691,46 +1692,6 @@ body.steer-split .controls.touch-split {
 
 body.touch .setting.touch-only {
   display: block;
-}
-
-.sound {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.sound-btn {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 248, 238, 0.12);
-  color: #fffaf0;
-  cursor: pointer;
-}
-
-.sound-btn .cross,
-.sound-btn.muted .waves {
-  display: none;
-}
-
-.sound-btn.muted .cross {
-  display: inline;
-}
-
-.sound input[type='range'] {
-  flex: 1;
-  min-width: 0;
-  accent-color: #ffd98f;
-  transition: opacity 0.2s;
-}
-
-.sound.muted input[type='range'] {
-  opacity: 0.45;
 }
 
 .chips {

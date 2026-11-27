@@ -103,7 +103,7 @@ const CONTROLS_HTML = `<h2>Controls</h2>
       <li><b>Double-tap</b> an arrow for a trick: left or right rolls, down dives. Keep holding it to stretch it</li>
     </ul>
     <ul class="controls">
-      <li><b>Pause</b> with the button at the top right. Its <b>Settings</b> pick <b>Drag</b>, <b>D-pad</b>, <b>Arrows</b> or <b>Split</b> steering, and <b>Left-handed</b> swaps the buttons' sides</li>
+      <li><b>Pause</b> with the button at the top right. <b>Settings</b> (on the title or in Pause) pick <b>Drag</b>, <b>D-pad</b>, <b>Arrows</b> or <b>Split</b> steering, and <b>Left-handed</b> swaps the buttons' sides</li>
     </ul>
   </div>
   <div class="controls-list desktop-only">
@@ -140,6 +140,7 @@ const ICON = {
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>',
   settings:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>',
+  bird: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13c3-1 5-3.5 6.5-6 1.5 2 2.5 4 3.5 6.5 2-3 5-5.5 10-6.5-3 3-5 6-7 9.5H8z"/><path d="M8 16.5l-2 3"/></svg>',
   sound:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="cross" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>',
 };
@@ -160,10 +161,9 @@ const switchHtml = (id: string, name: string, hint: string) =>
      <span class="switch" aria-hidden="true"></span>
    </button>`;
 
-/** Settings, opened from the pause card so that card stays short (Done goes back to it). */
-const SETTINGS_HTML = `<div class="settings-head">
-    <h2>Settings</h2><button class="btn primary" id="settings-done">Done</button>
-  </div>
+/** Settings, opened from the title or the pause card (Done goes back to whichever). It sits at
+ *  the bottom of the screen, under the thumb, with Done as its one bright button. */
+const SETTINGS_HTML = `<h2>Settings</h2>
   <div class="setting">
     <p class="setting-label">Sound</p>
     <div class="sound">
@@ -179,11 +179,12 @@ const SETTINGS_HTML = `<div class="settings-head">
       ['arrows', 'Arrows'],
       ['split', 'Split'],
     ])}
+    <p class="steer-hint"></p>
     <div class="lefty-row">${switchHtml('lefty', 'Left-handed', 'D-pad right, Boost left')}</div>
   </div>
   <div class="setting">${switchHtml('invert', 'Invert climb / dive', 'Push up to dive, down to climb')}</div>
   <div class="setting">
-    <p class="setting-label">Quality</p>
+    <p class="setting-label">Graphics</p>
     ${chipsHtml('quality', 'Quality', [
       ['auto', 'Auto'],
       ['low', 'Low'],
@@ -191,7 +192,19 @@ const SETTINGS_HTML = `<div class="settings-head">
       ['high', 'High'],
     ])}
   </div>
-  <button class="link-btn controls-btn">Controls</button>`;
+  <div class="settings-links">
+    <button class="btn ghost controls-btn">How to fly</button>
+    <button class="btn ghost news-btn" id="news-btn" title="Driftwing ${VERSION}"><span class="news-dot" aria-hidden="true"></span>What’s new</button>
+  </div>
+  <button class="btn primary" id="settings-done">Done</button>`;
+
+/** What the steering chips' scheme does, under them. */
+const STEER_HINT: Record<Settings['touchSteer'], string> = {
+  drag: 'Drag anywhere to steer, tap to flap.',
+  dpad: 'A D-pad under one thumb, Boost under the other.',
+  arrows: 'Left and right under each thumb, up and down beside them.',
+  split: 'Two pads: the left turns left, the right turns right.',
+};
 
 /** What the Rest card tallies for the flight just ended. */
 export interface RestTally {
@@ -316,10 +329,16 @@ export class Menu {
   /** The screen the Controls panel returns to. */
   private helpFrom: HTMLDivElement | null = null;
   private readonly pauseBtn: HTMLButtonElement;
-  private readonly best: HTMLElement;
+  private readonly playBtn: HTMLButtonElement;
+  private readonly dots: HTMLElement;
+  /** The screen Settings returns to (the title or the pause card). */
+  private settingsFrom: HTMLDivElement | null = null;
+  /** The level whose card sits in the middle of the row (may be locked). */
+  private focused: LevelId | null = null;
+  private swipeTimer = 0;
+  private readonly selectLevel: (id: LevelId) => void;
   private readonly pauseStats: HTMLElement;
   private readonly levelCards: HTMLButtonElement[];
-  private readonly levelsMore: HTMLElement;
   private readonly journeyBars: HTMLElement[];
   private readonly timeChips: HTMLButtonElement[];
   /** Only exists where the Fullscreen API does. */
@@ -337,7 +356,8 @@ export class Menu {
     const personal = PERSONAL_LEVEL?.personal;
     this.start = this.panel(
       'start',
-      `<h1></h1><p class="tag"></p>
+      `<div class="title-top"><h1></h1><p class="tag"></p></div>
+       <div class="title-bottom">
        <div class="levels" role="radiogroup" aria-label="Level">${LISTED_LEVELS.map(
          (l) =>
            `<button class="level" role="radio" aria-checked="false" data-level="${l.id}">
@@ -345,28 +365,24 @@ export class Menu {
               <span class="level-finds" hidden></span>
             </button>`,
        ).join('')}</div>
-       <p class="levels-more" hidden></p>
+       <div class="level-dots" aria-hidden="true"></div>
        <div class="times" role="radiogroup" aria-label="Time of day">${TIME_OF_DAY_LIST.map(
          (t) =>
            `<button class="time" role="radio" aria-checked="false" data-time="${t.id}">${t.label}</button>`,
        ).join('')}</div>
-       ${JOURNEY_HTML}
        <button class="btn primary" id="play-btn">Play</button>
-       <div class="title-row">
-         <button class="btn ghost" id="aviary-btn">Birds</button>
-         <button class="btn ghost controls-btn">Controls</button>
-       </div>
-       <button class="fs-nudge" hidden>⤢ Best played fullscreen</button>
-       <p class="fs-tip" hidden>For fullscreen, tap Share, then <b>Add to Home Screen</b>, and open Driftwing from there.</p>
-       <div class="title-foot">
-         <p class="best" hidden></p>
-         <button class="news-btn" id="news-btn"><span class="news-dot" aria-hidden="true"></span><span class="news-label"></span></button>
+       ${JOURNEY_HTML}
+       <nav class="title-nav" aria-label="More">
+         <button class="nav-btn" id="aviary-btn">${ICON.bird}<span>Birds</span></button>
+         <button class="nav-btn" id="title-settings-btn">${ICON.settings}<span>Settings</span><span class="news-dot" aria-hidden="true"></span></button>
+       </nav>
        </div>`,
     );
     this.start.querySelector('h1')!.textContent = personal?.title ?? 'Driftwing';
     this.start.querySelector('.tag')!.textContent =
       personal?.tag ?? 'Glide. Gather the light. Breathe.';
-    this.best = this.start.querySelector('.best')!;
+    this.playBtn = this.start.querySelector<HTMLButtonElement>('#play-btn')!;
+    this.dots = this.start.querySelector<HTMLElement>('.level-dots')!;
     this.pause = this.panel(
       'pause',
       `<h2>Paused</h2>
@@ -425,15 +441,28 @@ export class Menu {
     );
     this.setupFullscreen(ui);
 
-    this.start.querySelector('#play-btn')!.addEventListener('click', () => h.play());
+    this.playBtn.addEventListener('click', () => {
+      if (!this.playBtn.disabled) h.play();
+    });
+    this.selectLevel = (id) => h.selectLevel(id);
     this.levelCards = [...this.start.querySelectorAll<HTMLButtonElement>('.level')];
-    this.levelsMore = this.start.querySelector<HTMLElement>('.levels-more')!;
+    // Swiping picks: the card that comes to rest in the middle is the place. Tapping a card
+    // slides it there; tapping the middle one when it is locked shows how close it is.
     for (const card of this.levelCards)
       card.addEventListener('click', () => {
         const id = card.dataset.level as LevelId;
-        if (this.journey.isLevelOpen(id)) h.selectLevel(id);
-        else this.nudgeJourney(this.journeyBars[0]); // the bar says how close it is
+        if (id !== this.focused) this.centreLevel(id, true);
+        else if (!this.journey.isLevelOpen(id)) this.nudgeJourney(this.journeyBars[0]);
       });
+    const row = this.levelCards[0].parentElement!;
+    row.addEventListener(
+      'scroll',
+      () => {
+        clearTimeout(this.swipeTimer);
+        this.swipeTimer = window.setTimeout(() => this.settle(), 120);
+      },
+      { passive: true },
+    );
     this.isNewLevel = (id) => h.isNewLevel(id);
     this.timeChips = [...this.start.querySelectorAll<HTMLButtonElement>('.time')];
     for (const chip of this.timeChips)
@@ -457,14 +486,18 @@ export class Menu {
       // Only the title is left to go back to, and it is the stage's own.
       this.pause.querySelector('#title-btn span')!.textContent = 'Title';
     }
-    for (const from of [this.start, this.settingsPanel])
-      from.querySelector('.controls-btn')!.addEventListener('click', () => this.showHelp(from));
+    this.settingsPanel
+      .querySelector('.controls-btn')!
+      .addEventListener('click', () => this.showHelp(this.settingsPanel));
     this.pause
       .querySelector('#settings-btn')!
-      .addEventListener('click', () => this.only(this.settingsPanel));
+      .addEventListener('click', () => this.showSettings(this.pause));
+    this.start
+      .querySelector('#title-settings-btn')!
+      .addEventListener('click', () => this.showSettings(this.start));
     this.settingsPanel
       .querySelector('#settings-done')!
-      .addEventListener('click', () => this.only(this.pause));
+      .addEventListener('click', () => this.only(this.settingsFrom ?? this.start));
     this.help.querySelector('#controls-back')!.addEventListener('click', () => this.hideHelp());
     this.start.querySelector('#aviary-btn')!.addEventListener('click', () => {
       this.showAviary();
@@ -474,7 +507,7 @@ export class Menu {
       h.aviary(false);
       this.only(this.start);
     });
-    this.newsBtn = this.start.querySelector<HTMLButtonElement>('#news-btn')!;
+    this.newsBtn = this.settingsPanel.querySelector<HTMLButtonElement>('#news-btn')!;
     this.markNews(fresh.size > 0);
     this.newsBtn.addEventListener('click', () => {
       this.only(this.news);
@@ -482,9 +515,14 @@ export class Menu {
       this.markNews(false); // the releases keep their "New" until the next visit
       h.newsSeen();
     });
-    this.news.querySelector('#news-done')!.addEventListener('click', () => this.only(this.start));
+    this.news
+      .querySelector('#news-done')!
+      .addEventListener('click', () => this.only(this.settingsPanel));
     // A personal link (e.g. a wedding invitation) is not the game's release: no What's new.
-    if (personal) this.newsBtn.remove();
+    if (personal) {
+      this.newsBtn.remove();
+      this.markNews(false);
+    }
     this.birdBlurb = this.aviary.querySelector<HTMLElement>('.bird-blurb')!;
     this.tabs = [...this.aviary.querySelectorAll<HTMLButtonElement>('.aviary-tab')];
     for (const tab of this.tabs)
@@ -528,12 +566,18 @@ export class Menu {
     ];
   }
 
-  /** The title's version tag: a glow and "New" while there are releases the player hasn't seen. */
+  /** A glow on What's new, and on the title's Settings button that leads to it, while there are
+   *  releases the player hasn't seen. */
   private markNews(unread: boolean): void {
     this.newsBtn.classList.toggle('unread', unread);
-    this.newsBtn.querySelector('.news-label')!.textContent = unread
-      ? `What’s new in ${VERSION}`
-      : `v${VERSION} · What’s new`;
+    this.start.querySelector('#title-settings-btn')!.classList.toggle('unread', unread);
+  }
+
+  /** Settings over the title or the pause card; Done goes back there. */
+  private showSettings(from: HTMLDivElement): void {
+    this.settingsFrom = from;
+    this.syncInputs();
+    this.only(this.settingsPanel);
   }
 
   /**
@@ -569,6 +613,7 @@ export class Menu {
       // Drag steering has no buttons to swap, and the one D-pad moves wholesale while side arrows
       // and split keep a cluster under each thumb, so only Boost changes sides.
       p.querySelector<HTMLElement>('.lefty-row')!.hidden = s.touchSteer === 'drag';
+      p.querySelector('.steer-hint')!.textContent = STEER_HINT[s.touchSteer];
       lefty.querySelector('small')!.textContent =
         s.touchSteer === 'dpad' ? 'D-pad right, Boost left' : 'Boost over the left thumb';
     };
@@ -618,14 +663,10 @@ export class Menu {
     return el;
   }
 
-  /** Corner button on the title and pause screens (never mid-flight), a nudge on the title, or an
-   *  install tip where iPhone has no API. */
+  /** Corner button on the title and pause screens (never mid-flight). The launch card
+   *  (FullscreenPrompt) is the one that asks, and explains Add to Home Screen on iPhone. */
   private setupFullscreen(ui: HTMLElement): void {
-    const support = fullscreenSupport();
-    const nudge = this.start.querySelector<HTMLButtonElement>('.fs-nudge')!;
-    const tip = this.start.querySelector<HTMLElement>('.fs-tip')!;
-    if (support === 'ios') tip.hidden = false;
-    if (support !== 'api') return;
+    if (fullscreenSupport() !== 'api') return;
     const btn = document.createElement('button');
     btn.className = 'fs-btn';
     btn.innerHTML =
@@ -635,17 +676,14 @@ export class Menu {
     const sync = (on: boolean) => {
       btn.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
       btn.classList.toggle('active', on);
-      nudge.hidden = on;
     };
     sync(isFullscreen());
     onFullscreenChange(sync);
-    for (const el of [btn, nudge]) {
-      el.addEventListener('click', () => void toggleFullscreen());
-      el.addEventListener('pointerdown', (e) => e.stopPropagation());
-    }
+    btn.addEventListener('click', () => void toggleFullscreen());
+    btn.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
-  /** Swap the title or pause card for the Controls panel; Back returns to it. */
+  /** Swap Settings for the Controls panel; Back returns to it. */
   private showHelp(from: HTMLDivElement): void {
     this.helpFrom = from;
     from.classList.remove('show');
@@ -856,12 +894,11 @@ export class Menu {
 
   /**
    * Open levels, then only the next one still locked (it keeps its name and says when it opens),
-   * so a new player sees a place or two and Play rather than a wall of locks; a line says how many
-   * more lie ahead. Open ones not flown yet say "New".
+   * so a new player sees a place or two and Play rather than a wall of locks. Open ones not flown
+   * yet say "New".
    */
   private markLevels(): void {
     let nextLocked: UnlockId | null = null;
-    let hidden = 0;
     for (const { id } of LEVEL_LIST) {
       if (this.journey.isLevelOpen(id) || !isUnlockId(id)) continue;
       if (nextLocked === null || unlockAt(id) < unlockAt(nextLocked)) nextLocked = id;
@@ -872,7 +909,6 @@ export class Menu {
       const open = this.journey.isLevelOpen(id);
       const isNew = open && this.isNewLevel(id);
       card.hidden = !open && id !== nextLocked;
-      if (card.hidden) hidden++;
       card.classList.toggle('locked', !open);
       card.classList.toggle('new', isNew);
       card.setAttribute('aria-disabled', String(!open));
@@ -889,33 +925,82 @@ export class Menu {
           ? (level?.blurb ?? '')
           : `Opens at ${unlockAt(id).toLocaleString()} ✧`;
     }
-    this.levelsMore.hidden = hidden === 0;
-    this.levelsMore.textContent =
-      hidden === 1 ? 'One more place further along' : `${hidden} more places further along`;
+    this.dots.replaceChildren(
+      ...this.levelCards
+        .filter((c) => !c.hidden)
+        .map((c) => {
+          const dot = document.createElement('span');
+          dot.dataset.level = c.dataset.level;
+          return dot;
+        }),
+    );
   }
 
-  showStart(best: number, level: LevelId): void {
-    this.showJourney(this.journeyBars[0], false);
-    this.markLevels();
-    this.best.hidden = best <= 0;
-    this.best.textContent = `Best: ${best.toLocaleString()}`;
+  /**
+   * The card in the middle: open, it is the pick (the selected glow, its dot, Play); locked, Play
+   * says when it opens and the bar says how far that is.
+   */
+  private markFocus(id: LevelId): void {
+    this.focused = id;
+    const open = this.journey.isLevelOpen(id);
     for (const card of this.levelCards) {
-      const on = card.dataset.level === level;
+      const on = card.dataset.level === id && open;
       card.classList.toggle('selected', on);
       card.setAttribute('aria-checked', String(on));
     }
+    for (const dot of this.dots.children)
+      dot.classList.toggle('on', (dot as HTMLElement).dataset.level === id);
+    this.playBtn.disabled = !open;
+    this.playBtn.classList.toggle('locked', !open);
+    const bar = this.journeyBars[0];
+    this.showJourney(bar, false);
+    if (open || !isUnlockId(id)) {
+      this.playBtn.textContent = 'Play';
+      return;
+    }
+    const at = unlockAt(id);
+    this.playBtn.textContent = `Opens at ${at.toLocaleString()} ✧`;
+    const name = LEVEL_LIST.find((l) => l.id === id)?.name ?? '';
+    bar.querySelector('.journey-next')!.textContent =
+      `${Math.max(0, at - this.journey.light).toLocaleString()} more to open ${name}`;
+    this.nudgeJourney(bar);
+  }
+
+  /** The row came to rest: the card nearest its middle is the one in focus. */
+  private settle(): void {
+    if (!this.onTitle) return;
+    const row = this.levelCards[0].parentElement!;
+    const mid = row.scrollLeft + row.clientWidth / 2;
+    let best: HTMLButtonElement | null = null;
+    let bestD = Infinity;
+    for (const card of this.levelCards) {
+      if (card.hidden) continue;
+      const d = Math.abs(card.offsetLeft + card.offsetWidth / 2 - mid);
+      if (d < bestD) {
+        bestD = d;
+        best = card;
+      }
+    }
+    const id = best?.dataset.level as LevelId | undefined;
+    if (!id || id === this.focused) return;
+    this.markFocus(id);
+    if (this.journey.isLevelOpen(id)) this.selectLevel(id);
+  }
+
+  showStart(_best: number, level: LevelId): void {
+    this.markLevels();
+    this.markFocus(level);
     // Glide to a new pick while the title is up; jump straight there when it first appears.
     const shown = this.onTitle;
     this.only(this.start);
     this.centreLevel(level, shown);
   }
 
-  /** On a phone the cards are one row that scrolls sideways: bring the picked one to the middle
-   *  (a no-op for the desktop grid, which never overflows). */
+  /** Bring a card to the middle of the row (swiping does the same; `settle` then picks it). */
   private centreLevel(level: LevelId, smooth: boolean): void {
     const row = this.levelCards[0].parentElement!;
     const card = this.levelCards.find((c) => c.dataset.level === level);
-    if (!card || row.scrollWidth <= row.clientWidth) return;
+    if (!card) return;
     const left = card.offsetLeft - (row.clientWidth - card.offsetWidth) / 2;
     row.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
   }

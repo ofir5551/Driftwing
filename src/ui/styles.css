@@ -587,19 +587,80 @@ body.steer-split .boost-btn {
   }
 }
 
-/* Level picker on the title screen: one card per level, two to a row, the live backdrop follows
-   the pick. */
+/* Level picker on the title screen: one row of cards that scrolls sideways, snapping card by
+   card. The card that comes to rest in the middle is the pick (Menu.settle) and the live backdrop
+   follows it; its neighbours peek in under a soft edge fade, which says "swipe" without a hint.
+   The row bleeds to the screen's edges (wider than the card it sits in), and the spacers let the
+   first and last cards reach the middle. The vertical padding is room for the "New" badge and the
+   pick's glow, which the scroller would otherwise clip. */
 .levels {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  --lw: min(240px, 64vw);
+  position: relative; /* the cards' offsetLeft, for centring */
+  display: flex;
   gap: 10px;
-  margin: 0 0 24px;
+  width: min(100vw, 600px);
+  padding: 10px 0 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+}
+
+.levels::-webkit-scrollbar {
+  display: none;
+}
+
+/* Wide screens: the row stops short of the edges, so it fades out over more of its width. */
+@media (min-width: 600px) {
+  .levels {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 70px, #000 calc(100% - 70px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 70px, #000 calc(100% - 70px), transparent);
+  }
+}
+
+.levels::before,
+.levels::after {
+  content: '';
+  flex: 0 0 calc((100% - var(--lw)) / 2 - 10px);
+}
+
+/* A dot per card in the row, the middle one long. */
+.level-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: -2px 0 16px;
+}
+
+.level-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 250, 240, 0.4);
+  transition:
+    width 0.25s ease,
+    background 0.25s ease;
+}
+
+.level-dots span.on {
+  width: 16px;
+  background: #fffaf0;
+}
+
+.level-dots:has(span:only-child) {
+  visibility: hidden;
 }
 
 .level {
   font: inherit;
+  flex: 0 0 var(--lw);
+  scroll-snap-align: center;
   display: grid;
+  align-content: center;
   gap: 4px;
+  min-height: 84px;
   padding: 12px 14px;
   border-radius: 16px;
   border: 1.5px solid rgba(255, 255, 255, 0.35);
@@ -676,19 +737,6 @@ body.steer-split .boost-btn {
   display: none;
 }
 
-/* The line sits close under the cards, taking the space the cards' own margin left. */
-.levels:has(+ .levels-more:not([hidden])) {
-  margin-bottom: 8px;
-}
-
-.levels-more {
-  margin: 0 0 20px;
-  font-size: 12.5px;
-  letter-spacing: 0.06em;
-  text-align: center;
-  opacity: 0.8;
-}
-
 /* Open but not flown yet. */
 .level {
   position: relative;
@@ -734,70 +782,20 @@ body.steer-split .boost-btn {
   opacity: 0.9;
 }
 
-/* On a phone: tighter cards and type so the names stay on one line. */
-@media (max-width: 480px) {
-  .levels {
-    gap: 6px;
-  }
-  .level {
-    padding: 10px 6px;
-  }
-  .level-name {
-    font-size: 16px;
-    white-space: nowrap;
-  }
-  .level-blurb {
-    font-size: 11px;
-    letter-spacing: 0.01em;
-  }
-}
-
-/* Phones (upright, or short when held sideways): the cards are one row that scrolls sideways,
-   snapping card by card, so the title never scrolls up and down. The next card peeks in under a
-   soft edge fade, which says "swipe" without a hint; Menu.centreLevel keeps the pick in the
-   middle. The padding is room for the "New" badge and the pick's glow, which the
-   scroller would otherwise clip. */
-@media (max-width: 600px), (max-height: 520px) {
-  .levels {
-    position: relative; /* the cards' offsetLeft, for centring */
-    display: flex;
-    gap: 8px;
-    padding: 10px 12px 12px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(
-      90deg,
-      transparent,
-      #000 14px,
-      #000 calc(100% - 14px),
-      transparent
-    );
-    mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
-  }
-  .levels::-webkit-scrollbar {
-    display: none;
-  }
-  .level {
-    /* About two and a third to a row, so the next card clearly peeks in. */
-    flex: 0 0 max(100px, calc(100% / 2.35 - 8px));
-    align-content: start;
-    scroll-snap-align: center;
-  }
-  .level-name {
-    white-space: normal;
-    line-height: 1.15;
-  }
-}
-
 /* Time-of-day chips under the level cards; picking one previews it on the live backdrop. */
 .times {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
-  margin: 0 0 24px;
+  width: min(100%, 420px);
+  margin: 0 0 22px;
+}
+
+.times .time {
+  flex: 1;
+  min-height: 36px;
+  padding: 5px 2px;
+  white-space: nowrap;
 }
 
 .time {
@@ -841,79 +839,150 @@ body.steer-split .boost-btn {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
 }
 
-/* The title card scrolls rather than cut off its last buttons on a short screen. */
+/* The title: the name at the top, the choices at the bottom under the thumb, open sky (and the
+   bird) between. No card behind it: a soft shade at the bottom keeps the text readable. */
+.menu.start {
+  place-items: stretch;
+  padding: 0;
+  background: linear-gradient(to bottom, transparent 45%, rgba(42, 30, 58, 0.45));
+}
+
 .start .card {
-  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  max-width: none;
+  height: 100dvh;
+  padding: max(12vh, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
 }
 
-/* Upright phones with little height: a tighter title. */
+.title-top .tag {
+  margin: 6px 0 0;
+}
+
+.title-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.start .journey {
+  width: min(100%, 320px);
+  margin: 22px auto 8px;
+}
+
+/* Play turns into a quiet "Opens at …" while a locked place is in the middle. */
+.btn.locked,
+.btn.locked:hover {
+  color: #fffaf0;
+  background: rgba(60, 45, 80, 0.2);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5);
+  border: none;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  padding-inline: 32px;
+  outline: 1.5px dashed rgba(255, 255, 255, 0.5);
+  outline-offset: -1.5px;
+  animation: none;
+  transform: none;
+  cursor: default;
+}
+
+/* Birds and Settings: quiet icon buttons on the title's last line. */
+.title-nav {
+  display: flex;
+  justify-content: center;
+  gap: 56px;
+}
+
+.nav-btn {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 64px;
+  min-height: 52px;
+  padding: 4px;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: inherit;
+  text-shadow: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.92;
+}
+
+.nav-btn:hover,
+.nav-btn:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.nav-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 4px rgba(60, 40, 80, 0.5));
+}
+
+/* Something new waits in Settings > What's new. */
+.nav-btn .news-dot {
+  position: absolute;
+  top: 3px;
+  right: 14px;
+}
+
+.nav-btn.unread .news-dot {
+  display: block;
+}
+
+/* Upright phones with little height (iPhone SE): tighter. */
 @media (max-aspect-ratio: 1/1) and (max-height: 720px) {
+  .start .card {
+    padding-top: 8vh;
+  }
   .start .card h1 {
-    font-size: 46px;
+    font-size: 48px;
   }
   .start .tag {
-    margin: 0 0 14px;
     font-size: 13.5px;
   }
-  .levels {
-    gap: 7px;
-    margin-bottom: 14px;
-  }
   .level {
-    padding: 9px 6px;
+    min-height: 74px;
+    padding: 9px 12px;
   }
   .times {
-    gap: 6px;
-    margin-bottom: 14px;
-  }
-  .time {
-    padding: 5px 11px;
-    font-size: 12.5px;
+    margin-bottom: 16px;
   }
   .start .journey {
-    margin-bottom: 14px;
-  }
-  .title-row {
-    margin-top: 10px;
-  }
-  .fs-nudge {
-    margin-top: 10px;
+    margin-top: 16px;
   }
 }
 
-@media (max-aspect-ratio: 1/1) and (max-height: 620px) {
-  /* Tighter still on an iPhone SE (the cards are one row there, so they keep their blurbs). */
+/* Short screens held sideways: the name shrinks and the title scrolls if it must. */
+@media (max-height: 520px) {
+  .start .card {
+    justify-content: flex-start;
+    padding-top: 12px;
+  }
   .start .card h1 {
     font-size: 40px;
   }
-  .levels {
-    gap: 5px;
-    margin-bottom: 10px;
+  .start .tag {
+    display: none;
   }
-  .level {
-    gap: 2px;
-    padding: 6px 6px;
-  }
-  .times {
-    margin-bottom: 10px;
-  }
-  .start .journey {
-    margin-bottom: 10px;
-  }
-}
-
-/* Aviary and Controls side by side under Play. */
-.title-row {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 14px;
-}
-
-.title-row .btn.ghost {
-  margin: 0;
 }
 
 /* Aviary: the card stands aside and lets the world through, so the bird gliding behind it (the
@@ -1178,7 +1247,6 @@ body.steer-split .controls.touch-split {
   font-weight: 600;
 }
 
-.best,
 .pause-stats {
   font-size: 14px;
   letter-spacing: 0.06em;
@@ -1393,7 +1461,53 @@ body.steer-split .controls.touch-split {
   filter: drop-shadow(0 1px 4px rgba(60, 40, 80, 0.5));
 }
 
-/* Settings: its own card, opened from the pause card (Done goes back). */
+/* Settings and Pause sit at the bottom on an upright phone: under the thumb, with the bird in
+   view above them. */
+@media (max-aspect-ratio: 1/1) {
+  .menu.settings-panel,
+  .menu.pause {
+    place-items: end center;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+.settings-panel .card > h2 {
+  margin: 0 0 14px;
+  font-size: 32px;
+  text-align: center;
+}
+
+/* What the picked steering does, under its chips. */
+.steer-hint {
+  margin: 8px 2px 0;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+/* How to fly and What's new, side by side; Done, the card's one bright button, under them. */
+.settings-links {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 20px;
+}
+
+.settings-links .btn.ghost {
+  flex: 1;
+  margin: 0;
+  padding: 10px 8px;
+  font-size: 14.5px;
+  letter-spacing: 0.06em;
+}
+
+#settings-done {
+  display: block;
+  margin: 0 auto 4px;
+  padding: 12px 56px;
+  font-size: 18px;
+}
+
+/* Settings: its own card, opened from the title or the pause card (Done goes back). */
 .menu.settings-panel {
   background: rgba(60, 45, 80, 0.25);
   backdrop-filter: blur(3px);
@@ -1413,43 +1527,13 @@ body.steer-split .controls.touch-split {
   scrollbar-width: none;
 }
 
-/* The title's last line: the best score (once there is one) beside the version tag. */
-.title-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  column-gap: 6px;
-  margin-top: 10px;
-}
-
-.title-foot .best {
-  margin: 0;
-}
-
-/* What's new: the title's version tag (a soft glow while there is something unseen) and the
+/* What's new: a pill in Settings (a soft glow while there is something unseen) and the
    changelog card, laid out like Settings. */
 .news-btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  margin: 0;
-  padding: 6px 10px;
-  font: inherit;
-  font-size: 12.5px;
-  letter-spacing: 0.08em;
-  color: inherit;
-  background: none;
-  border: none;
-  opacity: 0.72;
-  cursor: pointer;
-  text-shadow: inherit;
-}
-
-.news-btn .news-label {
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 250, 240, 0.4);
-  text-underline-offset: 4px;
+  justify-content: center;
+  gap: 8px;
 }
 
 .news-dot {
@@ -1460,10 +1544,6 @@ body.steer-split .controls.touch-split {
   background: var(--glow);
   box-shadow: 0 0 10px 3px rgba(255, 220, 150, 0.85);
   animation: news-glow 2.4s ease-in-out infinite;
-}
-
-.news-btn.unread {
-  opacity: 1;
 }
 
 .news-btn.unread .news-dot {
@@ -1748,22 +1828,6 @@ body.touch .setting.touch-only {
   display: none;
 }
 
-.link-btn {
-  display: block;
-  margin: 4px auto 0;
-  padding: 8px 14px;
-  font: inherit;
-  font-size: 14px;
-  letter-spacing: 0.1em;
-  color: inherit;
-  background: none;
-  border: none;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  opacity: 0.9;
-  cursor: pointer;
-}
-
 /* Left-handed (Settings): the D-pad and Boost trade sides; with side arrows or split pads a
    cluster stays under each thumb and only Boost moves, over the left one. */
 body.lefty .dpad:not(.split-left, .split-right) {
@@ -1859,33 +1923,6 @@ body.lefty.steer-split .boost-btn {
 .fs-btn:focus-visible {
   opacity: 1;
   outline: none;
-}
-
-.fs-nudge {
-  display: block;
-  margin: 16px auto 0;
-  font: inherit;
-  font-size: 14px;
-  letter-spacing: 0.1em;
-  color: inherit;
-  background: rgba(255, 250, 240, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 999px;
-  padding: 7px 18px;
-  cursor: pointer;
-  animation: fs-pulse 2.4s ease-in-out 3;
-}
-
-.fs-nudge[hidden],
-.fs-tip[hidden] {
-  display: none;
-}
-
-.fs-tip {
-  margin: 16px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  opacity: 0.85;
 }
 
 /* The launch card asking for fullscreen (ui/FullscreenPrompt): over the title, which waits
@@ -2060,13 +2097,6 @@ body.lefty.steer-split .boost-btn {
   }
 }
 
-@keyframes fs-pulse {
-  50% {
-    background: rgba(255, 250, 240, 0.3);
-    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12);
-  }
-}
-
 @media (max-height: 520px) {
   .boost-btn {
     --size: 76px;
@@ -2186,12 +2216,11 @@ body.paused .toast {
 }
 
 /* A personal channel (e.g. a wedding invitation): one stage alone, so no level cards, birds,
-   journey or bests; on the title only Play and the time of day. */
+   journey, bests or changelog; on the title only Play, the time of day and Settings. */
 .personal-channel .start .levels,
-.personal-channel .start .levels-more,
-.personal-channel .start .title-row,
-.personal-channel .start .best,
-.personal-channel .start .news-btn,
+.personal-channel .start .level-dots,
+.personal-channel #aviary-btn,
+.personal-channel .news-btn,
 .personal-channel .journey,
 .personal-channel .rest-best,
 .personal-channel .unlock-cards,

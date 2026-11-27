@@ -49,7 +49,7 @@ as on the keyboard. Drag stays the default. A Left-handed switch (shown for the 
 mirrors them: the D-pad goes bottom right and Boost bottom left; Side arrows and Split keep a cluster
 under each thumb (their turns stay on their own sides) and only Boost moves, over the left one.
 Gamepad: left stick + A.
-A Controls panel (title and pause screens) lists the controls for the current device.
+A Controls panel ("How to fly" in Settings, on the title or in pause) lists the controls for the current device.
 
 ## World
 
@@ -96,9 +96,9 @@ the ground has texture up close. Every number is in `Config.light`, `Config.cove
 
 ## Levels
 
-Chosen on the title screen as cards (a grid on wide screens; on phones one row that swipes
-sideways and centres the pick); the attract flight behind the menu switches to the picked
-world at once (a short veil hides the rebuild). The pause menu's "Levels" tile returns to the
+Chosen on the title screen as one row of cards that swipes sideways: the card that comes to rest
+in the middle is the pick (no tap needed; tapping a side card slides it there), and the attract
+flight behind the menu switches to the picked world at once (a short veil hides the rebuild). The pause menu's "Levels" tile returns to the
 title. The pick and a best score per level persist. A level is a `LevelDef` (name, opening time of
 day, day length, music keys, sky mountain, ceiling) that creates a `World`: terrain, streamed scenery,
 what counts as solid, a steering assist, and hooks for wisp patterns and thermal placement.
@@ -1310,10 +1310,11 @@ every 1000).
 ### Level locks
 
 Open levels show, plus only the next locked one, dashed and dimmed, with its name and "Opens at
-750 ✧" in place of the blurb, so the next world is something to look forward to; a line under
-the cards says how many more lie further along. (All nine used to show, which on a fresh save
-read as a wall of locks and pushed Aviary and Controls off an iPhone SE.) Tapping the locked card
-does nothing but glow the journey bar below (that is where the answer is). An open level not
+750 ✧" in place of the blurb, so the next world is something to look forward to; dots under
+the row count the cards. (All nine used to show, which on a fresh save read as a wall of locks
+and pushed Aviary and Controls off an iPhone SE.) Swiping the locked card to the middle keeps
+the current world, turns Play into "Opens at 750 ✧" and says on the journey bar how much light
+is still needed, with a glow (that is where the answer is). An open level not
 flown yet (no best score) wears a small "New" mark until it is flown. A saved pick that is
 still locked (picked but never flown before locks existed) falls back to the Highlands, so the
 attract flight behind the title only ever flies open levels. `?level=` still loads any level.
@@ -2120,3 +2121,18 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Lanterns had no purpose beyond a gust and 10 light, so each now holds a note revealed on
   reaching it (see Gameplay). The words were drafted to be unseen by the designer too, so they
   surprise the same way; the tone mix favours heartfelt after a draft with dad jokes.
+- The title read as noisy: about twenty things to tap in boxed styles of equal weight (two level
+  cards, six chips in two rows, the bar, Play, Birds, Controls, a fullscreen nudge, the version
+  link, the corner button) on a column that covered the bird. A first redesign that swapped the
+  controls for plain text rows looked cheap; the player liked today's pieces and not where they
+  sat. So the pieces stayed and moved: the name at the top, open sky and the bird in the middle,
+  the choices at the bottom under the thumb (the swiping level row with dots, the six time chips
+  in one row, Play, the bar, then Birds and Settings as quiet icon buttons), over a soft shade
+  instead of a card. Swiping picks the place; Play is the only way to start (a tap on the middle
+  card that started the flight would fire by accident at the end of a swipe and skip the look at
+  the place). Controls, the fullscreen nudge, the best score and the version link left the title:
+  "How to fly" and What's new are two ghost pills in Settings, which now opens from the title too;
+  a dot on the title's Settings button stands for the old glowing version tag. The launch card
+  still asks for fullscreen, and the corner button stays. On an upright phone Settings and the
+  pause card sit at the bottom with Done (moved from the top corner) as the one bright button,
+  and a line under the steering chips says what the picked scheme does.

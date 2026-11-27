@@ -2139,3 +2139,6 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
 - Settings lost its volume slider: the device's volume does that job, so Sound is an on/off switch
   and the saved volume is no longer read (an old quieter pick could not be undone). On an upright
   phone the Birds card moved from the top to the bottom, like Settings and Pause, under the thumb.
+- Sound split into two switches, Music and Sound effects, each gating its bus and its own send
+  to the shared reverb (the music's pause duck stays on its bus). M turns both off, or both on
+  when either was off. A save's old `muted` turns both off.

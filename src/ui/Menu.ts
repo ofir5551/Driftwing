@@ -117,7 +117,7 @@ const CONTROLS_HTML = `<h2>Controls</h2>
     <ul class="controls">
       <li><b>WASD</b> or <b>arrows</b> to steer, <b>Space</b> to boost</li>
       <li><b>Double-tap</b> a direction for a trick: left or right rolls, down dives</li>
-      <li><b>P</b> or <b>Esc</b> pause · <b>M</b> mute · <b>L</b> lock the pointer</li>
+      <li><b>P</b> or <b>Esc</b> pause · <b>M</b> sound off / on · <b>L</b> lock the pointer</li>
     </ul>
     <h3>Gamepad</h3>
     <ul class="controls">
@@ -162,7 +162,10 @@ const switchHtml = (id: string, name: string, hint: string) =>
 /** Settings, opened from the title or the pause card (Done goes back to whichever). It sits at
  *  the bottom of the screen, under the thumb, with Done as its one bright button. */
 const SETTINGS_HTML = `<h2>Settings</h2>
-  <div class="setting">${switchHtml('sound', 'Sound', 'Music and effects')}</div>
+  <div class="setting sound-switches">
+    ${switchHtml('music', 'Music', 'The soundtrack')}
+    ${switchHtml('sfx', 'Sound effects', 'Wind, wings, wisps and water')}
+  </div>
   <div class="setting touch-only">
     <p class="setting-label">Touch steering</p>
     ${chipsHtml('steer', 'Touch steering', [
@@ -579,7 +582,8 @@ export class Menu {
   private setupSettings(h: MenuHandlers): () => void {
     const s = this.settings;
     const p = this.settingsPanel;
-    const sound = p.querySelector<HTMLButtonElement>('#sound')!;
+    const music = p.querySelector<HTMLButtonElement>('#music')!;
+    const sfx = p.querySelector<HTMLButtonElement>('#sfx')!;
     const lefty = p.querySelector<HTMLButtonElement>('#lefty')!;
     const invert = p.querySelector<HTMLButtonElement>('#invert')!;
     const chips = (id: string) => [...p.querySelectorAll<HTMLButtonElement>(`#${id} .chip`)];
@@ -593,7 +597,8 @@ export class Menu {
       }
     };
     const sync = () => {
-      sound.setAttribute('aria-checked', String(!s.muted));
+      music.setAttribute('aria-checked', String(s.music));
+      sfx.setAttribute('aria-checked', String(s.sfx));
       mark(steer, s.touchSteer);
       mark(quality, s.quality);
       invert.setAttribute('aria-checked', String(s.invertY));
@@ -609,8 +614,12 @@ export class Menu {
       sync();
       h.change(s);
     };
-    sound.addEventListener('click', () => {
-      s.muted = !s.muted;
+    music.addEventListener('click', () => {
+      s.music = !s.music;
+      changed();
+    });
+    sfx.addEventListener('click', () => {
+      s.sfx = !s.sfx;
       changed();
     });
     invert.addEventListener('click', () => {

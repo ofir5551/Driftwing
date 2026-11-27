@@ -26,7 +26,9 @@ export interface Taught {
 
 export interface Settings {
   volume: number;
-  muted: boolean;
+  /** The Settings switches (M turns both off, or both back on). */
+  music: boolean;
+  sfx: boolean;
   quality: QualityLevel | 'auto';
   invertY: boolean;
   touchSteer: TouchSteer;
@@ -58,7 +60,8 @@ function write(key: string, value: string): void {
 const BEST = `${PREFIX}best`;
 const DEFAULTS: Settings = {
   volume: 0.8,
-  muted: false,
+  music: true,
+  sfx: true,
   quality: 'auto',
   invertY: false,
   touchSteer: 'drag',
@@ -81,7 +84,9 @@ export function loadSettings(): Settings {
       // Loudness is the device's: Settings has only Sound on/off, so an old quieter slider pick
       // (which could no longer be undone) is not kept.
       volume: DEFAULTS.volume,
-      muted: s.muted === true,
+      // A save from before the two switches had one `muted`: it turns both off.
+      music: s.music === false ? false : (s as { muted?: unknown }).muted !== true,
+      sfx: s.sfx === false ? false : (s as { muted?: unknown }).muted !== true,
       quality:
         s.quality === 'low' || s.quality === 'medium' || s.quality === 'high' ? s.quality : 'auto',
       invertY: s.invertY === true,

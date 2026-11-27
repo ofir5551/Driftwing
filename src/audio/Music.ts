@@ -70,7 +70,7 @@ export class Music {
     // Every music send to the shared reverb goes through `wet`, so a level sets its own space.
     this.wet = ctx.createGain();
     this.wet.gain.value = this.style.reverb;
-    this.wet.connect(e.reverbSend);
+    this.wet.connect(e.musicSend);
 
     this.padFilter = ctx.createBiquadFilter();
     this.padFilter.type = 'lowpass';

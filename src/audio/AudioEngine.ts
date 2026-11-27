@@ -5,9 +5,14 @@ const MUFFLE_OPEN = 18000;
  * Web Audio plumbing: context (created on the first user gesture), master volume/mute,
  * music and SFX buses, and a shared reverb whose impulse response is synthesized, not loaded.
  *
- *   music --+--> musicBus --+
- *           \--> reverbSend --> convolver --> reverbReturn --+--> master --> muffle --> compressor --> out
- *   sfx ----+--> sfxBus ----+
+ *   music --+--> musicBus --> musicGate --+
+ *           \--> musicSend --+                                  |
+ *                             +--> reverbSend --> convolver --> reverbReturn --+--> master --> muffle --> compressor --> out
+ *           /--> sfxSend ----+                                  |
+ *   sfx ----+--> sfxBus ----> sfxGate ----+
+ *
+ * The gates (and their reverb sends) are the Music and Sound effects switches; the music's
+ * pause duck stays on musicBus so the two never fight over one gain.
  *
  * `muffle` is a lowpass left wide open, closed while the bird is inside a cloud.
  */
@@ -16,12 +21,18 @@ export class AudioEngine {
   master!: GainNode;
   musicBus!: GainNode;
   sfxBus!: GainNode;
+  /** Where music and SFX send to the shared reverb (gated with their switch). */
+  musicSend!: GainNode;
+  sfxSend!: GainNode;
+  private musicGate!: GainNode;
+  private sfxGate!: GainNode;
+  private musicOn = true;
+  private sfxOn = true;
   reverbSend!: GainNode;
   private muffleFilter!: BiquadFilterNode;
   /** Shared white-noise buffer for SFX (wind, whoosh, splash). */
   noise!: AudioBuffer;
   private volume = 0.8;
-  private muted = false;
   private readyCbs: (() => void)[] = [];
 
   get ready(): boolean {
@@ -58,11 +69,17 @@ export class AudioEngine {
     this.muffleFilter.frequency.value = MUFFLE_OPEN;
     this.muffleFilter.Q.value = 0.5;
     this.master.connect(this.muffleFilter).connect(comp);
+    this.musicGate = ctx.createGain();
+    this.musicGate.gain.value = this.musicOn ? 1 : 0;
+    this.musicGate.connect(this.master);
     this.musicBus = ctx.createGain();
-    this.musicBus.connect(this.master);
+    this.musicBus.connect(this.musicGate);
+    this.sfxGate = ctx.createGain();
+    this.sfxGate.gain.value = this.sfxOn ? 1 : 0;
+    this.sfxGate.connect(this.master);
     this.sfxBus = ctx.createGain();
     this.sfxBus.gain.value = 0.8;
-    this.sfxBus.connect(this.master);
+    this.sfxBus.connect(this.sfxGate);
 
     const convolver = ctx.createConvolver();
     convolver.buffer = this.makeImpulse(ctx, 5.5);
@@ -70,6 +87,12 @@ export class AudioEngine {
     const ret = ctx.createGain();
     ret.gain.value = 0.9;
     this.reverbSend.connect(convolver).connect(ret).connect(this.master);
+    this.musicSend = ctx.createGain();
+    this.musicSend.gain.value = this.musicOn ? 1 : 0;
+    this.musicSend.connect(this.reverbSend);
+    this.sfxSend = ctx.createGain();
+    this.sfxSend.gain.value = this.sfxOn ? 1 : 0;
+    this.sfxSend.connect(this.reverbSend);
 
     this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = this.noise.getChannelData(0);
@@ -123,13 +146,24 @@ export class AudioEngine {
     this.applyVolume();
   }
 
-  setMuted(m: boolean): void {
-    this.muted = m;
-    this.applyVolume();
+  /** The Settings switches: each fades its bus and its reverb send (what is already ringing in
+   *  the reverb dies away on its own). */
+  setMusic(on: boolean): void {
+    this.musicOn = on;
+    if (this.ctx) this.gate([this.musicGate, this.musicSend], on);
   }
 
-  get isMuted(): boolean {
-    return this.muted;
+  setSfx(on: boolean): void {
+    this.sfxOn = on;
+    if (this.ctx) this.gate([this.sfxGate, this.sfxSend], on);
+  }
+
+  private gate(nodes: GainNode[], on: boolean): void {
+    const t = this.ctx!.currentTime;
+    for (const n of nodes) {
+      n.gain.cancelScheduledValues(t);
+      n.gain.setTargetAtTime(on ? 1 : 0, t, 0.05);
+    }
   }
 
   get level(): number {
@@ -139,7 +173,7 @@ export class AudioEngine {
   private applyVolume(fade = 0.15): void {
     if (!this.ctx) return;
     // Squared for a perceptual-ish fader curve; x3 makeup gain (the compressor catches peaks).
-    const target = this.muted ? 0 : this.volume * this.volume * 3;
+    const target = this.volume * this.volume * 3;
     this.master.gain.cancelScheduledValues(this.ctx.currentTime);
     this.master.gain.setTargetAtTime(target, this.ctx.currentTime, fade / 3);
   }

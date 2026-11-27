@@ -29,7 +29,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
       'Swipe the places to choose one: the card that settles in the middle is where you’ll fly. A locked one says how much light it needs.',
       'Settings opens from the title too, and sits at the bottom of the screen with How to fly and What’s new. A glow on Settings tells you when there is something new.',
       'The pause card and Birds rest at the bottom, so your bird stays in view.',
-      'Sound is a simple on/off in Settings: your device’s volume sets how loud.',
+      'Music and sound effects each have their own switch in Settings; your device’s volume sets how loud.',
     ],
   },
   {

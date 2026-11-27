@@ -148,7 +148,7 @@ export class Sfx {
     g.gain.exponentialRampToValueAtTime(level, t + 0.006);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(this.engine.sfxBus);
-    g.connect(this.engine.reverbSend);
+    g.connect(this.engine.sfxSend);
     o.start(t);
     o.stop(t + dur + 0.02);
   }
@@ -176,7 +176,7 @@ export class Sfx {
         g.gain.exponentialRampToValueAtTime(0.05 * s, t + 0.005);
         g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
         o.connect(g).connect(this.engine.sfxBus);
-        g.connect(this.engine.reverbSend);
+        g.connect(this.engine.sfxSend);
         o.start(t);
         o.stop(t + 0.12);
       }

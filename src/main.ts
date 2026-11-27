@@ -136,7 +136,8 @@ ui.appendChild(veil);
 
 function applySettings(s: Settings): void {
   audio.engine.setVolume(s.volume);
-  audio.engine.setMuted(s.muted);
+  audio.engine.setMusic(s.music);
+  audio.engine.setSfx(s.sfx);
   Config.input.invertY = s.invertY;
   game.input.touch.setScheme(s.touchSteer);
   game.input.touch.setLeftHanded(s.leftHanded);
@@ -391,7 +392,10 @@ game.onFrame((dt) => {
   const input = game.input;
   if (input.mutePressed) {
     input.mutePressed = false;
-    settings.muted = !settings.muted;
+    // M: everything off, or (when anything was off) everything on.
+    const on = !(settings.music && settings.sfx);
+    settings.music = on;
+    settings.sfx = on;
     applySettings(settings);
     menu.syncInputs();
   }

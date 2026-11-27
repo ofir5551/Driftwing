@@ -8,13 +8,14 @@ import {
   FJORD_KEYS,
   JERUSALEM_KEYS,
   KARST_KEYS,
+  MAPLE_KEYS,
   PEAKS_KEYS,
   RINGMOON_KEYS,
 } from './scales';
 
 /** Instrument for ambient notes, wisp notes and the lantern flourish. */
 export type Voice =
-  'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute' | 'marimba' | 'horn';
+  'bell' | 'koto' | 'guqin' | 'glass' | 'oud' | 'guitar' | 'flute' | 'marimba' | 'horn' | 'harp';
 
 /**
  * A level's musical identity. The generative engine is shared; this is what it plays and how,
@@ -223,5 +224,24 @@ export const EDEN_MUSIC: MusicStyle = {
   droneFifth: 0.35,
   reverb: 1.25,
   arp: { pattern: [0, 2, 4, 0, 2, 4], perStep: 1, octave: 12 },
+  pulse: 0,
+};
+
+/**
+ * Maple Valley: cozy and warm. A soft harp (a plucked triangle with a sine octave and a felted
+ * fifth, its brightness closing as it rings, notes now and then rolled up from below) over a
+ * warm sine pad, a gentle arpeggio falling like leaves, a soft room.
+ */
+export const MAPLE_MUSIC: MusicStyle = {
+  keys: MAPLE_KEYS,
+  bpm: 64,
+  progression: [0, 3, 4, 1, 0, 2, 3, 4],
+  voice: 'harp',
+  density: 0.85,
+  grace: 0.1,
+  pad: { wave: 'sine', detune: 6, attack: 3, release: 4.5, level: 0.06 },
+  droneFifth: 0.25,
+  reverb: 1.15,
+  arp: { pattern: [4, 3, 2, 1, 0, 2, 1, 0], perStep: 1, octave: 12 },
   pulse: 0,
 };

@@ -13,7 +13,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `node scripts/level-shots.mjs <level> [--at x,y,z,yaw,pitch,phase]`: review a level (title, phone, dawn,
   golden, night, altitude shots into `shots/<level>/` + triangle report). New levels: the `new-level` skill.
 - URL flags: `?debug`, `?autopilot` (skips the title; a bot flies toward wisps), `?time=0..1` (day phase),
-  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|eden`,
+  `?seed=N`, `?quality=low|medium|high`, `?journey=N` (a throwaway journey at N light, never saved), `?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|maple|eden`,
   `?unlocked` (every level but the personal ones, plumage and trail open, nothing granted or
   saved), `?flock=N` (fly N flock birds, never saved), `?fsprompt` (show the launch fullscreen
   card even if dismissed or automated).
@@ -70,6 +70,7 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `levels/`: `World` interface + `LevelDef`; `Highlands` (chunks, scenery, islands), `City`, `Karst`
   (Jade River, with its own palettes), `Fjord` (Aurora Fjords), `Jerusalem` (City of Gold),
   `Canyon` (Red Canyons), `Peaks` (Sea of Clouds), `Atoll` (Coral Atolls), `Ringmoon` (Ringmoon Shallows),
+  `Maple` (Maple Valley),
   `Eden` (Tal and Hadar's wedding flight, off the journey track: always open); `index`
   registry.
 - `core/Gameplay.ts`: wisps, flow (`Progress`), thermals, lanterns, particles, trails, wind, HUD.
@@ -206,6 +207,22 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   `materials` (the giant's and second sun's fills, `aGlow` night glow, the life's vertex
   motion), `shapes` (explorers, life, cover shapes), `geometry`, `RingmoonWorld`. The ringed
   giant and the second sun are the `giant` backdrop in `Sky`.
+- `world/maple/`: `MapleLayout` (pure: rivers on a noise's zero contour, valley floors with
+  farmland, rounded wooded mountains; the home lake on the river ahead of the spawn with its
+  gate in the water (posts and beams solid, an underside the look-ahead eases under), the
+  pavilion's island and the home temple; temples on levelled pads (pagoda solid, hall a soft
+  roof); tunnels of gates climbing at a fixed grade on benches cut into the slopes, soft, kept
+  from generic ribbons by `inGates`, with an open lead-in and a shrine; drum bridges; the land's
+  forest, cedar share and autumn "turn" in `land()`), `MapleScatter` (pure: the forest in five
+  tree types, temples, gates, farmhouses, stone lanterns, the lake's floating lanterns; herons,
+  deer, farmers lazily), `MapleWisps` (the opening through the gate, river runs, tunnel climbs
+  with an approach glide, pagoda swings, valley-seeking glides planned backward from a look
+  ahead), `destinations` (temples, and the tunnels' feet), `MapleDecor` (instancing; trees cast
+  from their distant shapes; the floating lanterns drift per frame), `land` (ground colour and
+  `aMaple`: roads, flagstones, gravel, canopy mottle, fallen leaves), `cover` (pampas, spider
+  lilies), `Leaves` (falling leaves round the camera, in the shader), `geometry` (trees),
+  `shapes` (buildings, gates, bridge, lanterns, life), `MapleWorld`. The ranges on the horizon
+  are the `maples` backdrop in `Sky`; the harp is `Music`'s `harp` voice.
 - `world/eden/`: Tal and Hadar's wedding flight. `EdenWorld` wraps a `HighlandsWorld` built on
   `EdenLayout`'s reshaped land (pure: three sites searched for level dry ground, each a meadow
   blended into the hills; the venue's parts in its own u/v frame (`VENUE`), the wave roof's

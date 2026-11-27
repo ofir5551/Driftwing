@@ -468,6 +468,15 @@ export class Music {
         return this.flute(t, midi, vel, pan, dur, level);
       case 'horn':
         return this.horn(t, midi, vel, pan, dur, level);
+      case 'harp':
+        // A long note is now and then rolled up into from a fourth and a step below.
+        if (dur > 2.5 && this.rand() < 0.25) {
+          const q = this.sched!.stepDur / 6;
+          this.harp(t, midi - 5, vel * 0.45, pan, dur * 0.5, level);
+          this.harp(t + q, midi - 2, vel * 0.55, pan, dur * 0.6, level);
+          return this.harp(t + q * 2, midi, vel, pan, dur, level);
+        }
+        return this.harp(t, midi, vel, pan, dur, level);
       case 'marimba':
         this.marimba(t, midi, vel, pan, level);
         // A long note is rolled: soft quick re-strikes, as a player sustains a wooden bar.
@@ -811,6 +820,52 @@ export class Music {
       o.connect(g).connect(env);
       o.start(t);
       o.stop(t + decay + 0.05);
+    }
+    this.out(env, pan);
+  }
+
+  /**
+   * Harp: a plucked triangle with a sine an octave up and a soft fifth above that, through a
+   * lowpass that starts bright and closes as the string rings, so the pluck is warm and round
+   * (felt, not wire). It rings long and fades slowly, like a leaf settling.
+   */
+  private harp(
+    t: number,
+    midi: number,
+    vel: number,
+    pan: number,
+    dur: number,
+    level: number,
+  ): void {
+    const ctx = this.engine.ctx!;
+    const f = midiToFreq(midi);
+    const len = Math.min(Math.max(dur * 0.9, 1.4), 4.5);
+    const end = t + len;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(level * vel * 0.7, t + 0.004);
+    env.gain.exponentialRampToValueAtTime(level * vel * 0.25, t + 0.35);
+    env.gain.exponentialRampToValueAtTime(0.0001, end);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.6;
+    lp.frequency.setValueAtTime(Math.min(f * 8, 10000), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.min(f * 2.2, 8000), t + 0.6);
+    lp.connect(env);
+    for (const [type, ratio, gain] of [
+      ['triangle', 1, 1],
+      ['sine', 2, 0.35],
+      ['sine', 3, 0.12],
+    ] as const) {
+      if (f * ratio > 12000) continue;
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = f * ratio;
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      o.connect(g).connect(lp);
+      o.start(t);
+      o.stop(end + 0.05);
     }
     this.out(env, pan);
   }

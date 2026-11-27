@@ -297,6 +297,11 @@ export class Trees {
     near: (THREE.BufferGeometry | undefined)[] = [],
     /** Optional cheaper shapes for trees beyond Config.render.treeFar (a level opts in). */
     distant: (THREE.BufferGeometry | undefined)[] = [],
+    /**
+     * Optional shapes for the sun-shadow proxies (default: the detailed shape, else the far
+     * one): a dense forest casts from its far shapes, as the shadow only needs the silhouette.
+     */
+    casterShapes: (THREE.BufferGeometry | undefined)[] = [],
   ) {
     const mat = (this.material = new THREE.MeshToonMaterial({
       vertexColors: true,
@@ -351,7 +356,9 @@ export class Trees {
     this.counts = this.meshes.map(() => 0);
     for (const mesh of this.meshes) mesh.receiveShadow = true;
     // Sun-shadow casters near the bird, one per type, in the detailed shape where there is one.
-    this.casters = geometries.map((g, i) => new ShadowCasters(near[i] ?? g, mat, capacity));
+    this.casters = geometries.map(
+      (g, i) => new ShadowCasters(casterShapes[i] ?? near[i] ?? g, mat, capacity),
+    );
     this.crowns = geometries.map((g) => {
       g.computeBoundingBox();
       const b = g.boundingBox!;

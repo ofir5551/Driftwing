@@ -392,6 +392,7 @@ export const Config = {
     // the ringlight at night); sun2: the second sun's soft fill from where it trails the first.
     ringmoon: { shadows: 0.5, clouds: 0.2, shafts: 0.5, giant: 0.32, sun2: 0.22 },
     eden: { shadows: 0.6, clouds: 0.28, shafts: 0.55 },
+    maple: { shadows: 0.58, clouds: 0.28, shafts: 0.65 },
   },
   /** Adaptive resolution (AdaptiveScale): judged in one-second windows of frames. */
   adaptive: {
@@ -721,6 +722,54 @@ export const Config = {
     ridgeDistance: 2600, // m, how far the painted ridges on the horizon pretend to be
     lanterns: 1, // brightness of lanterns after dark
   },
+  maple: {
+    // Plan (read when a level is created).
+    riverScale: 0.0007, // frequency of the river noise: a valley every ~800 m
+    riverMin: 15, // m, half width of the narrowest reaches
+    riverMax: 27, // m, half width of the broadest
+    valley: 160, // m from the water over which the mountains rise (varies 0.7-1.5x)
+    mountain: 185, // m, the tallest ranges (they vary from a third of this to all of it)
+    mountainScale: 0.0017, // frequency of the mountain noise
+    lakeRadius: 165, // m, the home lake's radius (stretched 1.3x along the river)
+    lakeAhead: 340, // m down the river from the spawn to the lake's centre
+    islandRadius: 30, // m, the pavilion's island
+    canopy: 12, // m, the forest counts as soft ground this high
+    roofs: 10, // m, temple and farm roofs count as soft ground this high
+    road: 9, // m from the waterline to the road along each bank
+    roadWidth: 2.2, // m, half width of the river road
+    pathWidth: 2.8, // m, half width of the stone path under a gate tunnel
+    village: 0.16, // share of the valley floor that is farmland with houses
+    bridgeCell: 560, // m, grid cell that may hold one bridge over the river
+    bridgeChance: 0.5, // share of the cells that try
+    bridgeMaxHalf: 26, // m, only reaches narrower than this (half width) are bridged
+    bridgeRise: 6.5, // m, the arched deck's crown above the water
+    bridgeWidth: 4.6, // m, deck width
+    bridgeEase: 16, // m along the river over which the flight floor ramps up over a bridge
+    templeCell: 620, // m, grid cell that may hold one temple
+    templeChance: 0.6, // share of the cells with a temple
+    templePad: 34, // m, radius of the levelled ground a temple stands on
+    gateCell: 560, // m, grid cell that may hold one tunnel of gates up a mountain
+    gateChance: 0.8, // share of the cells that try
+    gateSpacing: 8, // m between gates along a tunnel
+    gateMin: 16, // gates a tunnel needs at least (shorter climbs are dropped)
+    gateMax: 34, // gates at most (the ribbon up them must fit the wisp pool whole)
+    gateGrade: 0.2, // the tunnel climbs at most this steeply (rise per metre)
+    gateHalf: 4.6, // m from the path to each post (the tunnel's half width)
+    gateHeight: 10.5, // m, top of a gate's upper beam over the path
+    gateClear: 6, // m over the path the tunnel ribbon flies
+    // Atmosphere and life.
+    mist: 0.4, // valley haze at dawn; it thins by midday and gathers again at dusk
+    mistTop: 40, // m, the haze lies below this
+    mistFar: 0.3, // distance haze: the ranges fade in layers
+    ridgeDistance: 2400, // m, how far the painted ranges on the horizon pretend to be
+    leaves: 900, // falling leaves round the bird (scaled by the quality's particles)
+    leafRange: 70, // m, the box of falling leaves round the camera
+    leafFall: 1.3, // m/s a leaf falls
+    leafSize: 0.42, // m
+    lakeLanterns: 90, // floating lanterns on the home lake at dusk
+    lanterns: 1, // brightness of lanterns after dark
+    life: 0.12, // chance a 24 m cell of farmland has a heron, a deer or a farmer in it
+  },
   flow: {
     gain: 0.03, // flow per pickup
     chainBonus: 0.003, // extra flow per link in the current chain (capped)
@@ -824,8 +873,9 @@ export const Config = {
     gildedPlumage: 2550,
     peaks: 2800,
     atoll: 3050,
-    ringmoon: 3300, // the newest level, just before the final bird
-    phoenix: 3550, // the final bird, the end of the track (later birds go before it)
+    ringmoon: 3300,
+    maple: 3550, // the newest level, just before the final bird
+    phoenix: 3800, // the final bird, the end of the track (later birds go before it)
   },
   aviary: {
     trailPreview: 0.6, // lowest wingtip-trail opacity while the Aviary is open (the bot glides lazily)

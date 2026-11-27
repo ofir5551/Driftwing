@@ -268,7 +268,8 @@ describe('parseJourney', () => {
         granted: [],
         revealed: [],
         seen: ALL.filter(
-          (id) => !['swallow', 'crane', 'phoenix', 'peaks', 'atoll', 'ringmoon'].includes(id),
+          (id) =>
+            !['swallow', 'crane', 'phoenix', 'peaks', 'atoll', 'ringmoon', 'maple'].includes(id),
         ),
         found: [],
         flocks: {},

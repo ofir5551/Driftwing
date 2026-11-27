@@ -236,6 +236,33 @@ const shots = [
     wait: 3000,
     place: { x: 0, y: 14, z: 100, yaw: 0, phase: 0.86 },
   },
+  // Maple Valley (default seed): through the gate in the lake, up a tunnel of gates, a
+  // temple in the golden hour, the floating lanterns by night.
+  { name: 'maple-title', query: '?level=maple', wait: 4500 },
+  {
+    name: 'maple-gate',
+    query: '?level=maple&autopilot',
+    wait: 3000,
+    place: { x: -137, y: 9, z: -26, yaw: -1.07, pitch: 0.05, phase: 0.4 },
+  },
+  {
+    name: 'maple-gates',
+    query: '?level=maple&autopilot',
+    wait: 3000,
+    place: { x: 304, y: 22, z: -808, yaw: 0.26, pitch: -0.1, phase: 0.42 },
+  },
+  {
+    name: 'maple-temple',
+    query: '?level=maple&autopilot',
+    wait: 3000,
+    place: { x: -393, y: 30, z: -55, yaw: 3.28, pitch: -0.08, phase: 0.5 },
+  },
+  {
+    name: 'maple-night',
+    query: '?level=maple&autopilot',
+    wait: 3000,
+    place: { x: -100, y: 14, z: 0, yaw: -1.57, phase: 0.86 },
+  },
   // Eden (default seed): Tal's picture, the venue, the couple's picture, lanterns by night.
   { name: 'eden-title', query: '?level=eden', wait: 4500 },
   {

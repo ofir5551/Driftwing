@@ -64,6 +64,11 @@ const NAMES = {
     back: "Along the ship's back",
     beacon: "Round a beacon's rings",
   },
+  maple: {
+    pavilion: 'Round the lake pavilion',
+    pagoda: "A pagoda's spire",
+    lanterns: 'Among the floating lanterns',
+  },
   eden: {
     pier: "Along the pool's pier",
     chuppah: 'Round the chuppah',
@@ -86,6 +91,7 @@ export const LEVEL_FINDS: Record<LevelId, readonly FindInfo[]> = {
   peaks: finds('peaks'),
   atoll: finds('atoll'),
   ringmoon: finds('ringmoon'),
+  maple: finds('maple'),
   eden: finds('eden'),
 };
 

@@ -21,6 +21,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.9.0',
+    date: '2026-11-27',
+    title: 'Maple Valley',
+    items: [
+      'A new place to fly, the last on the journey before the Phoenix: Maple Valley, a mountain valley in full autumn colour. Glide through the great gate standing in the temple lake, climb tunnels of red gates up the hillsides, and stay for dusk, when lanterns float out on the water.',
+      'The Phoenix now waits a little further along the journey, after Maple Valley.',
+    ],
+  },
+  {
     version: '0.8.0',
     date: '2026-11-27',
     title: 'A quieter title',

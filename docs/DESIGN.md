@@ -123,6 +123,9 @@ what counts as solid, a steering assist, and hooks for wisp patterns and thermal
 - **Ringmoon Shallows**: a shallow jade sea on a moon of a ringed gas giant, with two suns and an
   old ship standing in the water, opening in the afternoon. The vast one: another world, the
   giant filling the sky, slow and strange and enormous.
+- **Maple Valley**: a mountain valley in full autumn colour (Kyoto's Arashiyama, Nikko), opening
+  in the late afternoon. The cozy one: warm light through red maples, leaves falling round the
+  bird, a temple lake, gates climbing the hills, lanterns floating out on the water at dusk.
 - **Eden**: Tal and Hadar's wedding flight over green country in the golden hour, always open.
   The personal one: three journeys tell their story, to his picture, to hers, to the venue.
 
@@ -984,6 +987,67 @@ medium and high.
 - Cost at the review's viewpoints (triangles / draw calls, whole frame): medium 238-287k /
   124-143 (was 289-311k / 113-134), high 400-480k / 134-168 (was 473-491k / 121-155), low
   135-159k / 91-104 (was 153-179k / 87-100). The distant fronds and far pods pay for the rest.
+
+## Maple Valley
+
+Mood: cozy and warm; autumn. Every other level is open, vast, busy or hushed; this one is a
+place you'd like to sit in. It opens in the late afternoon (phase 0.4, the light lowering and
+turning gold) and the day runs at 1.3x: a pale rose dawn in valley haze, a clear deep-blue
+afternoon over warm haze, a long amber golden hour that sets the forest glowing, a rose and
+violet dusk as the lanterns light, an indigo night. Saturation 1.06.
+
+Plan (`src/world/maple/MapleLayout`): rivers on the zero contour of a low noise (Jade River's
+trick), each with a valley floor of meadow, pampas and farmland ~100-240 m wide, and rounded
+wooded mountains rising beyond it to ~185 m (of varied heights; never a wall). The opening: the
+spawn on the river nearest the origin, the home lake on the river 340 m ahead (an ellipse,
+stretched along the way, with a wobbled shore), a great vermilion gate standing in the water
+across the way in (posts 20 m apart, beams from 13 to 18 m), the pavilion's island off to one
+side of the way across, and the home temple on the far shore. Temples stand on level pads
+(levelled into the slope, 34 m) at the foot of the mountains, their halls facing the water
+over a lantern-lined approach, a five-storey pagoda beside each. Tunnels of gates climb the
+mountainsides: from the foot of the slopes a walk climbs at a fixed grade (each 2 m step picks,
+of five gentle turns, the one whose actual climb is nearest the grade, so the way curves across
+the slope and never zigzags), a gate every 8 m, on a bench cut level into the slope, to a
+shrine where the slope eases; a 50 m open lead-in runs up to the first gate. Arched vermilion
+drum bridges cross narrow reaches.
+
+Flight: the forest, roofs, the tunnels' gates and the bridges are soft (skimmed); pagodas, the
+lake gate and the pavilion are solid but soft, flown with the city's look-ahead and glance (the
+gate's beams are a box with an underside the look-ahead eases under, and a push from below
+goes down, nose eased). The canopy is open over every path, so the bird flies low up the
+tunnels between the posts.
+
+Look: the forest is five tree types (crimson and flame maples, maples still turning, golden
+ginkgos, dark cedars on the heights and in groves), each with near, far and distant shapes,
+their colours following a low "turn" noise so whole hillsides go crimson or gold. Between the
+trees the ground carries its canopy's colour, mottled into crowns far off and darkening into
+leaf litter near, dabbed with fallen leaves; paths are flagstones on the benches and packed
+earth by the river; temple pads are raked gravel. Pampas stands in drifts on the meadows and
+red spider lilies line the paths. Leaves fall round the bird: one draw of quads in a box that
+wraps round the camera, each tumbling and fluttering, cut to a maple silhouette in the shader.
+The `maples` backdrop paints four wooded ranges round the horizon, far ones blue in the haze,
+near ones warmed with rust. Stone lanterns line the lake shore, the approaches and every fifth
+gate; at dusk ~90 floating lanterns are set out on the lake and drift on slow circles, glowing
+after dark.
+
+Music: a soft harp (a plucked triangle with a sine octave and a felted fifth, its lowpass
+closing as it rings; long notes now and then rolled up into) at 64 BPM over a warm sine pad, a
+gentle falling arpeggio with flow. Suspended at dawn, yo by day, the "in" scale (miyako-bushi)
+in the golden hour, minor at dusk, suspended at night.
+
+Wisps (`MapleWisps`): the opening ribbon runs low down the river into the lake, through the gate
+between its posts and under its beams, and across past the island. Then: low runs along the
+river's bends hopping the bridges; every few patterns, when a tunnel lies roughly ahead, a glide
+to its lead-in and a ribbon up the tunnel through every other gate and over the shrine (planned
+whole, so it fits the wisp pool, or not at all); swings round a pagoda half way up; and glides
+that pick the lowest way through the mountains (a valley or a pass), their heights planned
+backward from a look past their end so a ridge ahead is met by a steady early climb. On a
+journey the glides look 26 wisps ahead and keep close to the route.
+
+Finds: a full turn round the lake pavilion; a skim over a pagoda's spire (the ribbons ride 14 m
+over every finial); the lake by night, skimming low among the floating lanterns. Journeys lead
+to the temples (the beacon over the approach before the hall) and to the foot of the tunnels
+(the beacon on the lead-in, the gates climbing away beyond it).
 
 ## Eden
 
@@ -2148,3 +2212,20 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   dimmed when off); the switches lost their hints (the line under the steering chips stays, as
   "Split" or "Arrows" say nothing alone); What's new is a quiet line under Done. The Controls
   panel ("How to fly") went: the first-flight hints teach the controls, and it was one more pill.
+- Maple Valley was chosen for a mood no level had: cozy (warm light, autumn, a place to sit),
+  after Kyoto's Arashiyama and Nikko. Tunnels of gates are soft, like Sea of Clouds' rope
+  bridges: a solid gate every 8 m would have had the look-ahead swerving inside the tunnel,
+  and a gate brushed is no harm. They climb on a bench cut level into the slope, so both posts
+  stand on the ground; a first walk turned by the slope's gradient lagged on bends and climbed
+  up to 0.6 in places, so each step now picks the turn whose actual climb is nearest the grade.
+- The tunnel ribbons were never flown at first: the climb off the top asked for a 13-23 m jump,
+  the approach crossed forest canopy (now an open lead-in), and a long tunnel did not fit the
+  free wisps (now capped at 34 gates, planned whole or not at all). Tunnels on 760 m cells were
+  too sparse for the ribbons to meet, so they are on 560 m cells and a glide leads to one ahead.
+- Maple Valley's journeys first went to the tunnels' shrines high on the slopes, and the straight
+  routes crossed ridges the ribbons could not climb in time; the bot hovered short of them. The
+  beacon stands at a tunnel's foot now, and on a journey the glides look 26 wisps ahead.
+- A dense forest blew the triangle budget (730k on high), mostly in the shadow pass: trees cast
+  from 530 m round the bird in their detailed shapes. `Trees` takes optional caster shapes and
+  Maple Valley casts from the distant ones (20 triangles); the forest's ground carries the
+  canopy's colour, mottled, so a thinner forest still reads as a full one.

@@ -18,6 +18,7 @@ export type LevelId =
   | 'peaks'
   | 'atoll'
   | 'ringmoon'
+  | 'maple'
   | 'eden';
 
 /**

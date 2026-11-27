@@ -167,6 +167,25 @@ you back to choose again).
 | **The second sunset, from high up**         | **Night under the rings**                     |
 | ![High](docs/screenshots/ringmoon-high.jpg) | ![Night](docs/screenshots/ringmoon-night.jpg) |
 
+- **Maple Valley**: autumn, opening in the late afternoon. A mountain valley in full colour,
+  after Kyoto's Arashiyama and Nikko: whole hillsides of crimson and flame maples, golden
+  ginkgos and dark cedars, pampas on the meadows and red spider lilies by the paths, leaves
+  falling all round the bird. Ahead of the spawn the river opens into a temple lake with a great
+  vermilion gate standing in the water and a gilt pavilion on its island; temples with
+  five-storey pagodas stand at the foot of the mountains, tunnels of gates climb the slopes to
+  hillside shrines, drum bridges arch over the river, and at dusk floating lanterns drift out on
+  the lake. The music is a soft harp over a warm pad, the "in" scale in the golden hour. Wisps
+  run low down the river and through the gate in the lake, climb the tunnels gate by gate, swing
+  round the pagodas and glide the passes between the mountains.
+
+![Maple Valley title screen](docs/screenshots/maple-title.jpg)
+
+| Through the gate in the lake                 | Up a tunnel of gates                       |
+| -------------------------------------------- | ------------------------------------------ |
+| ![Gate](docs/screenshots/maple-gate.jpg)     | ![Gates](docs/screenshots/maple-gates.jpg) |
+| **A temple in the golden hour**              | **Floating lanterns by night**             |
+| ![Temple](docs/screenshots/maple-temple.jpg) | ![Night](docs/screenshots/maple-night.jpg) |
+
 - **Eden**: a wedding flight for Tal and Hadar, always open. Green country in the golden hour
   (the Highlands' land, reshaped round three stops) and petal-pink wisps. The beacons lead in
   turn to Tal's picture on its easel, then Hadar's (each joins your flock, and a photo card
@@ -220,7 +239,7 @@ ground or water is only ever a soft skim.
 
 URL flags: `?debug`, `?autopilot` (a bot flies and collects, used for screenshots),
 `?time=0..1` (time of day), `?seed=N` (world seed), `?quality=low|medium|high`,
-`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|eden`, `?unlocked` (every level open, nothing saved).
+`?level=highlands|city|karst|fjord|jerusalem|canyon|peaks|atoll|ringmoon|maple|eden`, `?unlocked` (every level open, nothing saved).
 
 Screenshot scripts use Playwright's Chromium; set `CHROMIUM_PATH` to use another build.
 
@@ -280,6 +299,11 @@ file list by the plugin in `vite.config.ts`) and `src/pwa.ts`, which registers i
   collisions follow the leaning axis), and the ship: an ellipsoid the drawn seed pod stays inside,
   pushed out of radially, whose underside the look-ahead eases beneath. The gas giant, its rings
   and the second sun are the `giant` backdrop painted into the sky dome.
+- **Maple Valley**: a river valley between rounded wooded mountains (`src/world/maple/`), its
+  home lake, temples on levelled pads and tunnels of gates on benches cut into the slopes all
+  pure functions of position; the forest's ground is painted in its canopy's colour, leaves fall
+  in one shader-driven draw that wraps round the camera, and the wooded ranges on the horizon
+  are the `maples` backdrop.
 - **Look**: soft toon banding, gentle bloom, a paper-grain/edge-wobble/grade/vignette pass.
 - **Music**: a Web Audio lookahead scheduler plays detuned pads, a drone, FM bells and
   flow-driven layers in pentatonic keys that drift with the time of day. Each wisp plays the

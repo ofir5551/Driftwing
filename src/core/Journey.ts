@@ -41,6 +41,7 @@ export const UNLOCKS: readonly Unlock[] = [
   { id: 'peaks', kind: 'level', name: 'Sea of Clouds' },
   { id: 'atoll', kind: 'level', name: 'Coral Atolls' },
   { id: 'ringmoon', kind: 'level', name: 'Ringmoon Shallows' },
+  { id: 'maple', kind: 'level', name: 'Maple Valley' },
   { id: 'phoenix', kind: 'species', name: 'Phoenix' },
 ];
 
@@ -54,6 +55,7 @@ const ADDED_LATER: ReadonlySet<string> = new Set([
   'peaks',
   'atoll',
   'ringmoon',
+  'maple',
 ]);
 /** The track as it stood before saves recorded what they had seen. */
 const LEGACY_SEEN: readonly UnlockId[] = UNLOCKS.map((u) => u.id).filter(

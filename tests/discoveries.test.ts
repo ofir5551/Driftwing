@@ -25,6 +25,8 @@ import { PeaksLayout } from '../src/world/peaks/PeaksLayout';
 import { peaksFinds } from '../src/world/peaks/finds';
 import { RingmoonLayout } from '../src/world/ringmoon/RingmoonLayout';
 import { ringmoonFinds } from '../src/world/ringmoon/finds';
+import { MapleLayout } from '../src/world/maple/MapleLayout';
+import { mapleFinds } from '../src/world/maple/finds';
 import { EdenLayout, VENUE } from '../src/world/eden/EdenLayout';
 import { edenFinds } from '../src/world/eden/finds';
 import { createHeightField } from '../src/world/Terrain';
@@ -299,6 +301,22 @@ describe('Each level’s finds can be made', () => {
     expect(makes(defs, 'back', S.x, L.shipTop(S.x, S.z) + 4, S.z)).toBe(true);
     const { look } = tracker(defs.filter((d) => d.id === 'ringmoon.ship'));
     expect(circle(look, S.x, S.z, 160, 40)).toEqual(['ringmoon.ship']);
+  });
+
+  it('Maple Valley: round the pavilion, a pagoda’s spire, and the lanterns only at night', () => {
+    const L = new MapleLayout(SEED);
+    const defs = mapleFinds(L);
+    const P = L.pavilion;
+    const { look } = tracker(defs.filter((d) => d.id === 'maple.pavilion'));
+    expect(circle(look, P.x, P.z, 45, 12)).toEqual(['maple.pavilion']);
+    const t = L.home!;
+    expect(makes(defs, 'pagoda', t.px, t.top + 4, t.pz)).toBe(true);
+    expect(makes(defs, 'pagoda', t.px, t.top + 16, t.pz)).toBe(false);
+    const x = L.lake.x;
+    const z = L.lake.z;
+    expect(makes(defs, 'lanterns', x, 3, z, 1)).toBe(true);
+    expect(makes(defs, 'lanterns', x, 3, z, 0)).toBe(false);
+    expect(makes(defs, 'lanterns', x, 9, z, 1)).toBe(false);
   });
 
   it('Eden: the pier, round the chuppah, and the lanterns only at night', () => {

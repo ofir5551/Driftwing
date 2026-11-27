@@ -6,6 +6,7 @@ import { Fjord } from './Fjord';
 import { Highlands } from './Highlands';
 import { Jerusalem } from './Jerusalem';
 import { Karst } from './Karst';
+import { Maple } from './Maple';
 import { Peaks } from './Peaks';
 import { Ringmoon } from './Ringmoon';
 import { DEV_CHANNEL, PERSONAL_ID } from '../core/channel';
@@ -23,6 +24,7 @@ export const LEVEL_LIST: LevelDef[] = [
   Peaks,
   Atoll,
   Ringmoon,
+  Maple,
 ];
 
 export const LEVELS = Object.fromEntries(LEVEL_LIST.map((l) => [l.id, l])) as Record<

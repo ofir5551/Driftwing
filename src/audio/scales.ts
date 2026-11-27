@@ -30,6 +30,9 @@ export const MODES = {
   // Five steps of the whole-tone scale: no fifth and no semitone, nothing pulls anywhere. The
   // strangeness of another world's sky, used sparingly (one time of day).
   wholeTone: [0, 2, 4, 6, 8],
+  // Miyako-bushi, the "in" scale of the koto's autumn songs: two semitones, a fifth and no
+  // third, bittersweet rather than sad (the falling leaf, mono no aware).
+  inScale: [0, 1, 5, 7, 8],
 } as const;
 
 export type ModeName = keyof typeof MODES;
@@ -153,6 +156,19 @@ export const EDEN_KEYS: DayKey[] = [
   { root: 60, mode: 'majorPenta' }, // C, golden hour
   { root: 62, mode: 'lydianPenta' }, // D, dusk
   { root: 57, mode: 'susPenta' }, // A, twilight
+];
+
+/**
+ * Maple Valley's keys: warm and close. Yo in the late afternoon it opens on (a folk tune's ease),
+ * the "in" scale as the gold light lowers (the bittersweet of autumn), a soft minor at dusk when
+ * the lanterns light, suspended at dawn and in the night.
+ */
+export const MAPLE_KEYS: DayKey[] = [
+  { root: 62, mode: 'susPenta' }, // D, dawn
+  { root: 60, mode: 'yo' }, // C, day
+  { root: 57, mode: 'inScale' }, // A, golden hour
+  { root: 59, mode: 'minorPenta' }, // B, dusk
+  { root: 55, mode: 'susPenta' }, // G, twilight
 ];
 
 export const midiToFreq = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

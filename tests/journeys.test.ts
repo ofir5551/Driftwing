@@ -30,6 +30,7 @@ const BARS: Partial<Record<LevelId, Bar>> = {
   peaks: { first: 220, total: 5, each: 0 },
   atoll: { first: 280, total: 9 },
   ringmoon: { first: 300, total: 6 },
+  maple: { first: 200, total: 9 },
   // The story's three stops, then the isles.
   eden: { first: 120, total: 14, each: 3 },
 };

@@ -38,6 +38,9 @@ uniform float uSummitsBase;
 uniform float uCumulus;
 uniform float uCumulusBase;
 uniform float uGiant;
+uniform float uMaples;
+uniform float uMaplesBase;
+uniform vec3 uMapleRust;
 uniform vec3 uGiantDir;
 uniform vec3 uGiantPole;
 uniform float uGiantSize;
@@ -263,6 +266,30 @@ void main() {
     col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
   }
 
+  // Maple Valley: wooded ranges rolling away in four washes, far to near: the far ones tall and
+  // blue in the haze, the near ones lower, darker and warmed with the forest's rust, each with
+  // mist pooled along its foot (whole-number azimuth waves, so they close round the sky).
+  if (uMaples > 0.5) {
+    float az = atan(d.x, d.z);
+    float hm = h - uMaplesBase;
+    for (int i = 0; i < 4; i++) {
+      float fi = float(i);
+      float w = 0.55 + 0.42 * sin(az * (4.0 + 2.0 * fi) + fi * 1.3)
+        + 0.3 * sin(az * (11.0 + 3.0 * fi) - fi * 2.1)
+        + 0.13 * sin(az * (27.0 + 5.0 * fi) + fi * 0.7)
+        + 0.05 * sin(az * (67.0 + 9.0 * fi) - fi * 1.9);
+      float top = max(w, 0.06) * (0.05 - 0.008 * fi);
+      float m = smoothstep(top + 0.0015, top - 0.0015, hm);
+      if (m <= 0.0) continue;
+      vec3 ink = mix(uFog, uInk, 0.1 + 0.11 * fi);
+      ink = mix(ink, uMapleRust, 0.05 + 0.09 * fi);
+      ink = mix(ink, uFog, (1.0 - smoothstep(-0.004, top * 0.7, hm)) * 0.75);
+      col = mix(col, ink, m);
+      peak = max(peak, m);
+    }
+    col = mix(col, uFog, smoothstep(0.0, -0.03, hm) * 0.85);
+  }
+
   // Red Canyons: mesas and buttes on the horizon in three washes, far to near, each a deeper
   // wash of the red rock's shade with faint level strata, dissolving into the dust at the foot.
   if (uMesas > 0.5) {
@@ -480,10 +507,21 @@ void main() {
 /**
  * What a level paints into the sky beyond its world: nothing, Fuji, karst ridges, the aurora,
  * rolling hills, desert mesas, great snow peaks beyond a cloud sea, cumulus over the ocean, or
- * a ringed gas giant (with a second sun).
+ * a ringed gas giant (with a second sun), or wooded autumn ranges.
  */
 export type Backdrop =
-  'none' | 'fuji' | 'karst' | 'aurora' | 'hills' | 'mesas' | 'summits' | 'cumulus' | 'giant';
+  | 'none'
+  | 'fuji'
+  | 'karst'
+  | 'aurora'
+  | 'hills'
+  | 'mesas'
+  | 'summits'
+  | 'cumulus'
+  | 'giant'
+  | 'maples';
+
+const RUST = new THREE.Color('#9a4a30');
 
 export class Sky {
   readonly mesh: THREE.Mesh;
@@ -524,6 +562,9 @@ export class Sky {
       uGiantPole: { value: new THREE.Vector3(0.5, 1, -0.1).normalize() },
       uGiantSize: { value: 0.2 },
       uSun2Dir: { value: new THREE.Vector3(0, 1, 0) },
+      uMaples: { value: 0 },
+      uMaplesBase: { value: 0 },
+      uMapleRust: { value: new THREE.Color() },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.u,
@@ -559,6 +600,7 @@ export class Sky {
     this.u.uSummits.value = this.backdrop === 'summits' ? 1 : 0;
     this.u.uCumulus.value = this.backdrop === 'cumulus' ? 1 : 0;
     this.u.uGiant.value = this.backdrop === 'giant' ? 1 : 0;
+    this.u.uMaples.value = this.backdrop === 'maples' ? 1 : 0;
     if (this.backdrop === 'giant') {
       const R = Config.ringmoon;
       const ce = Math.cos(R.giantEl);
@@ -585,6 +627,10 @@ export class Sky {
     this.u.uRidgeBase.value = drop / Math.hypot(drop, Config.karst.ridgeDistance);
     this.u.uHillsBase.value = drop / Math.hypot(drop, Config.jerusalem.hillsDistance);
     this.u.uMesasBase.value = drop / Math.hypot(drop, Config.canyon.mesasDistance);
+    this.u.uMaplesBase.value = drop / Math.hypot(drop, Config.maple.ridgeDistance);
+    // The near ranges' rust: the forest's colour, dimmed with the hour's light.
+    const lum = p.fog.r * 0.3 + p.fog.g * 0.55 + p.fog.b * 0.15;
+    this.u.uMapleRust.value.copy(RUST).multiplyScalar(Math.min(1, Math.max(0.15, lum * 1.5)));
     // The snow peaks stand out of the cloud sea, not the water far below it.
     const cdrop = Config.peaks.cloud - camera.position.y;
     this.u.uSummitsBase.value = cdrop / Math.hypot(cdrop, Config.peaks.summitsDistance);

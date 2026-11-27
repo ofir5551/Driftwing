@@ -24,9 +24,9 @@ export const Eden: LevelDef = {
     tag: 'Follow the light to the wedding.',
     pageTitle: 'Tal ♥ Hadar · Driftwing',
     finaleAt: 'eden:venue',
-    // Once the invitation's card (shown longer, see main.ts) has had its time.
+    // Once the invitation's card has had its time.
     get finaleAfter() {
-      return Config.eden.cardSeconds * 1.6 + Config.eden.finaleDelay;
+      return Config.eden.inviteSeconds + Config.eden.finaleDelay;
     },
     finaleTitle: 'Mazal tov!',
     finaleText: "You flew to Tal and Hadar's wedding. Eden is one of many places in Driftwing.",

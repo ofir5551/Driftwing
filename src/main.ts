@@ -370,7 +370,7 @@ game.events.on('arrival', (e) => {
         url,
         photo.caption,
         // An invitation has more to read: it stays up longer.
-        Config.eden.cardSeconds * (photo.tall ? 1.6 : 1),
+        photo.tall ? Config.eden.inviteSeconds : Config.eden.cardSeconds,
         photo.date,
         photo.tall,
       ),

@@ -74,7 +74,7 @@ export class FullscreenPrompt {
           <p class="fsp-why">It opens fullscreen every time, and plays offline.</p>
           <button class="btn fsp-install-btn" hidden>Install Driftwing</button>
           <ol class="fsp-steps${plat === 'desktop' ? ' fsp-alts' : ''}">${STEPS[plat].map((s) => `<li>${s}</li>`).join('')}</ol>
-          <p class="fsp-done" hidden>Installed. Open Driftwing from your home screen.</p>
+          <p class="fsp-done" hidden>Open it from your ${plat === 'desktop' ? 'apps' : 'home screen'}.</p>
         </div>
         <div class="fsp-foot">
           <button class="btn ghost fsp-later">Not now</button>
@@ -86,8 +86,11 @@ export class FullscreenPrompt {
     const q = <T extends HTMLElement>(sel: string) => this.el.querySelector<T>(sel)!;
     const installBtn = q<HTMLButtonElement>('.fsp-install-btn');
     const steps = q<HTMLElement>('.fsp-steps');
+    let installed = false;
     // The browser's own install dialog, where it offers one, replaces the menu steps.
     const syncInstall = () => {
+      // `appinstalled` lands after the dialog: the offer is gone then, but the steps must not return.
+      if (installed) return;
       const native = canPromptInstall();
       installBtn.hidden = !native;
       steps.hidden = native;
@@ -97,9 +100,16 @@ export class FullscreenPrompt {
     installBtn.addEventListener('click', () => {
       void promptInstall().then((ok) => {
         if (!ok) return;
+        installed = true;
         installBtn.hidden = true;
         steps.hidden = true;
+        q<HTMLElement>('.fsp-why').hidden = true;
+        q<HTMLElement>('.fsp-install h3').textContent = 'Installed';
         q<HTMLElement>('.fsp-done').hidden = false;
+        q<HTMLElement>('.fsp-later').textContent = 'Keep playing here';
+        q<HTMLElement>('.fsp-never').hidden = true;
+        // Installed: this browser needn't ask again.
+        saveFsPromptOff();
       });
     });
 

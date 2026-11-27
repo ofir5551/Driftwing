@@ -58,6 +58,7 @@ if (DEV_CHANNEL) {
   const tag = document.createElement('div');
   tag.className = 'dev-tag';
   tag.textContent = 'DEV';
+  document.title = 'Driftwing DEV';
   document.body.appendChild(tag);
 }
 // Levels flown before the journey existed stay open whatever the light.

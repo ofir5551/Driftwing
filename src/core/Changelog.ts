@@ -21,6 +21,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    version: '0.7.1',
+    date: '2026-11-27',
+    title: 'A flock for every land',
+    items: [
+      'Each level now gathers its own flock: the birds you meet in a land stay and fly with you there.',
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-11-26',
     title: 'Journeys and a flock',

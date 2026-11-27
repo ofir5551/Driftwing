@@ -60,7 +60,7 @@ describe('Journey', () => {
       revealed: [],
       seen: ALL,
       found: [],
-      flock: [],
+      flocks: {},
     });
     j.earn(12);
     expect(j.flightLight).toBe(12);
@@ -87,7 +87,7 @@ describe('Journey', () => {
       revealed: [],
       seen: ALL,
       found: [],
-      flock: [],
+      flocks: {},
     });
     expect(j.isUnlocked('gildedPlumage')).toBe(true);
     expect(j.dirty).toBe(true);
@@ -215,26 +215,47 @@ describe('Journey / Rest cards', () => {
 describe('the flock', () => {
   it('keeps each bird that joins, in order, through a save', () => {
     const j = new Journey();
-    j.joinFlock(2);
-    j.joinFlock(5);
+    j.joinFlock('highlands', 2);
+    j.joinFlock('highlands', 5);
     expect(j.flightJoined).toBe(2);
     expect(j.dirty).toBe(true);
     const back = new Journey(parseJourney(JSON.parse(JSON.stringify(j.toData()))));
-    expect(back.flock).toEqual([2, 5]);
+    expect(back.flockOf('highlands')).toEqual([2, 5]);
     back.newFlight();
     expect(back.flightJoined).toBe(0);
   });
 
-  it('starts empty on old saves and drops anything malformed', () => {
-    expect(parseJourney({ light: 10 }).flock).toEqual([]);
-    expect(parseJourney({ flock: [1, -1, 2.5, 'x', 3, 99] }).flock).toEqual([1, 3]);
+  it('keeps a flock in the level it was gathered in', () => {
+    const j = new Journey();
+    j.joinFlock('highlands', 1);
+    j.joinFlock('canyon', 4);
+    j.joinFlock('canyon', 6);
+    expect(j.flockOf('highlands')).toEqual([1]);
+    expect(j.flockOf('canyon')).toEqual([4, 6]);
+    expect(j.flockOf('city')).toEqual([]);
+    const back = new Journey(parseJourney(JSON.parse(JSON.stringify(j.toData()))));
+    expect(back.flockOf('canyon')).toEqual([4, 6]);
+    expect(back.flockOf('city')).toEqual([]);
   });
 
-  it('keeps at most Config.flock.keep birds (the newest)', () => {
+  it('starts empty on old saves and drops anything malformed', () => {
+    expect(parseJourney({ light: 10 }).flocks).toEqual({});
+    expect(
+      parseJourney({ flocks: { city: [1, -1, 2.5, 'x', 3, 99], moon: [1], fjord: 'x', karst: [] } })
+        .flocks,
+    ).toEqual({ city: [1, 3] });
+  });
+
+  it('gives a one-flock save to the Highlands', () => {
+    expect(parseJourney({ flock: [1, -1, 3] }).flocks).toEqual({ highlands: [1, 3] });
+  });
+
+  it('keeps at most Config.flock.keep birds a level (the newest)', () => {
     const j = new Journey();
-    for (let i = 0; i < Config.flock.keep + 5; i++) j.joinFlock(i % 8);
-    expect(j.flock.length).toBe(Config.flock.keep);
-    expect(j.flock[j.flock.length - 1]).toBe((Config.flock.keep + 4) % 8);
+    for (let i = 0; i < Config.flock.keep + 5; i++) j.joinFlock('fjord', i % 8);
+    const f = j.flockOf('fjord');
+    expect(f.length).toBe(Config.flock.keep);
+    expect(f[f.length - 1]).toBe((Config.flock.keep + 4) % 8);
   });
 });
 
@@ -250,7 +271,7 @@ describe('parseJourney', () => {
           (id) => !['swallow', 'crane', 'phoenix', 'peaks', 'atoll', 'ringmoon'].includes(id),
         ),
         found: [],
-        flock: [],
+        flocks: {},
       });
   });
 
@@ -264,7 +285,7 @@ describe('parseJourney', () => {
       revealed: ['city'],
       seen: ['city'],
       found: [],
-      flock: [],
+      flocks: {},
     });
     expect(parseJourney({ light: 12.7 }).light).toBe(12);
   });

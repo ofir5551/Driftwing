@@ -5,6 +5,7 @@ import { Config } from '../src/core/Config';
 import { LEVEL_LIST } from '../src/levels';
 import type { CoverTuft } from '../src/world/GroundCover';
 import { mapleCover } from '../src/world/maple/cover';
+import { crowRadius, lakeBoatRadius, lifePhase } from '../src/world/maple/materials';
 import {
   HALL,
   MapleLayout,
@@ -17,6 +18,7 @@ import {
 import {
   CEDAR,
   FLOAT_STRIDE,
+  SMOKE_STRIDE,
   K,
   MapleScatter,
   PROP_STRIDE,
@@ -227,6 +229,61 @@ describe('maple scatter', () => {
     expect(trees).toBeGreaterThan(2000);
     expect(cedars).toBeGreaterThan(20);
     expect(cedars / trees).toBeLessThan(0.5);
+  });
+
+  it('poles boats round the lake and along the river, every path on open water', () => {
+    let lake = 0;
+    let river = 0;
+    const wide: MapleChunk[] = [];
+    for (let j = -10; j < 10; j++)
+      for (let i = -10; i < 10; i++) wide.push(S.chunk(i * size, j * size, size));
+    for (const c of wide)
+      for (let k = 0; k < c.built.length; k += PROP_STRIDE) {
+        const x = c.built[k + 1];
+        const z = c.built[k + 3];
+        if (c.built[k] === K.LakeBoat) {
+          lake++;
+          // The circle the shader flies, from the phase of where the boat is placed.
+          const r = lakeBoatRadius(lifePhase(x, z));
+          for (let a = 0; a < 6.28; a += 0.2) {
+            const px = x + Math.cos(a) * r;
+            const pz = z + Math.sin(a) * r;
+            expect(L.lakeEdge(px, pz)).toBeLessThan(-5);
+            expect(Math.hypot(px - L.island.x, pz - L.island.z)).toBeGreaterThan(L.island.r + 5);
+          }
+        } else if (c.built[k] === K.RiverBoat) {
+          river++;
+          const yaw = c.built[k + 4];
+          const reach = Config.maple.boatReach;
+          for (let f = -1; f <= 1; f += 0.1)
+            expect(
+              L.river(x + Math.sin(yaw) * reach * f, z + Math.cos(yaw) * reach * f),
+            ).toBeLessThan(-2);
+        }
+      }
+    expect(lake).toBeGreaterThanOrEqual(3);
+    expect(river).toBeGreaterThan(3);
+  });
+
+  it('wheels crows round the pagodas, clear of them, and lifts smoke from farms and temples', () => {
+    let crows = 0;
+    let smoke = 0;
+    for (const c of chunks) {
+      smoke += c.smoke.length / SMOKE_STRIDE;
+      for (let k = 0; k < c.built.length; k += PROP_STRIDE) {
+        if (c.built[k] !== K.Crow) continue;
+        crows++;
+        const x = c.built[k + 1];
+        const z = c.built[k + 3];
+        const t = L.nearestTemple(x, z, 12);
+        if (t)
+          expect(crowRadius(lifePhase(x, z)) - Math.hypot(x - t.px, z - t.pz)).toBeGreaterThan(
+            PAGODA_R + 6,
+          );
+      }
+    }
+    expect(crows).toBeGreaterThan(4);
+    expect(smoke).toBeGreaterThan(3);
   });
 
   it('floats lanterns on the lake, clear of the island and the gate', () => {

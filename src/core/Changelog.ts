@@ -26,6 +26,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     title: 'Maple Valley',
     items: [
       'A new place to fly, the last on the journey before the Phoenix: Maple Valley, a mountain valley in full autumn colour. Glide through the great gate standing in the temple lake, climb tunnels of red gates up the hillsides, and stay for dusk, when lanterns float out on the water.',
+      'Maple Valley is alive: geese cross high overhead in long V lines, crows wheel round the pagodas, smoke curls from the farms and the temples’ incense, boats are poled along the river and across the lake, and red dragonflies hover over the meadows when you fly low.',
       'The Phoenix now waits a little further along the journey, after Maple Valley.',
     ],
   },

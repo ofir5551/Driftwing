@@ -769,6 +769,16 @@ export const Config = {
     lakeLanterns: 90, // floating lanterns on the home lake at dusk
     lanterns: 1, // brightness of lanterns after dark
     life: 0.12, // chance a 24 m cell of farmland has a heron, a deer or a farmer in it
+    // Things that move.
+    crows: 5, // crows wheeling round each pagoda (and a few over the farms)
+    lakeBoats: 4, // boats poled in slow circles on the home lake
+    riverBoats: 0.35, // chance a 200 m reach of river carries a boat poled up and down it
+    boatReach: 45, // m a river boat travels either way along its reach
+    smokeRise: 1.1, // m/s smoke rises from farm roofs and the temples' incense
+    geese: 9, // flocks of wild geese crossing high over the valley in V lines
+    geeseHeight: 200, // m, the flocks fly about this high (+- 30 m)
+    geeseSpeed: 15, // m/s
+    dragonflies: 220, // red dragonflies hovering low near the bird (scaled like the leaves)
   },
   flow: {
     gain: 0.03, // flow per pickup

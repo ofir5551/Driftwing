@@ -15,6 +15,8 @@ import { mapleCover } from './cover';
 import { mapleDestinations } from './destinations';
 import { mapleFinds } from './finds';
 import { createMapleGeometry, fillMaple, mapleColor, withMapleLand } from './land';
+import { Dragonflies } from './Dragonflies';
+import { Geese } from './Geese';
 import { Leaves } from './Leaves';
 import { MapleDecor } from './MapleDecor';
 import { MapleLayout } from './MapleLayout';
@@ -26,7 +28,8 @@ const LEAF = new THREE.Color('#c4502c');
 
 /**
  * Maple Valley as a World: the layout's valley streamed as terrain chunks, the forest and the
- * temples instanced, leaves falling round the bird, and a soft valley haze that lies in the
+ * temples instanced, leaves falling round the bird, geese crossing high overhead, red
+ * dragonflies hovering low, crows, boats and smoke (in the decor), and a soft valley haze that lies in the
  * mornings and gathers again at dusk. Pagodas, the lake's gate and its pavilion are solid but
  * soft (the city's look-ahead and glance); the forest, roofs, the tunnels' gates and the
  * bridges are skimmed.
@@ -42,6 +45,8 @@ export class MapleWorld implements World {
   private readonly chunks: ChunkManager<MapleChunk>;
   private readonly decor: MapleDecor;
   private readonly leaves: Leaves;
+  private readonly geese: Geese;
+  private readonly dragonflies: Dragonflies;
   private readonly n = { x: 0, y: 0, z: 0 };
 
   constructor(seed: number) {
@@ -73,8 +78,10 @@ export class MapleWorld implements World {
       cover: mapleCover(),
     });
     this.leaves = new Leaves(seed);
+    this.geese = new Geese(seed);
+    this.dragonflies = new Dragonflies(seed, (x, z) => Math.max(L.flightGround(x, z), 0.3));
     this.planner = new MaplePlanner(L);
-    this.group.add(this.chunks.group, this.leaves.mesh);
+    this.group.add(this.chunks.group, this.leaves.mesh, this.geese.mesh, this.dragonflies.mesh);
   }
 
   flightGround(x: number, z: number): number {
@@ -119,6 +126,8 @@ export class MapleWorld implements World {
     u.uMistTime.value = time;
     this.decor.frame(day, time);
     this.leaves.frame(time, day);
+    this.geese.frame(time, day);
+    this.dragonflies.frame(time, day);
   }
 
   assist(s: FlightState, input: FlightInput): void {
@@ -167,6 +176,8 @@ export class MapleWorld implements World {
   dispose(): void {
     this.chunks.dispose();
     this.leaves.dispose();
+    this.geese.dispose();
+    this.dragonflies.dispose();
     mistUniforms.uMist.value = 0;
     mistUniforms.uMistFar.value = 0;
     mistUniforms.uMistColor.value.copy(WHITE);

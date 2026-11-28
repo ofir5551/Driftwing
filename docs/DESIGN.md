@@ -1030,6 +1030,16 @@ near ones warmed with rust. Stone lanterns line the lake shore, the approaches a
 gate; at dusk ~90 floating lanterns are set out on the lake and drift on slow circles, glowing
 after dark.
 
+Life: the valley moves. Wild geese cross high overhead in V lines (a few flocks in a box that
+wraps round the camera, all heading south, each goose beating its own wings); crows wheel round
+every pagoda's upper storeys and now and then over a farm; smoke curls from the farmhouses'
+roofs and the incense burner before each temple hall; boats with a figure poling them circle
+slowly on the lake (each whole circle checked to stay on open water) and go up and down
+straight reaches of river; and red dragonflies hover and dart low over the ground near the bird
+by day (a box round the camera held on a plane through the ground under it, faded out as the
+bird climbs). All of it moves in the vertex shader; nothing is moved on the CPU but the floating
+lanterns.
+
 Music: a soft harp (a plucked triangle with a sine octave and a felted fifth, its lowpass
 closing as it rings; long notes now and then rolled up into) at 64 BPM over a warm sine pad, a
 gentle falling arpeggio with flow. Suspended at dawn, yo by day, the "in" scale (miyako-bushi)
@@ -2229,3 +2239,9 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   from 530 m round the bird in their detailed shapes. `Trees` takes optional caster shapes and
   Maple Valley casts from the distant ones (20 triangles); the forest's ground carries the
   canopy's colour, mottled, so a thinner forest still reads as a full one.
+- Maple Valley was "beautiful but missing something": everything but the leaves stood still. It
+  got life that moves (geese, crows, smoke, poled boats, red dragonflies), all shader-driven. A
+  first pass was too subtle to notice (crows as specks, smoke a string of beads, geese too few to
+  meet, dragonflies only pale wing flickers); crows and geese are now larger than life, smoke
+  puffs overlap into soft columns, and the dragonflies' bodies are thicker, shown from the side
+  too.

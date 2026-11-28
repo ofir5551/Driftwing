@@ -1,7 +1,8 @@
 import { Config } from '../../core/Config';
 import { hash2, mulberry32 } from '../noise';
 import { type MapleLayout, type Temple, type Tunnel } from './MapleLayout';
-import { FARM_HEIGHT, FARM_REACH, STONE_LANTERN_LIGHT } from './shapes';
+import { lakeBoatRadius, lifePhase } from './materials';
+import { CENSER_SMOKE, FARM_HEIGHT, FARM_REACH, FARM_SMOKE, STONE_LANTERN_LIGHT } from './shapes';
 
 /**
  * Maple Valley's scenery per chunk, as plain number lists (pure: no Three.js, unit-tested):
@@ -33,8 +34,14 @@ export const K = {
   Heron: 10,
   Deer: 11,
   Farmer: 12,
+  Censer: 13,
+  Crow: 14,
+  LakeBoat: 15,
+  RiverBoat: 16,
 } as const;
-export const KINDS = 13;
+export const KINDS = 17;
+/** Floats per smoke source: x, y, z, size. */
+export const SMOKE_STRIDE = 4;
 /** Floats per prop record: kind, x, y, z, yaw, tilt, sx, sy, sz, tint. */
 export const PROP_STRIDE = 10;
 /** Floats per lantern light: x, y, z, size. */
@@ -65,6 +72,8 @@ export interface MapleChunk {
   lanterns: number[];
   /** Floating lanterns on the water. */
   floats: number[];
+  /** Smoke sources (SMOKE_STRIDE): farm roofs and the temples' incense. */
+  smoke: number[];
   /** Small life (PROP_STRIDE), scattered the first time the chunk comes within prop distance. */
   props: number[] | null;
 }
@@ -115,6 +124,7 @@ export class MapleScatter {
       built: [],
       lanterns: [],
       floats: [],
+      smoke: [],
       props: null,
     };
     const L = this.L;
@@ -133,6 +143,7 @@ export class MapleScatter {
         if (t) this.tunnel(t, ox, oz, size, out);
       }
     this.lake(ox, oz, size, out);
+    this.boats(ox, oz, size, out.built);
     this.bridges(ox, oz, size, out.built);
     this.farms(ox, oz, size, out);
     this.forest(ox, oz, size, out.trees);
@@ -153,6 +164,11 @@ export class MapleScatter {
           push(out.built, K.StoneLantern, p[0], y - 0.1, p[2], t.yaw, 1, 1, 1, t.seed);
           out.lanterns.push(p[0], y - 0.1 + STONE_LANTERN_LIGHT.y, p[2], 0.55);
         }
+      // The incense burner on the approach, its smoke rising.
+      const cz: number[] = [];
+      place(cz, t.x, y - 0.1, t.z, t.yaw, { x: 0, y: 0, z: 10 }, 1, 0);
+      push(out.built, K.Censer, cz[0], y - 0.1, cz[2], t.yaw, 1, 1, 1, t.seed);
+      out.smoke.push(cz[0], y - 0.1 + CENSER_SMOKE.y, cz[2], 0.9);
       // Ginkgos either side of the hall, gold against the dark roofs.
       for (const s of [-1, 1]) {
         const c = Math.cos(t.yaw);
@@ -170,8 +186,17 @@ export class MapleScatter {
         );
       }
     }
-    if (inside(t.px, t.pz, ox, oz, size))
+    if (inside(t.px, t.pz, ox, oz, size)) {
       push(out.built, K.Pagoda, t.px, y - 0.3, t.pz, t.yaw, 1, 1, 1, t.seed);
+      // Crows wheeling round the pagoda's upper storeys: each circles its own origin a few
+      // metres off the axis (so each gets its own phase, radius and way round).
+      const rand = mulberry32(Math.floor(t.seed * 1e9) + 3);
+      for (let k = 0; k < Config.maple.crows; k++) {
+        const x = t.px + (rand() - 0.5) * 8;
+        const z = t.pz + (rand() - 0.5) * 8;
+        push(out.built, K.Crow, x, t.top - 4 - rand() * 10, z, 0, 1.7, 1.7, 1.7, rand());
+      }
+    }
   }
 
   /** A tunnel's gates (a stone lantern beside every fifth) and its shrine at the top. */
@@ -286,6 +311,71 @@ export class MapleScatter {
       n++;
       if (inside(x, z, ox, oz, size)) out.floats.push(x, z, r, sp, ph, s);
     }
+    // Boats poled round slow circles on the lake: the whole circle (its radius is the
+    // shader's, from where the boat is placed) on open water, clear of the island and the gate.
+    const brand = mulberry32(L.seed * 17 + 3);
+    for (let k = 0, n = 0; k < 600 && n < Config.maple.lakeBoats; k++) {
+      const a = brand() * Math.PI * 2;
+      const d = Math.sqrt(brand()) * R * 1.1;
+      const x = Lk.x + Math.sin(a) * d;
+      const z = Lk.z + Math.cos(a) * d;
+      if (!this.lakeCircle(x, z, lakeBoatRadius(lifePhase(x, z)))) continue;
+      n++;
+      if (inside(x, z, ox, oz, size)) push(out.built, K.LakeBoat, x, 0, z, 0, 1, 1, 1, brand());
+    }
+  }
+
+  /** Is the circle of radius r round (x, z) all on the lake's open water, clear of the gate? */
+  lakeCircle(x: number, z: number, r: number): boolean {
+    const L = this.L;
+    const I = L.island;
+    const G = L.gate;
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2;
+      const px = x + Math.cos(a) * r;
+      const pz = z + Math.sin(a) * r;
+      if (L.lakeEdge(px, pz) > -7) return false;
+      if (Math.hypot(px - I.x, pz - I.z) < I.r + 8) return false;
+      if (Math.hypot(px - G.x, pz - G.z) < 20) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Boats poled up and down straight reaches of the river: one per 200 m cell now and then,
+   * where the river runs wide and straight enough for the whole reach to be on the water, away
+   * from the bridges, the lake and the opening.
+   */
+  private boats(ox: number, oz: number, size: number, out: number[]): void {
+    const L = this.L;
+    const seed = L.seed;
+    const cell = 200;
+    const reach = Config.maple.boatReach + 4;
+    const c = { x: 0, z: 0 };
+    for (let j = Math.floor(oz / cell); j <= Math.floor((oz + size) / cell); j++)
+      for (let i = Math.floor(ox / cell); i <= Math.floor((ox + size) / cell); i++) {
+        if (hash2(i + 7, j - 5, seed + 80) > Config.maple.riverBoats) continue;
+        let x = (i + 0.5) * cell;
+        let z = (j + 0.5) * cell;
+        for (let it = 0; it < 6; it++) {
+          L.toCentre(x, z, c);
+          x += Math.max(-60, Math.min(60, c.x - x));
+          z += Math.max(-60, Math.min(60, c.z - z));
+        }
+        if (Math.floor(x / cell) !== i || Math.floor(z / cell) !== j) continue;
+        if (!inside(x, z, ox, oz, size)) continue;
+        if (L.river(x, z) > -L.rw * 0.6 || L.lakeEdge(x, z) < 40 || L.nearOpening(x, z, 80))
+          continue;
+        const yaw = L.riverHeading(x, z, hash2(i, j, seed + 81) * 7);
+        const fx = Math.sin(yaw);
+        const fz = Math.cos(yaw);
+        let ok = true;
+        for (let f = -1; f <= 1 && ok; f += 0.25)
+          if (L.river(x + fx * reach * f, z + fz * reach * f) > -4) ok = false;
+        const b = L.bridgeNear(x, z);
+        if (b && Math.hypot(b.x - x, b.z - z) < reach + b.width + 20) ok = false;
+        if (ok) push(out, K.RiverBoat, x, 0, z, yaw, 1, 1, 1, hash2(i, j, seed + 82));
+      }
   }
 
   /** Arched bridges whose centre lies in the chunk (one instance each, scaled to its span). */
@@ -352,6 +442,23 @@ export class MapleScatter {
         if (FARM_HEIGHT * s > this.roofRoom(x, y, z, yaw, FARM_REACH * s * 0.75)) continue;
         push(out.built, K.Farmhouse, x, y - 0.2, z, yaw, s, s, s, hash2(i, j, seed + 68));
         place(out.lanterns, x, y - 0.2, z, yaw, FARM_LANTERN, s, 0.7);
+        // Smoke from the hearth, out under the ridge (not every house has its fire lit).
+        if (hash2(i, j, seed + 69) < 0.6) place(out.smoke, x, y - 0.2, z, yaw, FARM_SMOKE, s, 1.2);
+        // Now and then a few crows over the farm.
+        if (hash2(i, j, seed + 70) < 0.12)
+          for (let k = 0; k < 3; k++)
+            push(
+              out.built,
+              K.Crow,
+              x + k * 2.3,
+              y + 24 + k * 2,
+              z - k * 1.7,
+              0,
+              1.7,
+              1.7,
+              1.7,
+              k / 3,
+            );
       }
   }
 

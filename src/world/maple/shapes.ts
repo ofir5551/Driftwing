@@ -3,7 +3,9 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { smoothstep } from '../../core/math';
 import { colored, jitter, painted } from '../Trees';
 import { eaveRoof } from '../karst/shapes';
+import { anim } from '../atoll/shapes';
 import { HALL, PAGODA_HEIGHT, PAVILION, SHRINE } from './MapleLayout';
+import { LIFE_CROW } from './materials';
 
 /**
  * Maple Valley's buildings and things, in metres from primitives, painted per vertex: a
@@ -512,3 +514,96 @@ export function boulderGeometry(seed: number, detail: number): THREE.BufferGeome
       .lerp(moss, smoothstep(0.3, 0.65, y)),
   );
 }
+
+/**
+ * A crow (~30 triangles), 1 m across the wings, faces +z: a black body and tail, two wings
+ * whose tips beat (aAnim weight: how far out along the wing). aAnim kind LIFE_CROW.
+ */
+export function crowGeometry(): THREE.BufferGeometry {
+  const body = colored(new THREE.ConeGeometry(0.11, 0.55, 5).rotateX(Math.PI / 2), '#26232a', 0);
+  const head = colored(new THREE.SphereGeometry(0.08, 5, 3), '#1d1b20', 0).translate(0, 0.02, 0.3);
+  const tail = colored(new THREE.BoxGeometry(0.16, 0.02, 0.22), '#26232a', 0).translate(
+    0,
+    0,
+    -0.33,
+  );
+  const wing = (side: number) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(
+        [
+          0,
+          0,
+          0.12,
+          side * 0.55,
+          0.04,
+          -0.02,
+          0,
+          0,
+          -0.1,
+          0,
+          0,
+          -0.1,
+          side * 0.55,
+          0.04,
+          -0.02,
+          0,
+          0,
+          0.12,
+        ],
+        3,
+      ),
+    );
+    return colored(g, '#2c2930');
+  };
+  const parts = [body, head, tail, wing(1), wing(-1)].map((g) =>
+    anim(g, LIFE_CROW, (x) => Math.min(1, Math.abs(x) / 0.55)),
+  );
+  return mergeGeometries(parts)!.scale(1.6, 1.6, 1.6);
+}
+
+/**
+ * A flat wooden boat (~70 triangles), 4.6 m, faces +z, a figure in a straw hat standing at the
+ * stern pushing a long pole (aAnim weight 1: the pole and arms swing about the hands). `kind`
+ * picks the motion (a circle on the lake, or up and down a reach of river).
+ */
+export function boatGeometry(kind: number): THREE.BufferGeometry {
+  const hull = new THREE.BoxGeometry(1.3, 0.45, 4.6, 1, 1, 4);
+  const hp = hull.getAttribute('position');
+  for (let i = 0; i < hp.count; i++) {
+    // Taper the ends and lift them a little: a punt's squared, upswept bow and stern.
+    const z = hp.getZ(i) / 2.3;
+    hp.setX(i, hp.getX(i) * (1 - 0.25 * z * z));
+    hp.setY(i, hp.getY(i) + 0.12 * z * z);
+  }
+  const fixed = [
+    colored(hull, '#6a4a34', 0.22),
+    colored(new THREE.BoxGeometry(1.0, 0.04, 3.6), '#8a6a4e', 0.43),
+    colored(new THREE.CylinderGeometry(0.17, 0.24, 1.0, 6), '#4a5566', 0.95).translate(0, 0, -1.1),
+    colored(new THREE.SphereGeometry(0.13, 5, 3), '#d6b48e', 1.58).translate(0, 0, -1.1),
+    colored(new THREE.ConeGeometry(0.42, 0.22, 8), '#cdb071', 1.75).translate(0, 0, -1.1),
+  ].map((g) => anim(g, kind, 0));
+  // The pole: from the hands, raked back and down into the water behind.
+  const pole = new THREE.CylinderGeometry(0.03, 0.03, 4.4, 4);
+  // Top at the hands (forward, high), foot down in the water behind the stern.
+  pole.rotateX(0.42).translate(0, -0.45, -1.85);
+  const arm = new THREE.BoxGeometry(0.09, 0.09, 0.45).translate(0, 1.38, -0.95);
+  const moving = [colored(pole, '#7b6247'), colored(arm, '#4a5566')].map((g) => anim(g, kind, 1));
+  return mergeGeometries([...fixed, ...moving])!;
+}
+
+/** A bronze incense burner on its stone step (~40 triangles), before a temple hall. */
+export function censerGeometry(): THREE.BufferGeometry {
+  return mergeGeometries([
+    colored(new THREE.BoxGeometry(1.6, 0.3, 1.6), STONE, 0.15),
+    colored(new THREE.CylinderGeometry(0.55, 0.42, 0.6, 8), '#5f5a46', 0.6),
+    colored(new THREE.CylinderGeometry(0.62, 0.55, 0.1, 8), '#6e6852', 0.92),
+    colored(new THREE.ConeGeometry(0.5, 0.45, 8), '#5f5a46', 1.35),
+  ])!;
+}
+
+/** Where the incense smoke rises from (local metres over the censer's foot). */
+export const CENSER_SMOKE = { x: 0, y: 1.2, z: 0 };
+/** Where a farmhouse's smoke leaves its roof (the vent under the ridge cap). */
+export const FARM_SMOKE = { x: 1.2, y: 7.9, z: 0 };

@@ -220,7 +220,9 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   ahead), `destinations` (temples, and the tunnels' feet), `MapleDecor` (instancing; trees cast
   from their distant shapes; the floating lanterns drift per frame), `land` (ground colour and
   `aMaple`: roads, flagstones, gravel, canopy mottle, fallen leaves), `cover` (pampas, spider
-  lilies), `Leaves` (falling leaves round the camera, in the shader), `geometry` (trees),
+  lilies), `Leaves` (falling leaves round the camera, in the shader), `Geese` (V lines high
+  overhead) and `Dragonflies` (low over the ground near the bird), both wrapping round the
+  camera, `materials` (crows and poled boats moved in the vertex shader; smoke), `geometry` (trees),
   `shapes` (buildings, gates, bridge, lanterns, life), `MapleWorld`. The ranges on the horizon
   are the `maples` backdrop in `Sky`; the harp is `Music`'s `harp` voice.
 - `world/eden/`: Tal and Hadar's wedding flight. `EdenWorld` wraps a `HighlandsWorld` built on

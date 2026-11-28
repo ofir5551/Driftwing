@@ -170,7 +170,8 @@ you back to choose again).
 - **Maple Valley**: autumn, opening in the late afternoon. A mountain valley in full colour,
   after Kyoto's Arashiyama and Nikko: whole hillsides of crimson and flame maples, golden
   ginkgos and dark cedars, pampas on the meadows and red spider lilies by the paths, leaves
-  falling all round the bird. Ahead of the spawn the river opens into a temple lake with a great
+  falling all round the bird, geese crossing high in V lines, crows round the pagodas, smoke
+  from the farms and boats poled along the river. Ahead of the spawn the river opens into a temple lake with a great
   vermilion gate standing in the water and a gilt pavilion on its island; temples with
   five-storey pagodas stand at the foot of the mountains, tunnels of gates climb the slopes to
   hillside shrines, drum bridges arch over the river, and at dusk floating lanterns drift out on

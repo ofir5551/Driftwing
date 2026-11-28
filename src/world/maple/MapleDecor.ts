@@ -27,17 +27,29 @@ import {
 import type { MapleLayout } from './MapleLayout';
 import { WATER_GATE } from './MapleLayout';
 import {
+  LIFE_LAKE_BOAT,
+  LIFE_RIVER_BOAT,
+  lifeMaterial,
+  mapleTime,
+  smokeMaterial,
+  smokeUniforms,
+} from './materials';
+import {
   FLOAT_STRIDE,
   K,
   KINDS,
   LANTERN_STRIDE,
   MapleScatter,
   PROP_STRIDE,
+  SMOKE_STRIDE,
   type MapleChunk,
 } from './MapleScatter';
 import {
+  boatGeometry,
   boulderGeometry,
   bridgeGeometry,
+  censerGeometry,
+  crowGeometry,
   deerGeometry,
   farmerGeometry,
   farmhouseFarGeometry,
@@ -62,16 +74,18 @@ import {
  * farmhouses, stone lanterns; near shapes within twice propDetail), 2 within
  * smallPropDistance (boulders, herons, deer, farmers).
  */
-const RANGE = [0, 0, 1, 1, 0, 0, 0, 1, 1, 2, 2, 2, 2];
+const RANGE = [0, 0, 1, 1, 0, 0, 0, 1, 1, 2, 2, 2, 2, 1, 1, 0, 1];
 /** Per kind: instance capacity. */
-const CAP = [120, 120, 200, 2400, 2, 80, 2, 900, 900, 2000, 300, 300, 300];
+const CAP = [120, 120, 200, 2400, 2, 80, 2, 900, 900, 2000, 300, 300, 300, 120, 600, 8, 120];
 /** Per kind: casts a sun shadow (high) through near-only proxies. */
-const CASTS = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0];
+const CASTS = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
 /** Per kind: contact-shadow radius at scale 1 (0 = none), laid flat at the record's foot. */
-const BLOB = [6.5, 10, 4.5, 0, 0, 0, 0, 0.7, 6.5, 1.2, 0, 1.0, 0.45];
+const BLOB = [6.5, 10, 4.5, 0, 0, 0, 0, 0.7, 6.5, 1.2, 0, 1.0, 0.45, 1.1, 0, 0, 0];
 /** Per kind: the record's y up to the ground at its foot (times its scale). */
-const FOOT = [0.3, 0.3, 0.2, 0, 0, 0, 0, 0.1, 0.2, 0.2, 0, 0, 0];
+const FOOT = [0.3, 0.3, 0.2, 0, 0, 0, 0, 0.1, 0.2, 0.2, 0, 0, 0, 0.1, 0, 0, 0];
 
+/** Puffs in each smoke column. */
+const PUFFS = 11;
 const m = new THREE.Matrix4();
 const q = new THREE.Quaternion();
 const e = new THREE.Euler(0, 0, 0, 'YZX');
@@ -96,6 +110,11 @@ const NIGHT_PAPER = new THREE.Color(5, 2.6, 1.0);
 export class MapleDecor implements ChunkDecor<MapleChunk> {
   readonly group = new THREE.Group();
   private readonly material: THREE.MeshToonMaterial;
+  private readonly life = lifeMaterial();
+  private readonly smokeMat = smokeMaterial();
+  private readonly smoke: THREE.InstancedMesh;
+  private readonly smokePhase: THREE.InstancedBufferAttribute;
+  private ns = 0;
   private readonly lanternMaterial: THREE.MeshBasicMaterial;
   private readonly paperMaterial: THREE.MeshBasicMaterial;
   private readonly scatterer: MapleScatter;
@@ -170,6 +189,10 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
       heronGeometry(),
       deerGeometry(),
       farmerGeometry(),
+      censerGeometry(),
+      crowGeometry(),
+      boatGeometry(LIFE_LAKE_BOAT),
+      boatGeometry(LIFE_RIVER_BOAT),
     ];
     const far: (THREE.BufferGeometry | null)[] = near.map(() => null);
     far[K.Pagoda] = pagodaFarGeometry();
@@ -191,9 +214,14 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
       'heron',
       'deer',
       'farmer',
+      'censer',
+      'crow',
+      'lake-boat',
+      'river-boat',
     ];
     for (let k = 0; k < KINDS; k++) {
-      this.near.push(this.make(near[k], CAP[k], names[k]));
+      const mat = near[k].getAttribute('aAnim') ? this.life : this.material;
+      this.near.push(this.make(near[k], CAP[k], names[k], mat));
       const fg = far[k];
       this.far.push(fg ? this.make(fg, CAP[k], `${names[k]}-far`) : null);
       const caster = CASTS[k] ? new ShadowCasters(fg ?? near[k], this.material, CAP[k]) : null;
@@ -203,7 +231,16 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
     this.lanterns = this.make(lanternGeometry(), 4000, 'lantern', this.lanternMaterial);
     this.floats = this.make(floatGeometry(), 200, 'float');
     this.papers = this.make(paperGeometry(), 200, 'float-paper', this.paperMaterial);
-    this.group.add(this.trees.group, this.contact.mesh);
+    const puff = new THREE.PlaneGeometry(1, 1);
+    const cap = 400 * PUFFS;
+    this.smokePhase = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1);
+    puff.setAttribute('aPhase', this.smokePhase);
+    this.smoke = new THREE.InstancedMesh(puff, this.smokeMat, cap);
+    this.smoke.count = 0;
+    this.smoke.frustumCulled = false;
+    this.smoke.renderOrder = 2; // transparent, after the ground and the water
+    this.smoke.name = 'smoke';
+    this.group.add(this.trees.group, this.contact.mesh, this.smoke);
   }
 
   private make(
@@ -271,11 +308,16 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
     this.nl = 0;
     for (const c of this.casters) c?.begin(px, pz, size);
     this.contact.begin(px, pz);
+    this.ns = 0;
+    const smoke2 = Math.min(R.propDistance, 500) ** 2;
     for (const c of items) {
       this.place(c.built);
       if (c.props) this.place(c.props);
       this.placeLanterns(c.lanterns);
+      this.placeSmoke(c.smoke, smoke2);
     }
+    commitInstances(this.smoke, this.ns);
+    this.smokePhase.needsUpdate = true;
     for (let k = 0; k < KINDS; k++) {
       commitInstances(this.near[k], this.nearCount[k]);
       const f = this.far[k];
@@ -329,11 +371,33 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
     }
   }
 
+  /** A column of puffs over each smoke source in range, each puff at its own phase. */
+  private placeSmoke(list: readonly number[], max2: number): void {
+    const cap = this.smoke.instanceMatrix.count;
+    for (let k = 0; k < list.length; k += SMOKE_STRIDE) {
+      const x = list[k];
+      const z = list[k + 2];
+      if ((x - this.px) ** 2 + (z - this.pz) ** 2 > max2) continue;
+      const s = list[k + 3];
+      const t = (((x * 0.37 + z * 0.13) % 1) + 1) % 1;
+      m.makeScale(s, s, s).setPosition(x, list[k + 1], z);
+      for (let i = 0; i < PUFFS && this.ns < cap; i++) {
+        this.smoke.setMatrixAt(this.ns, m);
+        this.smokePhase.setX(this.ns++, i / PUFFS + t * 0.13);
+      }
+    }
+  }
+
   /**
    * Lanterns: pale stone and paper by day, glowing warm as the light goes; the floating
    * lanterns drift round their slow circles on the water, bobbing.
    */
   frame(day: DayCycle, time: number): void {
+    mapleTime.value = time;
+    const pal = day.palette;
+    smokeUniforms.uColor.value.copy(pal.hemiSky).lerp(pal.sun, 0.25).lerp(pal.fog, 0.3);
+    smokeUniforms.uFogColor.value.copy(pal.fog);
+    smokeUniforms.uFogFar.value = Config.render.drawDistance * 0.95;
     const night = smoothstep(0.08, 0.6, day.palette.stars) * Config.maple.lanterns;
     this.lanternMaterial.color.copy(DAY_LANTERN).lerp(NIGHT_LANTERN, night);
     this.paperMaterial.color.copy(DAY_PAPER).lerp(NIGHT_PAPER, night);
@@ -362,7 +426,7 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
   }
 
   dispose(): void {
-    const meshes = [...this.near, this.lanterns, this.floats, this.papers];
+    const meshes = [...this.near, this.lanterns, this.floats, this.papers, this.smoke];
     for (const f of this.far) if (f) meshes.push(f);
     for (const mesh of meshes) {
       mesh.geometry.dispose();
@@ -373,6 +437,8 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
     this.material.dispose();
     this.lanternMaterial.dispose();
     this.paperMaterial.dispose();
+    this.life.dispose();
+    this.smokeMat.dispose();
     this.trees.dispose();
   }
 }

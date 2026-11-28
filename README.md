@@ -173,7 +173,9 @@ you back to choose again).
   falling all round the bird, geese crossing high in V lines, crows round the pagodas, smoke
   from the farms and boats poled along the river. Ahead of the spawn the river opens into a temple lake with a great
   vermilion gate standing in the water and a gilt pavilion on its island; temples with
-  five-storey pagodas stand at the foot of the mountains, tunnels of gates climb the slopes to
+  five-storey pagodas stand at the foot of the mountains, small riverside towns line a street
+  of low wooden townhouses with lanterns at their doors, thatched hamlets sit among harvested
+  rice fields, tunnels of gates climb the slopes to
   hillside shrines, drum bridges arch over the river, and at dusk floating lanterns drift out on
   the lake. The music is a soft harp over a warm pad, the "in" scale in the golden hour. Wisps
   run low down the river and through the gate in the lake, climb the tunnels gate by gate, swing
@@ -181,11 +183,13 @@ you back to choose again).
 
 ![Maple Valley title screen](docs/screenshots/maple-title.jpg)
 
-| Through the gate in the lake                 | Up a tunnel of gates                       |
-| -------------------------------------------- | ------------------------------------------ |
-| ![Gate](docs/screenshots/maple-gate.jpg)     | ![Gates](docs/screenshots/maple-gates.jpg) |
-| **A temple in the golden hour**              | **Floating lanterns by night**             |
-| ![Temple](docs/screenshots/maple-temple.jpg) | ![Night](docs/screenshots/maple-night.jpg) |
+| Through the gate in the lake                 | Up a tunnel of gates                         |
+| -------------------------------------------- | -------------------------------------------- |
+| ![Gate](docs/screenshots/maple-gate.jpg)     | ![Gates](docs/screenshots/maple-gates.jpg)   |
+| **A temple in the golden hour**              | **Floating lanterns by night**               |
+| ![Temple](docs/screenshots/maple-temple.jpg) | ![Night](docs/screenshots/maple-night.jpg)   |
+| **Down a town's street**                     | **A hamlet among its rice fields**           |
+| ![Town](docs/screenshots/maple-town.jpg)     | ![Hamlet](docs/screenshots/maple-hamlet.jpg) |
 
 - **Eden**: a wedding flight for Tal and Hadar, always open. Green country in the golden hour
   (the Highlands' land, reshaped round three stops) and petal-pink wisps. The beacons lead in

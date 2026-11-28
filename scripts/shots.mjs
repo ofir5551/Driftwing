@@ -258,6 +258,18 @@ const shots = [
     place: { x: -393, y: 30, z: -55, yaw: 3.28, pitch: -0.08, phase: 0.5 },
   },
   {
+    name: 'maple-town',
+    query: '?level=maple&autopilot',
+    wait: 3000,
+    place: { x: -162.2, y: 9.1, z: 174.6, yaw: -1.11, pitch: -0.03, phase: 0.44 },
+  },
+  {
+    name: 'maple-hamlet',
+    query: '?level=maple&autopilot',
+    wait: 3000,
+    place: { x: 871, y: 45, z: -925, yaw: 0, pitch: -0.38, phase: 0.42 },
+  },
+  {
     name: 'maple-night',
     query: '?level=maple&autopilot',
     wait: 3000,

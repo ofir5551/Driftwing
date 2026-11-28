@@ -59,7 +59,14 @@ import {
   gateGeometry,
   hallFarGeometry,
   hallGeometry,
+  hasaGeometry,
   heronGeometry,
+  kuraGeometry,
+  machiyaFarGeometry,
+  machiyaGeometry,
+  persimmonGeometry,
+  shopGeometry,
+  teahouseGeometry,
   pagodaFarGeometry,
   pagodaGeometry,
   paperGeometry,
@@ -74,15 +81,22 @@ import {
  * farmhouses, stone lanterns; near shapes within twice propDetail), 2 within
  * smallPropDistance (boulders, herons, deer, farmers).
  */
-const RANGE = [0, 0, 1, 1, 0, 0, 0, 1, 1, 2, 2, 2, 2, 1, 1, 0, 1];
+const RANGE = [0, 0, 1, 1, 0, 0, 0, 1, 1, 2, 2, 2, 2, 1, 1, 0, 1, 1, 1, 1, 1, 2, 1];
 /** Per kind: instance capacity. */
-const CAP = [120, 120, 200, 2400, 2, 80, 2, 900, 900, 2000, 300, 300, 300, 120, 600, 8, 120];
+const CAP = [
+  120, 120, 200, 2400, 2, 80, 2, 900, 900, 2000, 300, 300, 300, 120, 600, 8, 120, 1200, 700, 250,
+  300, 1500, 500,
+];
 /** Per kind: casts a sun shadow (high) through near-only proxies. */
-const CASTS = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0];
+const CASTS = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0];
 /** Per kind: contact-shadow radius at scale 1 (0 = none), laid flat at the record's foot. */
-const BLOB = [6.5, 10, 4.5, 0, 0, 0, 0, 0.7, 6.5, 1.2, 0, 1.0, 0.45, 1.1, 0, 0, 0];
+const BLOB = [
+  6.5, 10, 4.5, 0, 0, 0, 0, 0.7, 6.5, 1.2, 0, 1.0, 0.45, 1.1, 0, 0, 0, 5.5, 5.5, 5.5, 4, 0, 2,
+];
 /** Per kind: the record's y up to the ground at its foot (times its scale). */
-const FOOT = [0.3, 0.3, 0.2, 0, 0, 0, 0, 0.1, 0.2, 0.2, 0, 0, 0, 0.1, 0, 0, 0];
+const FOOT = [
+  0.3, 0.3, 0.2, 0, 0, 0, 0, 0.1, 0.2, 0.2, 0, 0, 0, 0.1, 0, 0, 0, 0.15, 0.15, 0.15, 0.15, 0, 0.2,
+];
 
 /** Puffs in each smoke column. */
 const PUFFS = 11;
@@ -193,6 +207,12 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
       crowGeometry(),
       boatGeometry(LIFE_LAKE_BOAT),
       boatGeometry(LIFE_RIVER_BOAT),
+      machiyaGeometry(),
+      shopGeometry(),
+      teahouseGeometry(),
+      kuraGeometry(),
+      hasaGeometry(),
+      persimmonGeometry(),
     ];
     const far: (THREE.BufferGeometry | null)[] = near.map(() => null);
     far[K.Pagoda] = pagodaFarGeometry();
@@ -200,6 +220,9 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
     far[K.Farmhouse] = farmhouseFarGeometry();
     far[K.Gate] = gateFarGeometry(KM.gateHalf, KM.gateHeight);
     far[K.Boulder] = boulderGeometry(5, 0);
+    far[K.Machiya] = machiyaFarGeometry();
+    far[K.Shop] = machiyaFarGeometry();
+    far[K.Teahouse] = machiyaFarGeometry();
     const names = [
       'pagoda',
       'hall',
@@ -218,6 +241,12 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
       'crow',
       'lake-boat',
       'river-boat',
+      'townhouse',
+      'shop',
+      'teahouse',
+      'storehouse',
+      'rice-rack',
+      'persimmon',
     ];
     for (let k = 0; k < KINDS; k++) {
       const mat = near[k].getAttribute('aAnim') ? this.life : this.material;
@@ -350,7 +379,11 @@ export class MapleDecor implements ChunkDecor<MapleChunk> {
       m.compose(p.set(x, y, z), q, sc.set(s, list[k + 7], list[k + 8]));
       mesh.setMatrixAt(idx, m);
       const t = list[k + 9];
-      mesh.setColorAt(idx, col.setRGB(0.93 + t * 0.12, 0.94 + t * 0.07, 0.93 + (1 - t) * 0.09));
+      if (kind >= K.Machiya && kind <= K.Teahouse)
+        // Town houses vary more: weathered paler wood and greyer tile, or darker and warmer.
+        mesh.setColorAt(idx, col.setRGB(0.78 + t * 0.4, 0.8 + t * 0.32, 0.8 + (1 - t) * 0.25));
+      else
+        mesh.setColorAt(idx, col.setRGB(0.93 + t * 0.12, 0.94 + t * 0.07, 0.93 + (1 - t) * 0.09));
       counts[kind] = idx + 1;
       this.casters[kind]?.add(x, z, m);
       if (BLOB[kind] > 0) this.contact.add(x, y + FOOT[kind] * s, z, BLOB[kind] * s, null);

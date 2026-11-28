@@ -20,13 +20,25 @@ const TEMPLE_FIRST = [
 const TEMPLE_KIND = ['Temple', 'Temple', 'Pagoda', 'Hall'];
 const SHRINE_FIRST = ['Fox', 'Rice', 'Hill', 'Moss', 'Cedar', 'Lantern', 'Cloud', 'Pine'];
 const SHRINE_KIND = ['Shrine', 'Shrine', 'Gates'];
+const TOWN_FIRST = [
+  'Willow',
+  'Lantern',
+  'Ferry',
+  'Tea',
+  'Persimmon',
+  'Bridge',
+  'Rice',
+  'Riverside',
+];
+const TOWN_KIND = ['Street', 'Town', 'Row'];
 
 /**
  * Maple Valley's journeys lead across the mountains to the next temple (the beacon in the open
  * before its hall, over the lantern-lined approach; the cairn at the approach's foot) or to the
  * foot of a tunnel of gates (the beacon on the path leading in, so arriving looks straight up
- * the gates to the shrine; the cairn beside the first gate). The home temple
- * across the lake is the opening's and never a destination.
+ * the gates to the shrine; the cairn beside the first gate), or to a riverside town (the beacon
+ * in the middle of its street, the cairn by the road in). The home temple and the lake's town
+ * are the opening's and never a destination.
  */
 export function mapleDestinations(L: MapleLayout): DestinationSource {
   const TC = Config.maple.templeCell;
@@ -67,6 +79,22 @@ export function mapleDestinations(L: MapleLayout): DestinationSource {
             z: G[2],
             end: { x: ex, z: ez },
             roost: { x: rx, y: L.height(rx, rz), z: rz, yaw: G[3] },
+          });
+        }
+      // Towns: the beacon in the middle of the street, the cairn at the road in.
+      const WC = Config.maple.townCell;
+      for (let j = Math.floor((z - R) / WC); j <= Math.floor((z + R) / WC); j++)
+        for (let i = Math.floor((x - R) / WC); i <= Math.floor((x + R) / WC); i++) {
+          const t = L.town(i, j);
+          if (!t) continue;
+          const rx = t.x - t.ux * (t.half + 8) + t.nx * 6;
+          const rz = t.z - t.uz * (t.half + 8) + t.nz * 6;
+          out.push({
+            id: `maple-town:${i},${j}`,
+            name: landmarkName(hash2(i, j, 783), TOWN_FIRST, TOWN_KIND),
+            x: t.x,
+            z: t.z,
+            roost: { x: rx, y: L.height(rx, rz), z: rz, yaw: Math.atan2(t.ux, t.uz) },
           });
         }
     },

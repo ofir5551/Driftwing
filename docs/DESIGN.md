@@ -1030,6 +1030,21 @@ near ones warmed with rust. Stone lanterns line the lake shore, the approaches a
 gate; at dusk ~90 floating lanterns are set out on the lake and drift on slow circles, glowing
 after dark.
 
+Villages, all low (nothing over two storeys): small towns along the rivers in the Kyoto
+style, and one on the home lake's shore in view from the opening run. A town is a straight
+street (45-70 m each way) a bank's width inland from the water (or along the lake's shore, square
+to it), its ground levelled like a temple's pad, lined both sides with townhouses (dark wood
+behind lattice, a tiled pent roof, a low white upper storey, grey tile roofs along the street),
+shops under indigo curtains and the odd tea house with its red bench and parasol, a lantern at
+every door, alleys and little maple gardens between, a small red gate over one end. The houses'
+roofs are soft ground but the 12 m street is open, so the bird can fly down it between the
+houses (a first 8 m street was too narrow to hold: the bot weaved onto the roofs and missed the
+wisps), and the roads out of either end are kept clear of trees and farm roofs to come in low.
+Tunnels keep clear of the towns. Up the valleys the thatched hamlets stand among rice fields
+painted on a 22 m grid (most harvested to stubble in rows, some still gold, a few drained to
+mud, grassy bunds between), with rice-drying racks on the bunds at the farmland's edge, white
+storehouses and persimmon trees hung with fruit.
+
 Life: the valley moves. Wild geese cross high overhead in V lines (a few flocks in a box that
 wraps round the camera, all heading south, each goose beating its own wings); crows wheel round
 every pagoda's upper storeys and now and then over a farm; smoke curls from the farmhouses'
@@ -1049,7 +1064,8 @@ Wisps (`MapleWisps`): the opening ribbon runs low down the river into the lake, 
 between its posts and under its beams, and across past the island. Then: low runs along the
 river's bends hopping the bridges; every few patterns, when a tunnel lies roughly ahead, a glide
 to its lead-in and a ribbon up the tunnel through every other gate and over the shrine (planned
-whole, so it fits the wisp pool, or not at all); swings round a pagoda half way up; and glides
+whole, so it fits the wisp pool, or not at all); swings round a pagoda half way up; now and then, after a glide to the road into a town, a run
+down its street, low between the house fronts; and glides
 that pick the lowest way through the mountains (a valley or a pass), their heights planned
 backward from a look past their end so a ridge ahead is met by a steady early climb. On a
 journey the glides look 26 wisps ahead and keep close to the route.
@@ -2245,3 +2261,7 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   meet, dragonflies only pale wing flickers); crows and geese are now larger than life, smoke
   puffs overlap into soft columns, and the dragonflies' bodies are thicker, shown from the side
   too.
+- Villages were asked for: "small Japanese villages, nothing tall, a Kyoto vibe or the
+  countryside". Both: Kyoto-style riverside towns (one on the home lake's shore, seen within
+  seconds) and thatched hamlets among rice fields. Towns level their ground and the tunnels keep
+  clear of them (not the other way round), so neither's placement depends on the other's.

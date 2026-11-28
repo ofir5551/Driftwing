@@ -98,6 +98,29 @@ export const PAVILION = { r: 9.5, h: 17 };
 /** The great gate in the lake: half span between its posts, beams' underside and top (m). */
 export const WATER_GATE = { half: 10, post: 1.3, under: 13, top: 18.4, over: 5 };
 
+/**
+ * A town: a straight street of low townhouses either side, along a river's bank (or the lake's
+ * shore). The street's centre line runs through (x, z) along u for `half` m each way; n points
+ * inland (away from the water).
+ */
+export interface Town {
+  x: number;
+  z: number;
+  ux: number;
+  uz: number;
+  nx: number;
+  nz: number;
+  half: number;
+  /** Ground at the street's middle. */
+  y: number;
+  seed: number;
+  /** The town on the home lake's shore. */
+  lake: boolean;
+}
+
+/** m from a street's centre line to the house fronts, and to the backs; the strip's half width. */
+export const TOWN = { front: 6, back: 15, width: 17 };
+
 const CELL_CACHE = 4000;
 /** m of open path leading up to a tunnel's first gate. */
 export const LEAD_IN = 50;
@@ -117,6 +140,8 @@ export class MapleLayout {
   readonly opening: number[] = [];
   /** The temple across the lake from the spawn. */
   home: Temple | null = null;
+  /** The town on the home lake's shore, in view from the opening run. */
+  homeTown: Town | null = null;
   /** The last solid a query hit, as a box: x0, y0, z0, x1, y1, z1 (y0 = base, y1 = top). */
   readonly hit = new Float64Array(6);
   /** Scratch results of `river()`: noise value, gradient, centre-line distance, half width. */
@@ -141,6 +166,7 @@ export class MapleLayout {
   private readonly temples = new Map<number, Temple | null>();
   private readonly tunnels = new Map<number, Tunnel | null>();
   private readonly bridges = new Map<number, Bridge | null>();
+  private readonly towns = new Map<number, Town | null>();
   private ready = false;
 
   constructor(seed: number) {
@@ -157,6 +183,8 @@ export class MapleLayout {
     this.nCedar = createNoise2D(seed + 510);
     this.plan();
     this.ready = true;
+    // After `ready`: a town checks the temples' pads and the tunnels, planned on the full land.
+    this.homeTown = this.findHomeTown();
   }
 
   // --- River and lake --------------------------------------------------------------------------
@@ -271,6 +299,13 @@ export class MapleLayout {
       }
     const h = this.home;
     if (h) y = this.levelPad(h, x, z, y, pad);
+    // A town's strip is levelled to its street, blending back into the land round it.
+    const t = this.townAt(x, z);
+    if (t) {
+      const along = 1 - smoothstep(t.half + 6, t.half + 22, Math.abs(this.townA));
+      const across = 1 - smoothstep(TOWN.width + 4, TOWN.width + 16, Math.abs(this.townB));
+      y = lerp(y, t.y, along * across);
+    }
     return y;
   }
 
@@ -311,6 +346,8 @@ export class MapleLayout {
   lTurn = 0;
   lCedar = 0;
   lPad = 0;
+  /** 0..1: under a town's roofs (none over its street). */
+  lTown = 0;
 
   /**
    * Everything the ground's colour, the trees and the cover need at (x, z) in one pass: the
@@ -324,16 +361,20 @@ export class MapleLayout {
     this.lWater = w;
     this.lRise = rise;
     this.lPath = this.pathDist(x, z, w);
-    // No farm where a tunnel's path starts (its foot stays open to fly in along).
+    // No farm where a tunnel's path starts (its foot stays open to fly in along), nor in a town.
+    const town = this.ready ? this.townStrip(x, z) : 0;
+    this.lTown = town;
     const v =
-      this.village(x, z, w, rise) * (this.tunnelD < 30 ? smoothstep(8, 30, this.tunnelD) : 1);
+      this.village(x, z, w, rise) *
+      (this.tunnelD < 30 ? smoothstep(8, 30, this.tunnelD) : 1) *
+      (1 - smoothstep(0, 0.5, this.townNear));
     this.lVillage = v;
     this.lPad = this.onPad(x, z);
     const f = fbm(this.nForest, x * 0.004, z * 0.004, 3);
     // The valley floor is meadow, farm and copse; the slopes are wooded almost unbroken.
     const valley = smoothstep(-0.25, 0.3, f) * smoothstep(10, 30, w);
     const slope = smoothstep(0.15, 0.5, rise) * smoothstep(-0.75, -0.45, f);
-    let forest = Math.max(valley, slope) * (1 - v) * (1 - this.lPad);
+    let forest = Math.max(valley, slope) * (1 - v) * (1 - this.lPad) * (1 - this.townNear);
     forest *= smoothstep(6, 16, this.lPath);
     if (this.island.r > 0 && Math.hypot(x - this.island.x, z - this.island.z) < this.island.r)
       forest = 0;
@@ -355,6 +396,7 @@ export class MapleLayout {
     return Math.max(
       smoothstep(0.35, 0.75, this.lForest) * K.canopy,
       smoothstep(0.25, 0.6, this.lVillage) * K.roofs,
+      this.lTown * K.townRoof,
     );
   }
 
@@ -367,7 +409,245 @@ export class MapleLayout {
     if (le < 30) d = Math.min(d, Math.abs(le - 7));
     if (w < -2) d = Math.max(d, 4);
     if (this.ready && this.tunnelAt(x, z) < d) d = this.tunnelD;
+    // A town's street, and the road leading out from either end of it.
+    if (this.ready && this.townAt(x, z) && Math.abs(this.townA) < this.townT!.half + 45)
+      d = Math.min(
+        d,
+        Math.max(
+          0,
+          Math.abs(this.townB) - (Math.abs(this.townA) < this.townT!.half + 4 ? 3.4 : 1.4),
+        ),
+      );
     return d;
+  }
+
+  // --- Towns -----------------------------------------------------------------------------------
+
+  /** Scratch of `townAt`: the town, and the point along its street and across it (+ inland). */
+  townT: Town | null = null;
+  townA = 0;
+  townB = 0;
+  /** 0..1 how near the last `townStrip` point is to a town's houses (keeps forest and farms off). */
+  townNear = 0;
+
+  /** The town whose strip (with its roads out) is nearest (x, z), within reach; null if none. */
+  townAt(x: number, z: number): Town | null {
+    this.townT = null;
+    let bd = Infinity;
+    const C = Config.maple.townCell;
+    const R = 180;
+    const test = (t: Town | null) => {
+      if (!t) return;
+      const dx = x - t.x;
+      const dz = z - t.z;
+      if (dx * dx + dz * dz > (t.half + R) ** 2) return;
+      const a = dx * t.ux + dz * t.uz;
+      const b = dx * t.nx + dz * t.nz;
+      const d = Math.max(Math.abs(a) - t.half, 0) + Math.abs(b);
+      if (d < bd) {
+        bd = d;
+        this.townT = t;
+        this.townA = a;
+        this.townB = b;
+      }
+    };
+    for (let j = Math.floor((z - R) / C); j <= Math.floor((z + R) / C); j++)
+      for (let i = Math.floor((x - R) / C); i <= Math.floor((x + R) / C); i++)
+        test(this.town(i, j));
+    test(this.homeTown);
+    return this.townT;
+  }
+
+  /**
+   * 0..1 under a town's roofs at (x, z): the house rows either side of the street, not the street
+   * itself (open for the bird to fly down) nor the yards beyond. Leaves `townNear`.
+   */
+  townStrip(x: number, z: number): number {
+    this.townNear = 0;
+    const t = this.townAt(x, z);
+    if (!t) return 0;
+    const a = Math.abs(this.townA);
+    const b = Math.abs(this.townB);
+    const along = 1 - smoothstep(t.half + 2, t.half + 8, a);
+    // Near the houses, and along the road out of either end (kept open: the bird comes in low).
+    const road = (1 - smoothstep(t.half + 40, t.half + 55, a)) * (1 - smoothstep(6, 14, b));
+    this.townNear = Math.max(along * (1 - smoothstep(TOWN.width + 2, TOWN.width + 10, b)), road);
+    return (
+      along *
+      smoothstep(TOWN.front - 1, TOWN.front + 1.5, b) *
+      (1 - smoothstep(TOWN.back + 1, TOWN.back + 4, b))
+    );
+  }
+
+  /** The town of town cell (i, j), or null. Cached; pure. */
+  town(i: number, j: number): Town | null {
+    const k = key(i, j);
+    const hit = this.towns.get(k);
+    if (hit !== undefined) return hit;
+    if (this.towns.size > CELL_CACHE) this.towns.clear();
+    const t = this.findTown(i, j);
+    this.towns.set(k, t);
+    return t;
+  }
+
+  /** A riverside town: on one bank of the river near the cell's middle, its street along it. */
+  private findTown(i: number, j: number): Town | null {
+    const K = Config.maple;
+    const C = K.townCell;
+    const s = this.seed;
+    if (hash2(i - 13, j + 29, s + 560) > K.townChance) return null;
+    let x = (i + 0.3 + 0.4 * hash2(i, j, s + 561)) * C;
+    let z = (j + 0.3 + 0.4 * hash2(i, j, s + 562)) * C;
+    const c = { x: 0, z: 0 };
+    for (let it = 0; it < 10; it++) {
+      this.toCentre(x, z, c);
+      x += clamp(c.x - x, -150, 150);
+      z += clamp(c.z - z, -150, 150);
+    }
+    this.river(x, z);
+    if (this.rd > 3) return null;
+    const g = Math.hypot(this.rgx, this.rgz) || 1;
+    const side = hash2(i, j, s + 563) < 0.5 ? 1 : -1;
+    const nx = (this.rgx / g) * side;
+    const nz = (this.rgz / g) * side;
+    const off = this.rw + K.townStreet;
+    const t = this.siteTown(
+      x + nx * off,
+      z + nz * off,
+      -nz,
+      nx,
+      nx,
+      nz,
+      45 + 25 * hash2(i, j, s + 564),
+      false,
+      hash2(i, j, s + 565),
+    );
+    if (!t || t.x < i * C || t.x >= (i + 1) * C || t.z < j * C || t.z >= (j + 1) * C) return null;
+    return t;
+  }
+
+  /** The town on the home lake's shore, beside the island's side of the way across. */
+  private findHomeTown(): Town | null {
+    const Lk = this.lake;
+    const R = Lk.r;
+    const I = this.island;
+    // The island's side of the lake's axis.
+    const sd = (I.x - Lk.x) * Lk.uz - (I.z - Lk.z) * Lk.ux >= 0 ? 1 : -1;
+    for (const side of [sd, -sd])
+      for (const f of [0.45, 0.2, 0.7, -0.1, 0.95, -0.4, 1.2])
+        for (const back of [26, 36, 48]) {
+          // Out from the axis to the shore, then inland to the street.
+          const px = Lk.uz * side;
+          const pz = -Lk.ux * side;
+          const ax = Lk.x + Lk.ux * f * R * 1.3;
+          const az = Lk.z + Lk.uz * f * R * 1.3;
+          let lo = 0;
+          let hi = R * 2;
+          for (let it = 0; it < 20; it++) {
+            const mid = (lo + hi) / 2;
+            if (this.lakeEdge(ax + px * mid, az + pz * mid) < 0) lo = mid;
+            else hi = mid;
+          }
+          // Square to the shore there: the street runs along its tangent.
+          const sx = ax + px * lo;
+          const sz = az + pz * lo;
+          const e = 3;
+          let gx = this.lakeEdge(sx + e, sz) - this.lakeEdge(sx - e, sz);
+          let gz = this.lakeEdge(sx, sz + e) - this.lakeEdge(sx, sz - e);
+          const gl = Math.hypot(gx, gz) || 1;
+          gx /= gl;
+          gz /= gl;
+          const t = this.siteTown(
+            sx + gx * back,
+            sz + gz * back,
+            -gz,
+            gx,
+            gx,
+            gz,
+            45,
+            true,
+            0.37 + f,
+          );
+          if (t) return t;
+        }
+    // No room on the shore: on the river just below the lake, still in view from the run.
+    const O = this.opening;
+    for (let k = O.length - 3; k >= 0; k -= 9) {
+      const x = O[k];
+      const z = O[k + 1];
+      if (this.lakeEdge(x, z) < 20) break;
+      this.river(x, z);
+      const g = Math.hypot(this.rgx, this.rgz) || 1;
+      for (const side of [1, -1]) {
+        const nx = (this.rgx / g) * side;
+        const nz = (this.rgz / g) * side;
+        const off = this.rw + Config.maple.townStreet;
+        const t = this.siteTown(x + nx * off, z + nz * off, -nz, nx, nx, nz, 45, true, 0.61);
+        if (t) return t;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A town's site, if its whole strip is dry valley floor gentle enough to level, off the water,
+   * the temples' pads and the opening run (the lake's own town may be nearer the run). The
+   * tunnels keep clear of the towns, not the other way round.
+   */
+  private siteTown(
+    x: number,
+    z: number,
+    ux: number,
+    uz: number,
+    nx: number,
+    nz: number,
+    half: number,
+    lake: boolean,
+    seed: number,
+  ): Town | null {
+    // Raised a little onto an embankment where the floor lies low by the water.
+    const y = Math.max(this.base(x, z), 1.8);
+    for (let a = -half - 8; a <= half + 8; a += 8)
+      for (const b of [-TOWN.width, -8, 0, 8, TOWN.width]) {
+        const px = x + ux * a + nx * b;
+        const pz = z + uz * a + nz * b;
+        const h = this.base(px, pz);
+        if (this.rise > 0.35 || Math.abs(h - y) > 8) return null;
+        if (this.water(px, pz) < 6) return null;
+        if (this.onPad(px, pz) > 0) return null;
+        if (this.nearOpening(px, pz, lake ? 20 : 120)) return null;
+        if (!lake && this.lakeEdge(px, pz) < 80) return null;
+        if (this.bridgeTop(px, pz) !== -Infinity) return null;
+      }
+    return { x, z, ux, uz, nx, nz, half, y, seed, lake };
+  }
+
+  /** Is (x, z) within `pad` of a town's strip (or the roads out of its ends)? */
+  nearTown(x: number, z: number, pad: number): boolean {
+    const t = this.townAt(x, z);
+    return (
+      t !== null &&
+      Math.abs(this.townA) < t.half + 45 + pad &&
+      Math.abs(this.townB) < TOWN.width + pad
+    );
+  }
+
+  /** The nearest town (the lake's included) whose middle is within `r` of (x, z), or null. */
+  nearestTown(x: number, z: number, r: number): Town | null {
+    let best: Town | null = null;
+    let bd = r;
+    const C = Config.maple.townCell;
+    for (let j = Math.floor((z - r) / C); j <= Math.floor((z + r) / C); j++)
+      for (let i = Math.floor((x - r) / C); i <= Math.floor((x + r) / C); i++) {
+        const t = this.town(i, j);
+        if (t && Math.hypot(x - t.x, z - t.z) < bd) {
+          bd = Math.hypot(x - t.x, z - t.z);
+          best = t;
+        }
+      }
+    const h = this.homeTown;
+    if (h && Math.hypot(x - h.x, z - h.z) < bd) best = h;
+    return best;
   }
 
   /** 0..1: on a temple's pad or a shrine's terrace (no forest; the cover is raked gravel). */
@@ -639,6 +919,7 @@ export class MapleLayout {
       px > i * C + 30 && px < (i + 1) * C - 30 && pz > j * C + 30 && pz < (j + 1) * C - 30;
     if (!inCell(x, z)) return null;
     if (this.nearOpening(x, z, 260) || this.lakeEdge(x, z) < 160) return null;
+    if (this.nearTown(x, z, 40)) return null;
     const side = hash2(i, j, s + 543) < 0.5 ? 1 : -1;
     const gates: number[] = [];
     const step = 2;
@@ -681,13 +962,14 @@ export class MapleLayout {
       z += Math.cos(heading) * step;
       along += step;
       if (!inCell(x, z) || this.water(x, z) < 30 || this.onPad(x, z) > 0) break;
+      if (this.nearTown(x, z, 20)) break;
     }
     const n = gates.length / 4;
     if (n < K.gateMin) return null;
     // The lead-in stays in the cell and on dry land.
     const ix = gates[0] - Math.sin(gates[3]) * LEAD_IN;
     const iz = gates[2] - Math.cos(gates[3]) * LEAD_IN;
-    if (!inCell(ix, iz) || this.water(ix, iz) < 14) return null;
+    if (!inCell(ix, iz) || this.water(ix, iz) < 14 || this.nearTown(ix, iz, 20)) return null;
     // The climb must actually climb (a level walk along a shelf is no tunnel up a mountain).
     if (gates[(n - 1) * 4 + 1] - gates[1] < n * K.gateSpacing * K.gateGrade * 0.45) return null;
     const last = (n - 1) * 4;

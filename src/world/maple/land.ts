@@ -85,7 +85,8 @@ export function fillMaple(
       A[k] = clamp(L.lWater, -200, 200);
       A[k + 1] = L.lForest;
       A[k + 2] = Math.min(L.lPath, 60);
-      A[k + 3] = L.lPad;
+      // The pad share, or (negative) the hamlets' farmland share: the two never meet.
+      A[k + 3] = L.lPad > 0.01 ? L.lPad : -L.lVillage;
     }
   a.needsUpdate = true;
 }
@@ -108,6 +109,15 @@ export const landUniforms = {
   uMLeafA: { value: new THREE.Color('#c23a28') },
   uMLeafB: { value: new THREE.Color('#e48a2a') },
   uMLeafC: { value: new THREE.Color('#e9bd3c') },
+  uMPaddyCell: {
+    get value() {
+      return K.paddyCell;
+    },
+  },
+  uMStubble: { value: new THREE.Color('#b89a5c') },
+  uMRipe: { value: new THREE.Color('#d8b551') },
+  uMMud: { value: new THREE.Color('#6e5a44') },
+  uMBund: { value: new THREE.Color('#8f8a4c') },
 };
 
 const VERT = /* glsl */ `
@@ -123,7 +133,12 @@ uniform vec3 uMStone;
 uniform vec3 uMGravel;
 uniform vec3 uMLeafA;
 uniform vec3 uMLeafB;
-uniform vec3 uMLeafC;`;
+uniform vec3 uMLeafC;
+uniform float uMPaddyCell;
+uniform vec3 uMStubble;
+uniform vec3 uMRipe;
+uniform vec3 uMMud;
+uniform vec3 uMBund;`;
 
 const FRAG = /* glsl */ `
 {
@@ -142,6 +157,21 @@ const FRAG = /* glsl */ `
       * step(8.0, vGPos.y) * mFine;
     pc *= (0.9 + 0.18 * gNoise(vGPos.xz * 0.7)) * (1.0 - 0.25 * joint);
     diffuseColor.rgb = mix(diffuseColor.rgb, pc, mPath);
+  }
+  // The hamlets' rice fields on a grid: most harvested to stubble in rows, some still standing
+  // ripe and gold, a few drained to bare mud; grassy bunds between them.
+  float mFarm = smoothstep(0.3, 0.55, -vMaple.w) * mDry * (1.0 - mPath) * smoothstep(0.85, 0.95, mN.y);
+  if (mFarm > 0.0) {
+    vec2 fc = floor(vGPos.xz / uMPaddyCell);
+    vec2 ff = fract(vGPos.xz / uMPaddyCell) * uMPaddyCell;
+    float kind = fract(sin(dot(fc, vec2(12.9898, 78.233))) * 43758.5453);
+    float bund = 1.0 - smoothstep(0.3, 0.7, min(min(ff.x, uMPaddyCell - ff.x), min(ff.y, uMPaddyCell - ff.y)));
+    // Rows run along each field's longer way (alternating by field), seen up close.
+    float rowAxis = step(0.5, fract(kind * 7.3));
+    float rows = 0.9 + 0.12 * sin((rowAxis > 0.5 ? vGPos.x : vGPos.z) * 4.2) * mFine;
+    vec3 fcol = kind < 0.62 ? uMStubble * rows : kind < 0.88 ? uMRipe * (0.95 + 0.1 * gNoise(vGPos.xz * 0.5)) : uMMud;
+    fcol = mix(fcol, uMBund, bund);
+    diffuseColor.rgb = mix(diffuseColor.rgb, fcol, mFarm);
   }
   // The temples' raked gravel: pale, combed in fine lines.
   float mPad = smoothstep(0.55, 0.8, vMaple.w) * (1.0 - mPath);

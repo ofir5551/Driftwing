@@ -22,6 +22,19 @@ export function mapleCover(): CoverStyle {
       t.bare = true;
       return;
     }
+    if (pad < -0.4) {
+      // The rice fields: short golden stubble, sparse (the paint carries the rows).
+      if ((((Math.floor(x * 1.3) * 5 + Math.floor(z * 1.3) * 11) % 3) + 3) % 3 > 0) {
+        t.bare = true;
+        return;
+      }
+      t.scale *= 0.55;
+      t.r = 0.72;
+      t.g = 0.6;
+      t.b = 0.32;
+      t.bloom = 0;
+      return;
+    }
     if (water < 4) {
       // Reeds at the water's edge, gone straw-coloured.
       t.scale *= 2.2 - water * 0.25;

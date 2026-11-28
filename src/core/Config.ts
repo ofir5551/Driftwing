@@ -779,6 +779,12 @@ export const Config = {
     geeseHeight: 200, // m, the flocks fly about this high (+- 30 m)
     geeseSpeed: 15, // m/s
     dragonflies: 220, // red dragonflies hovering low near the bird (scaled like the leaves)
+    // Towns: a street of low wooden townhouses along a river (and one on the home lake's shore).
+    townCell: 700, // m, grid cell that may hold one town
+    townChance: 0.75, // share of the cells that try
+    townStreet: 34, // m from the river's bank to a town's street
+    townRoof: 8.5, // m, a town's roofs count as soft ground this high (the street stays open)
+    paddyCell: 22, // m, the hamlets' rice fields are cut on this grid
   },
   flow: {
     gain: 0.03, // flow per pickup

@@ -607,3 +607,203 @@ export function censerGeometry(): THREE.BufferGeometry {
 export const CENSER_SMOKE = { x: 0, y: 1.2, z: 0 };
 /** Where a farmhouse's smoke leaves its roof (the vent under the ridge cap). */
 export const FARM_SMOKE = { x: 1.2, y: 7.9, z: 0 };
+
+const DARK_WOOD = '#3f2d23';
+const MACHIYA_TILE = '#4b4f55';
+const NOREN = '#2e4470';
+
+/** Vertical slats across a front (the townhouse's lattice): n thin boxes over width w, height h. */
+function lattice(w: number, h: number, n: number, y: number, z: number, hex: string) {
+  const parts: THREE.BufferGeometry[] = [];
+  for (let k = 0; k < n; k++)
+    parts.push(
+      colored(new THREE.BoxGeometry(0.07, h, 0.07), hex, y).translate(
+        -w / 2 + (w * (k + 0.5)) / n,
+        0,
+        z,
+      ),
+    );
+  return mergeGeometries(parts)!;
+}
+
+/** Townhouse frontage (x) and depth (z), and how tall the tallest is (m, at scale 1). */
+export const MACHIYA = { w: 6.4, d: 9, h: 7.6 };
+
+/**
+ * A two-storey townhouse (~300 triangles), front +z on the street: dark wood below behind a
+ * lattice of slats, an indigo shop curtain in the doorway, a little tiled pent roof over the
+ * ground floor, a low white upper storey set back with a slatted window, and a grey tile
+ * roof whose ridge runs along the street. MACHIYA.h tall.
+ */
+export function machiyaGeometry(): THREE.BufferGeometry {
+  const { w: W, d: D } = MACHIYA;
+  const f = D / 2;
+  const parts = [
+    colored(new THREE.BoxGeometry(W, 0.3, D), STONE, 0.15),
+    colored(new THREE.BoxGeometry(W, 2.9, D), DARK_WOOD, 0.3 + 1.45),
+    colored(new THREE.PlaneGeometry(W - 0.4, 2.3), '#6b5140').translate(0, 1.55, f + 0.02),
+    lattice(W * 0.55, 2.2, 14, 1.55, f + 0.08, '#2e211a').translate(W * 0.2, 0, 0),
+    colored(new THREE.PlaneGeometry(1.5, 1.1), NOREN).translate(-W * 0.3, 2.35, f + 0.1),
+    // The pent roof over the ground floor's front.
+    colored(new THREE.BoxGeometry(W + 0.2, 0.18, 1.3).rotateX(0.32), MACHIYA_TILE, 3.35).translate(
+      0,
+      0,
+      f + 0.45,
+    ),
+    // The upper storey, low, set back, white plaster with its slatted window.
+    colored(new THREE.BoxGeometry(W, 2.0, D - 1.2), '#e6ddca', 3.2 + 1.0).translate(0, 0, -0.6),
+    colored(new THREE.PlaneGeometry(W * 0.5, 0.8), '#3a2b22').translate(0, 4.3, f - 1.18),
+    lattice(W * 0.5, 0.8, 9, 4.3, f - 1.12, '#e6ddca'),
+    eaveRoof(W / 2 + 0.35, D / 2 + 0.5, 1.9, 0.25, MACHIYA_TILE).translate(0, 5.2, -0.3),
+  ];
+  return mergeGeometries(parts)!;
+}
+
+/** A one-and-a-half storey shop (~220 triangles): open front under a wide shop curtain. */
+export function shopGeometry(): THREE.BufferGeometry {
+  const { w: W, d: D } = MACHIYA;
+  const f = D / 2;
+  const parts = [
+    colored(new THREE.BoxGeometry(W, 0.3, D), STONE, 0.15),
+    colored(new THREE.BoxGeometry(W, 3.4, D), DARK_WOOD, 0.3 + 1.7),
+    colored(new THREE.PlaneGeometry(W - 0.6, 2.4), '#2a1f19').translate(0, 1.5, f + 0.02),
+    colored(new THREE.PlaneGeometry(W - 0.8, 1.0), NOREN).translate(0, 2.25, f + 0.12),
+    colored(new THREE.PlaneGeometry(0.5, 0.5), '#efe6d2').translate(0, 2.3, f + 0.14),
+    lattice(W * 0.6, 0.7, 10, 3.25, f + 0.06, '#2e211a'),
+    // Barrels by the door.
+    colored(new THREE.CylinderGeometry(0.32, 0.32, 0.7, 7), '#8a6a44', 0.65).translate(
+      W * 0.38,
+      0,
+      f + 0.6,
+    ),
+    colored(new THREE.CylinderGeometry(0.32, 0.32, 0.7, 7), '#7a5a3a', 0.65).translate(
+      W * 0.25,
+      0,
+      f + 0.9,
+    ),
+    eaveRoof(W / 2 + 0.4, D / 2 + 0.7, 2.2, 0.3, MACHIYA_TILE).translate(0, 3.7, 0),
+  ];
+  return mergeGeometries(parts)!;
+}
+
+/** A tea house (~200 triangles): open on its street side, a red bench and a red parasol before it. */
+export function teahouseGeometry(): THREE.BufferGeometry {
+  const { w: W, d: D } = MACHIYA;
+  const f = D / 2;
+  const parts = [
+    colored(new THREE.BoxGeometry(W, 0.3, D), STONE, 0.15),
+    colored(new THREE.BoxGeometry(W, 3.0, D - 2), '#5a4130', 0.3 + 1.5).translate(0, 0, -1),
+    colored(new THREE.PlaneGeometry(W - 1, 2.2), '#d9c9a4').translate(0, 1.5, f - 1.98),
+    eaveRoof(W / 2 + 0.5, D / 2 + 0.6, 1.8, 0.4, '#5a4a3a').translate(0, 3.3, 0),
+    // The red felt bench and the parasol over it.
+    colored(new THREE.BoxGeometry(2.2, 0.12, 0.7), '#b8322a', 0.5).translate(-0.6, 0, f + 0.6),
+    colored(new THREE.BoxGeometry(2.0, 0.45, 0.5), '#4a3426', 0.22).translate(-0.6, 0, f + 0.6),
+    colored(new THREE.CylinderGeometry(0.03, 0.03, 2.6, 4), '#4a3426', 1.3).translate(
+      1.3,
+      0,
+      f + 0.9,
+    ),
+    colored(new THREE.ConeGeometry(1.4, 0.55, 10, 1, true), '#c8362c', 2.6).translate(
+      1.3,
+      0,
+      f + 0.9,
+    ),
+  ];
+  return mergeGeometries(parts)!;
+}
+
+/** Far townhouse (~20 triangles): the mass and its gable roof. */
+export function machiyaFarGeometry(): THREE.BufferGeometry {
+  const { w: W, d: D } = MACHIYA;
+  const roof = new THREE.CylinderGeometry(1, 1, 1, 3, 1).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2);
+  roof.scale(W + 0.6, 1.9 / 1.5, (D + 1) / 0.87).translate(0, 5.1 + 0.5 * (1.9 / 1.5), 0);
+  return mergeGeometries([
+    colored(new THREE.BoxGeometry(W, 5.1, D), DARK_WOOD, 2.55),
+    colored(roof, MACHIYA_TILE),
+  ])!;
+}
+
+/**
+ * A storehouse (~90 triangles): thick white plaster walls on a band of dark tiles, a small
+ * iron-shuttered window, under a heavy grey tile roof. Front +z.
+ */
+export function kuraGeometry(): THREE.BufferGeometry {
+  return mergeGeometries([
+    colored(new THREE.BoxGeometry(4.6, 0.4, 5.6), STONE, 0.2),
+    colored(new THREE.BoxGeometry(4.2, 1.1, 5.2), '#2f3236', 0.4 + 0.55),
+    colored(new THREE.BoxGeometry(4.0, 3.2, 5.0), '#efe9dc', 1.5 + 1.6),
+    colored(new THREE.PlaneGeometry(0.9, 0.9), '#2f3236').translate(0, 3.6, 2.52),
+    colored(new THREE.PlaneGeometry(1.2, 1.9), '#3b3430').translate(0, 1.5, 2.62),
+    eaveRoof(2.6, 3.2, 1.7, 0.3, MACHIYA_TILE)
+      .translate(0, 4.7, 0)
+      .rotateY(Math.PI / 2),
+  ])!;
+}
+
+/**
+ * A rice-drying rack (~50 triangles), 6 m: posts with a rail, sheaves of harvested rice hung
+ * over it in a long golden curtain. Spans x.
+ */
+export function hasaGeometry(): THREE.BufferGeometry {
+  const parts = [colored(new THREE.BoxGeometry(6.4, 0.08, 0.08), '#6d5a44', 2.3)];
+  for (const x of [-3, 0, 3])
+    parts.push(colored(new THREE.BoxGeometry(0.1, 2.5, 0.1), '#6d5a44', 1.25).translate(x, 0, 0));
+  const straw = new THREE.BoxGeometry(6.0, 1.3, 0.55, 6, 1, 1);
+  const sp = straw.getAttribute('position');
+  // Sheaves hang heavier in the middle of each bay.
+  for (let i = 0; i < sp.count; i++)
+    if (sp.getY(i) < 0)
+      sp.setY(i, sp.getY(i) - 0.25 * Math.abs(Math.sin((sp.getX(i) / 3) * Math.PI)));
+  parts.push(colored(straw, '#c9a557', 1.65));
+  return mergeGeometries(parts)!;
+}
+
+/**
+ * A persimmon tree in late autumn (~170 triangles): its leaves nearly all fallen, bare grey
+ * limbs hung with bright orange fruit, a few rust leaves left.
+ */
+export function persimmonGeometry(): THREE.BufferGeometry {
+  const bark = '#5a5048';
+  const parts = [colored(new THREE.CylinderGeometry(0.16, 0.26, 2.2, 5), bark, 1.1)];
+  const limbs: [number, number, number, number][] = [
+    [1.6, 2.0, 3.8, 0.4],
+    [-1.4, 2.0, 3.9, -0.7],
+    [0.3, 2.1, 4.4, 1.5],
+    [-0.4, 2.1, 4.2, -1.6],
+  ];
+  for (const [x, y0, y1, z] of limbs) {
+    const dir = new THREE.Vector3(x, y1 - y0, z);
+    const g = new THREE.CylinderGeometry(0.05, 0.1, dir.length(), 4).translate(
+      0,
+      dir.length() / 2,
+      0,
+    );
+    g.applyQuaternion(
+      new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()),
+    );
+    parts.push(colored(g, bark, y0));
+  }
+  // Fruit along the limbs, and a few leaves.
+  const rnd = (k: number) =>
+    Math.sin(k * 12.9898) * 43758.5453 - Math.floor(Math.sin(k * 12.9898) * 43758.5453);
+  for (let k = 0; k < 14; k++) {
+    const [x, y0, y1, z] = limbs[k % 4];
+    const t = 0.45 + 0.55 * rnd(k);
+    parts.push(
+      colored(new THREE.OctahedronGeometry(0.17), '#ef7a1e', y0 + (y1 - y0) * t - 0.15).translate(
+        x * t + (rnd(k + 9) - 0.5) * 0.6,
+        0,
+        z * t + (rnd(k + 19) - 0.5) * 0.6,
+      ),
+    );
+  }
+  for (let k = 0; k < 4; k++)
+    parts.push(
+      colored(
+        new THREE.OctahedronGeometry(0.45).scale(1, 0.4, 1),
+        '#9c4a26',
+        3.6 + rnd(k + 40) * 0.6,
+      ).translate((rnd(k + 50) - 0.5) * 2.4, 0, (rnd(k + 60) - 0.5) * 2.4),
+    );
+  return mergeGeometries(parts)!;
+}

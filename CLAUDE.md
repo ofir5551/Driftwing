@@ -212,11 +212,13 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
   gate in the water (posts and beams solid, an underside the look-ahead eases under), the
   pavilion's island and the home temple; temples on levelled pads (pagoda solid, hall a soft
   roof); tunnels of gates climbing at a fixed grade on benches cut into the slopes, soft, kept
-  from generic ribbons by `inGates`, with an open lead-in and a shrine; drum bridges; the land's
-  forest, cedar share and autumn "turn" in `land()`), `MapleScatter` (pure: the forest in five
-  tree types, temples, gates, farmhouses, stone lanterns, the lake's floating lanterns; herons,
-  deer, farmers lazily), `MapleWisps` (the opening through the gate, river runs, tunnel climbs
-  with an approach glide, pagoda swings, valley-seeking glides planned backward from a look
+  from generic ribbons by `inGates`, with an open lead-in and a shrine; drum bridges; towns (a
+  straight street of townhouses on a levelled strip along a river, one on the home lake's
+  shore; the street open, the roofs soft; `townAt`/`townStrip`); the land's forest, cedar share
+  and autumn "turn" in `land()`), `MapleScatter` (pure: the forest in five
+  tree types, temples, gates, farmhouses, stone lanterns, the lake's floating lanterns, town
+  houses, the hamlets' storehouses, persimmons and rice racks; herons, deer, farmers lazily), `MapleWisps` (the opening through the gate, river runs, tunnel climbs
+  with an approach glide, pagoda swings, runs down a town's street, valley-seeking glides planned backward from a look
   ahead), `destinations` (temples, and the tunnels' feet), `MapleDecor` (instancing; trees cast
   from their distant shapes; the floating lanterns drift per frame), `land` (ground colour and
   `aMaple`: roads, flagstones, gravel, canopy mottle, fallen leaves), `cover` (pampas, spider

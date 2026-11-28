@@ -2,7 +2,7 @@ import { Config } from '../../core/Config';
 import { angleDelta, clamp, lerp } from '../../core/math';
 import type { WispCursor, WispPlanner } from '../Wisps';
 import { GoalLean } from '../goal';
-import type { MapleLayout, Temple, Tunnel } from './MapleLayout';
+import type { MapleLayout, Temple, Town, Tunnel } from './MapleLayout';
 
 type Spawn = (x: number, y: number, z: number) => void;
 
@@ -30,6 +30,8 @@ export class MaplePlanner implements WispPlanner {
   private sinceSwing = 2;
   private lastTunnel: Tunnel | null = null;
   private lastTemple: Temple | null = null;
+  private lastTown: Town | null = null;
+  private sinceTown = 3;
   private readonly c2 = { x: 0, z: 0 };
   /** The ribbon's overall direction (a slow average of its travel): no doubling back. */
   private trendX = 0;
@@ -75,10 +77,18 @@ export class MaplePlanner implements WispPlanner {
     if (rand() < 0.1) return false;
     this.sinceTunnel++;
     this.sinceSwing++;
+    this.sinceTown++;
     if (this.sinceTunnel > 3) {
       this.pts.length = 0;
       if (this.tunnel(c, base, goal !== null) && this.commit(c, spawn, 4)) {
         this.sinceTunnel = 0;
+        return true;
+      }
+    }
+    if (this.sinceTown > 2) {
+      this.pts.length = 0;
+      if (this.street(c, base, goal !== null) && this.commit(c, spawn, 4)) {
+        this.sinceTown = 0;
         return true;
       }
     }
@@ -92,6 +102,10 @@ export class MaplePlanner implements WispPlanner {
     if (goal === null && this.sinceTunnel > 3) {
       this.pts.length = 0;
       if (this.approach(c, base) && this.commit(c, spawn)) return true;
+    }
+    if (goal === null && this.sinceTown > 2) {
+      this.pts.length = 0;
+      if (this.townApproach(c, base) && this.commit(c, spawn)) return true;
     }
     const along = L.riverHeading(c.x, c.z, base);
     if (
@@ -111,6 +125,26 @@ export class MaplePlanner implements WispPlanner {
    * When it is time for a tunnel and one lies roughly ahead: glide to a point well back along
    * its lead-in, from where the next pattern flies in at its foot. NaN-free: false if none.
    */
+  /**
+   * When it is time for a town and one lies roughly ahead: glide to the road well before its
+   * street (along the street's line, from whichever end is nearer the ribbon's way), so the
+   * next pattern flies down the street.
+   */
+  private townApproach(c: WispCursor, base: number): boolean {
+    const t = this.L.nearestTown(c.x + Math.sin(base) * 400, c.z + Math.cos(base) * 400, 600);
+    if (!t || t === this.lastTown) return false;
+    const along = Math.atan2(t.ux, t.uz);
+    const h = Math.abs(angleDelta(base, along)) <= Math.PI / 2 ? along : along + Math.PI;
+    const ax = t.x - Math.sin(h) * (t.half + 95);
+    const az = t.z - Math.cos(h) * (t.half + 95);
+    const d = Math.hypot(ax - c.x, az - c.z);
+    if (d < 40) return false;
+    const to = Math.atan2(ax - c.x, az - c.z);
+    if (Math.abs(angleDelta(base, to)) > 1.3 || Math.abs(angleDelta(to, h)) > 1.6) return false;
+    const n = Math.min(9, Math.max(2, Math.round(d / Config.wisps.spacing)));
+    return this.glide(c, to, 0, n) && this.pathClear(c, MARGIN);
+  }
+
   private approach(c: WispCursor, base: number): boolean {
     const L = this.L;
     const t = L.nearestTunnel(c.x + Math.sin(base) * 380, c.z + Math.cos(base) * 380, 600);
@@ -235,13 +269,71 @@ export class MaplePlanner implements WispPlanner {
     return true;
   }
 
+  /**
+   * Down a town's street ahead: in along the road at one end, low between the house fronts (the
+   * street has no roof over it, so the bird can be down there), out along the road at the
+   * other end climbing away. Either way along the street, whichever is nearer the ribbon's way.
+   */
+  private street(c: WispCursor, base: number, journey: boolean): boolean {
+    const L = this.L;
+    const t = L.nearestTown(c.x + Math.sin(c.heading) * 120, c.z + Math.cos(c.heading) * 120, 320);
+    if (!t || t === this.lastTown) return false;
+    const along = Math.atan2(t.ux, t.uz);
+    const dir = Math.abs(angleDelta(base, along)) <= Math.PI / 2 ? 1 : -1;
+    const h = dir > 0 ? along : along + Math.PI;
+    if (Math.abs(angleDelta(base, h)) > (journey ? 0.9 : 1.6)) return false;
+    const fx = Math.sin(h);
+    const fz = Math.cos(h);
+    const sp = Config.wisps.spacing;
+    // The way in: from the cursor to a point on the road 25 m before the street.
+    const ex = t.x - fx * (t.half + 25);
+    const ez = t.z - fz * (t.half + 25);
+    const toE = Math.atan2(ex - c.x, ez - c.z);
+    const run = Math.hypot(ex - c.x, ez - c.z);
+    if (run < 30 || Math.abs(angleDelta(c.heading, toE)) > 1.0) return false;
+    if (Math.abs(angleDelta(toE, h)) > 1.0) return false;
+    const n = Math.ceil(run / sp);
+    const low = 6.5;
+    const street = Math.ceil((2 * t.half + 30) / sp);
+    if (n + street + 2 > this.free) return false;
+    for (let i = 1; i <= n; i++) {
+      const f = i / n;
+      const x = lerp(c.x, ex, f);
+      const z = lerp(c.z, ez, f);
+      this.pts.push(
+        x,
+        Math.max(lerp(c.y, L.height(ex, ez) + low + 4, f), L.flightGround(x, z) + 6),
+        z,
+      );
+    }
+    // Down the street, low, from the road in to the road out.
+    for (let i = 1; i <= street; i++) {
+      const x = ex + fx * sp * i;
+      const z = ez + fz * sp * i;
+      this.pts.push(x, L.height(x, z) + low, z);
+    }
+    // Climbing away along the road.
+    let y = this.pts[this.pts.length - 2];
+    for (let k = 1; k <= 2; k++) {
+      const x = ex + fx * sp * (street + k);
+      const z = ez + fz * sp * (street + k);
+      const want = Math.max(y + 4, L.flightGround(x, z) + 6);
+      if (want - y > Config.wisps.maxRise + 1) break;
+      y = want;
+      this.pts.push(x, y, z);
+    }
+    if (!this.steady()) return false;
+    this.lastTown = t;
+    return true;
+  }
+
   /** No leg of the planned path climbs or drops more than the bird can follow. */
   private steady(): boolean {
     const P = this.pts;
     for (let k = 3; k < P.length; k += 3) {
       const d = Math.hypot(P[k] - P[k - 3], P[k + 2] - P[k - 1]) || 1;
       const dy = P[k + 1] - P[k - 2];
-      if (dy > (d * Config.wisps.maxRise) / Config.wisps.spacing + 1.5 || dy < -d * 0.5)
+      if (dy > (d * Config.wisps.maxRise) / Config.wisps.spacing + 1.5 || dy < -d * 0.8)
         return false;
     }
     return true;

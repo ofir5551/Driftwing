@@ -6,10 +6,12 @@ import { LEVEL_LIST } from '../src/levels';
 import type { CoverTuft } from '../src/world/GroundCover';
 import { mapleCover } from '../src/world/maple/cover';
 import { crowRadius, lakeBoatRadius, lifePhase } from '../src/world/maple/materials';
+import { MACHIYA } from '../src/world/maple/shapes';
 import {
   HALL,
   MapleLayout,
   PAGODA_R,
+  TOWN,
   WATER_GATE,
   deckY,
   type Temple,
@@ -199,6 +201,40 @@ describe('maple layout', () => {
     L.pushPoint(top, 1, n);
     expect(n.y).toBe(1);
     for (const v of [p.x, p.y, p.z, top.x, top.y, top.z]) expect(Number.isFinite(v)).toBe(true);
+  });
+});
+
+describe('maple towns', () => {
+  it('lays streets of soft-roofed houses on level ground, the street itself open', () => {
+    for (const seed of SEEDS) {
+      const l = new MapleLayout(seed);
+      expect(l.homeTown, `seed ${seed}`).not.toBeNull();
+      const towns = [l.homeTown!];
+      for (let j = -3; j <= 3; j++)
+        for (let i = -3; i <= 3; i++) {
+          const t = l.town(i, j);
+          if (t) towns.push(t);
+        }
+      expect(towns.length).toBeGreaterThan(2);
+      for (const t of towns)
+        for (let a = -t.half; a <= t.half; a += 10) {
+          const sx = t.x + t.ux * a;
+          const sz = t.z + t.uz * a;
+          // Level, dry, no roof over the street and nothing solid.
+          expect(Math.abs(l.height(sx, sz) - t.y)).toBeLessThan(0.6);
+          expect(l.flightGround(sx, sz)).toBeLessThan(l.height(sx, sz) + 1);
+          expect(l.solidTop(sx, t.y + 5, sz, 1)).toBe(-Infinity);
+          for (const side of [-1, 1]) {
+            const hx = sx + t.nx * side * (TOWN.front + 4.5);
+            const hz = sz + t.nz * side * (TOWN.front + 4.5);
+            expect(l.height(hx, hz)).toBeGreaterThan(0.8);
+            // Over the houses the floor is their roofs (soft), above the tallest of them.
+            expect(l.flightGround(hx, hz)).toBeGreaterThan(l.height(hx, hz) + MACHIYA.h);
+          }
+          // No tunnel of gates comes into a town.
+          expect(l.tunnelAt(sx, sz)).toBeGreaterThan(20);
+        }
+    }
   });
 });
 

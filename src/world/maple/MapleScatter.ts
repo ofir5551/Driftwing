@@ -1,8 +1,15 @@
 import { Config } from '../../core/Config';
 import { hash2, mulberry32 } from '../noise';
-import { type MapleLayout, type Temple, type Tunnel } from './MapleLayout';
+import { TOWN, type MapleLayout, type Temple, type Town, type Tunnel } from './MapleLayout';
 import { lakeBoatRadius, lifePhase } from './materials';
-import { CENSER_SMOKE, FARM_HEIGHT, FARM_REACH, FARM_SMOKE, STONE_LANTERN_LIGHT } from './shapes';
+import {
+  CENSER_SMOKE,
+  FARM_HEIGHT,
+  FARM_REACH,
+  FARM_SMOKE,
+  MACHIYA,
+  STONE_LANTERN_LIGHT,
+} from './shapes';
 
 /**
  * Maple Valley's scenery per chunk, as plain number lists (pure: no Three.js, unit-tested):
@@ -38,8 +45,16 @@ export const K = {
   Crow: 14,
   LakeBoat: 15,
   RiverBoat: 16,
+  Machiya: 17,
+  Shop: 18,
+  Teahouse: 19,
+  Kura: 20,
+  Hasa: 21,
+  Persimmon: 22,
 } as const;
-export const KINDS = 17;
+export const KINDS = 23;
+/** A townhouse's door lantern (local metres, front +z). */
+export const MACHIYA_LANTERN = { x: 2.4, y: 2.75, z: 4.9 };
 /** Floats per smoke source: x, y, z, size. */
 export const SMOKE_STRIDE = 4;
 /** Floats per prop record: kind, x, y, z, yaw, tilt, sx, sy, sz, tint. */
@@ -146,6 +161,13 @@ export class MapleScatter {
     this.boats(ox, oz, size, out.built);
     this.bridges(ox, oz, size, out.built);
     this.farms(ox, oz, size, out);
+    const WC = K.townCell;
+    for (let j = Math.floor((oz - 200) / WC); j <= Math.floor((oz + size + 200) / WC); j++)
+      for (let i = Math.floor((ox - 200) / WC); i <= Math.floor((ox + size + 200) / WC); i++) {
+        const t = L.town(i, j);
+        if (t) this.town(t, ox, oz, size, out);
+      }
+    if (L.homeTown) this.town(L.homeTown, ox, oz, size, out);
     this.forest(ox, oz, size, out.trees);
     return out;
   }
@@ -442,6 +464,43 @@ export class MapleScatter {
         if (FARM_HEIGHT * s > this.roofRoom(x, y, z, yaw, FARM_REACH * s * 0.75)) continue;
         push(out.built, K.Farmhouse, x, y - 0.2, z, yaw, s, s, s, hash2(i, j, seed + 68));
         place(out.lanterns, x, y - 0.2, z, yaw, FARM_LANTERN, s, 0.7);
+        // A white storehouse beside some, a persimmon hung with fruit by the door of others.
+        const c = Math.cos(yaw);
+        const n = Math.sin(yaw);
+        if (hash2(i, j, seed + 71) < 0.35) {
+          const lx = 8.5;
+          const kx = x + lx * c;
+          const kz = z - lx * n;
+          if (L.lPath > Config.maple.roadWidth + 4 && L.roofAt(kx, kz) === -Infinity)
+            push(
+              out.built,
+              K.Kura,
+              kx,
+              L.height(kx, kz) - 0.15,
+              kz,
+              yaw + Math.PI / 2,
+              1,
+              1,
+              1,
+              hash2(i, j, seed + 72),
+            );
+        }
+        if (hash2(i, j, seed + 73) < 0.55) {
+          const px = x - 6.5 * c + 5 * n;
+          const pz = z + 6.5 * n + 5 * c;
+          push(
+            out.built,
+            K.Persimmon,
+            px,
+            L.height(px, pz) - 0.2,
+            pz,
+            hash2(i, j, seed + 74) * 7,
+            1,
+            1,
+            1,
+            0.5,
+          );
+        }
         // Smoke from the hearth, out under the ridge (not every house has its fire lit).
         if (hash2(i, j, seed + 69) < 0.6) place(out.smoke, x, y - 0.2, z, yaw, FARM_SMOKE, s, 1.2);
         // Now and then a few crows over the farm.
@@ -496,6 +555,7 @@ export class MapleScatter {
         const f = L.lForest;
         if (hash2(i, j, seed) > f * 0.92 + 0.02) continue;
         if (L.lWater < 4 || L.lPath < 9 || L.lPad > 0.1 || L.lVillage > 0.4) continue;
+        if (L.townNear > 0.1) continue;
         const y = L.height(x, z);
         if (y < 0.6) continue;
         if (L.roofAt(x, z) !== -Infinity) continue;
@@ -521,6 +581,94 @@ export class MapleScatter {
           hash2(i, j, seed + 16),
         );
       }
+  }
+
+  /**
+   * A town: townhouses, shops and the odd tea house shoulder to shoulder either side of the
+   * street, fronts facing across it, a lantern by every door, now and then an alley between;
+   * smoke from a few roofs; a small gate over one end of the street, and a maple or a ginkgo
+   * beside the road out of each end.
+   */
+  private town(t: Town, ox: number, oz: number, size: number, out: MapleChunk): void {
+    const L = this.L;
+    const rand = mulberry32(Math.floor(t.seed * 1e9) + 11);
+    for (const side of [-1, 1]) {
+      // The houses' fronts face the street: across it from their own row.
+      const yaw = Math.atan2(-t.nx * side, -t.nz * side);
+      const b = side * (TOWN.front + MACHIYA.d / 2);
+      let a = -t.half + 2;
+      while (a < t.half - 4) {
+        const w = MACHIYA.w + 0.2 + rand() * 0.5;
+        const roll = rand();
+        const kind = roll < 0.55 ? K.Machiya : roll < 0.87 ? K.Shop : K.Teahouse;
+        const alley = rand() < 0.1;
+        const smoke = rand() < 0.15;
+        const tint = rand();
+        if (alley) {
+          a += 3.5;
+          continue;
+        }
+        if (roll > 0.94) {
+          // A little garden between the houses: a maple over a stone lantern.
+          const ac = a + 3.5;
+          a += 7;
+          const gx = t.x + t.ux * ac + t.nx * b;
+          const gz = t.z + t.uz * ac + t.nz * b;
+          if (inside(gx, gz, ox, oz, size))
+            out.trees.push(
+              tint < 0.5 ? CRIMSON : FLAME,
+              gx,
+              L.height(gx, gz) - 0.3,
+              gz,
+              1.05,
+              tint * 9,
+              tint,
+            );
+          continue;
+        }
+        const ac = a + w / 2;
+        a += w;
+        const x = t.x + t.ux * ac + t.nx * b;
+        const z = t.z + t.uz * ac + t.nz * b;
+        if (!inside(x, z, ox, oz, size)) continue;
+        const y = L.height(x, z);
+        if (y < 0.8) continue;
+        push(out.built, kind, x, y - 0.15, z, yaw, 1, 1, 1, tint);
+        place(out.lanterns, x, y - 0.15, z, yaw, MACHIYA_LANTERN, 1, 0.75);
+        if (smoke) place(out.smoke, x, y - 0.15, z, yaw, { x: -1.5, y: 6.8, z: -1.5 }, 1, 0.8);
+      }
+    }
+    // The gate over the street's far end (seeded which), its posts in the street's margins.
+    const end = t.seed < 0.5 ? 1 : -1;
+    const gx = t.x + t.ux * end * (t.half + 3);
+    const gz = t.z + t.uz * end * (t.half + 3);
+    if (inside(gx, gz, ox, oz, size))
+      push(
+        out.built,
+        K.Gate,
+        gx,
+        L.height(gx, gz) - 0.2,
+        gz,
+        Math.atan2(t.ux, t.uz),
+        0.62,
+        0.62,
+        0.62,
+        0.3,
+      );
+    for (const e of [-1, 1]) {
+      const x = t.x + t.ux * e * (t.half + 12) + t.nx * 9;
+      const z = t.z + t.uz * e * (t.half + 12) + t.nz * 9;
+      if (inside(x, z, ox, oz, size))
+        out.trees.push(
+          e > 0 ? CRIMSON : GINKGO,
+          x,
+          L.height(x, z) - 0.3,
+          z,
+          1.3,
+          t.seed * 9 + e,
+          0.5,
+        );
+    }
   }
 
   /** The lazy part: boulders, herons, deer and farmers. */
@@ -554,6 +702,15 @@ export class MapleScatter {
             push(out, K.Boulder, x, y - 0.2 * s, z, yaw, s, s * 0.8, s, tint);
           } else if (roll > 1 - life * 0.25 && L.lForest < 0.7)
             push(out, K.Deer, x, y, z, yaw, 1, 1, 1, tint); // at the forest's edge
+          continue;
+        }
+        if (L.lVillage > 0.25 && L.lVillage < 0.48 && roll > 0.72) {
+          // A rack of drying rice on a bund at the farmland's edge (clear of the houses, which
+          // stand where the farmland is thicker), square to the fields.
+          const fc = Config.maple.paddyCell;
+          const bx = Math.round(x / fc) * fc;
+          // Along the bund (it runs along z at this x): the rack's length is its local x.
+          push(out, K.Hasa, bx, L.height(bx, z) - 0.05, z, Math.PI / 2, 1, 1, 1, tint);
           continue;
         }
         if (L.lVillage > 0.3) {

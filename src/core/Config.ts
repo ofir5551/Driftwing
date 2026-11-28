@@ -808,6 +808,12 @@ export const Config = {
     trick: 2, // light per landed trick
     bankEvery: 10, // s between saves in flight (pausing and leaving the page save too)
   },
+  analytics: {
+    // Anonymous play stats (core/Analytics.ts): a flight sends about ten events.
+    flushEvery: 30, // s between sends while the page is open
+    batch: 40, // events per send (a beacon must stay well under 64 KB)
+    queueMax: 400, // events kept while offline; the oldest are dropped past this
+  },
   discoveries: {
     every: 0.1, // s between looks for a level's hidden finds (their tests query the layout)
     night: 0.6, // sky stars (0..1) from which a night-only find can be made

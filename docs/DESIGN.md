@@ -2265,3 +2265,10 @@ progression, voice (bell, koto, guqin, glass, oud, guitar, flute), pad, drone fi
   countryside". Both: Kyoto-style riverside towns (one on the home lake's shore, seen within
   seconds) and thatched hamlets among rice fields. Towns level their ground and the tunnels keep
   clear of them (not the other way round), so neither's placement depends on the other's.
+- Analytics, to find out why players leave (early flights and mid-journey were the guesses):
+  PostHog's free cloud (EU), dashboards there, no consent banner, so nothing but a random id is
+  kept on the device: no cookies, no person profiles, no GeoIP, no IP-based location. A small
+  client of our own instead of PostHog's library (no autocapture or recordings, a few KB). A
+  flight's end is held in storage while the page is hidden, since a phone can drop a background
+  page without `pagehide`; the next visit sends it as closed. No line about it in Settings, by
+  choice.

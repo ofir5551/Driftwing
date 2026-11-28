@@ -77,6 +77,11 @@ The design and decisions log live in `docs/DESIGN.md`. Read it before changing f
 - `core/Changelog.ts`: the players' changelog and the game's version (the top entry; a test keeps
   `package.json` in step) (pure). `Settings` saves the version last seen; `Menu` draws the
   Settings button's dot and the What's new card, marking releases newer than that.
+- `core/Analytics.ts`: anonymous play stats to PostHog (EU): a random device id, a queue kept
+  while offline, batches by fetch and a beacon as the page goes (pure; `browserAnalytics` wires
+  it). `main.ts` sends `app_open`, `flight_start`/`flight_end` (how: rest, title, closed),
+  `unlock`, `discovery`, `arrival`, `level_pick`, `bird_pick`, `whats_new`. Only the players'
+  build sends: never dev, personal stages, a local server, `navigator.webdriver` or the test flags.
 - `core/Journey.ts`: lifetime light, the unlock track and the discoveries found (pure; saved by
   `Settings`). See DESIGN's Progression.
 - `world/LanternNotes.ts`: the notes a lantern holds and the picker (pure; the recent ones saved

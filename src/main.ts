@@ -29,6 +29,8 @@ import { applyUpdate, registerServiceWorker, updateReady } from './pwa';
 import { findName } from './world/Discoveries';
 import { PhotoCard } from './ui/PhotoCard';
 import { edenPhoto, photoUrl } from './world/eden/photos';
+import { browserAnalytics, type Analytics, type Props } from './core/Analytics';
+import { isStandalone, platform } from './ui/Fullscreen';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -108,6 +110,32 @@ function dress(): void {
 }
 dress();
 
+// Anonymous play stats (core/Analytics.ts): only the players' build, served, flown by a person.
+// The dev channel, personal stages, the autopilot, automated browsers, a local server and the
+// test URL flags never send anything, so the numbers are players' flights alone.
+const TEST_FLAGS = ['autopilot', 'journey', 'unlocked', 'flock', 'debug'];
+const tracked =
+  import.meta.env.PROD &&
+  !DEV_CHANNEL &&
+  !PERSONAL_CHANNEL &&
+  !navigator.webdriver &&
+  !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) &&
+  !TEST_FLAGS.some((f) => params.has(f));
+function deviceKind(): 'phone' | 'tablet' | 'desktop' {
+  if (!matchMedia('(pointer: coarse)').matches) return 'desktop';
+  return Math.min(screen.width, screen.height) < 600 ? 'phone' : 'tablet';
+}
+const analytics: Analytics | null = tracked
+  ? browserAnalytics(() => ({
+      version: VERSION,
+      light: journey.light,
+      platform: platform(),
+      device: deviceKind(),
+      installed: isStandalone(),
+    }))
+  : null;
+const track = (event: string, props?: Props) => analytics?.track(event, props);
+
 let bankTimer = 0;
 
 function bankJourney(): void {
@@ -125,6 +153,7 @@ function earn(amount: number): void {
 
 function announce(opened: readonly Unlock[]): void {
   const names = opened.map((u) => u.name);
+  for (const u of opened) track('unlock', { item: u.id, kind: u.kind });
   gameplay.hud.notice(`✧ ${names.join(' · ')} unlocked`);
   game.events.emit('unlock', { names });
   bankJourney(); // an unlock is worth saving at once
@@ -173,6 +202,7 @@ function switchLevel(id: LevelId): void {
     if (testFlock === null) gameplay.flock.setBirds(journey.flockOf(id));
     settings.level = id;
     saveSettings(settings);
+    track('level_pick', { level: id });
     menu.showStart(gameplay.progress.best, id);
     veil.classList.remove('show');
     switching = false;
@@ -185,6 +215,33 @@ let finaleIn = -1;
 let finaleShown = false;
 
 let playTime = 0;
+/** A flight is under way for the stats (from Play until Rest, the title or the page closing). */
+let flightOpen = false;
+
+function flightProps(how: 'rest' | 'title' | 'closed' | 'restart'): Props {
+  const p = gameplay.progress;
+  return {
+    how,
+    level: game.level.id,
+    bird: game.species.id,
+    seconds: Math.round(playTime),
+    wisps: p.count,
+    lanterns: p.reached,
+    tricks: p.tricks,
+    score: p.score,
+    journeys: gameplay.destinations.reachedNames.length,
+    finds: journey.flightFinds.length,
+    light_earned: journey.flightLight,
+  };
+}
+
+/** Sends the flight's end once (a flight left by closing the page ends as 'closed'). */
+function endFlight(how: 'rest' | 'title' | 'closed' | 'restart'): void {
+  if (!flightOpen) return;
+  flightOpen = false;
+  analytics?.holdFlight(null);
+  track('flight_end', flightProps(how));
+}
 /** The level's saved best when the flight began (so the Rest card can say "a new best"). */
 let bestBefore = 0;
 
@@ -220,6 +277,7 @@ const flapHint = () =>
 const handlers: MenuHandlers = {
   play() {
     audio.unlock(); // Play is the user gesture that lets the browser start audio
+    endFlight('restart');
     applySettings(settings);
     gameplay.progress.reset();
     journey.newFlight();
@@ -234,6 +292,15 @@ const handlers: MenuHandlers = {
     steerLearnedAt = -1;
     steerHinted = boostHinted = false;
     if (!settings.taught.wisps) gameplay.hud.toast('Follow the wisps', 3);
+    flightOpen = true;
+    analytics?.newFlight();
+    track('flight_start', {
+      level: game.level.id,
+      bird: game.species.id,
+      plumage: settings.plumage,
+      trail: settings.trail,
+      time_of_day: settings.timeOfDay,
+    });
   },
   rest() {
     if (game.mode !== 'paused') return;
@@ -246,6 +313,7 @@ const handlers: MenuHandlers = {
     gameplay.hud.visible = false;
     gameplay.hud.clearMessages(); // unlock notices still waiting are on the card instead
     photoCard.hide();
+    endFlight('rest');
     gameplay.endFlight();
     menu.showRest(
       {
@@ -287,7 +355,10 @@ const handlers: MenuHandlers = {
     menu.showPlaying();
   },
   change: applySettings,
-  newsSeen: () => saveSeenVersion(VERSION),
+  newsSeen: () => {
+    saveSeenVersion(VERSION);
+    track('whats_new');
+  },
   selectLevel: switchLevel,
   isNewLevel: (id) => id !== 'highlands' && loadBest(id) <= 0,
   selectTime(t: TimeOfDay) {
@@ -302,6 +373,7 @@ const handlers: MenuHandlers = {
     settings.plumage = b.plumage; // a new bird arrives in its own feathers
     saveSettings(settings);
     dress();
+    track('bird_pick', { bird: id });
   },
   selectPlumage(id) {
     if (!journey.isOpen(plumageDef(id).unlock)) return;
@@ -321,6 +393,7 @@ const handlers: MenuHandlers = {
   },
   toTitle() {
     if (game.mode === 'playing' || switching) return; // from the pause menu or the Rest card
+    endFlight('title');
     switching = true;
     finaleIn = -1;
     persist();
@@ -356,12 +429,14 @@ game.events.on('lanternReached', () => earn(Config.journey.lantern));
 game.events.on('trick', () => earn(Config.journey.trick));
 game.events.on('discovery', (e) => {
   if (!earns || !journey.discover(e.id)) return;
+  track('discovery', { find: e.id, level: game.level.id });
   earn(Config.discoveries.light);
   bankJourney(); // a find is worth saving at once
 });
 const photoCard = new PhotoCard(ui);
 game.onFrame((dt) => photoCard.update(dt));
 game.events.on('arrival', (e) => {
+  track('arrival', { level: game.level.id, place: e.name });
   // Eden's stops each keep a photo: shown as a card as the bird arrives.
   const photo = edenPhoto(e.id);
   if (photo)
@@ -459,10 +534,18 @@ function updateIfCalm(): void {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     handlers.pause();
+    // A phone may drop a page in the background without a word: the flight's end waits in
+    // storage, sent on the next visit if this page never comes back.
+    if (flightOpen) analytics?.holdFlight(flightProps('closed'));
+    analytics?.flushNow();
     updateIfCalm(); // out of sight, so the reload isn't even seen
-  }
+  } else if (flightOpen) analytics?.holdFlight(null);
 });
-addEventListener('pagehide', persist);
+addEventListener('pagehide', () => {
+  persist();
+  endFlight('closed');
+  analytics?.flushNow();
+});
 // Leaving pointer lock (usually via Esc, which the browser swallows) pauses the game.
 let wasLocked = false;
 document.addEventListener('pointerlockchange', () => {
@@ -476,6 +559,8 @@ applySettings(settings);
 game.setMode('menu');
 menu.showStart(gameplay.progress.best, game.level.id);
 game.start();
+track('app_open', { returning: seen.playedBefore, level: game.level.id });
+void analytics?.flush(); // a player who leaves at once still counts
 if (params.has('autopilot')) handlers.play(); // screenshots / demos: skip the title
 // Every launch with the browser's bars showing asks once, over the title (players miss the pill).
 if (FullscreenPrompt.wanted(params)) new FullscreenPrompt(ui);
